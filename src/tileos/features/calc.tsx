@@ -17,7 +17,7 @@ export function CalcHow({ line, unit, waste, className, defaultOpen }: { line: T
         <span className="mt-1.5 block rounded-lg bg-wash px-3 py-2 text-[0.75rem] leading-relaxed text-ink-2">
           {line.uses.map((u, i) => (
             <span key={i} className="flex gap-2">
-              <span className="min-w-0 flex-1 truncate"><b className="font-semibold text-ink">{u.room} · {u.surface}</b> — {u.note}</span>
+              <span className="min-w-0 flex-1 truncate"><b className="font-semibold text-ink">{u.room} · {u.surface}</b> · {u.note}</span>
               <span className="shrink-0 tnum text-muted">{n1(u.raw)}</span>
             </span>
           ))}

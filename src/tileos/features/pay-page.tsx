@@ -12,7 +12,7 @@ import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
 import { PAY_WEEKS, THIS_WEEK, PAY_STATE, payRows, payRow, payGrid, poBalance, mismatchWhy, approvePay, askAboutPay, undoPay, weekDays, payOpen, paidWeeks, type PayRow, type PaidRow } from './pay'
 import { openRoom } from './field'
 
-const jobsLabel = (s: Store, r: PayRow) => (r.calc.jobs.length === 1 ? s.jobs[r.calc.jobs[0]]?.name : r.calc.jobs.length ? `${r.calc.jobs.length} projects` : '—')
+const jobsLabel = (s: Store, r: PayRow) => (r.calc.jobs.length === 1 ? s.jobs[r.calc.jobs[0]]?.name : r.calc.jobs.length ? `${r.calc.jobs.length} projects` : '')
 type Tone = 'info' | 'warn' | 'bad' | 'ok' | 'neutral'
 type WeekTile = { key: string; label: string; tag?: string; tone: Tone; status: string; amount?: number; kind: 'paid' | 'live' | 'now'; rows: PayRow[]; paid: PaidRow[] }
 const TONE_TXT: Record<Tone, string> = { info: 'text-brand-700', warn: 'text-warn-700', bad: 'text-bad-700', ok: 'text-ok-700', neutral: 'text-muted' }
@@ -56,7 +56,7 @@ export function PayPage() {
       toolbar={
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
           <WeekPicker weeks={tiles} value={w.key} onChange={setSel} />
-          <Status tone={w.tone}>{w.kind === 'now' ? 'Running — approve it Monday' : w.status}</Status>
+          <Status tone={w.tone}>{w.kind === 'now' ? 'Running. Approve it Monday' : w.status}</Status>
           <span className="ml-auto flex items-center gap-3 text-[0.8125rem] text-muted">
             <span>{n} {n === 1 ? 'installer' : 'installers'} · <b className="font-semibold tnum text-ink">{fmtMoney(total)}</b>{w.kind === 'now' ? ' so far' : ''}</span>
             {toApprove.length > 1 && toApprove.every((r) => r.state === 'ready') && <Button size="sm" variant="primary" icon={<Check />} onClick={() => toApprove.forEach((r) => approvePay(r.crew, w.key))}>Approve all {toApprove.length}</Button>}
@@ -78,7 +78,7 @@ export function PayPage() {
             <span>Installer</span><span className="text-right">Days</span><span className="text-right">Work done</span><span className="text-right">From the updates</span><span className="text-right">His bill</span><span />
           </div>
           {w.rows.map((r) => <PayLine key={r.crew} r={r} weekKey={w.key} />)}
-          {!w.rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.kind === 'now' ? 'No daily updates yet this week — it fills in as the site manager sends them.' : 'Nobody worked that week.'}</div>}
+          {!w.rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.kind === 'now' ? 'No daily updates yet this week. It fills in as the site manager sends them.' : 'Nobody worked that week.'}</div>}
         </div>
       )}
     </Page>
@@ -143,7 +143,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
   const st = PAY_STATE[r.state]
   const open = () => s.open({ t: 'pay', crew: r.crew, week: weekKey })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name}. Open his week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_4.5rem_5.75rem_8.125rem_9.5rem_11rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -152,7 +152,7 @@ function PayLine({ r, weekKey }: { r: PayRow; weekKey: string }) {
         </span>
       </span>
       <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.calc.days} {r.calc.days === 1 ? 'day' : 'days'}</span>
-      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.calc.sf ? `${r.calc.sf} SF` : '—'}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.calc.sf ? `${r.calc.sf} SF` : ''}</span>
       <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span>
       <span className="text-right max-lg:hidden">
         {/* his bill, and in a word whether it matches — no separate status column */}
@@ -180,7 +180,7 @@ function PaidLine({ r }: { r: PaidRow }) {
   const s = useStore()
   const open = () => s.open({ t: 'ipo', id: r.jobs[0].ipo })
   return (
-    <div role="button" aria-label={`${PEOPLE[r.crew].name} — paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
+    <div role="button" aria-label={`${PEOPLE[r.crew].name} · paid ${r.paidOn}`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn('grid min-h-[3rem] cursor-pointer grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_8.125rem_10rem_8.125rem] xl:grid-cols-[var(--cols-xl)] items-center gap-3 lg:gap-x-6 border-t border-line-2 bg-white py-2 transition-colors first:border-t-0 row-hover max-lg:grid-cols-[minmax(0,1fr)_auto]', PX)}>
       <span className="flex min-w-0 items-center gap-2.5">
         <Avatar who={r.crew} size={28} />
         <span className="min-w-0">
@@ -256,7 +256,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
         </div>
         <div className="flex shrink-0 items-stretch gap-3 max-md:w-full">
           <Figure label="From the daily updates" value={fmtMoney(row.calc.total)} sub={`${row.calc.days} daily ${row.calc.days === 1 ? 'update' : 'updates'}`} />
-          <Figure label="His bill" value={row.bill ? fmtMoney(row.bill.amount) : '—'} sub={row.bill ? row.bill.came : 'Not in yet'} bad={off} />
+          <Figure label="His bill" value={row.bill ? fmtMoney(row.bill.amount) : ''} sub={row.bill ? row.bill.came : 'Not in yet'} bad={off} />
         </div>
       </div>
       {why && (
@@ -266,7 +266,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
             <span className="font-semibold text-bad-700">{why.text}</span>
             {why.rooms.map((r) => (
               <span key={r.room} className="block">
-                <b className="font-semibold text-ink">{r.room}</b> — he billed {fmtMoney(r.bill)}; the updates show {fmtMoney(r.calc)} ({r.where}).
+                <b className="font-semibold text-ink">{r.room}</b> · he billed {fmtMoney(r.bill)}; the updates show {fmtMoney(r.calc)} ({r.where}).
               </span>
             ))}
           </div>
@@ -276,7 +276,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
   )
   const footer =
     row.state === 'running' ? (
-      <span className="text-[0.84375rem] text-muted">The week isn’t over — it grows with every daily update and is ready to approve Monday.</span>
+      <span className="text-[0.84375rem] text-muted">The week isn’t over. It grows with every daily update and is ready to approve Monday.</span>
     ) : row.state === 'approved' || row.state === 'paid' ? (
       <>
         <span className="inline-flex items-center gap-2 text-[0.84375rem] font-medium text-ok-700"><CircleCheckBig className="h-4 w-4" />{st.label} {row.rec?.date} · {fmtMoney(row.owe)}{row.state === 'approved' ? ' · a bill in QuickBooks' : ''}</span>
@@ -285,7 +285,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
     ) : (
       <>
         <span className="text-[0.84375rem] text-muted">
-          {row.state === 'check' ? 'Approving pays what the daily updates show.' : row.state === 'asked' ? `Asked ${name} ${row.rec?.date} — waiting for his answer.` : row.state === 'ready' ? 'His bill matches the daily updates.' : `No bill from ${name} yet — he gets this as his statement.`}
+          {row.state === 'check' ? 'Approving pays what the daily updates show.' : row.state === 'asked' ? `Asked ${name} ${row.rec?.date}. Waiting for his answer.` : row.state === 'ready' ? 'His bill matches the daily updates.' : `No bill from ${name} yet. He gets this as his statement.`}
         </span>
         {row.state === 'check' && <Button className="ml-auto max-sm:ml-0 max-sm:flex-1" icon={<MessageCircleQuestion />} onClick={() => askAboutPay(crew, week.key)}>Ask {name}</Button>}
         <Button className={cn('max-sm:flex-1', row.state !== 'check' && 'ml-auto')} variant="primary" icon={<Check />} onClick={() => approvePay(crew, week.key)}>Approve {fmtMoney(row.owe)}</Button>
@@ -323,7 +323,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
                       {x.byDay[d.date] ? <span className="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded-md bg-brand-50 px-1 text-[0.75rem] font-semibold tnum text-brand-700">+{x.byDay[d.date]}%</span> : <span className="h-1 w-1 rounded-full bg-line" />}
                     </span>
                   ))}
-                  <span className="text-right tnum text-ink-2 max-md:hidden">{x.sf != null ? Math.round(x.sf) : '—'}</span>
+                  <span className="text-right tnum text-ink-2 max-md:hidden">{x.sf != null ? Math.round(x.sf) : ''}</span>
                   <span className="text-right tnum text-ink">{fmtMoney(x.amount)}</span>
                 </div>
               ))}
@@ -361,7 +361,7 @@ export function PayModal({ crew, week: wk, level }: { crew: PersonKey; week?: st
           })}
           <div className="rounded-2xl bg-wash p-4">
             <div className="flex items-center gap-2 text-[0.84375rem] font-bold text-ink"><ClipboardList className="h-4 w-4 text-muted" />Where it comes from</div>
-            <div className="mt-1.5 text-[0.8125rem] leading-snug text-ink-2">Yakov’s daily updates — how far each wall and floor moved, with photos — times the rates on {name}’s PO.</div>
+            <div className="mt-1.5 text-[0.8125rem] leading-snug text-ink-2">Yakov’s daily updates. How far each wall and floor moved, with photos · times the rates on {name}’s PO.</div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {grid.map((g) => <button key={g.jobId + g.room} onClick={() => openRoom(g.jobId, g.room, 'log')} className="rounded-full border border-line bg-white px-2.5 py-1 text-[0.78125rem] font-medium text-ink-2 hover:border-brand-200 hover:text-brand-700">{g.room}</button>)}
             </div>

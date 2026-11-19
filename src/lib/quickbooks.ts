@@ -137,7 +137,7 @@ async function itemFor(l: InvoiceIn["lines"][number]): Promise<string> {
   if (itemMemo.has("*")) return itemMemo.get("*")!;
   const r = await query("SELECT * FROM Item WHERE Type = 'Service' AND Active = true MAXRESULTS 50");
   const any = (r.Item || []).find((i: any) => /^services?$/i.test(i.Name)) || r.Item?.[0];
-  if (!any?.Id) throw new QbError("noitem", "QuickBooks has no service item to put the bill on — add one (Sales → Products and services)");
+  if (!any?.Id) throw new QbError("noitem", "QuickBooks has no service item to put the bill on. Add one (Sales → Products and services)");
   itemMemo.set("*", String(any.Id));
   return String(any.Id);
 }

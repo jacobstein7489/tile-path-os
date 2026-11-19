@@ -93,7 +93,7 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
       {!jobId0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} keep={(j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage)} /></FormRow>}
       {job && (
         <>
-          <div className="text-[0.875rem] text-muted">How many boxes came of each{filled ? ' — what’s still coming is filled in' : ''}.</div>
+          <div className="text-[0.875rem] text-muted">How many boxes came of each{filled ? '. What’s still coming is filled in' : ''}.</div>
           <div className="mt-3 flex flex-col gap-2.5" data-tilein-list>
             {lines.map((l) => {
               /* still on order after this, and short only against all of it — what's here and what's coming */
@@ -116,12 +116,12 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
                   {l.r.boxes > 0 && l.unit !== 'boxes' && (
                     <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[0.84375rem] text-ink-2" data-tilein-box={l.g}>
                       <span className="font-medium">In a box:</span>
-                      <input inputMode="decimal" value={l.r.sf} onChange={(e) => set(l.g, { sf: e.target.value.replace(/[^\d.]/g, '').slice(0, 6), pcs: '' })} placeholder="SF" aria-label={`${l.g} — square feet in a box`} className="h-10 w-20 rounded-lg border border-line bg-white px-2.5 text-right tnum text-ink outline-none focus:border-brand-400" data-tilein-sf={l.g} />
+                      <input inputMode="decimal" value={l.r.sf} onChange={(e) => set(l.g, { sf: e.target.value.replace(/[^\d.]/g, '').slice(0, 6), pcs: '' })} placeholder="SF" aria-label={`${l.g}. Square feet in a box`} className="h-10 w-20 rounded-lg border border-line bg-white px-2.5 text-right tnum text-ink outline-none focus:border-brand-400" data-tilein-sf={l.g} />
                       <span>SF</span>
                       {pieceSF(l.t?.size) && (
                         <>
                           <span className="text-muted">or</span>
-                          <input inputMode="numeric" value={l.r.pcs} onChange={(e) => set(l.g, { pcs: e.target.value.replace(/[^\d]/g, '').slice(0, 4), sf: '' })} placeholder="tiles" aria-label={`${l.g} — tiles in a box`} className="h-10 w-20 rounded-lg border border-line bg-white px-2.5 text-right tnum text-ink outline-none focus:border-brand-400" data-tilein-pcs={l.g} />
+                          <input inputMode="numeric" value={l.r.pcs} onChange={(e) => set(l.g, { pcs: e.target.value.replace(/[^\d]/g, '').slice(0, 4), sf: '' })} placeholder="tiles" aria-label={`${l.g}. Tiles in a box`} className="h-10 w-20 rounded-lg border border-line bg-white px-2.5 text-right tnum text-ink outline-none focus:border-brand-400" data-tilein-pcs={l.g} />
                           <span>tiles</span>
                         </>
                       )}
@@ -137,7 +137,7 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
                 </div>
               )
             })}
-            {!lines.length && <div className="rounded-xl border border-line px-4 py-6 text-center text-[0.875rem] text-muted">No tiles on this project yet — add them on Materials → Tile selection.</div>}
+            {!lines.length && <div className="rounded-xl border border-line px-4 py-6 text-center text-[0.875rem] text-muted">No tiles on this project yet. Add them on Materials → Tile selection.</div>}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
             {small && <button type="button" onClick={() => s.swap({ t: 'problem', jobId })} className="inline-flex items-center gap-1.5 text-[0.875rem] font-semibold text-ink-2"><AlertTriangle className="h-4 w-4" />Broken, wrong or missing?</button>}

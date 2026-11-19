@@ -4,7 +4,7 @@
  *   followers — it waits under their "Waiting on others" until it's done, and they're told when it moves (only who
  *               asked to follow it — the one who asked for it or handed it over follows it by itself) 
  *   everyone  — pinned to the top of every login's Today until it's done */
-import { useStore, NOW, meOf } from '@/tileos/store'
+import { useStore, NOW, meOf, clockNow } from '@/tileos/store'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
 
@@ -64,6 +64,17 @@ export function setEveryone(id: string, on: boolean) {
   )
 }
 
+/** the time of day it's for ("9:00 AM") — none: any time that day. It goes on its line on Today, in time order */
+export function setTaskTime(id: string, at?: string) {
+  S().commit((s) => {
+    const t = s.tasks.find((x) => x.id === id)
+    if (!t || (t.at || '') === (at || '')) return
+    if (at) t.at = at
+    else delete t.at
+    t.log.push({ date: NOW, time: clockNow(), who: meOf(s.role), text: at ? `Time: ${at}` : 'No set time' })
+  }, undefined, { undo: false })
+}
+
 /** a task someone added by hand, taken off the list altogether (Undo puts it back) */
 export function removeTask(id: string) {
   const t = S().tasks.find((x) => x.id === id)
@@ -82,6 +93,6 @@ export function editTask(id: string, patch: { title?: string; detail?: string })
 }
 /** who may take it off altogether: a task someone added by hand, or asked for (the app's own come and go by
  *  themselves) — the admin, or whoever added it */
-export const canRemoveTask = (t: Task, me: PersonKey, admin: boolean) => !t.step && !t.action && (admin || t.by === me || (t.log || [])[0]?.who === me)
+export const canRemoveTask = (t: Task, me: PersonKey, admin: boolean) => !t.step && (admin || (!t.action && (t.by === me || (t.log || [])[0]?.who === me)))
 /** who may change its words: the same — not something to bring (that's what was asked for, in their words) */
 export const canEditTask = (t: Task, me: PersonKey, admin: boolean) => canRemoveTask(t, me, admin) && !t.req && t.state !== 'done'

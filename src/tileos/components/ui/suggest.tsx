@@ -72,7 +72,7 @@ export function SuggestInput({
             className={cn('h-12 w-full rounded-[0.6875rem] border border-[#d9d3c9] bg-white pl-3.5 text-[1rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50', value ? (mic ? 'pr-[4.75rem]' : 'pr-11') : mic ? 'pr-11' : 'pr-3.5')}
           />
           <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-            {value && <button type="button" aria-label="Clear it — pick another" title="Clear it — pick another" onClick={clear} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>}
+            {value && <button type="button" aria-label="Clear it · pick another" title="Clear it · pick another" onClick={clear} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><X className="h-4 w-4" /></button>}
             <Mic onText={(t) => onChange(addSaid(value, t))} size="sm" />
           </span>
         </span>

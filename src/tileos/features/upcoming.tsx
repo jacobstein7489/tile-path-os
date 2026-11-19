@@ -54,7 +54,7 @@ export function parseMeeting(text: string): Prep['meeting'] {
   rest = rest.replace(/[\s—–,-]+$/g, '').replace(/^[\s—–,-]+/g, '').replace(/\s{2,}/g, ' ').trim()
   return { text: rest || 'Meeting', day, time }
 }
-export const meetingText = (m?: Prep['meeting']) => (m ? [m.text, [m.day, m.time].filter(Boolean).join(' ')].filter(Boolean).join(' — ') : 'TBD')
+export const meetingText = (m?: Prep['meeting']) => (m ? [m.text, [m.day, m.time].filter(Boolean).join(' ')].filter(Boolean).join(' · ') : 'TBD')
 
 /* ---------------- the checklist before the crew starts, read from the system ----------------
  * Tile picked → tile on site → our materials → installer PO → deposit. Each step shows a short
@@ -100,7 +100,7 @@ export function planCells(s: Store, j: Job): Record<CellKey, Cell> {
         ? { state: 'yes', label: 'On site', hint: 'All finish tile delivered', run: openOrders }
         : checks.some((c) => c.received > 0)
           ? { state: 'part', label: 'Part here', hint: checks.filter((c) => c.received < c.ordered).map((c) => `${c.tag} ${c.received} of ${c.ordered} ${c.unit}`).join(' · '), run: openOrders }
-          : { state: 'wait', label: checks[0].eta ? `Due ${checks[0].eta}` : 'Ordered', hint: 'Ordered by the GC — not delivered yet', run: openOrders }
+          : { state: 'wait', label: checks[0].eta ? `Due ${checks[0].eta}` : 'Ordered', hint: 'Ordered by the GC, not delivered yet', run: openOrders }
       : s.prep[j.id]?.tile === 'yes'
         ? { state: 'yes', label: 'On site', hint: 'Finish tile delivered', run: openOrders }
         : s.prep[j.id]?.tile === 'part'
@@ -115,9 +115,9 @@ export function planCells(s: Store, j: Job): Record<CellKey, Cell> {
     : ipo.status === 'Draft'
       ? { state: 'part', label: 'Draft', hint: `${ipo.id} saved, not sent yet`, run: openIPO }
       : ipo.status === 'Sent'
-        ? { state: 'wait', label: 'Sent', hint: `${ipo.id} sent ${ipo.date} — waiting for ${PEOPLE[ipo.crew].name} to accept`, run: openIPO }
+        ? { state: 'wait', label: 'Sent', hint: `${ipo.id} sent ${ipo.date} · waiting for ${PEOPLE[ipo.crew].name} to accept`, run: openIPO }
         : ipo.status === 'Rejected'
-          ? { state: 'bad', label: 'Declined', hint: `${PEOPLE[ipo.crew].name} turned it down${ipo.reason ? ' — ' + ipo.reason.toLowerCase() : ''}`, run: book }
+          ? { state: 'bad', label: 'Declined', hint: `${PEOPLE[ipo.crew].name} turned it down${ipo.reason ? ' · ' + ipo.reason.toLowerCase() : ''}`, run: book }
           : { state: 'yes', label: 'Accepted', hint: `${PEOPLE[ipo.crew].name} accepted ${ipo.id} on ${ipo.date}`, run: openIPO }
   /* the deposit */
   const dep = s.money.find((m) => m.jobId === j.id && m.kind === 'deposit')
@@ -129,7 +129,7 @@ export function planCells(s: Store, j: Job): Record<CellKey, Cell> {
       : dep.paid
         ? { state: 'part', label: 'Part paid', hint: `${fmtMoney(dep.paid)} received, ${fmtMoney((dep.amount || 0) - dep.paid)} still open`, run: openDep }
         : dep.step >= 1
-          ? { state: 'wait', label: `Invoiced`, hint: `Invoice ${dep.ref || ''} sent — waiting for payment`, run: openDep }
+          ? { state: 'wait', label: `Invoiced`, hint: `Invoice ${dep.ref || ''} sent. Waiting for payment`, run: openDep }
           : { state: 'no', label: 'To invoice', hint: 'Send the deposit invoice', run: openDep }
   return { picked: tilesPicked, onsite, material, po, deposit }
 }
@@ -174,7 +174,7 @@ export function UpcomingPage() {
             { key: 'now', label: 'Can start now', count: inB('now').length, icon: <Rocket />, color: 'green', on: bucket === 'now', onClick: pick('now') },
             { key: 'soon', label: 'Starting soon', count: inB('soon').length, icon: <CalendarClock />, color: 'blue', on: bucket === 'soon', onClick: pick('soon') },
             { key: 'tbd', label: 'Start date to set', count: inB('tbd').length, icon: <CalendarX2 />, color: 'slate', on: bucket === 'tbd', onClick: pick('tbd') },
-            { key: 'pending', label: 'Estimates out — may come next', count: pendingN, icon: <FileClock />, color: 'violet', onClick: () => s.go({ page: 'estimates', q: { status: 'sent' } }), gapBefore: true },
+            { key: 'pending', label: 'Estimates out. May come next', count: pendingN, icon: <FileClock />, color: 'violet', onClick: () => s.go({ page: 'estimates', q: { status: 'sent' } }), gapBefore: true },
           ]}
         />
       }
@@ -217,7 +217,7 @@ export function UpcomingPage() {
 /** the start date as a calendar leaf */
 export function StartTile({ r }: { r: Row }) {
   const { p, j } = r
-  if (r.pending) return <DateTile top="Est." main="—" tone="vio" />
+  if (r.pending) return <DateTile top="Est." main="" tone="vio" />
   if (r.group === 'progress') return <ProgressRing pct={j.pct ?? 0} size={48} tone="ok" label={`${j.pct ?? 0}%`} />
   if (!p.targetISO) return <DateTile top="Start" main="TBD" />
   if (p.targetISO <= TODAY) return <DateTile top="Ready" main="Now" tone="ok" />
@@ -236,7 +236,7 @@ export function StepDot({ cell, label, caption = true }: { cell: Cell; label: st
     : <Plus className="h-4 w-4 text-faint transition group-hover/dot:text-brand-600" strokeWidth={2.4} />
   const tone = cell.state === 'yes' ? 'text-ok-700' : cell.state === 'bad' ? 'text-bad-600' : cell.state === 'wait' ? 'text-brand-600' : cell.state === 'part' ? 'text-warn-700' : 'text-muted'
   return (
-    <Tip label={`${label} — ${cell.disabled || cell.hint}`}>
+    <Tip label={`${label} · ${cell.disabled || cell.hint}`}>
       <button
         type="button"
         aria-label={`${label}: ${cell.label}`}
@@ -276,11 +276,11 @@ function PlanRow({ r }: { r: Row }) {
     ? `${r.pending} · ${fmtMoney(estAmount(est!))}`
     : inProgress
       ? target
-      : /^Ready now — /.test(target)
-        ? `Ready: ${target.replace(/^Ready now — /, '')}`
+      : /^Ready now(?: —|\.| ·) /.test(target)
+        ? `Ready: ${target.replace(/^Ready now(?: —|\.| ·) /, '')}`
         : target === 'Ready now' || target === 'TBD'
           ? ''
-          : target.replace(/\s+—\s+[A-Z][a-z]{2} \d{1,2}$/, '')
+          : target.replace(/(?:\s+[—·]\s+|\.\s+)[A-Z][a-z]{2} \d{1,2}$/, '')
   const openIt = () => s.open({ t: r.pending ? 'estimate' : 'job', id: r.pending || j.id })
   return (
     <div className={cn('border-t border-line-2 py-3.5 transition-colors row-hover', COLS, PX)}>
@@ -328,7 +328,7 @@ function RowAction({ r, cells }: { r: Row; cells: Record<CellKey, Cell> }) {
   if (r.pending) return <Button size="sm" variant="outline" onClick={() => s.open({ t: 'estimate', id: r.pending })}>Open</Button>
   if (r.group === 'progress') return <Button size="sm" variant="ghost" onClick={() => s.open({ t: 'job', id: j.id })}>Open</Button>
   const crew = installerOf(s, j)
-  const open = CELLS.filter((c) => !['yes', 'na'].includes(cells[c.key].state)).map((c) => c.full.replace(/\?$/, '').replace(/ —.*$/, ''))
+  const open = CELLS.filter((c) => !['yes', 'na'].includes(cells[c.key].state)).map((c) => c.full.replace(/\?$/, '').replace(/(?: —| ·|\. ).*$/, ''))
   if (!open.length && crew) return <Button size="sm" variant="primary" icon={<Play />} onClick={() => startProject(j.id)}>Start</Button>
   return (
     <Menu align="end" width={300} trigger={<Button size="sm" variant="outline" icon={<Play />}>Start</Button>}>
@@ -337,7 +337,7 @@ function RowAction({ r, cells }: { r: Row; cells: Record<CellKey, Cell> }) {
         <div className="mt-1 text-[0.8125rem] leading-snug text-muted">{open.join(' · ')}{!crew ? ' · no installer picked' : ''}</div>
       </div>
       <MenuSep />
-      {crew ? <MenuItem icon={<Play className="h-4 w-4" />} onSelect={() => startProject(j.id)}>Start anyway</MenuItem> : <div className="px-2.5 py-2 text-[0.8125rem] text-muted">Pick the installer first — his PO is drafted for you.</div>}
+      {crew ? <MenuItem icon={<Play className="h-4 w-4" />} onSelect={() => startProject(j.id)}>Start anyway</MenuItem> : <div className="px-2.5 py-2 text-[0.8125rem] text-muted">Pick the installer first. His PO is drafted for you.</div>}
     </Menu>
   )
 }
@@ -350,7 +350,7 @@ export function InstallerPick({ job, locked, wide }: { job: Job; locked?: boolea
     <button
       disabled={locked}
       onClick={(e) => { e.stopPropagation(); s.open({ t: 'book', jobId: job.id, crew: who }) }}
-      aria-label={who ? `Installer ${PEOPLE[who].name} — change` : 'Pick the installer'}
+      aria-label={who ? `Installer ${PEOPLE[who].name} · change` : 'Pick the installer'}
       className={cn(
         'inline-flex h-8 max-w-full items-center gap-2 rounded-full text-[0.8125rem] font-semibold transition',
         who ? 'pl-1 pr-3 text-ink hover:bg-wash-2' : 'border border-dashed border-[#c9ced5] px-3 text-muted hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700',

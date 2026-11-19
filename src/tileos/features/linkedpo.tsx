@@ -36,7 +36,7 @@ export function LinkedPO({ t }: { t: Task }) {
           <Avatar who={p.crew} size={30} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[p.crew]?.name} · {p.id}</span>
-            <span className={cn('block text-[0.8125rem]', p.status === 'Accepted' ? 'text-ok-700' : p.status === 'Rejected' ? 'text-bad-600' : 'text-warn-700')}>{p.status === 'Accepted' ? `Accepted ${p.date}` : p.status === 'Rejected' ? 'He said no' : p.status === 'Sent' ? `Sent — waiting for his yes` : 'Not sent yet'}{total ? ` · ${fmtMoney(total)}` : ''}</span>
+            <span className={cn('block text-[0.8125rem]', p.status === 'Accepted' ? 'text-ok-700' : p.status === 'Rejected' ? 'text-bad-600' : 'text-warn-700')}>{p.status === 'Accepted' ? `Accepted ${p.date}` : p.status === 'Rejected' ? 'He said no' : p.status === 'Sent' ? `Sent. Waiting for his yes` : 'Not sent yet'}{total ? ` · ${fmtMoney(total)}` : ''}</span>
           </span>
           <span className="inline-flex shrink-0 items-center gap-0.5 text-[0.8125rem] font-semibold text-brand-700">Open his PO<ChevronRight className="h-4 w-4" /></span>
         </button>

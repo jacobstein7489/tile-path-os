@@ -3,11 +3,11 @@
  * a little number in a corner. It waits until you're out of whatever window you're in, lists what's new, and each one
  * opens in a click. "Got it" puts it away (it stays on Today and the calendar, of course). */
 import * as React from 'react'
-import { Inbox, ArrowRight, CalendarDays, BellRing } from 'lucide-react'
+import { Inbox, ChevronRight, CalendarDays, BellRing } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { PEOPLE } from '@/tileos/data/model'
+import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { REAL } from '@/tileos/lib/save'
 import { cn } from '@/tileos/lib/utils'
 import type { Task } from '@/tileos/data/work'
@@ -63,81 +63,64 @@ function markSeen(keys: string[]) {
   write(k, Array.from(new Set([...(read(k) || []), ...keys])))
 }
 
+/** one line, the same for everything new: who did it (their circle), what it is — and under it, in a few words, why it's
+ *  here and its project. Red only for what's urgent or late */
+type Row = { key: string; who?: PersonKey; icon?: React.ReactNode; title: string; why: string; tone?: 'bad' | 'warn'; job?: string; urgent?: boolean; open: () => void }
 export function IncomingModal({ keys, level }: { keys: string[]; level: number }) {
   const s = useStore()
   const me = meOf(s.role)
-  /* urgent ones first — red, on top */
+  const short = (p?: string) => (p ? PEOPLE[p as PersonKey]?.short || 'Someone' : 'Someone')
+  /* urgent ones first */
   const list = keys.map((k) => s.tasks.find((t) => tag(t, me) === k)).filter((t): t is Task => !!t).sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent))
-  const urgent = list.filter((t) => t.urgent && t.state === 'now' && t.owner === me).length
   const meets = keys.map((k) => s.events.find((e) => evTag(e) === k)).filter((e): e is CalEvent => !!e)
   const steps = nudgedSteps(s).filter((x) => keys.includes(stepTag(x.job, x.step, x.n!.at)))
   const done = () => { markSeen(keys); s.close() }
-  if (!list.length && !meets.length && !steps.length) return null
-  const n = list.length + meets.length + steps.length
-  const reminders = list.filter((t) => t.nudge && t.owner === me && keys.includes(tag(t, me)) && tag(t, me).includes(':n')).length + steps.length
+  const go = (f: () => void) => () => { markSeen(keys); f() }
+  const rows: Row[] = [
+    ...list.map((t): Row => {
+      const nudged = !!t.nudge && t.owner === me && t.nudge.by !== me && tag(t, me).includes(':n')
+      const from = nudged ? t.nudge!.by : t.log?.[0]?.who && t.log[0].who !== 'system' ? (t.log[0].who as PersonKey) : undefined
+      const gc = isGcWait(t) && t.owner === me
+      const why = t.urgent && t.owner === me ? `Urgent · ${from ? `${short(from)} gave it to you` : 'for you'}`
+        : nudged ? `${short(from)} reminded you${gc ? '' : ' · it’s late'}`
+          : gc ? `${askLabel(t)} today`
+            : t.owner !== me && t.also?.includes(me) ? `${short(from || t.owner)} shared it with you`
+              : t.owner !== me ? `${short(t.owner)} has it · you’re watching`
+                : from && from !== me ? `${short(from)} gave it to you` : 'New on your list'
+      return { key: t.id, who: from || (t.owner !== me ? t.owner : undefined), icon: <Inbox className="h-4 w-4" />, title: t.title, why, tone: t.urgent && t.owner === me ? 'bad' : nudged ? 'bad' : gc ? 'warn' : undefined, job: s.jobs[t.jobId]?.name, urgent: !!t.urgent && t.owner === me, open: go(() => s.open({ t: 'task', id: t.id })) }
+    }),
+    ...meets.map((e): Row => ({ key: e.id, who: e.by, icon: <CalendarDays className="h-4 w-4" />, title: e.title, why: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${labelFromIso(e.date)} at ${timeLabel(e.start)}${e.by && e.by !== me ? ` · set by ${short(e.by)}` : ''}`, job: e.jobId ? s.jobs[e.jobId]?.name : undefined, open: go(() => s.open({ t: 'event', id: e.id })) })),
+    ...steps.map(({ job, step, n: nu }): Row => ({ key: `${job.id}:${step.key}`, who: nu?.by, icon: <BellRing className="h-4 w-4" />, title: step.short || step.label, why: `${short(nu?.by)} reminded you · it’s late`, tone: 'bad', job: job.name, open: go(() => openStep(job.id, step.key)) })),
+  ]
+  if (!rows.length) return null
+  const n = rows.length
+  const urgent = rows.filter((r) => r.urgent).length
+  const SHOW = 6
   return (
     <Modal
       level={level}
       size="sm"
       onClose={done}
-      title={urgent ? (n === 1 ? 'Urgent — for you' : `${urgent} urgent · ${n} new for you`) : reminders === n ? (n === 1 ? 'A reminder — it’s late' : `${n} reminders — they’re late`) : n === 1 ? 'New for you' : `${n} new for you`}
-      sub={urgent ? 'It’s on top of your Today, in red, until it’s done' : reminders === n ? 'Someone is asking about these. They’re on your Today.' : meets.length && !list.length ? 'It’s on your calendar and your Today' : 'It’s on your Today too'}
-      footer={<Button className="ml-auto" variant="primary" onClick={done}>Got it</Button>}
+      title={urgent ? (n === 1 ? 'Urgent for you' : `${n} new for you · ${urgent} urgent`) : n === 1 ? 'New for you' : `${n} new for you`}
+      sub="Tap one to open it. They’re all on your Today."
+      footer={<Button className="ml-auto max-sm:flex-1" variant="primary" onClick={done} data-incoming-ok>Got it</Button>}
+      bodyClass="px-0 pb-1 pt-0"
     >
-      <div className="flex flex-col gap-2">
-        {list.slice(0, 5).map((t) => {
-          const nudged = !!t.nudge && t.owner === me && t.nudge.by !== me && tag(t, me).includes(':n')
-          const from = nudged ? t.nudge!.by : t.log?.[0]?.who && t.log[0].who !== 'system' ? t.log[0].who : undefined
-          const job = s.jobs[t.jobId]
-          return (
-            <button
-              key={t.id}
-              onClick={() => { markSeen(keys); s.open({ t: 'task', id: t.id }) }}
-              data-incoming-urgent={t.urgent ? '' : undefined}
-              className={cn('group flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition', t.urgent ? 'border-bad-200 bg-bad-50/50 hover:border-bad-300' : 'border-line bg-white hover:border-brand-200 hover:bg-brand-50/40')}
-            >
-              {from ? <Avatar who={from} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"><Inbox className="h-4 w-4" /></span>}
+      <ul className="flex flex-col" data-incoming-list>
+        {rows.slice(0, SHOW).map((r) => (
+          <li key={r.key} className="border-t border-line-2 first:border-t-0">
+            <button type="button" onClick={r.open} className="group flex min-h-[3.75rem] w-full items-center gap-3 px-6 py-2.5 text-left transition hover:bg-wash/70 max-sm:px-4" data-incoming-row {...(r.urgent ? { 'data-incoming-urgent': '' } : {})}>
+              {r.who && PEOPLE[r.who] ? <Avatar who={r.who} size={32} /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash-2 text-muted">{r.icon}</span>}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{t.urgent && <span className="mr-1.5 inline-flex h-[1.125rem] items-center rounded-full bg-bad-600 px-1.5 align-[0.0625rem] text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-white">Urgent</span>}{t.title}</span>
-                <span className={cn('block truncate text-[0.78125rem]', nudged ? 'font-medium text-bad-700' : isGcWait(t) && t.owner === me ? 'font-medium text-warn-700' : 'text-muted')}>{nudged ? [`${PEOPLE[from!]?.short} reminded you${isGcWait(t) ? '' : ' — it’s late'}`, job?.name, isGcWait(t) ? askLabel(t) : t.due ? `was due ${t.due}` : ''].filter(Boolean).join(' · ') : isGcWait(t) && t.owner === me ? [`${askLabel(t)} today`, job?.name, from ? `from ${PEOPLE[from]?.short}` : ''].filter(Boolean).join(' · ') : [t.owner !== me ? `${PEOPLE[t.owner]?.short} has it — you follow it` : '', job?.name, from && t.owner === me ? `from ${PEOPLE[from]?.short}` : t.owner === me ? t.where : '', t.due ? `due ${t.due}` : ''].filter(Boolean).join(' · ')}</span>
+                <span className="block truncate text-[0.9375rem] font-semibold leading-snug text-ink">{r.title}</span>
+                <span className="block truncate text-[0.8125rem] leading-snug"><span className={r.tone === 'bad' ? 'font-medium text-bad-600' : r.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted'}>{r.why}</span>{r.job && <span className="text-muted"> · {r.job}</span>}</span>
               </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
             </button>
-          )
-        })}
-        {meets.map((e) => {
-          const job = e.jobId ? s.jobs[e.jobId] : undefined
-          return (
-            <button
-              key={e.id}
-              onClick={() => { markSeen(keys); s.open({ t: 'event', id: e.id }) }}
-              className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
-            >
-              {e.by ? <Avatar who={e.by} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"><CalendarDays className="h-4 w-4" /></span>}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-semibold text-ink">{e.title}{job ? ` · ${job.name}` : ''}</span>
-                <span className="block truncate text-[0.78125rem] text-muted">{labelFromIso(e.date)} · {timeLabel(e.start)}{e.by ? ` · set by ${PEOPLE[e.by]?.short}` : ''}</span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
-            </button>
-          )
-        })}
-        {steps.map(({ job, step, n: nu }) => (
-          <button
-            key={`${job.id}:${step.key}`}
-            onClick={() => { markSeen(keys); openStep(job.id, step.key) }}
-            className="group flex items-center gap-3 rounded-xl border border-line bg-white px-3.5 py-3 text-left transition hover:border-brand-200 hover:bg-brand-50/40"
-          >
-            {nu?.by ? <Avatar who={nu.by} size={34} /> : <span className="inline-flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600"><BellRing className="h-4 w-4" /></span>}
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[0.90625rem] font-semibold text-ink">{step.short || step.label}</span>
-              <span className="block truncate text-[0.78125rem] font-medium text-bad-700">{[`${PEOPLE[nu!.by]?.short} reminded you — it’s late`, job.name, step.due ? `was due ${labelFromIso(step.due)}` : ''].filter(Boolean).join(' · ')}</span>
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
-          </button>
+          </li>
         ))}
-        {list.length > 5 && <div className="px-1 text-[0.8125rem] text-muted">and {list.length - 5} more on your Today</div>}
-      </div>
+        {n > SHOW && <li className="border-t border-line-2 px-6 py-2.5 text-[0.8125rem] text-muted max-sm:px-4">And {n - SHOW} more on your Today</li>}
+      </ul>
     </Modal>
   )
 }

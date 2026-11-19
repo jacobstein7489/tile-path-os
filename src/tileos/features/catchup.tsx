@@ -268,7 +268,7 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
         tall
         onClose={s.close}
         title={title}
-        header={<div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>{progress}<h2 className="font-display mt-2 text-[1.375rem] font-semibold leading-tight text-ink">{todo.length ? `${todo.length} to set up` : 'Every one is set up'}</h2><div className="mt-0.5 text-[0.875rem] text-muted">Tap one to set it up — what’s still missing is said on each.</div></div>}
+        header={<div className="border-b border-line px-6 pb-4 pt-5 pr-16 max-sm:px-4 max-sm:pt-3.5" data-catchup-head>{progress}<h2 className="font-display mt-2 text-[1.375rem] font-semibold leading-tight text-ink">{todo.length ? `${todo.length} to set up` : 'Every one is set up'}</h2><div className="mt-0.5 text-[0.875rem] text-muted">Tap one to set it up. What’s still missing is said on each.</div></div>}
         footer={first ? <Button className="ml-auto max-sm:flex-1" variant="primary" iconRight={<ChevronRight />} onClick={() => setCur(first)} data-catchup-start>{setN ? 'Go on with the next one' : 'Start with the first one'}</Button> : <Button className="ml-auto max-sm:flex-1" variant="primary" onClick={s.close} data-catchup-close>Done</Button>}
         bodyClass="p-0"
       >
@@ -403,7 +403,7 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
               const on = (k === 'yes') === d.hold
               return <button key={k} type="button" aria-pressed={on} onClick={() => set({ hold: k === 'yes' })} data-catchup-hold-pick={k} className={cn('inline-flex h-10 min-w-[4.5rem] items-center justify-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition max-sm:h-11', on ? (k === 'yes' ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-brand-300 bg-brand-50 text-brand-800') : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}{l}</button>
             })}
-            {d.hold &&<span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
+            {d.hold &&<span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why. Waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
           </div>
         </Line>
       )}

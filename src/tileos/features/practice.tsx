@@ -94,9 +94,9 @@ export function makePractice(crew: PersonKey, from: PracticeFrom = 'installing')
   })
   const pct = jobPct(rooms)
   const job: Job = {
-    id: PRACTICE, name: 'Practice — 12 Test Lane', client: 'Practice client', clientId: CLIENT, address: '12 Test Lane · practice, not a real job', clientPO: 'PRACTICE',
-    stage: 'installation', status: 'ok', headline: 'Practice project — try the daily update',
-    issues: [{ tone: 'info', text: 'Practice project — remove it in Settings → Practice project when you’re done' }],
+    id: PRACTICE, name: 'Practice · 12 Test Lane', client: 'Practice client', clientId: CLIENT, address: '12 Test Lane · practice, not a real job', clientPO: 'PRACTICE',
+    stage: 'installation', status: 'ok', headline: 'Practice project. Try the daily update',
+    issues: [{ tone: 'info', text: 'Practice project. Remove it in Settings → Practice project when you’re done' }],
     next: { text: 'Send today’s daily update', owner: site, due: 'Today' },
     pct, crew, workers: 2, pm: boss, site, kind: 'install',
     keyDate: { label: 'Finish', value: md(finish) },
@@ -104,7 +104,7 @@ export function makePractice(crew: PersonKey, from: PracticeFrom = 'installing')
     swatch: 'calacatta', building: 'house', contract: 14200,
     stageDates: { won: md(addDays(lastMon, -21)), setup: md(addDays(lastMon, -18)), verification: md(addDays(lastMon, -14)), ready: md(addDays(lastMon, -10)), scheduled: md(addDays(lastMon, -9)), installation: md(lastMon) },
   }
-  const client: Customer = { id: CLIENT, name: 'Practice client', kind: 'Homeowner', address: '12 Test Lane', phone: '', email: '', notes: 'Made for practice — remove it in Settings → Practice project.', contacts: [] }
+  const client: Customer = { id: CLIENT, name: 'Practice client', kind: 'Homeowner', address: '12 Test Lane', phone: '', email: '', notes: 'Made for practice. Remove it in Settings → Practice project.', contacts: [] }
   const sent = md(addDays(lastMon, -9))
   s0.commit((st) => {
     st.jobs[PRACTICE] = job
@@ -115,16 +115,16 @@ export function makePractice(crew: PersonKey, from: PracticeFrom = 'installing')
     st.ipos.push({
       id: IPO_ID, jobId: PRACTICE, crew, status: 'Accepted', date: sent,
       lines: [
-        { item: 'Floor tile — set and grout', qty: '105 SF', amount: 1575, itemId: 'i-floor', n: 105, rate: 15 },
-        { item: 'Wall tile — set and grout', qty: '231 SF', amount: 4158, itemId: 'i-wall', n: 231, rate: 18 },
-        { item: 'Mosaic — shower floor', qty: '15 SF', amount: 450, itemId: 'i-mosaic', n: 15, rate: 30 },
+        { item: 'Floor tile. Set and grout', qty: '105 SF', amount: 1575, itemId: 'i-floor', n: 105, rate: 15 },
+        { item: 'Wall tile. Set and grout', qty: '231 SF', amount: 4158, itemId: 'i-wall', n: 231, rate: 18 },
+        { item: 'Mosaic · shower floor', qty: '15 SF', amount: 450, itemId: 'i-mosaic', n: 15, rate: 30 },
       ],
       changes: [],
       log: [{ date: sent, who: boss, text: `Sent to ${PEOPLE[crew]?.short} (practice)` }, { date: sent, who: crew, text: 'Accepted' }],
     })
     st.bookings.push({ id: BOOKING, crew, jobId: PRACTICE, start: lastMon, end: finish, label: 'Master bath · kitchen · guest bath (practice)', workers: 2, status: 'on' })
     ;(st.hist[PRACTICE] ||= []).unshift({ date: NOW, who: meOf(st.role), kind: 'field', title: 'Practice project made', detail: `${PEOPLE[crew]?.short} installing since ${md(lastMon)}. Try the daily update, then see installer pay and billing move. Remove it in Settings when you’re done.` } as any)
-  }, 'Practice project made', { sub: `${PEOPLE[crew]?.short} is on it — ${PEOPLE[site]?.short || 'the site manager'} has today’s daily update.` })
+  }, 'Practice project made', { sub: `${PEOPLE[crew]?.short} is on it · ${PEOPLE[site]?.short || 'the site manager'} has today’s daily update.` })
 }
 
 /** the rooms, every wall and floor with its tile and square feet — nothing installed yet, and no layouts: those are
@@ -163,9 +163,9 @@ function makePracticeStart() {
   const contract = 14200
   const won = md(addDays(TODAY, -2))
   const job: Job = {
-    id: PRACTICE, name: 'Practice — 12 Test Lane', client: 'Practice client', clientId: CLIENT, address: '12 Test Lane · practice, not a real job', clientPO: 'PRACTICE',
-    stage: 'setup', status: 'ok', headline: 'Practice project — try the whole flow',
-    issues: [{ tone: 'info', text: 'Practice project — remove it in Settings → Practice project when you’re done' }],
+    id: PRACTICE, name: 'Practice · 12 Test Lane', client: 'Practice client', clientId: CLIENT, address: '12 Test Lane · practice, not a real job', clientPO: 'PRACTICE',
+    stage: 'setup', status: 'ok', headline: 'Practice project. Try the whole flow',
+    issues: [{ tone: 'info', text: 'Practice project. Remove it in Settings → Practice project when you’re done' }],
     next: { text: 'Pick the installer and send his PO', owner: boss, due: 'Today' },
     pct: 0, pm: boss, site, kind: 'install',
     keyDate: { label: 'Start', value: md(start) },
@@ -173,16 +173,16 @@ function makePracticeStart() {
     swatch: 'calacatta', building: 'house', contract,
     stageDates: { won, setup: won },
   }
-  const client: Customer = { id: CLIENT, name: 'Practice client', kind: 'Homeowner', address: '12 Test Lane', phone: '', email: '', notes: 'Made for practice — remove it in Settings → Practice project.', contacts: [] }
+  const client: Customer = { id: CLIENT, name: 'Practice client', kind: 'Homeowner', address: '12 Test Lane', phone: '', email: '', notes: 'Made for practice. Remove it in Settings → Practice project.', contacts: [] }
   s0.commit((st) => {
     st.jobs[PRACTICE] = job
     st.clients[CLIENT] = client
     st.tiles[PRACTICE] = tiles
     st.rooms[PRACTICE] = rooms
     st.prep[PRACTICE] = { ...(st.prep[PRACTICE] || {}), targetISO: start } as any
-    st.money.push({ id: 'dep-practice', jobId: PRACTICE, kind: 'deposit', title: 'Deposit 20%', amount: Math.round(contract * 0.2), step: 0, state: 'todo', note: 'Practice — nothing goes to QuickBooks', log: [{ date: NOW, who: 'system', text: 'Deposit required — practice' }] } as any)
-    ;(st.hist[PRACTICE] ||= []).unshift({ date: NOW, who: meOf(st.role), kind: 'setup', title: 'Practice project made — paperwork in, nothing ordered yet', detail: 'Pick the installer and send his PO, order the materials, get the tile in, then start the job. Remove it in Settings when you’re done.' } as any)
-  }, 'Practice project made', { sub: 'Paperwork and square feet are in — the installer, the orders and the start are yours to try.' })
+    st.money.push({ id: 'dep-practice', jobId: PRACTICE, kind: 'deposit', title: 'Deposit 20%', amount: Math.round(contract * 0.2), step: 0, state: 'todo', note: 'Practice. Nothing goes to QuickBooks', log: [{ date: NOW, who: 'system', text: 'Deposit required · practice' }] } as any)
+    ;(st.hist[PRACTICE] ||= []).unshift({ date: NOW, who: meOf(st.role), kind: 'setup', title: 'Practice project made. Paperwork in, nothing ordered yet', detail: 'Pick the installer and send his PO, order the materials, get the tile in, then start the job. Remove it in Settings when you’re done.' } as any)
+  }, 'Practice project made', { sub: 'Paperwork and square feet are in. The installer, the orders and the start are yours to try.' })
 }
 
 /** everything with the practice project's id, gone */
@@ -213,32 +213,32 @@ export function PracticeTab() {
   const open = (k?: string) => () => S().open({ t: 'job', id: PRACTICE, tab: k ? `step:${k}` : undefined })
   const early = !!job && ['awarded', 'setup', 'verification', 'ready', 'scheduled'].includes(job.stage)
   const startSteps: { icon: React.ElementType; title: string; sub: string; btn: string; run: () => void }[] = [
-    { icon: HardHat, title: '1 · The installer’s PO', sub: 'Pick who installs it — his PO is made from the square feet × his rates. Send it, then mark that he said yes.', btn: 'Pick the installer', run: open('installer') },
-    { icon: Package, title: '2 · Order the setting materials', sub: 'Decide what every wall and floor is set on — the materials work themselves out from the square feet. Then send the PO.', btn: 'Decide the setup', run: open('setup') },
+    { icon: HardHat, title: '1 · The installer’s PO', sub: 'Pick who installs it. His PO is made from the square feet × his rates. Send it, then mark that he said yes.', btn: 'Pick the installer', run: open('installer') },
+    { icon: Package, title: '2 · Order the setting materials', sub: 'Decide what every wall and floor is set on. The materials work themselves out from the square feet. Then send the PO.', btn: 'Decide the setup', run: open('setup') },
     { icon: Truck, title: '3 · The tile comes in', sub: 'Get the delivery date from the store, then check it in. Anything broken, wrong or missing: + Add → A problem.', btn: 'Tile delivery date', run: open('order') },
-    { icon: ClipboardList, title: '4 · Start the job — then the daily update', sub: 'When it’s ready, Start the job. Then the daily update, installer pay and billing follow from it.', btn: 'Open the project', run: open() },
+    { icon: ClipboardList, title: '4 · Start the job, then the daily update', sub: 'When it’s ready, Start the job. Then the daily update, installer pay and billing follow from it.', btn: 'Open the project', run: open() },
   ]
   const steps: { icon: React.ElementType; title: string; sub: string; btn: string; run: () => void }[] = early ? startSteps : [
-    { icon: ClipboardList, title: `1 · The daily update — as ${site ? PEOPLE[site]?.short : 'the site manager'}`, sub: 'His Today has “Daily update · Practice — 12 Test Lane”. Move a wall or floor (say the shower floor to 100%), add a photo, send it. You come back with “Back to me” on top.', btn: `See it as ${site ? PEOPLE[site]?.short : 'the site manager'}`, run: asSite },
-    { icon: HandCoins, title: `2 · Installer pay — ${job?.crew ? PEOPLE[job.crew]?.short : 'his'} week`, sub: 'Installer pay works out his week from the updates: square feet that moved × the rate on his PO. Today’s update shows up there as soon as it’s sent.', btn: 'Open installer pay', run: () => S().go({ page: 'pay' }) },
-    { icon: Receipt, title: '3 · Billing — what the client owes for the work', sub: 'Billing → Progress: last week’s work on this project is ready to bill, figured the same way from the updates. This week’s keeps adding up as updates come in.', btn: 'Open billing', run: () => S().go({ page: 'money', tab: 'progress' }) },
+    { icon: ClipboardList, title: `1 · The daily update · as ${site ? PEOPLE[site]?.short : 'the site manager'}`, sub: 'His Today has “Daily update · Practice · 12 Test Lane”. Move a wall or floor (say the shower floor to 100%), add a photo, send it. You come back with “Back to me” on top.', btn: `See it as ${site ? PEOPLE[site]?.short : 'the site manager'}`, run: asSite },
+    { icon: HandCoins, title: `2 · Installer pay · ${job?.crew ? PEOPLE[job.crew]?.short : 'his'} week`, sub: 'Installer pay works out his week from the updates: square feet that moved × the rate on his PO. Today’s update shows up there as soon as it’s sent.', btn: 'Open installer pay', run: () => S().go({ page: 'pay' }) },
+    { icon: Receipt, title: '3 · Billing. What the client owes for the work', sub: 'Billing → Progress: last week’s work on this project is ready to bill, figured the same way from the updates. This week’s keeps adding up as updates come in.', btn: 'Open billing', run: () => S().go({ page: 'money', tab: 'progress' }) },
   ]
   return (
     <Card pad={false} className="overflow-hidden">
       <CardHeader
         icon={<IconCircle tone="info" size={34}><FlaskConical className="h-4 w-4" /></IconCircle>}
-        title="Practice project — try the whole flow"
-        sub="A made-up project with its rooms, square feet and tiles filled in. Nothing goes to a client or to QuickBooks. It shows in pay and billing while it’s here — remove it before you approve pay or send bills."
+        title="Practice project. Try the whole flow"
+        sub="A made-up project with its rooms, square feet and tiles filled in. Nothing goes to a client or to QuickBooks. It shows in pay and billing while it’s here. Remove it before you approve pay or send bills."
       />
       {!on ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-line-2 px-5 py-4 max-sm:px-4">
           <span className="text-[0.875rem] text-ink-2">Start it</span>
           <Menu align="start" width={320} trigger={
-            <button aria-label="Where it starts" className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white px-3 text-[0.84375rem] font-semibold text-ink hover:border-[#cdc7bc]">{from === 'start' ? 'Getting ready — nothing ordered yet' : 'Installing — a crew on it since last Monday'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>
+            <button aria-label="Where it starts" className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-white px-3 text-[0.84375rem] font-semibold text-ink hover:border-[#cdc7bc]">{from === 'start' ? 'Getting ready. Nothing ordered yet' : 'Installing. A crew on it since last Monday'}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>
           }>
             <MenuLabel>Where the practice project starts</MenuLabel>
-            <MenuItem checked={from === 'start'} onSelect={() => setFrom('start')} hint="Try the installer’s PO, the orders, the tile coming in, then installing">Getting ready — nothing ordered yet</MenuItem>
-            <MenuItem checked={from === 'installing'} onSelect={() => setFrom('installing')} hint="Try the daily update, installer pay and billing">Installing — a crew on it since last Monday</MenuItem>
+            <MenuItem checked={from === 'start'} onSelect={() => setFrom('start')} hint="Try the installer’s PO, the orders, the tile coming in, then installing">Getting ready. Nothing ordered yet</MenuItem>
+            <MenuItem checked={from === 'installing'} onSelect={() => setFrom('installing')} hint="Try the daily update, installer pay and billing">Installing. A crew on it since last Monday</MenuItem>
           </Menu>
           {from === 'installing' && <span className="text-[0.875rem] text-ink-2">with</span>}
           {from === 'installing' && <Menu align="start" width={240} trigger={
@@ -270,7 +270,7 @@ export function PracticeTab() {
               <Button size="sm" className={cn('shrink-0 max-sm:ml-11')} onClick={x.run}>{x.btn}</Button>
             </div>
           ))}
-          {REAL.admin && <div className="border-t border-line-2 px-5 py-2.5 text-[0.78125rem] text-muted max-sm:px-4">Seeing it as someone else? “Back to me” is on the bar on top{' '}<button className="font-semibold text-brand-700 hover:underline" onClick={backToMe}>— or here</button>.</div>}
+          {REAL.admin && <div className="border-t border-line-2 px-5 py-2.5 text-[0.78125rem] text-muted max-sm:px-4">Seeing it as someone else? “Back to me” is on the bar on top{' '}<button className="font-semibold text-brand-700 hover:underline" onClick={backToMe}>· or here</button>.</div>}
         </>
       )}
     </Card>

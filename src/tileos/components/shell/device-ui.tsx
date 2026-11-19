@@ -25,7 +25,7 @@ export function OfflineBar() {
   return (
     <div className="flex items-center justify-center gap-2 bg-[#fdf3dc] px-4 py-2 text-center text-[0.8125rem] font-medium text-[#7a4b06]" data-offline-bar role="status">
       <WifiOff className="h-4 w-4 shrink-0" />
-      <span>No signal — what you do is kept on this phone and goes up by itself when you’re back online.</span>
+      <span>No signal. What you do is kept on this phone and goes up by itself when you’re back online.</span>
     </div>
   )
 }
@@ -70,7 +70,7 @@ export function PullToRefresh() {
   React.useEffect(() => {
     let back = false
     try { back = sessionStorage.getItem(REFRESHED) === '1'; sessionStorage.removeItem(REFRESHED) } catch { /* private window — nothing to say */ }
-    if (back) setTimeout(() => showPop({ title: 'Up to date', sub: 'Refreshed — you’re seeing the newest.', tone: 'ok' }), 400)
+    if (back) setTimeout(() => showPop({ title: 'Up to date', sub: 'Refreshed. You’re seeing the newest.', tone: 'ok' }), 400)
   }, [])
   React.useEffect(() => {
     if (!window.matchMedia('(pointer: coarse)').matches) return
@@ -114,7 +114,7 @@ export function PullToRefresh() {
           setBusy(false)
           setY(0)
           if (r === 'offline') showPop({ title: 'No signal', sub: OFFLINE_WORDS, tone: 'warn' })
-          else showPop({ title: 'Up to date', sub: 'Refreshed — you’re seeing the newest.', tone: 'ok' })
+          else showPop({ title: 'Up to date', sub: 'Refreshed. You’re seeing the newest.', tone: 'ok' })
         }, wait)
       })
     }

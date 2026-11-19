@@ -105,7 +105,7 @@ export function estHandOff(estId: string) {
   if (step === 'final') {
     S().commit((s) => {
       const e = s.estimates.find((x) => x.id === estId)!
-      e.log.push({ date: NOW, who: me(), text: 'Final review done — approved to send' })
+      e.log.push({ date: NOW, who: me(), text: 'Final review done. Approved to send' })
       e.step = undefined
       e.backTo = undefined
     })
@@ -122,7 +122,7 @@ export function estHandOff(estId: string) {
     (s) => {
       const e = s.estimates.find((x) => x.id === estId)!
       e.backTo = undefined
-      e.log.push({ date: NOW, who: me(), text: step === 'takeoff' ? `${e0.backTo && fixed ? `Fixed ${plural(fixed, 'note')} — ` : ''}Ready for review — to ${to}` : `${label} done — to ${to}` })
+      e.log.push({ date: NOW, who: me(), text: step === 'takeoff' ? `${e0.backTo && fixed ? `Fixed ${plural(fixed, 'note')} · ` : ''}Ready for review · to ${to}` : `${label} done · to ${to}` })
       giveTo(s, e, next)
       addHist(s, e.jobId, { who: me(), kind: 'pricing', title: step === 'takeoff' ? `Takeoff ready for review · ${e.id}` : `${label} done · ${e.id}`, detail: `${fmtMoney(revTotal(curRev(e)))} · now with ${namesOf(nextPeople, null, true)}`, ref: { t: 'estimate', id: e.id } })
     },
@@ -186,23 +186,23 @@ export const AI_DRAFTS: Record<string, AiDraft> = {
     rows: [
       { room: 'Lobby', surface: 'Floor', tile: 'T-03', qty: 1180, unit: 'SF', itemId: 'i-large', sheet: 'A-101' },
       { room: 'Lobby', surface: 'Base · 4″ cut tile', tile: 'T-03', qty: 70, unit: 'SF', itemId: 'i-wall', sheet: 'A-101' },
-      { room: 'Vestibule', surface: 'Floor', tile: 'T-03', qty: 96, unit: 'SF', itemId: 'i-large', sheet: 'A-101', flag: 'Walk-off mat recess isn’t dimensioned — left out 4′ × 6′' },
+      { room: 'Vestibule', surface: 'Floor', tile: 'T-03', qty: 96, unit: 'SF', itemId: 'i-large', sheet: 'A-101', flag: 'Walk-off mat recess isn’t dimensioned. Left out 4′ × 6′' },
       { room: 'Elevator lobby', surface: 'Floor', tile: 'T-03', qty: 140, unit: 'SF', itemId: 'i-large', sheet: 'A-102' },
-      { room: 'Elevator lobby', surface: 'Elevator walls', tile: 'T-05', qty: 360, unit: 'SF', itemId: 'i-wall', sheet: 'A-401', flag: 'Wall height isn’t on A-401 — used 9′-0″ from the ceiling plan' },
-      { room: 'Mail room', surface: 'Floor', tile: 'T-03', qty: 64, unit: 'SF', itemId: 'i-large', sheet: 'A-101', flag: 'On the plans but not in the request — priced as an option', option: true },
+      { room: 'Elevator lobby', surface: 'Elevator walls', tile: 'T-05', qty: 360, unit: 'SF', itemId: 'i-wall', sheet: 'A-401', flag: 'Wall height isn’t on A-401. Used 9′-0″ from the ceiling plan' },
+      { room: 'Mail room', surface: 'Floor', tile: 'T-03', qty: 64, unit: 'SF', itemId: 'i-large', sheet: 'A-101', flag: 'On the plans but not in the request. Priced as an option', option: true },
     ],
     extra: [
-      { area: 'All floors', itemId: 'i-wp', qty: 1480, desc: 'Crack isolation membrane — all floor tile (spec 09 30 00)' },
+      { area: 'All floors', itemId: 'i-wp', qty: 1480, desc: 'Crack isolation membrane, all floor tile (spec 09 30 00)' },
       { area: 'All floors', itemId: 'i-edge', qty: 40 },
       { area: 'General', itemId: 'o-mob', qty: 1 },
     ],
   },
   b4: {
     sheets: ['Plans · 9 sheets', 'Spec book'],
-    found: ['A-201 Second floor · A-101 First floor · A-501 Bath elevations', 'No finish schedule yet — tile left open', 'Showers waterproofed with a membrane · tubs with board'],
+    found: ['A-201 Second floor · A-101 First floor · A-501 Bath elevations', 'No finish schedule yet. Tile left open', 'Showers waterproofed with a membrane · tubs with board'],
     rows: [
       { room: 'Primary bath', surface: 'Floor', qty: 72, unit: 'SF', itemId: 'i-floor', sheet: 'A-201' },
-      { room: 'Primary bath', surface: 'Shower walls', qty: 168, unit: 'SF', itemId: 'i-wall', sheet: 'A-501', flag: 'Glass height not shown — walls tiled to 7′-6″' },
+      { room: 'Primary bath', surface: 'Shower walls', qty: 168, unit: 'SF', itemId: 'i-wall', sheet: 'A-501', flag: 'Glass height not shown. Walls tiled to 7′-6″' },
       { room: 'Primary bath', surface: 'Shower floor', qty: 18, unit: 'SF', itemId: 'i-mosaic', sheet: 'A-201' },
       { room: 'Primary bath', surface: 'Waterproofing', qty: 186, unit: 'SF', itemId: 'i-wp', sheet: 'A-501' },
       { room: 'Hall bath 1', surface: 'Floor', qty: 45, unit: 'SF', itemId: 'i-floor', sheet: 'A-201' },
@@ -212,7 +212,7 @@ export const AI_DRAFTS: Record<string, AiDraft> = {
       { room: 'Mudroom', surface: 'Floor', qty: 88, unit: 'SF', itemId: 'i-floor', sheet: 'A-101' },
     ],
     extra: [{ area: 'All rooms', itemId: 'i-edge', qty: 36 }, { area: 'General', itemId: 'o-mob', qty: 1 }],
-    general: ['No finish schedule yet — every tile is open; rates assume standard porcelain'],
+    general: ['No finish schedule yet. Every tile is open; rates assume standard porcelain'],
   },
 }
 /** any other request: a first draft read from what we know about it — the scope and the documents in */
@@ -233,7 +233,7 @@ function genericDraft(jobId: string): AiDraft | undefined {
     const primary = i === 0 && (baths > 1 || /primary|master/.test(scope))
     const room = primary ? 'Primary bath' : baths > 1 ? `Bath ${i + 1}` : 'Bath'
     rows.push({ room, surface: 'Floor', qty: primary ? 68 : 45, unit: 'SF', itemId: 'i-floor', sheet: 'A-201', tile: fs ? 'T-05' : undefined })
-    rows.push({ room, surface: primary ? 'Shower walls' : 'Tub walls', qty: primary ? 160 : 96, unit: 'SF', itemId: 'i-wall', sheet: 'A-501', tile: fs ? 'T-04' : undefined, flag: i === 0 ? 'Wall height not on the elevations — tiled to 7′-6″' : undefined })
+    rows.push({ room, surface: primary ? 'Shower walls' : 'Tub walls', qty: primary ? 160 : 96, unit: 'SF', itemId: 'i-wall', sheet: 'A-501', tile: fs ? 'T-04' : undefined, flag: i === 0 ? 'Wall height not on the elevations. Tiled to 7′-6″' : undefined })
     if (primary) rows.push({ room, surface: 'Shower floor', qty: 16, unit: 'SF', itemId: 'i-mosaic', sheet: 'A-201', tile: fs ? 'T-02' : undefined })
     rows.push({ room, surface: 'Waterproofing', qty: primary ? 176 : 96, unit: 'SF', itemId: 'i-wp', sheet: 'A-501' })
   }
@@ -241,13 +241,13 @@ function genericDraft(jobId: string): AiDraft | undefined {
   if (/lobby/.test(scope)) rows.push({ room: 'Lobby', surface: 'Floor', qty: 1100, unit: 'SF', itemId: /24|48|large/.test(scope) ? 'i-large' : 'i-floor', sheet: 'A-101', tile: fs ? 'T-03' : undefined })
   if (/elevator/.test(scope)) rows.push({ room: 'Elevator lobby', surface: 'Walls', qty: 320, unit: 'SF', itemId: 'i-wall', sheet: 'A-401', tile: fs ? 'T-05' : undefined })
   if (/mudroom|laundry|foyer|entry/.test(scope)) rows.push({ room: /mudroom/.test(scope) ? 'Mudroom' : /laundry/.test(scope) ? 'Laundry' : 'Foyer', surface: 'Floor', qty: 64, unit: 'SF', itemId: 'i-floor', sheet: 'A-101', tile: fs ? 'T-01' : undefined })
-  if (!rows.length) rows.push({ room: 'Main area', surface: 'Floor', qty: 400, unit: 'SF', itemId: 'i-floor', sheet: 'A-101', flag: 'Scope wasn’t clear from the request — measured the largest tiled area' })
+  if (!rows.length) rows.push({ room: 'Main area', surface: 'Floor', qty: 400, unit: 'SF', itemId: 'i-floor', sheet: 'A-101', flag: 'Scope wasn’t clear from the request. Measured the largest tiled area' })
   return {
     sheets: ['Plans', ...(fs ? ['Finish schedule'] : []), ...(p.docs.find((d) => d.name === 'Spec book')?.status === 'in' ? ['Spec book'] : [])],
-    found: [`${new Set(rows.map((r) => r.room)).size} tiled rooms on the plans`, fs ? 'Tile tags matched from the finish schedule' : 'No finish schedule yet — tile left open', 'Waterproofing at every shower and tub'],
+    found: [`${new Set(rows.map((r) => r.room)).size} tiled rooms on the plans`, fs ? 'Tile tags matched from the finish schedule' : 'No finish schedule yet. Tile left open', 'Waterproofing at every shower and tub'],
     rows,
     extra: [{ area: 'All rooms', itemId: 'i-edge', qty: Math.max(24, rows.length * 6) }, { area: 'General', itemId: 'o-mob', qty: 1 }],
-    general: fs ? undefined : ['No finish schedule yet — every tile is open; rates assume standard porcelain'],
+    general: fs ? undefined : ['No finish schedule yet. Every tile is open; rates assume standard porcelain'],
   }
 }
 export const aiDraftFor = (jobId: string) => AI_DRAFTS[jobId] || genericDraft(jobId)
@@ -307,7 +307,7 @@ export function applyAiDraft(estId: string) {
         ...(d.general || []).map((t, i) => ({ id: `ai-${e.id}-g${i}`, rev: curRev(e).n, by: 'system' as PersonKey, step: 'ai' as const, text: t, date: NOW })),
       ]
       e.notes = [...(e.notes || []).filter((n) => n.step !== 'ai'), ...notes]
-      e.log.push({ date: NOW, who: 'system', text: `Draft made from the plans — ${new Set(d.rows.map((r) => r.room)).size} rooms, ${d.rows.length} surfaces, ${plural(notes.length, 'thing')} to check` })
+      e.log.push({ date: NOW, who: 'system', text: `Draft made from the plans · ${new Set(d.rows.map((r) => r.room)).size} rooms, ${d.rows.length} surfaces, ${plural(notes.length, 'thing')} to check` })
       if (e.status === 'request') {
         e.status = 'estimating'
         const who = e.team?.takeoff || 'takeoff'
@@ -319,7 +319,7 @@ export function applyAiDraft(estId: string) {
       }
       addHist(s, e.jobId, { who: 'system', kind: 'pricing', title: `Draft takeoff from the plans · ${e.id}`, detail: `${lines.length} lines · ${plural(notes.length, 'thing')} to check`, ref: { t: 'estimate', id: e.id } })
     },
-    `Draft added — ${lines.length} lines from the plans · ${plural(flags.length + (d.general?.length || 0), 'thing')} to check`,
+    `Draft added · ${lines.length} lines from the plans · ${plural(flags.length + (d.general?.length || 0), 'thing')} to check`,
   )
 }
 
@@ -392,9 +392,9 @@ export function newEstimate(d: NewEstimate) {
       })
       if (d.noTakeoff) {
         const next = (stepAfter(s, 'takeoff') || 'review') as EstStep
-        s.estimates[0].log.push({ date: NOW, who: me(), text: 'No takeoff — nothing to measure' })
+        s.estimates[0].log.push({ date: NOW, who: me(), text: 'No takeoff. Nothing to measure' })
         giveTo(s, s.estimates[0], next, { noTakeoff: true })
-        addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · nothing to measure — to ${namesOf(peopleOn(s as any, s.estimates[0], next))}`, ref: { t: 'estimate', id: estId } })
+        addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · nothing to measure · to ${namesOf(peopleOn(s as any, s.estimates[0], next))}`, ref: { t: 'estimate', id: estId } })
       } else {
         giveTo(s, s.estimates[0], 'takeoff')
         addHist(s, id, { who: me(), kind: 'pricing', title: `Estimate ${estId} started · takeoff to ${PEOPLE[t.takeoff].name}`, ref: { t: 'estimate', id: estId } })
@@ -403,7 +403,7 @@ export function newEstimate(d: NewEstimate) {
     d.noTakeoff ? `${estId} is ready to price` : `${estId} is with ${PEOPLE[t.takeoff].name} for the takeoff`,
     {
       close: true,
-      sub: d.noTakeoff ? `Nothing to measure — it’s on ${PEOPLE[t.review]?.short || 'the office'}’s Today to price.` : `It’s on ${PEOPLE[t.takeoff].short}’s Today${missing.length ? ` — the office asks the GC for the ${missing.join(' and ').toLowerCase()}` : ''}. Each step hands it to the next person.`,
+      sub: d.noTakeoff ? `Nothing to measure · it’s on ${PEOPLE[t.review]?.short || 'the office'}’s Today to price.` : `It’s on ${PEOPLE[t.takeoff].short}’s Today${missing.length ? `. The office asks the GC for the ${missing.join(' and ').toLowerCase()}` : ''}. Each step hands it to the next person.`,
       flow: d.noTakeoff ? [{ who: me(), label: 'Started', state: 'done' }, { who: t.review, label: 'Price it', state: 'now' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }] : [{ who: me(), label: 'Started', state: 'done' }, { who: t.takeoff, label: 'Takeoff', state: 'now' }, { who: t.review, label: 'Office review', state: 'next' }, { who: t.final, label: 'Final review', state: 'next' }, { who: t.follow, label: 'Follows up', state: 'next' }],
     },
   )
@@ -440,7 +440,7 @@ export function setEstTeam(estId: string, key: keyof EstTeam, who: PersonKey) {
       if (key !== 'follow') e.since = NOW
     }
     e.log.push({ date: NOW, who: me(), text: `${TEAM_LABEL[key]}: ${PEOPLE[who].name} (was ${PEOPLE[was].short})` })
-  }, `${TEAM_LABEL[key]} — ${PEOPLE[who].name}`, { sub: bucketOf(S().estimates.find((x) => x.id === estId)!) === key ? `It moved to ${PEOPLE[who].short}’s Today.` : undefined })
+  }, `${TEAM_LABEL[key]} · ${PEOPLE[who].name}`, { sub: bucketOf(S().estimates.find((x) => x.id === estId)!) === key ? `It moved to ${PEOPLE[who].short}’s Today.` : undefined })
 }
 
 /* ================= the company learns what its people type ================= */
@@ -596,8 +596,8 @@ export function moveEstimateTo(estId: string, toJobId: string) {
       delete s.seen[key]
     })
     delete s.jobs[from]
-    addHist(s, toJobId, { who: me(), kind: 'pricing', title: `Estimate ${estId} is on this project now`, detail: `It was made as “${fromJob.name}” — the same job`, ref: { t: 'estimate', id: estId } })
-  }, `${estId} is on ${to.name} now`, { sub: `“${fromJob.name}” was the same job — its tasks, files and messages moved with it. It says ${to.name} everywhere.`, tone: 'done' })
+    addHist(s, toJobId, { who: me(), kind: 'pricing', title: `Estimate ${estId} is on this project now`, detail: `It was made as “${fromJob.name}”. The same job`, ref: { t: 'estimate', id: estId } })
+  }, `${estId} is on ${to.name} now`, { sub: `“${fromJob.name}” was the same job. Its tasks, files and messages moved with it. It says ${to.name} everywhere.`, tone: 'done' })
 }
 
 /** a project we already have that looks like the one being typed in — the same name or number, or the same street */

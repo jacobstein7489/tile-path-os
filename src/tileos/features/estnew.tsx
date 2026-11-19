@@ -45,8 +45,8 @@ export function TeamSlots({ team, onChange, now, compact }: { team: EstTeam; onC
         )
         if (!onChange || !built) return <div key={d.key}>{body}</div>
         return (
-          <Menu key={d.key} align="start" width={260} trigger={<button type="button" aria-label={`${d.label} — ${namesOf(list, null, true)}`} className="block w-full">{body}</button>}>
-            <MenuLabel>{d.label} — on this estimate</MenuLabel>
+          <Menu key={d.key} align="start" width={260} trigger={<button type="button" aria-label={`${d.label} · ${namesOf(list, null, true)}`} className="block w-full">{body}</button>}>
+            <MenuLabel>{d.label} · on this estimate</MenuLabel>
             {(people.length ? people : EST_PEOPLE).map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} />} checked={list.length === 1 && x === list[0]} hint={PEOPLE[x]?.roleLabel} onSelect={() => onChange(k, x)}>{PEOPLE[x]?.name}</MenuItem>)}
           </Menu>
         )
@@ -90,7 +90,7 @@ export function SurfaceAdd({ have, onAdd, onRemove, label = 'Surfaces', only, ti
           </div>
           <div className="mt-2.5 flex items-center gap-2 border-t border-line-2 pt-2.5">
             <form className="flex min-w-0 flex-1 gap-2" onSubmit={(e) => { e.preventDefault(); add() }}>
-              <TextInput value={t} onChange={(e) => setT(e.target.value)} placeholder="Your own — e.g. Fireplace surround" aria-label="Your own surface" className="h-8 max-w-[18rem] text-[0.8125rem]" />
+              <TextInput value={t} onChange={(e) => setT(e.target.value)} placeholder="Your own · e.g. Fireplace surround" aria-label="Your own surface" className="h-8 max-w-[18rem] text-[0.8125rem]" />
               <Button size="sm" type="submit" disabled={!t.trim()}>Add</Button>
             </form>
             <Button size="sm" variant="primary" onClick={() => setOpen(false)}>Done</Button>
@@ -124,10 +124,10 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
           placeholder="Pick or type an area…"
           options={presets.map((p) => ({ key: p.name, label: p.name, hint: `Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}` }))}
           search
-          searchPlaceholder="Type an area — Kitchen, Mikvah…"
+          searchPlaceholder="Type an area · Kitchen, Mikvah…"
           width={380}
           onCreate={(n) => { const keys = guessSurfaces(n, presets); addCompanyArea(n, keys); add(n, keys) }}
-          createLabel={(t) => `Add “${t}” — kept for next time`}
+          createLabel={(t) => `Add “${t}”. Kept for next time`}
         />
       </div>
       {areas.length > 0 ? (
@@ -164,7 +164,7 @@ export function AreaBuilder({ areas, onChange }: { areas: PickedArea[]; onChange
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then an area from the list — each comes with its usual surfaces (a bathroom brings its niche, waterproofing, saddle and metals). Take off what it doesn’t have.</div>
+        <div className="mt-4 rounded-[0.75rem] border border-dashed border-line px-4 py-5 text-center text-[0.84375rem] text-muted">Pick a floor, then an area from the list. Each comes with its usual surfaces (a bathroom brings its niche, waterproofing, saddle and metals). Take off what it doesn’t have.</div>
       )}
     </div>
   )
@@ -226,16 +226,16 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
       <NewProjectKind value="price" onChange={(v) => { if (v === 'won') s.swap({ t: 'newproject', name, address }) }} />
       <FormRow label="Project">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name — e.g. Leeds Residence" className="h-10" />
-          <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address — street, city" className="h-10" />
+          <TextInput data-autofocus aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name · e.g. Leeds Residence" className="h-10" />
+          <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address · street, city" className="h-10" />
         </div>
         {(on || like) && (
           <div data-same-job className={cn('mt-2 flex flex-wrap items-center gap-3 rounded-[0.625rem] border px-3 py-2', on ? 'border-ok-200 bg-ok-50/60' : 'border-brand-100 bg-brand-50/50')}>
             <Building2 className={cn('h-4 w-4 shrink-0', on ? 'text-ok-600' : 'text-brand-600')} />
             <span className="min-w-0 flex-1 text-[0.8125rem] leading-snug text-ink">
-              {on ? <>Priced on <b className="font-semibold">{on.name}</b> — the same job. It says {on.name} everywhere.</> : <><b className="font-semibold">{like!.name}</b> is a project already{like!.address ? ` (${like!.address})` : ''}. Is this estimate for it?</>}
+              {on ? <>Priced on <b className="font-semibold">{on.name}</b> · the same job. It says {on.name} everywhere.</> : <><b className="font-semibold">{like!.name}</b> is a project already{like!.address ? ` (${like!.address})` : ''}. Is this estimate for it?</>}
             </span>
-            {on ? <Button size="sm" variant="ghost" onClick={() => setOnJob(null)}>No — a new one</Button> : <Button size="sm" onClick={() => { setOnJob(like!.id); setName(like!.name); setAddress(like!.address) }}>Yes — price it on {like!.name}</Button>}
+            {on ? <Button size="sm" variant="ghost" onClick={() => setOnJob(null)}>No. A new one</Button> : <Button size="sm" onClick={() => { setOnJob(like!.id); setName(like!.name); setAddress(like!.address) }}>Yes. Price it on {like!.name}</Button>}
           </div>
         )}
       </FormRow>
@@ -247,7 +247,7 @@ export function NewEstimateModal({ level, name: name0, address: address0 }: { le
       {/* who measures it — on site, or the takeoff from the plans — and by when: one line */}
       <FormRow label="Who measures it">
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,15rem)] gap-2 max-sm:grid-cols-1" data-measure>
-          <Menu align="start" width={280} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]" data-measure-who={noTakeoff ? 'none' : team.takeoff}>{noTakeoff ? <Ruler className="h-4 w-4 shrink-0 text-faint" /> : <Avatar who={team.takeoff} size={22} plain />}<span className="min-w-0 flex-1 truncate">{noTakeoff ? 'No measuring — straight to pricing' : team.takeoff === me ? 'Me' : tk.name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+          <Menu align="start" width={280} trigger={<button type="button" aria-label="Who does the takeoff" className="inline-flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink hover:border-[#d6cfc3]" data-measure-who={noTakeoff ? 'none' : team.takeoff}>{noTakeoff ? <Ruler className="h-4 w-4 shrink-0 text-faint" /> : <Avatar who={team.takeoff} size={22} plain />}<span className="min-w-0 flex-1 truncate">{noTakeoff ? 'No measuring. Straight to pricing' : team.takeoff === me ? 'Me' : tk.name}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
             <MenuLabel>Who measures it</MenuLabel>
             {/* you first — then the rest */}
             {[me, ...(people.length ? people : EST_PEOPLE).filter((x) => x !== me)].map((x) => <MenuItem key={x} icon={<Avatar who={x} size={20} plain />} checked={!noTakeoff && x === team.takeoff} hint={x === me ? undefined : PEOPLE[x]?.roleLabel} onSelect={() => { setNoTakeoff(false); setTeam({ ...team, takeoff: x }) }}>{x === me ? 'Me' : PEOPLE[x]?.name}</MenuItem>)}

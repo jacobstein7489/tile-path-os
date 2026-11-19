@@ -27,8 +27,8 @@ type DirKey = 'clients' | 'designers' | 'subs' | 'suppliers'
 const DIR_META: Record<DirKey, { label: string; icon: React.ReactNode; color: BubbleColor; sub: string }> = {
   clients: { label: 'Clients', icon: <Building2 />, color: 'blue', sub: 'GCs, developers and owners we build for' },
   designers: { label: 'Designers', icon: <PenTool />, color: 'violet', sub: 'The designers behind the tile choices' },
-  subs: { label: 'Installers', icon: <HardHat />, color: 'orange', sub: 'Our crews — where they are, when they’re free, their POs' },
-  suppliers: { label: 'Suppliers', icon: <Truck />, color: 'teal', sub: 'Who we buy from — open POs and late deliveries' },
+  subs: { label: 'Installers', icon: <HardHat />, color: 'orange', sub: 'Our crews. Where they are, when they’re free, their POs' },
+  suppliers: { label: 'Suppliers', icon: <Truck />, color: 'teal', sub: 'Who we buy from. Open POs and late deliveries' },
 }
 export function DirectoryPage({ first }: { first: string }) {
   const s = useStore()
@@ -50,7 +50,7 @@ function ActiveMenu({ kind, id, name }: { kind: DirKind; id: string; name: strin
       <Menu align="end" width={240} trigger={<button aria-label={`More · ${name}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
         {off
           ? <MenuItem icon={<ArchiveRestore className="h-4 w-4" />} onSelect={() => setActive(kind, id, name, true)}>Make active again</MenuItem>
-          : <MenuItem icon={<Archive className="h-4 w-4" />} hint="Off the lists and pickers — history stays" onSelect={() => setActive(kind, id, name, false)}>Mark inactive</MenuItem>}
+          : <MenuItem icon={<Archive className="h-4 w-4" />} hint="Off the lists and pickers · history stays" onSelect={() => setActive(kind, id, name, false)}>Mark inactive</MenuItem>}
       </Menu>
     </span>
   )
@@ -125,9 +125,9 @@ export function ClientsPage() {
                   <div className="truncate text-[0.9375rem] text-ink">{c.name}</div>
                   {live.length > 0 && <div className="truncate text-[0.8125rem] text-muted md:hidden">{live.length} open</div>}
                 </Td>
-                <Td className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint">—</span>}</Td>
+                <Td className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint"></span>}</Td>
                 <Td className="text-[0.875rem] max-md:hidden">{live.length ? `${live.length - pricing} active${pricing ? ` · ${pricing} pricing` : ''}` : <span className="text-muted">None open</span>}</Td>
-                <Td right className={cn('tnum max-lg:hidden', o ? 'text-ink' : 'text-faint')}>{o ? fmtMoney(o) : '—'}</Td>
+                <Td right className={cn('tnum max-lg:hidden', o ? 'text-ink' : 'text-faint')}>{o ? fmtMoney(o) : ''}</Td>
                 <Td><ActiveMenu kind="client" id={c.id} name={c.name} /></Td>
               </Tr>
             )
@@ -271,7 +271,7 @@ export function SubsPage() {
                 <Td className="max-md:hidden">{now ? <span className="text-[0.875rem] text-ink-2">{s.jobs[now.jobId]?.name} <span className="text-muted">· {now.workers || 2} people</span></span> : <Status tone="ok">Free</Status>}</Td>
                 <Td className="text-[0.875rem] max-lg:hidden">{f.iso === TODAY ? 'Now' : new Date(f.iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Td>
                 <Td className="text-[0.875rem] max-md:hidden">{ipos.length ? `${ipos.length} PO${ipos.length > 1 ? 's' : ''}${open ? ` · ${open} open` : ''}` : <span className="text-faint">None</span>}</Td>
-                <Td className="max-xl:hidden">{(() => { const r = payRow(s, crew, PAY_WEEKS[0]); return r ? <span className="inline-flex items-center gap-2 text-[0.875rem]"><span className="font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span><Status tone={PAY_STATE[r.state].tone}>{r.state === 'check' ? 'Check bill' : r.state === 'ready' ? 'To approve' : PAY_STATE[r.state].label}</Status></span> : <span className="text-[0.875rem] text-faint">—</span> })()}</Td>
+                <Td className="max-xl:hidden">{(() => { const r = payRow(s, crew, PAY_WEEKS[0]); return r ? <span className="inline-flex items-center gap-2 text-[0.875rem]"><span className="font-semibold tnum text-ink">{fmtMoney(r.calc.total)}</span><Status tone={PAY_STATE[r.state].tone}>{r.state === 'check' ? 'Check bill' : r.state === 'ready' ? 'To approve' : PAY_STATE[r.state].label}</Status></span> : <span className="text-[0.875rem] text-faint"></span> })()}</Td>
                 <Td><ActiveMenu kind="crew" id={crew} name={PEOPLE[crew].name} /></Td>
               </Tr>
             )
@@ -340,13 +340,13 @@ export function SuppliersPage() {
                   {x.contact || x.phone ? (
                     <>
                       <div className="truncate text-[0.875rem] font-medium text-ink-2">{x.contact || 'Office'}</div>
-                      <div className="truncate text-[0.8125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || '—'}</div>
+                      <div className="truncate text-[0.8125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || ''}</div>
                     </>
                   ) : <button onClick={(e) => { e.stopPropagation(); s.open({ t: 'supplierform', name: x.name }) }} className="text-[0.8125rem] font-semibold text-brand-600 hover:underline">Add a contact</button>}
                 </Td>
-                <Td className="text-[0.875rem] max-md:hidden">{pos.length ? open : tile ? `${tile} tile orders` : '—'}</Td>
+                <Td className="text-[0.875rem] max-md:hidden">{pos.length ? open : tile ? `${tile} tile orders` : ''}</Td>
                 <Td className="max-md:hidden">{late ? <Status tone="bad">{late} late</Status> : <span className="text-[0.875rem] text-faint">None</span>}</Td>
-                <Td right className="tnum max-lg:hidden">{pos.length ? fmtMoney(pos.reduce((n, p) => n + p.amount, 0)) : '—'}</Td>
+                <Td right className="tnum max-lg:hidden">{pos.length ? fmtMoney(pos.reduce((n, p) => n + p.amount, 0)) : ''}</Td>
                 <Td><ActiveMenu kind="supplier" id={x.name} name={x.name} /></Td>
               </Tr>
             )
@@ -370,7 +370,7 @@ export function ItemsPage() {
   return (
     <Page
       title="Items"
-      sub="Your products and services from QuickBooks — what we charge on estimates, and what we pay installers and suppliers."
+      sub="Your products and services from QuickBooks. What we charge on estimates, and what we pay installers and suppliers."
       actions={<Button icon={<RefreshCw />} onClick={() => { setSynced('just now'); toast.success('QuickBooks items synced') }}>Synced {synced}</Button>}
       top={
         <Bubbles
@@ -413,9 +413,9 @@ export function ItemsPage() {
                 </Td>
                 <Td className="text-[0.875rem] text-muted max-md:hidden">{i.unit}</Td>
                 <Td right className="tnum text-ink max-md:hidden">{fmtMoney(i.price, { cents: i.price % 1 !== 0 })}</Td>
-                <Td right className="tnum max-md:hidden">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : '—'}</Td>
-                <Td right className="tnum text-muted max-lg:hidden">{i.cost ? `${margin}%` : '—'}</Td>
-                <Td className="truncate text-[0.875rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || '—'}</Td>
+                <Td right className="tnum max-md:hidden">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : ''}</Td>
+                <Td right className="tnum text-muted max-lg:hidden">{i.cost ? `${margin}%` : ''}</Td>
+                <Td className="truncate text-[0.875rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || ''}</Td>
               </Tr>
             )
           })}
@@ -437,8 +437,8 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
     <Modal level={level} size="lg" onClose={s.close} title={i.name} sub={`${ITEM_TYPE_LABEL[i.type]} · per ${i.unit} · QuickBooks ${i.qb}`}>
       <div className="grid grid-cols-3 gap-6 border-b border-line pb-5 max-sm:grid-cols-1">
         <div><div className="text-[0.8125rem] text-muted">We charge</div><div className="text-[1.375rem] font-semibold tnum text-ink">{fmtMoney(i.price, { cents: i.price % 1 !== 0 })}</div></div>
-        <div><div className="text-[0.8125rem] text-muted">{i.type === 'labor' ? 'We pay the installer' : 'We last paid'}</div><div className="text-[1.375rem] font-semibold tnum text-ink">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : '—'}</div></div>
-        <div><div className="text-[0.8125rem] text-muted">Margin</div><div className="text-[1.375rem] font-semibold tnum text-ink">{i.price && i.cost ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : '—'}</div></div>
+        <div><div className="text-[0.8125rem] text-muted">{i.type === 'labor' ? 'We pay the installer' : 'We last paid'}</div><div className="text-[1.375rem] font-semibold tnum text-ink">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : ''}</div></div>
+        <div><div className="text-[0.8125rem] text-muted">Margin</div><div className="text-[1.375rem] font-semibold tnum text-ink">{i.price && i.cost ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : ''}</div></div>
       </div>
       <SectionTitle className="mt-6">{i.type === 'labor' ? 'On installer POs' : 'What we paid, PO by PO'}</SectionTitle>
       {paid.map(({ po, l }, k) => <RowBtn key={k} onClick={() => s.open({ t: 'po', id: po.id })} title={`${po.id} · ${po.supplier}`} sub={`${s.jobs[po.jobId]?.name} · ${l.qty} · ${po.date || ''}`} right={`${fmtMoney(l.price!, { cents: l.price! % 1 !== 0 })} / ${i.unit}`} />)}
@@ -495,7 +495,7 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
     }, cur ? `${rec.name} saved` : `${rec.name} added`, { close: true })
   }
   return (
-    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New supplier'} sub="Who we buy from — the name shows on every PO" footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the supplier'}</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={cur ? cur.name : 'New supplier'} sub="Who we buy from. The name shows on every PO" footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok} onClick={save}>{cur ? 'Save' : 'Add the supplier'}</Button></>}>
       <div className="flex flex-col gap-3.5">
         {formField('Name', <TextInput data-autofocus aria-label="Supplier name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Infinity" className="h-10" />)}
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That supplier is already on the list.</div>}
@@ -513,7 +513,7 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
           {formField('Who to call', <TextInput aria-label="Contact name" value={f.contact || ''} onChange={(e) => set({ contact: e.target.value })} placeholder="Name of the rep" className="h-10" />)}
           {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}
         </div>
-        {formField('Email — where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
+        {formField('Email. Where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
         <MoreBlock value={f.more} onChange={(more) => set({ more })} />
       </div>
     </Modal>

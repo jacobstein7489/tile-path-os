@@ -72,7 +72,7 @@ export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
       const vals = xs.map((x) => ({ n: x.name, v: (f(x) || '').trim() })).filter((y) => y.v)
       if (!vals.length) return ''
       const uniq = Array.from(new Set(vals.map((y) => y.v)))
-      return uniq.length === 1 && (vals.length === xs.length || xs.length === 1) ? uniq[0] : vals.map((y) => `${y.n} — ${y.v}`).join('; ')
+      return uniq.length === 1 && (vals.length === xs.length || xs.length === 1) ? uniq[0] : vals.map((y) => `${y.n} · ${y.v}`).join('; ')
     }
     const lines = [
       { k: 'Layout', v: per((x) => x.layout || (t ? `${suggestLayout(jobId, x).text} (suggested)` : '')) },
@@ -82,7 +82,7 @@ export function sheetEntries(jobId: string, room: Room): SheetEntry[] {
       { k: 'Note', v: per((x) => x.notes) },
     ].filter((l) => l.v)
     const metals = Array.from(new Set(xs.map((x) => parseMetal(x.edge)?.finish).filter(Boolean) as string[]))
-    return { key, label: `${xs.map((x) => x.name).join(' + ')}${also && t?.trim ? ' — trim' : ''}`, tile: t, tag: tag || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: (also ? undefined : xs[0].joint) || t?.joint, lines: also ? lines.filter((l) => l.k === 'Note' || l.k === 'Layout') : lines, xs, metals: also ? [] : metals }
+    return { key, label: `${xs.map((x) => x.name).join(' + ')}${also && t?.trim ? ' · trim' : ''}`, tile: t, tag: tag || undefined, grout: gk ? GROUTS[gk]?.name || gk : undefined, joint: (also ? undefined : xs[0].joint) || t?.joint, lines: also ? lines.filter((l) => l.k === 'Note' || l.k === 'Layout') : lines, xs, metals: also ? [] : metals }
   })
 }
 /** the tile's shape from its size — "24 × 48" lies long, "32 × 32" is square */
@@ -162,8 +162,8 @@ export function PrintSheetsButton({ job, room, children, variant, size, classNam
   React.useEffect(() => {
     if (!on) return
     const t = setTimeout(() => {
-      printNode(ref.current?.firstElementChild as HTMLElement | null, `${job.name} — ${room ? `${room} room sheet` : 'Room sheets'}`)
-      s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed${room ? ` — ${room}` : ` — ${n} room${n === 1 ? '' : 's'}`}` }) }, undefined, { undo: false })
+      printNode(ref.current?.firstElementChild as HTMLElement | null, `${job.name} · ${room ? `${room} room sheet` : 'Room sheets'}`)
+      s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed${room ? ` · ${room}` : ` · ${n} room${n === 1 ? '' : 's'}`}` }) }, undefined, { undo: false })
       setOn(false)
     }, 60)
     return () => clearTimeout(t)

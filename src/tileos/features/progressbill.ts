@@ -126,7 +126,7 @@ export const BILL_STATE: Record<BillState, { label: string; tone: Tone }> = {
 }
 export type DepositWay = 'first' | 'share' | 'final'
 export const DEPOSIT_WAY: Record<DepositWay, { label: string; sub: string }> = {
-  first: { label: 'The first bills', sub: 'It counts as billed — progress bills start once the work passes it' },
+  first: { label: 'The first bills', sub: 'It counts as billed. Progress bills start once the work passes it' },
   share: { label: 'A share of each bill', sub: 'Each bill gives back the same share of the work the deposit was' },
   final: { label: 'The final bill', sub: 'Progress bills are in full; the deposit comes off at the end' },
 }
@@ -253,7 +253,7 @@ export const billingOn = (s: Pick<BD, 'rules'>) => !(s.rules.autoOff || []).incl
 export function billStep(m?: MoneyItem): { label: string; tone: Tone } {
   if (!m) return { label: '', tone: 'neutral' }
   if (m.state === 'paid') return { label: `Paid ${m.date || ''}`.trim(), tone: 'ok' }
-  if (m.step <= 0) return { label: 'Draft — not sent', tone: 'vio' }
+  if (m.step <= 0) return { label: 'Draft, not sent', tone: 'vio' }
   if (m.step === 1) return { label: 'With the PM', tone: 'warn' }
   if (m.step === 2) return { label: `Sent ${m.ref || ''}`.trim(), tone: 'info' }
   return { label: `Approved ${m.ref || ''}`.trim(), tone: 'info' }
@@ -338,7 +338,7 @@ export function makeBill(jobId: string, weekKey: string, coIds?: string[]) {
       })
       addHist(s, jobId, { who: me, kind: 'money', title: `Progress bill #${n} made · ${fmtMoney(total)}`, detail: `Week of ${week.label} · ${row.pct}% installed${coNames.length ? ` · with ${coNames.join(', ')}` : ''}` })
     },
-    `Progress bill #${n} made — ${job?.name || ''} · ${fmtMoney(total)}`,
+    `Progress bill #${n} made · ${job?.name || ''} · ${fmtMoney(total)}`,
     { close: true, sub: 'It’s in Billing → To invoice. The PM checks it, then it goes to the client.', flow: [{ who: 'yakov', label: 'Daily updates', state: 'done' }, { who: me, label: 'Bill made', state: 'done' }, { who: 'ys', label: 'PM checks it', state: 'now' }, { label: 'Client pays', state: 'next' }] },
   )
 }
@@ -366,7 +366,7 @@ export function undoBill(id: string) {
         co.log.push(L(meOf(s.role), `Back off ${m.title.split(' · ')[0]}`))
       })
       s.money = s.money.filter((x) => x.id !== id)
-      addHist(s, m.jobId, { who: meOf(s.role), kind: 'money', title: `${m.title.split(' · ')[0]} taken back — not sent` })
+      addHist(s, m.jobId, { who: meOf(s.role), kind: 'money', title: `${m.title.split(' · ')[0]} taken back, not sent` })
     },
     'Bill taken back',
     { close: true, sub: 'Nothing went out. The week shows it to bill again.' },

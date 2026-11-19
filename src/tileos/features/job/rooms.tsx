@@ -244,7 +244,7 @@ export function RoomPanel({ job, room: name }: { job: Job; room?: string }) {
               {stateIcon(x)}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.875rem] font-medium leading-[1.25rem] text-ink">{x.name}<span className="font-normal text-muted"> · {what}</span></span>
-                <span className={cn('block truncate text-[0.75rem] leading-[1rem]', subTone(x))}>{inField ? surfaceSub(x) : x.reason ? x.reason : x.sf ? `${x.sf} SF` : ''}{x.state === 'blocked' && x.reason ? ` — ${x.reason}` : ''}</span>
+                <span className={cn('block truncate text-[0.75rem] leading-[1rem]', subTone(x))}>{inField ? surfaceSub(x) : x.reason ? x.reason : x.sf ? `${x.sf} SF` : ''}{x.state === 'blocked' && x.reason ? ` · ${x.reason}` : ''}</span>
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-faint" />
             </button>
@@ -331,7 +331,7 @@ export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Sur
         <div className={cn('mx-6 mt-5 flex items-center gap-3 rounded-2xl border px-4 py-3 max-sm:mx-4 max-sm:flex-wrap', TONE[tone].border, TONE[tone].bg)}>
           {sf.state === 'blocked' ? <Ban className="h-5 w-5 text-bad-500" /> : <Clock3 className="h-5 w-5 text-warn-600" />}
           <div className="min-w-0 flex-1">
-            <div className="text-[0.875rem] font-semibold text-ink">{sf.state === 'blocked' ? 'Do not start this surface' : sf.state === 'hold' ? 'Hold — change not approved' : sf.state === 'unknown' ? 'To verify on site' : 'Waiting on material'}</div>
+            <div className="text-[0.875rem] font-semibold text-ink">{sf.state === 'blocked' ? 'Do not start this surface' : sf.state === 'hold' ? 'Hold. Change not approved' : sf.state === 'unknown' ? 'To verify on site' : 'Waiting on material'}</div>
             <div className="text-[0.84375rem] text-ink-2">{sf.reason}</div>
           </div>
           {fix && <Button size="xs" variant="primary" onClick={fix.run}>{fix.label}</Button>}
@@ -340,7 +340,7 @@ export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Sur
       <div className="px-6 py-5 max-sm:px-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="text-[1rem] font-semibold text-ink">Installation details</div>
-          <button onClick={() => toast('Installer package for this room — printable sheet with plan and elevations (coming in the build)')} className="inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-brand-600"><Printer className="h-4 w-4" />Installer sheet</button>
+          <button onClick={() => toast('Installer package for this room. Printable sheet with plan and elevations (coming in the build)')} className="inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-brand-600"><Printer className="h-4 w-4" />Installer sheet</button>
         </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {tile && (
@@ -367,7 +367,7 @@ export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Sur
                 </div>
               </div>
             ) : (
-              <Unset text="Not set — ask at the design meeting" />
+              <Unset text="Not set. Ask at the design meeting" />
             )}
           </Spec>
           <Spec label="Edge / trim">
@@ -405,7 +405,7 @@ export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Sur
                 <div className="text-[0.875rem] font-semibold text-ink">{sf.height}</div>
               </div>
             ) : (
-              <Unset text="Floor — no height" />
+              <Unset text="Floor · no height" />
             )}
           </Spec>
           <Spec label="Prep / waterproofing">
@@ -426,7 +426,7 @@ export function SurfaceDetail({ job, room, sf }: { job: Job; room: Room; sf: Sur
               </Spec>
             )}
             {sf.decided?.length ? (
-              <Spec label="Decided — permanent">
+              <Spec label="Decided · permanent">
                 <div className="flex flex-col gap-1.5">
                   {sf.decided.map((d, i) => (
                     <div key={i} className="flex items-start gap-2 text-[0.84375rem] text-ink-2">

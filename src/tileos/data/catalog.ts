@@ -7,14 +7,14 @@ import type { Item } from './items'
 /* ---------------- metals ---------------- */
 export type MetalProfile = { key: string; name: string; short: string; use: string; sizes: number[] }
 export const METAL_PROFILES: MetalProfile[] = [
-  { key: 'jolly', name: 'Schluter JOLLY', short: 'JOLLY', use: 'Wall edges and outside corners — square L-angle', sizes: [4.5, 6, 8, 10, 11, 12.5, 15] },
-  { key: 'rondec', name: 'Schluter RONDEC', short: 'RONDEC', use: 'Rounded edge — walls, outside corners, niches', sizes: [6, 8, 10, 12.5] },
-  { key: 'quadec', name: 'Schluter QUADEC', short: 'QUADEC', use: 'Square edge — walls, outside corners, niches', sizes: [6, 8, 10, 12.5] },
+  { key: 'jolly', name: 'Schluter JOLLY', short: 'JOLLY', use: 'Wall edges and outside corners · square L-angle', sizes: [4.5, 6, 8, 10, 11, 12.5, 15] },
+  { key: 'rondec', name: 'Schluter RONDEC', short: 'RONDEC', use: 'Rounded edge. Walls, outside corners, niches', sizes: [6, 8, 10, 12.5] },
+  { key: 'quadec', name: 'Schluter QUADEC', short: 'QUADEC', use: 'Square edge. Walls, outside corners, niches', sizes: [6, 8, 10, 12.5] },
   { key: 'finec', name: 'Schluter FINEC', short: 'FINEC', use: 'Slim, minimal edge', sizes: [8, 10, 12.5] },
   { key: 'schiene', name: 'Schluter SCHIENE', short: 'SCHIENE', use: 'Floor edges', sizes: [3, 4.5, 6, 8, 10, 11, 12.5, 15] },
   { key: 'reno-t', name: 'Schluter RENO-T', short: 'RENO-T', use: 'T-transition between two floors at the same height', sizes: [6, 8, 10, 12.5] },
   { key: 'reno-u', name: 'Schluter RENO-U', short: 'RENO-U', use: 'Tile down to a lower floor', sizes: [6, 8, 10, 12.5] },
-  { key: 'dilex-eke', name: 'Schluter DILEX-EKE', short: 'DILEX-EKE', use: 'Inside corners — where two walls meet', sizes: [8, 10, 12.5] },
+  { key: 'dilex-eke', name: 'Schluter DILEX-EKE', short: 'DILEX-EKE', use: 'Inside corners. Where two walls meet', sizes: [8, 10, 12.5] },
 ]
 export type MetalFinish = { key: string; name: string; group: 'Metallic' | 'Stainless steel' | 'Colors' | 'Textured'; color: string }
 export const METAL_FINISHES: MetalFinish[] = [
@@ -122,7 +122,7 @@ export function edgeKind(edge?: string): EdgeKind {
 /** what the room sheet says: "Mitered", "Metal — Schluter JOLLY · Brushed nickel · 10 mm (3/8″)" */
 export function edgeWords(edge?: string) {
   const k = edgeKind(edge)
-  if (k === 'metal') { const m = parseMetal(edge)!; return m.profile ? `Metal — ${metalText(m)}` : `Metal — ${edge}` }
+  if (k === 'metal') { const m = parseMetal(edge)!; return m.profile ? `Metal · ${metalText(m)}` : `Metal · ${edge}` }
   if (k === 'mitered') return 'Mitered'
   return edge || ''
 }
@@ -130,31 +130,31 @@ export function edgeWords(edge?: string) {
 /* ---------------- setting materials ---------------- */
 type Seed = [id: string, brand: string, product: string, cat: Item['cat'], pack: string, unit: string, usedFor: string, tint?: string]
 const SEEDS: Seed[] = [
-  ['c-lat-253-gray', 'Laticrete', '253 Gold · gray', 'mortar', '50 lb bag · gray', 'bag', 'Multipurpose — porcelain and ceramic, floors and walls', '#7e868f'],
-  ['c-lat-253-white', 'Laticrete', '253 Gold · white', 'mortar', '50 lb bag · white', 'bag', 'Multipurpose — light stone and glass', '#b9bec4'],
-  ['c-lat-254-gray', 'Laticrete', '254 Platinum · gray', 'mortar', '50 lb bag · gray', 'bag', 'Premium — porcelain, stone, large format', '#6f7781'],
-  ['c-lat-254-white', 'Laticrete', '254 Platinum · white', 'mortar', '50 lb bag · white', 'bag', 'Premium — marble, glass and light stone', '#aab0b8'],
-  ['c-lat-254r-gray', 'Laticrete', '254R Platinum Rapid · gray', 'mortar', '50 lb bag · gray', 'bag', 'Fast setting — grout the same day', '#66707a'],
-  ['c-lat-254r-white', 'Laticrete', '254R Platinum Rapid · white', 'mortar', '50 lb bag · white', 'bag', 'Fast setting — grout the same day', '#a3a9b1'],
-  ['c-lat-255-gray', 'Laticrete', '255 MultiMax · gray', 'mortar', '50 lb bag · gray', 'bag', 'Large and heavy tile — floors and walls, no sag', '#737b85'],
-  ['c-lat-255-white', 'Laticrete', '255 MultiMax · white', 'mortar', '50 lb bag · white', 'bag', 'Large and heavy tile — light stone', '#adb3ba'],
+  ['c-lat-253-gray', 'Laticrete', '253 Gold · gray', 'mortar', '50 lb bag · gray', 'bag', 'Multipurpose. Porcelain and ceramic, floors and walls', '#7e868f'],
+  ['c-lat-253-white', 'Laticrete', '253 Gold · white', 'mortar', '50 lb bag · white', 'bag', 'Multipurpose. Light stone and glass', '#b9bec4'],
+  ['c-lat-254-gray', 'Laticrete', '254 Platinum · gray', 'mortar', '50 lb bag · gray', 'bag', 'Premium. Porcelain, stone, large format', '#6f7781'],
+  ['c-lat-254-white', 'Laticrete', '254 Platinum · white', 'mortar', '50 lb bag · white', 'bag', 'Premium. Marble, glass and light stone', '#aab0b8'],
+  ['c-lat-254r-gray', 'Laticrete', '254R Platinum Rapid · gray', 'mortar', '50 lb bag · gray', 'bag', 'Fast setting. Grout the same day', '#66707a'],
+  ['c-lat-254r-white', 'Laticrete', '254R Platinum Rapid · white', 'mortar', '50 lb bag · white', 'bag', 'Fast setting. Grout the same day', '#a3a9b1'],
+  ['c-lat-255-gray', 'Laticrete', '255 MultiMax · gray', 'mortar', '50 lb bag · gray', 'bag', 'Large and heavy tile. Floors and walls, no sag', '#737b85'],
+  ['c-lat-255-white', 'Laticrete', '255 MultiMax · white', 'mortar', '50 lb bag · white', 'bag', 'Large and heavy tile · light stone', '#adb3ba'],
   ['c-lat-257-gray', 'Laticrete', '257 Titanium · gray', 'mortar', '50 lb bag · gray', 'bag', 'Large format porcelain and stone', '#5f6872'],
   ['c-lat-257-white', 'Laticrete', '257 Titanium · white', 'mortar', '50 lb bag · white', 'bag', 'Large format marble and glass', '#9fa6ae'],
-  ['c-lat-mmlite-gray', 'Laticrete', 'MultiMax Lite · gray', 'mortar', '30 lb bag · gray', 'bag', 'Lightweight — large format on walls', '#86909a'],
-  ['c-lat-mmlite-white', 'Laticrete', 'MultiMax Lite · white', 'mortar', '30 lb bag · white', 'bag', 'Lightweight — large format on walls', '#bcc2c8'],
-  ['c-lat-4xlt-white', 'Laticrete', '4-XLT · white', 'mortar', '50 lb bag · white', 'bag', 'Large and heavy tile — light stone', '#b3b9c0'],
-  ['c-map-uf2-gray', 'Mapei', 'Ultraflex 2 · gray', 'mortar', '50 lb bag · gray', 'bag', 'Polymer-modified — floors and walls', '#6b7280'],
-  ['c-map-uf2-white', 'Mapei', 'Ultraflex 2 · white', 'mortar', '50 lb bag · white', 'bag', 'Polymer-modified — light stone and glass', '#a7adb5'],
-  ['c-map-uflft-white', 'Mapei', 'Ultraflex LFT · white', 'mortar', '50 lb bag · white', 'bag', 'Large format — light stone', '#a1a8b0'],
-  ['c-cbp-versabond-gray', 'Custom Building Products', 'VersaBond · gray', 'mortar', '50 lb bag · gray', 'bag', 'Fortified thinset — floors and walls', '#808892'],
-  ['c-cbp-versabond-white', 'Custom Building Products', 'VersaBond · white', 'mortar', '50 lb bag · white', 'bag', 'Fortified thinset — light tile', '#b6bcc3'],
-  ['c-cbp-prolite-gray', 'Custom Building Products', 'ProLite · gray', 'mortar', '30 lb bag · gray', 'bag', 'Lightweight — large format', '#8a929c'],
+  ['c-lat-mmlite-gray', 'Laticrete', 'MultiMax Lite · gray', 'mortar', '30 lb bag · gray', 'bag', 'Lightweight. Large format on walls', '#86909a'],
+  ['c-lat-mmlite-white', 'Laticrete', 'MultiMax Lite · white', 'mortar', '30 lb bag · white', 'bag', 'Lightweight. Large format on walls', '#bcc2c8'],
+  ['c-lat-4xlt-white', 'Laticrete', '4-XLT · white', 'mortar', '50 lb bag · white', 'bag', 'Large and heavy tile · light stone', '#b3b9c0'],
+  ['c-map-uf2-gray', 'Mapei', 'Ultraflex 2 · gray', 'mortar', '50 lb bag · gray', 'bag', 'Polymer-modified. Floors and walls', '#6b7280'],
+  ['c-map-uf2-white', 'Mapei', 'Ultraflex 2 · white', 'mortar', '50 lb bag · white', 'bag', 'Polymer-modified. Light stone and glass', '#a7adb5'],
+  ['c-map-uflft-white', 'Mapei', 'Ultraflex LFT · white', 'mortar', '50 lb bag · white', 'bag', 'Large format · light stone', '#a1a8b0'],
+  ['c-cbp-versabond-gray', 'Custom Building Products', 'VersaBond · gray', 'mortar', '50 lb bag · gray', 'bag', 'Fortified thinset. Floors and walls', '#808892'],
+  ['c-cbp-versabond-white', 'Custom Building Products', 'VersaBond · white', 'mortar', '50 lb bag · white', 'bag', 'Fortified thinset · light tile', '#b6bcc3'],
+  ['c-cbp-prolite-gray', 'Custom Building Products', 'ProLite · gray', 'mortar', '30 lb bag · gray', 'bag', 'Lightweight · large format', '#8a929c'],
   ['c-lat-permacolor-select', 'Laticrete', 'Permacolor Select', 'grout', '25 lb base + color kit', 'kit', 'Cement grout in any Laticrete color', '#8f7a66'],
-  ['c-lat-spectralock-pro', 'Laticrete', 'SpectraLOCK PRO Premium', 'grout', 'Full unit', 'kit', 'Epoxy grout — showers, stain-proof', '#7d6b5a'],
+  ['c-lat-spectralock-pro', 'Laticrete', 'SpectraLOCK PRO Premium', 'grout', 'Full unit', 'kit', 'Epoxy grout · showers, stain-proof', '#7d6b5a'],
   ['c-map-ultracolor', 'Mapei', 'Ultracolor Plus FA', 'grout', '25 lb bag', 'bag', 'Fast-setting grout for any joint', '#9a8573'],
   ['c-cbp-prism', 'Custom Building Products', 'Prism', 'grout', '17 lb bag', 'bag', 'Even color, no sealing', '#a08b78'],
   ['c-lat-latasil', 'Laticrete', 'Latasil · color matched', 'grout', '10.1 oz tube', 'tube', 'Silicone for corners and changes of plane', '#8c7b6a'],
-  ['c-lat-hydroban-1', 'Laticrete', 'Hydro Ban · 1 gal', 'waterproofing', '1 gal pail', 'pail', 'Waterproofing — a niche, a bench, touch-ups', '#3d6fd6'],
+  ['c-lat-hydroban-1', 'Laticrete', 'Hydro Ban · 1 gal', 'waterproofing', '1 gal pail', 'pail', 'Waterproofing. A niche, a bench, touch-ups', '#3d6fd6'],
   ['c-lat-hydroban-board', 'Laticrete', 'Hydro Ban Board · 4×8 · ½″', 'board', '4 × 8 ft · ½″ board', 'sheet', 'Waterproof board for shower walls', '#4a7ad8'],
   ['c-lat-nxt-level', 'Laticrete', 'NXT Level', 'prep', '50 lb bag', 'bag', 'Self-leveler', '#b8954f'],
 ]

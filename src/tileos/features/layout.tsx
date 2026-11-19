@@ -222,15 +222,15 @@ function saveLayout(jobId: string, room: string, surface: string, o: { text: str
     x.dims = o.dims
     x.cutouts = o.cutouts.length ? o.cutouts : undefined
     if (o.grout) x.grout = o.grout
-    x.decided = [...(x.decided || []).filter((d) => !/^Layout drawn/.test(d)), `Layout drawn — ${NOW}`]
+    x.decided = [...(x.decided || []).filter((d) => !/^Layout drawn/.test(d)), `Layout drawn · ${NOW}`]
     addHist(s, jobId, { who: meOf(s.role), kind: 'setup', title: `Layout set · ${room} ${surface.toLowerCase()}`, detail: o.text })
-  }, `Saved — the layout is on the scope and the installer’s sheet`, { close: true })
+  }, `Saved. The layout is on the scope and the installer’s sheet`, { close: true })
 }
 function sendLayout(jobId: string, room: string, surface: string, text: string) {
   useStore.getState().commit((s) => {
     addHist(s, jobId, { who: meOf(s.role), kind: 'setup', title: `Layout sent to the designer · ${room} ${surface.toLowerCase()}`, detail: text })
     newTask(s, { jobId, title: `Designer to OK the layout · ${room} ${surface.toLowerCase()}`, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'waiting', waitingOn: 'Designer', followUp: 'Thu', tone: 'neutral', where: text })
-  }, 'Sent to the designer — it comes back Thursday if they haven’t answered')
+  }, 'Sent to the designer. It comes back Thursday if they haven’t answered')
 }
 
 /* ================= what the system suggests ================= */
@@ -241,8 +241,8 @@ export function suggestPattern(size?: string): { pattern: Pattern; why: string }
   const long = Math.max(td.a, td.b), short = Math.min(td.a, td.b)
   if (td.mosaic) return { pattern: 'stack', why: 'Mosaic sheets go straight' }
   if (long === short) return { pattern: 'stack', why: 'Square tile' }
-  if (long > 18) return { pattern: 'third', why: 'Longer than 18″ — at most a ⅓ offset, or the edges won’t sit flat' }
-  return { pattern: 'half', why: 'Small rectangle — a ½ offset' }
+  if (long > 18) return { pattern: 'third', why: 'Longer than 18″. At most a ⅓ offset, or the edges won’t sit flat' }
+  return { pattern: 'half', why: 'Small rectangle. A ½ offset' }
 }
 /** the whole suggestion for a wall or floor: that pattern, started where there are no thin cuts, in the same words a
  *  drawn layout uses */
@@ -276,9 +276,9 @@ export function fillSuggestions(jobId: string) {
       const x = st.rooms[jobId]?.find((r) => r.name === room)?.surfaces.find((y) => y.name === name)
       if (!x) return
       x.layout = suggestLayout(jobId, x).text
-      x.decided = [...(x.decided || []).filter((d) => !/^Layout /.test(d)), `Layout suggested — ${NOW}`]
+      x.decided = [...(x.decided || []).filter((d) => !/^Layout /.test(d)), `Layout suggested · ${NOW}`]
     })
-    addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `Layouts filled in · ${todo.length} wall${todo.length === 1 ? '' : 's'} and floors`, detail: 'From the tile sizes — no thin cuts' })
+    addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `Layouts filled in · ${todo.length} wall${todo.length === 1 ? '' : 's'} and floors`, detail: 'From the tile sizes. No thin cuts' })
   }, `${todo.length} layout${todo.length === 1 ? '' : 's'} filled in`, { sub: 'Tap any one to see it drawn to scale, change it, or send it to the designer.' })
 }
 
@@ -289,7 +289,7 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
   const rooms = (s.rooms[job.id] || []).map((r) => ({ name: r.name, rows: r.surfaces.filter((x) => x.tile && takesTile(x.name)) })).filter((r) => r.rows.length)
   const all = rooms.flatMap((r) => r.rows)
   const set = all.filter((x) => x.layout).length
-  if (!all.length) return <div className="rounded-[0.75rem] bg-wash px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with a tile yet — they come from the tile paperwork.</div>
+  if (!all.length) return <div className="rounded-[0.75rem] bg-wash px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with a tile yet. They come from the tile paperwork.</div>
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -306,14 +306,14 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
               const sg = x.layout ? null : suggestLayout(job.id, x)
               const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
               return (
-                <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout — ${r.name} ${x.name}`}>
+                <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout · ${r.name} ${x.name}`}>
                   {/* measured: a small drawing of it, at its size — else just its tile */}
                   {x.dims ? <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span> : <span className="flex h-10 w-12 shrink-0 items-center justify-center" data-layout-tile>{tile ? <TileImg tile={tile} size={40} radius={6} /> : <span className="h-10 w-10 rounded-md bg-wash-2" />}</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>
                     {x.layout
                       ? <span className="block text-[0.78125rem] text-ink-2 max-sm:line-clamp-2 sm:truncate">{x.layout}</span>
-                      : <span className="block text-[0.78125rem] text-muted max-sm:line-clamp-2 sm:truncate">Not set yet — {sg!.text.toLowerCase()} would suit this tile</span>}
+                      : <span className="block text-[0.78125rem] text-muted max-sm:line-clamp-2 sm:truncate">Not set yet · {sg!.text.toLowerCase()} would suit this tile</span>}
                   </span>
                   <span className={cn('shrink-0 text-[0.78125rem] font-semibold', x.layout ? 'text-[#2c4a3e]' : 'text-muted')}>{drawn ? 'Drawn to scale' : x.layout ? 'Set' : 'To set'}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
@@ -351,7 +351,7 @@ export function LayoutsBoard({ job, title }: { job: Job; /** its own heading (th
       {missing > 0 && canFill && <span className="ml-auto"><Button size="sm" variant="primary" icon={<Sparkles />} onClick={() => fillSuggestions(job.id)} data-fill-layouts>Use the suggestions ({missing})</Button></span>}
     </header>
   )
-  if (!all.length) return <div className="flex flex-col gap-3" data-layouts-board>{title && head}<div className="rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with tile yet — they show here once the tile paperwork is entered.</div></div>
+  if (!all.length) return <div className="flex flex-col gap-3" data-layouts-board>{title && head}<div className="rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white px-4 py-6 text-center text-[0.875rem] text-muted">No walls or floors with tile yet. They show here once the tile paperwork is entered.</div></div>
   return (
     <div className="flex flex-col gap-3" data-layouts-board>
       {head}
@@ -384,7 +384,7 @@ function LayoutLine({ job, room, x }: { job: Job; room: string; x: Surface }) {
   const drawn = (x.decided || []).some((d) => /^Layout drawn/.test(d))
   const state = drawn ? { t: 'Drawn', c: 'font-semibold text-[#2c8a5b]' } : x.layout ? { t: 'Set', c: 'font-semibold text-[#2c4a3e]' } : { t: 'Suggested', c: 'font-medium text-vio-600' }
   return (
-    <button type="button" onClick={() => s.open({ t: 'layout', jobId: job.id, room, surface: x.name })} data-layout-card={`${room}|${x.name}`} aria-label={`Layout — ${room} ${x.name}`} className={cn('group block min-h-14 w-full border-t border-line-2 px-5 py-2 text-left transition row-hover max-sm:px-3', LAY_COLS)}>
+    <button type="button" onClick={() => s.open({ t: 'layout', jobId: job.id, room, surface: x.name })} data-layout-card={`${room}|${x.name}`} aria-label={`Layout · ${room} ${x.name}`} className={cn('group block min-h-14 w-full border-t border-line-2 px-5 py-2 text-left transition row-hover max-sm:px-3', LAY_COLS)}>
       <span className="flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]"><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span>
         <span className="min-w-0 flex-1">
@@ -456,7 +456,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
   const isWall = kindOf(x) === 'wall'
   const centerable = inside.filter((h) => h.kind === 'niche' || h.kind === 'window' || h.kind === 'tub' || h.kind === 'vanity')
   const startKeys: Start[] = ['best', 'center', 'edge', ...centerable.map((h) => `on:${h.id}` as Start)]
-  const startLabel = (k: Start) => (k === 'best' ? 'Best start — fewest slivers' : k === 'center' ? 'Centered on the wall' : k === 'edge' ? (isWall ? 'Full tile at the floor' : 'Full tile at the door') : `Centered on the ${CUT_LABEL[inside.find((h) => `on:${h.id}` === k)?.kind || 'other'].toLowerCase()}`)
+  const startLabel = (k: Start) => (k === 'best' ? 'Best start · fewest slivers' : k === 'center' ? 'Centered on the wall' : k === 'edge' ? (isWall ? 'Full tile at the floor' : 'Full tile at the door') : `Centered on the ${CUT_LABEL[inside.find((h) => `on:${h.id}` === k)?.kind || 'other'].toLowerCase()}`)
   const options = startKeys.map((key) => { const o = originOf(key, Wd, Hd, tw, th, j, pattern, inside); return { k: key, r: lay(Wd, Hd, tw, th, j, pattern, o.ox, o.oy, inside) } })
   const firstCut = r.pieces.filter((p) => p.y === 0 && !p.around).sort((a, b) => a.x - b.x)
   const leftCut = firstCut[0]?.cutW ? firstCut[0].w : null
@@ -510,7 +510,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
             <div className="max-w-[26rem] py-10 text-center" data-layout-need-size>
               <Ruler className="mx-auto h-7 w-7 text-faint" />
               <div className="mt-3 text-[1rem] font-semibold text-ink">How big is {isWall ? 'the wall' : 'the floor'}?</div>
-              <div className="mt-1.5 text-[0.875rem] leading-relaxed text-muted">Type its width and {isWall ? 'height' : 'length'} on the right — measured on site, or off the plans. Then it’s drawn to scale with the tile’s real size: every cut, and the best place to start.</div>
+              <div className="mt-1.5 text-[0.875rem] leading-relaxed text-muted">Type its width and {isWall ? 'height' : 'length'} on the right. Measured on site, or off the plans. Then it’s drawn to scale with the tile’s real size: every cut, and the best place to start.</div>
             </div>
           )}
           {sized && <>
@@ -567,7 +567,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
           <div className="flex flex-wrap items-center justify-center gap-4 text-[0.78125rem] text-muted">
             <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: color, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />Full tile</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm" style={{ background: shade(color, -0.06), boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />Cut</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-bad-600 bg-[#fdd8d4]" />Sliver — too thin</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-bad-600 bg-[#fdd8d4]" />Sliver · too thin</span>
             <span>{isWall ? 'Floor at the bottom' : 'Door at the bottom'}</span>
           </div>
           </>}
@@ -580,7 +580,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
               <Inch label="Width" value={W} onChange={setW} placeholder="e.g. 60" />
               <Inch label={isWall ? 'Height' : 'Length'} value={H} onChange={setH} placeholder={isWall ? 'e.g. 96' : 'e.g. 84'} />
             </div>
-            <div className={cn('mt-1 text-[0.75rem]', sized ? 'text-muted' : 'font-medium text-warn-700')} data-size-source>{x.dims ? 'Measured' : sized ? 'Saved with the layout' : 'Measured on site or off the plans — in inches (5′ is 60)'}</div>
+            <div className={cn('mt-1 text-[0.75rem]', sized ? 'text-muted' : 'font-medium text-warn-700')} data-size-source>{x.dims ? 'Measured' : sized ? 'Saved with the layout' : 'Measured on site or off the plans. In inches (5′ is 60)'}</div>
           </div>
           {sized && <>
           {tile && !nominal.mosaic && (
@@ -590,7 +590,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
                 <InchText label={`${nominal.a}″ side`} value={ra} placeholder={String(nominal.a)} onChange={setRa} onDone={(v) => saveReal(v, rb)} />
                 <InchText label={`${nominal.b}″ side`} value={rb} placeholder={String(nominal.b)} onChange={setRb} onDone={(v) => saveReal(ra, v)} />
               </div>
-              <div className="mt-1 text-[0.75rem] text-muted">{rA && rB ? 'Measured off the tile — every layout with it uses this.' : 'Measure one tile (23 1/2, 47 1/4…) — until then it’s drawn at the box size.'}</div>
+              <div className="mt-1 text-[0.75rem] text-muted">{rA && rB ? 'Measured off the tile. Every layout with it uses this.' : 'Measure one tile (23 1/2, 47 1/4…), until then it’s drawn at the box size.'}</div>
             </div>
           )}
           <div data-cutouts>
@@ -600,7 +600,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
                 {((isWall ? ['window', 'door', 'niche', 'tub', 'vanity', 'other'] : ['tub', 'vanity', 'other']) as CutoutKind[]).map((kk) => <MenuItem key={kk} onSelect={() => add(kk)}>{CUT_LABEL[kk]}</MenuItem>)}
               </Menu>
             </div>
-            {!inside.length && <div className="text-[0.78125rem] leading-snug text-muted">{isWall ? 'A window, a door, a niche, the tub — put it where it is, and the tile is cut around it.' : 'The tub or a vanity — no tile under it.'}</div>}
+            {!inside.length && <div className="text-[0.78125rem] leading-snug text-muted">{isWall ? 'A window, a door, a niche, the tub. Put it where it is, and the tile is cut around it.' : 'The tub or a vanity. No tile under it.'}</div>}
             <div className="flex flex-col gap-2">
               {holes.map((h) => (
                 <div key={h.id} className="rounded-xl border border-line px-3 py-2" data-cutout-row={h.kind}>
@@ -630,7 +630,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
                   {key === 'best' ? <Sparkles className="h-4 w-4 shrink-0 text-vio-600" /> : <Ruler className="h-4 w-4 shrink-0 text-muted" />}
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="block text-[0.84375rem] font-semibold text-ink">{startLabel(key)}</span>
-                    <span className={cn('block text-[0.75rem]', rr.slivers ? 'font-semibold text-bad-600' : 'text-muted')}>{rr.slivers ? `${rr.slivers} slivers` : `Smallest cut ${rr.smallest ? ftIn(rr.smallest) : '—'}`}</span>
+                    <span className={cn('block text-[0.75rem]', rr.slivers ? 'font-semibold text-bad-600' : 'text-muted')}>{rr.slivers ? `${rr.slivers} slivers` : `Smallest cut ${rr.smallest ? ftIn(rr.smallest) : ''}`}</span>
                   </span>
                 </button>
               ))}
@@ -648,14 +648,14 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
             <dl className="flex flex-col gap-1.5 text-[0.84375rem]">
               <div className="flex justify-between"><dt className="text-muted">Full tiles</dt><dd className="font-semibold tnum text-ink">{r.full}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">Cut tiles</dt><dd className="font-semibold tnum text-ink">{r.cut}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted">Smallest edge cut</dt><dd className="font-semibold tnum text-ink">{r.smallest ? ftIn(r.smallest) : '—'}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted">Smallest edge cut</dt><dd className="font-semibold tnum text-ink">{r.smallest ? ftIn(r.smallest) : ''}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">Slivers</dt><dd className={cn('font-semibold tnum', r.slivers ? 'text-bad-600' : 'text-ok-700')}>{r.slivers ? r.slivers : 'None'}</dd></div>
               <div className="mt-1 flex justify-between border-t border-line-2 pt-1.5"><dt className="text-muted">{td.mosaic ? 'Sheets' : 'Tiles'} with 10% waste</dt><dd className="font-bold tnum text-ink">{buy}</dd></div>
             </dl>
           </div>
           {r.slivers > 0 && useStart !== 'best' && (
             <button onClick={() => setStart('best')} className="flex items-start gap-2 rounded-xl border border-bad-100 bg-bad-50 px-3 py-2.5 text-left text-[0.8125rem] text-ink-2">
-              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-bad-600" /><span><b className="font-semibold text-bad-700">Slivers on this start.</b> The best start avoids them — tap to use it.</span>
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-bad-600" /><span><b className="font-semibold text-bad-700">Slivers on this start.</b> The best start avoids them. Tap to use it.</span>
             </button>
           )}
           </>}

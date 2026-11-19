@@ -290,9 +290,9 @@ export const PRICING0: Record<string, Pricing> = {
       pct: 60,
       areas: [
         { name: 'Unit baths 1–8', sf: '2,880 SF', done: true },
-        { name: 'Unit baths 9–12', sf: '—', done: false },
+        { name: 'Unit baths 9–12', sf: '', done: false },
         { name: 'Lobby floor', sf: '1,150 SF', done: true },
-        { name: 'Lobby feature wall', sf: '—', done: false },
+        { name: 'Lobby feature wall', sf: '', done: false },
       ],
       question: { text: 'Same tile as Phase 1? It changes the tile allowance.', waitingOn: 'Designer', since: 'Sep 24' },
     },
@@ -305,7 +305,7 @@ export const PRICING0: Record<string, Pricing> = {
       { name: 'Finish schedule', status: 'missing', note: 'Requested Sep 24' },
     ],
     estimator: 'estimator', due: 'Oct 5', scope: 'Single-family home: 3 baths and the mudroom floor', contact: 'Builder · Fire Circle Homes',
-    takeoff: { pct: 0, areas: [{ name: 'Primary bath', sf: '—', done: false }, { name: 'Two hall baths', sf: '—', done: false }, { name: 'Mudroom floor', sf: '—', done: false }] },
+    takeoff: { pct: 0, areas: [{ name: 'Primary bath', sf: '', done: false }, { name: 'Two hall baths', sf: '', done: false }, { name: 'Mudroom floor', sf: '', done: false }] },
     revs: [], fu: [],
   },
   b5: {
@@ -333,7 +333,7 @@ export const PRICING0: Record<string, Pricing> = {
     takeoff: { pct: 100, areas: [{ name: '3 baths', sf: '1,240 SF', done: true }, { name: 'Kitchen', sf: '160 SF', done: true }, { name: 'Basement bath', sf: '310 SF', done: true }] },
     revs: [
       { r: 'R1', date: 'Sep 14', amount: 72900, status: 'Superseded', what: 'Original scope' },
-      { r: 'R2', date: '—', amount: null, status: 'Pricing', what: 'Remove the basement bath' },
+      { r: 'R2', date: '', amount: null, status: 'Pricing', what: 'Remove the basement bath' },
     ],
     fu: [{ date: 'Sep 22', how: 'Spoke', outcome: 'Revision requested', by: 'ys', note: 'Remove the basement bath' }],
   },
@@ -533,14 +533,14 @@ export const ROOMS: Record<string, Room[]> = {
   '119': [
     {
       name: 'Master Bath', floor: '2nd floor', note: '9.25′ ceiling; fully tiled', pct: 20, surfaces: [
-        S('Main floor', 'T-01', 'ready', { sf: 64, layout: 'Straight lay · full tile at the door', grout: 'warmgray', joint: '1/8″', edge: 'Flush to hallway wood', prep: 'Uncoupling membrane', decided: ['Full tile at the door — designer, Sep 8'] }),
+        S('Main floor', 'T-01', 'ready', { sf: 64, layout: 'Straight lay · full tile at the door', grout: 'warmgray', joint: '1/8″', edge: 'Flush to hallway wood', prep: 'Uncoupling membrane', decided: ['Full tile at the door. Designer, Sep 8'] }),
         S('Shower floor', 'T-02', 'blocked', { sf: 16, reason: 'Drain sequence not confirmed · waiting on the plumber', layout: 'Pitched to the center drain', grout: 'warmgray', joint: '1/16″', prep: 'Mud bed', notes: 'Do not start until the plumber confirms whether this is the final drain.' }),
-        S('Shower wall A', 'T-03', 'working', { sf: 48, pct: 80, layout: 'Vertical stack · full tile at the doorway', grout: 'oyster', joint: '1/16″', edge: 'Schluter JOLLY · satin brass · 10 mm', height: 'To the ceiling', prep: 'Waterproofing membrane', decided: ['Vertical stack — designer, Sep 8', 'Full tile at the doorway — designer, Sep 8'] }),
+        S('Shower wall A', 'T-03', 'working', { sf: 48, pct: 80, layout: 'Vertical stack · full tile at the doorway', grout: 'oyster', joint: '1/16″', edge: 'Schluter JOLLY · satin brass · 10 mm', height: 'To the ceiling', prep: 'Waterproofing membrane', decided: ['Vertical stack. Designer, Sep 8', 'Full tile at the doorway. Designer, Sep 8'] }),
         S('Shower wall B', 'T-03', 'working', { sf: 48, pct: 40, layout: 'Niche centered on the wall', grout: 'oyster', joint: '1/16″', edge: 'Schluter JOLLY · satin brass · 10 mm', height: 'To the ceiling', prep: 'Waterproofing membrane' }),
         S('Shower wall C', 'T-03', 'ready', { sf: 40, layout: 'Vertical stack', grout: 'oyster', joint: '1/16″', edge: 'Schluter JOLLY · satin brass · 10 mm', height: 'To the ceiling', prep: 'Waterproofing membrane' }),
-        S('Niche', 'T-03', 'ready', { sf: 6, layout: 'Field tile · mitered edges', grout: 'oyster', joint: '1/16″', edge: 'Mitered', notes: 'Opening 12 × 24, centered on wall B', decided: ['Mitered, field tile — designer, Sep 8'] }),
+        S('Niche', 'T-03', 'ready', { sf: 6, layout: 'Field tile · mitered edges', grout: 'oyster', joint: '1/16″', edge: 'Mitered', notes: 'Opening 12 × 24, centered on wall B', decided: ['Mitered, field tile. Designer, Sep 8'] }),
         S('Curb', 'T-01', 'ready', { sf: 4, layout: 'Slab-cut from field tile', edge: 'Eased edge', grout: 'warmgray', joint: '1/16″' }),
-        S('Tub walls', 'T-03', 'ready', { sf: 60, layout: 'Centered on the tub', grout: 'oyster', joint: '1/16″', height: '84″ · metal edge on top', edge: 'Schluter JOLLY · satin brass · 10 mm', prep: 'Cement board, taped', notes: '6 boxes of T-03 still outstanding — enough to start, not to finish.' }),
+        S('Tub walls', 'T-03', 'ready', { sf: 60, layout: 'Centered on the tub', grout: 'oyster', joint: '1/16″', height: '84″ · metal edge on top', edge: 'Schluter JOLLY · satin brass · 10 mm', prep: 'Cement board, taped', notes: '6 boxes of T-03 still outstanding. Enough to start, not to finish.' }),
       ],
     },
     {
@@ -555,7 +555,7 @@ export const ROOMS: Record<string, Room[]> = {
     {
       name: 'Powder Room', floor: '1st floor', note: '10.25′ ceiling', pct: 0, surfaces: [
         S('Floor', 'T-07', 'ready', { sf: 16, layout: 'Centered on the vanity', grout: 'white', joint: '1/16″', prep: 'Self-leveler where needed' }),
-        S('Accent wall', 'T-07', 'ready', { sf: 24, layout: 'Centered on the mirror', height: '48″ · metal edge on top', edge: 'Schluter JOLLY · satin brass · 10 mm', grout: 'white', joint: '1/16″', decided: ['48″ height — CO-003 approved Sep 12'] }),
+        S('Accent wall', 'T-07', 'ready', { sf: 24, layout: 'Centered on the mirror', height: '48″ · metal edge on top', edge: 'Schluter JOLLY · satin brass · 10 mm', grout: 'white', joint: '1/16″', decided: ['48″ height · CO-003 approved Sep 12'] }),
       ],
     },
     {

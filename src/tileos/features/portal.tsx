@@ -46,7 +46,7 @@ export function PortalView() {
           {previewing && <Button size="sm" icon={<LogOut />} onClick={backToMe}>Back to me</Button>}
         </span>
       </header>
-      {previewing && <div className="bg-brand-50 px-6 py-2 text-center text-[0.8125rem] font-medium text-brand-800">This is what {c?.name} sees when they sign in — only their projects, nothing internal.</div>}
+      {previewing && <div className="bg-brand-50 px-6 py-2 text-center text-[0.8125rem] font-medium text-brand-800">This is what {c?.name} sees when they sign in. Only their projects, nothing internal.</div>}
       <main className="mx-auto max-w-[68.75rem] px-6 py-6 max-sm:px-3">
         <h1 className="text-[1.5rem] font-bold tracking-[-0.02em] text-ink">Your projects</h1>
         <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(15.625rem,1fr))] gap-3">
@@ -131,7 +131,7 @@ export function PortalView() {
                         <div className="text-[0.78125rem] text-muted">{m.state === 'paid' ? `Paid ${m.date || ''}` : m.due}</div>
                       </div>
                       <div className="text-[0.9375rem] font-bold tnum text-ink">{fmtMoney((m.amount || 0) - (m.paid || 0))}</div>
-                      {m.state === 'paid' ? <Status tone="ok">Paid</Status> : <Button variant="primary" icon={<Lock />} onClick={() => showPop({ title: 'QuickBooks Payments opens', sub: 'Card or bank transfer on their secure page — card numbers never touch Tile OS. The payment shows here by itself.' })}>Pay securely</Button>}
+                      {m.state === 'paid' ? <Status tone="ok">Paid</Status> : <Button variant="primary" icon={<Lock />} onClick={() => showPop({ title: 'QuickBooks Payments opens', sub: 'Card or bank transfer on their secure page. Card numbers never touch Tile OS. The payment shows here by itself.' })}>Pay securely</Button>}
                     </div>
                   ))}
                   {!invoices.length && <div className="px-4 py-6 text-[0.875rem] text-muted">No invoices yet.</div>}

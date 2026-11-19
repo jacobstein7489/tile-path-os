@@ -17,7 +17,7 @@ import { installerOf } from '../upcoming'
 
 /** what a room says when nothing's written for it yet: each wall and floor, and how high the walls go */
 export function plainLines(room: Room): string[] {
-  return room.surfaces.filter((x) => takesTile(x.name) || x.tile).map((x) => `${x.name}${x.height && isWall(x.name) ? ` — ${x.height.replace(/\s+—\s+/g, ', ').toLowerCase()}` : ''}`)
+  return room.surfaces.filter((x) => takesTile(x.name) || x.tile).map((x) => `${x.name}${x.height && isWall(x.name) ? ` · ${x.height.replace(/\s+—\s+/g, ', ').toLowerCase()}` : ''}`)
 }
 
 export function RoomScope({ jobId, innerRef }: { jobId: string; innerRef: React.RefObject<HTMLDivElement | null> }) {
@@ -42,7 +42,7 @@ export function RoomScope({ jobId, innerRef }: { jobId: string; innerRef: React.
               return (
                 <section key={room.name} style={{ breakInside: 'avoid' }} data-room-scope-room={room.name}>
                   <div className="rounded-[0.375rem] px-3 py-[0.4375rem] text-[0.875rem] font-bold" style={{ background: '#eef1ee', color: DOC_GREEN, printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }}>
-                    {room.name}{room.note ? <span className="uppercase"> — {room.note}</span> : null}
+                    {room.name}{room.note ? <span className="uppercase"> · {room.note}</span> : null}
                   </div>
                   <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-x-6 px-3 max-sm:grid-cols-1 max-sm:gap-y-3">
                     <ul className="m-0 list-none p-0" data-room-scope-lines>

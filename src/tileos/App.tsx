@@ -345,7 +345,7 @@ export default function App() {
 function SampleBar() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-[#2c4a3e] px-4 py-2 text-[0.8125rem] text-white/90">
-      <span><b className="font-semibold text-white">Sample projects</b> — made-up jobs to try everything on. Nothing here is saved, and your own projects aren’t touched.</span>
+      <span><b className="font-semibold text-white">Sample projects</b> · made-up jobs to try everything on. Nothing here is saved, and your own projects aren’t touched.</span>
       <button onClick={leaveSample} data-leave-sample className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to my projects</button>
     </div>
   )
@@ -358,7 +358,7 @@ function PreviewBar() {
   const who = PEOPLE[meOf(role)]
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-ink px-4 py-2 text-[0.8125rem] text-white/90">
-      <span>You’re seeing <b className="font-semibold text-white">{who && !/^(Estimator|Back office|Accounting|Site manager|Office)$/i.test(who.name) ? `${who.name}’s` : `a ${label}`}</b> view{who ? ` (${label})` : ''} — exactly what lands on their Today.</span>
+      <span>You’re seeing <b className="font-semibold text-white">{who && !/^(Estimator|Back office|Accounting|Site manager|Office)$/i.test(who.name) ? `${who.name}’s` : `a ${label}`}</b> view{who ? ` (${label})` : ''} · exactly what lands on their Today.</span>
       <button onClick={() => open({ t: 'roles' })} className="rounded-md bg-white/10 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/20">Someone else</button>
       <button onClick={backToMe} className="rounded-md bg-white/15 px-2.5 py-1 text-[0.78125rem] font-semibold text-white hover:bg-white/25">Back to me</button>
     </div>

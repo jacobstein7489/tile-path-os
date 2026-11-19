@@ -16,14 +16,14 @@ export function Mic({ onText, className, size = 'md', label = 'Talk instead of t
   React.useEffect(() => { if (v.err) setMsg(v.err) }, [v.err])
   React.useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(''), 7000); return () => clearTimeout(t) }, [msg])
   if (!v.can) return null
-  const say = msg || (v.busy ? 'Writing it down…' : v.on ? (v.quiet ? 'I don’t hear anything — is the mic on?' : v.hearing || 'Listening… tap to stop') : '')
+  const say = msg || (v.busy ? 'Writing it down…' : v.on ? (v.quiet ? 'I don’t hear anything. Is the mic on?' : v.hearing || 'Listening… tap to stop') : '')
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       <button
         type="button"
         aria-label={v.on ? 'Stop listening' : label}
         aria-pressed={v.on}
-        title={v.on ? 'Listening — tap to stop' : label}
+        title={v.on ? 'Listening. Tap to stop' : label}
         disabled={v.busy}
         onClick={v.on ? v.stop : () => { setMsg(''); v.start() }}
         className={cn('inline-flex items-center justify-center rounded-full border transition', size === 'sm' ? 'h-8 w-8' : 'h-10 w-10', v.on ? 'border-bad-500 bg-bad-500 text-white' : v.busy ? 'animate-pulse border-brand-300 bg-brand-50 text-brand-600' : 'border-line bg-white text-muted hover:border-brand-300 hover:text-brand-600')}

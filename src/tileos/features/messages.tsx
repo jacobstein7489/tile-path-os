@@ -166,7 +166,7 @@ function useRecorder(onDone: (blob: Blob, dur: number) => void) {
   const stop = React.useCallback(() => { if (tick.current) clearInterval(tick.current); tick.current = null; rec.current?.stream.getTracks().forEach((x) => x.stop()) }, [])
   const start = async () => {
     setErr('')
-    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) { setErr('This browser can’t record — try Chrome or Safari.'); return }
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) { setErr('This browser can’t record. Try Chrome or Safari.'); return }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((t) => MediaRecorder.isTypeSupported(t))
@@ -186,7 +186,7 @@ function useRecorder(onDone: (blob: Blob, dur: number) => void) {
       r.start(250)
       setOn(true); setSecs(0)
       tick.current = setInterval(() => { const n = Math.round((Date.now() - t0.current) / 1000); setSecs(n); if (n >= 180) r.stop() }, 250)
-    } catch { setErr('Microphone not allowed — check the browser’s permission for this site.') }
+    } catch { setErr('Microphone not allowed. Check the browser’s permission for this site.') }
   }
   const finish = () => rec.current?.stop()
   const drop = () => { cancel.current = true; rec.current?.stop() }
@@ -395,7 +395,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
     if (kept.recs.length) postMessage(jobId, text.trim() || (kept.recs.length === 1 ? 'Photo' : `${kept.recs.length} photos`), { ...extra(), media: kept.recs.map((r) => ({ id: r.id, thumb: r.thumb })) })
     setText('')
     setReplyTo(null)
-    setBusy(kept.problem ? `The photo didn’t go up — ${kept.problem}` : '')
+    setBusy(kept.problem ? `The photo didn’t go up · ${kept.problem}` : '')
   }
   /* a PDF, a drawing, a spreadsheet — kept with the project, sent as a card */
   const addDocs = async (files: File[]) => {
@@ -409,7 +409,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
     kept.recs.forEach((r, i) => postMessage(jobId, i === 0 && text.trim() ? text.trim() : r.name, { ...extra(), file: { id: r.id, name: r.name, size: r.size } }))
     setText('')
     setReplyTo(null)
-    setBusy(kept.problem ? `The file didn’t go up — ${kept.problem}` : '')
+    setBusy(kept.problem ? `The file didn’t go up · ${kept.problem}` : '')
   }
   const jump = (id: string) => {
     const el = document.querySelector(`[data-msg="${id}"]`)
@@ -474,7 +474,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
             </React.Fragment>
           )
         })}
-        {!items.length && <div className="py-16 text-center text-[0.875rem] text-muted">No messages yet — say something, send a photo, a file or a voice note.</div>}
+        {!items.length && <div className="py-16 text-center text-[0.875rem] text-muted">No messages yet. Say something, send a photo, a file or a voice note.</div>}
         <div ref={end} />
       </div>
       <div className="shrink-0 border-t border-line-2 bg-white px-3 py-2.5 max-sm:px-2">
@@ -493,7 +493,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
           <div className="flex items-center gap-3 rounded-full border border-bad-200 bg-bad-50 py-1.5 pl-4 pr-1.5">
             <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-bad-500" />
             <span className="text-[0.875rem] font-semibold tnum text-bad-700">{fmtDur(mic.secs)}</span>
-            <span className="text-[0.78125rem] text-muted max-sm:hidden">Recording — tap Send when you’re done</span>
+            <span className="text-[0.78125rem] text-muted max-sm:hidden">Recording. Tap Send when you’re done</span>
             <button onClick={mic.drop} aria-label="Throw the recording away" className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-white hover:text-ink"><X className="h-4 w-4" /></button>
             <button onClick={mic.finish} aria-label="Send the voice note" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn hover:bg-brand-700"><Send className="h-[1.125rem] w-[1.125rem]" /></button>
           </div>
@@ -505,14 +505,14 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
               <Pop open={emojiOpen} onOpenChange={setEmojiOpen} side="top" align="start" width={360} trigger={<button aria-label="Emoji" className={cn('mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-wash hover:text-ink', emojiOpen ? 'text-brand-600' : 'text-muted')}><Smile className="h-5 w-5" /></button>}>
                 <EmojiPicker onPick={insert} className="w-full max-w-full" />
               </Pop>
-              <Tip label="Send a file — a PDF, a drawing"><button onClick={() => docRef.current?.click()} aria-label="Send a file" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Paperclip className="h-[1.0625rem] w-[1.0625rem]" /></button></Tip>
-              <textarea ref={box} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } if (e.key === 'Escape' && replyTo) setReplyTo(null) }} rows={1} aria-label="Message" placeholder={outside ? 'Message the Cobblestone team' : internal ? 'Team only — the GC won’t see this' : 'Message'} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[0.9375rem] leading-tight outline-none placeholder:text-faint" />
+              <Tip label="Send a file. A PDF, a drawing"><button onClick={() => docRef.current?.click()} aria-label="Send a file" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Paperclip className="h-[1.0625rem] w-[1.0625rem]" /></button></Tip>
+              <textarea ref={box} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } if (e.key === 'Escape' && replyTo) setReplyTo(null) }} rows={1} aria-label="Message" placeholder={outside ? 'Message the Cobblestone team' : internal ? 'Team only. The GC won’t see this' : 'Message'} className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[0.9375rem] leading-tight outline-none placeholder:text-faint" />
               <Tip label="Send a photo"><button onClick={() => fileRef.current?.click()} aria-label="Send a photo" className="mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink"><Camera className="h-[1.125rem] w-[1.125rem]" /></button></Tip>
-              {!outside && <Tip label={internal ? 'Team only — tap to send to everyone' : 'Everyone sees it, the GC too — tap for team only'}><button onClick={() => setInternal(!internal)} aria-pressed={internal} aria-label="Team only" className={cn('mb-1 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[0.75rem] font-semibold transition', internal ? 'bg-warn-500 text-white' : 'text-muted hover:bg-wash')}>{internal ? <Lock className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}<span className="max-sm:hidden">{internal ? 'Team only' : 'Everyone'}</span></button></Tip>}
+              {!outside && <Tip label={internal ? 'Team only. Tap to send to everyone' : 'Everyone sees it, the GC too. Tap for team only'}><button onClick={() => setInternal(!internal)} aria-pressed={internal} aria-label="Team only" className={cn('mb-1 mr-1 inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[0.75rem] font-semibold transition', internal ? 'bg-warn-500 text-white' : 'text-muted hover:bg-wash')}>{internal ? <Lock className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}<span className="max-sm:hidden">{internal ? 'Team only' : 'Everyone'}</span></button></Tip>}
             </div>
             {text.trim()
               ? <button onClick={send} aria-label="Send" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn transition hover:bg-brand-700"><Send className="h-[1.125rem] w-[1.125rem]" /></button>
-              : <Tip label="Voice note — tap, talk, tap Send"><button onClick={() => void mic.start()} aria-label="Record a voice note" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn transition hover:bg-brand-700"><Mic className="h-5 w-5" /></button></Tip>}
+              : <Tip label="Voice note. Tap, talk, tap Send"><button onClick={() => void mic.start()} aria-label="Record a voice note" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-btn transition hover:bg-brand-700"><Mic className="h-5 w-5" /></button></Tip>}
           </div>
         )}
         {mic.err && <div className="mt-1.5 px-1 text-[0.78125rem] font-medium text-bad-600">{mic.err}</div>}

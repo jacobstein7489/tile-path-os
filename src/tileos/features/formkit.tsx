@@ -141,7 +141,7 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
       <PO.Portal>
         <PO.Content {...scrollHere} align="start" sideOffset={6} collisionPadding={12} onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => { if (input.current?.contains(e.target as Node)) e.preventDefault() }}
           className="z-[320] w-[var(--radix-popover-trigger-width)] min-w-[18rem] overflow-hidden rounded-[0.75rem] border border-line bg-white p-1 shadow-pop outline-none animate-pop-in" role="listbox" aria-label="Projects">
-          {!words.length && <div className="px-2.5 pb-1 pt-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.05em] text-faint">On the go — or type to find another</div>}
+          {!words.length && <div className="px-2.5 pb-1 pt-1.5 text-[0.71875rem] font-semibold uppercase tracking-[0.05em] text-faint">On the go, or type to find another</div>}
           {shown.map((j, i) => (
             <button key={j.id} type="button" role="option" aria-selected={j.id === value} onMouseEnter={() => setHi(i)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(j.id)} className={cn('flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left', i === hi ? 'bg-wash-2' : '')}>
               <span className="min-w-0 flex-1">
@@ -181,7 +181,7 @@ export function ProjectChip({ value, onChange, keep, placeholder = 'Project', wa
     </button>
   )
   if (small) return <>{chip(() => setSheet(true))}{sheet && <ProjectSheet list={list} value={value} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}</>
-  return <SearchSelect label="Project" value={value} onChange={onChange} options={list.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} emptyLabel="No project — for the company" search searchPlaceholder="Type a project" width={340} trigger={chip()} />
+  return <SearchSelect label="Project" value={value} onChange={onChange} options={list.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} emptyLabel="No project. For the company" search searchPlaceholder="Type a project" width={340} trigger={chip()} />
 }
 
 /* the projects picked lately on this phone — the short list starts with them */
@@ -230,7 +230,7 @@ function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: st
 }
 
 /** the client, typed: the ones that match show as you type — or add the name as a new client */
-export function ClientField({ value, onChange, placeholder = 'Type the client or GC — or a new name', autoFocus }: {
+export function ClientField({ value, onChange, placeholder = 'Type the client or GC, or a new name', autoFocus }: {
   value: { id: string; name: string } | null
   onChange: (c: { id: string; name: string } | null) => void
   placeholder?: string

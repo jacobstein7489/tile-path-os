@@ -116,7 +116,7 @@ export const isTileProblem = (t: { tone?: string; type?: string; state?: string;
 export const SITE_CHECKS: { k: string; label: string; q: string; sub: string; byRoom?: 'shower' | 'all'; no: string }[] = [
   { k: 'power', label: 'Power on site', q: 'Power on site?', sub: 'An outlet for the saw and the mixer', no: 'No power on site' },
   { k: 'water', label: 'Water on site', q: 'Water on site?', sub: 'Running water to mix and clean up', no: 'No water on site' },
-  { k: 'drains', label: 'Shower drains on site', q: 'Shower drains on site?', sub: 'Every shower’s drain is here — the right one', byRoom: 'shower', no: 'Drain missing' },
+  { k: 'drains', label: 'Shower drains on site', q: 'Shower drains on site?', sub: 'Every shower’s drain is here. The right one', byRoom: 'shower', no: 'Drain missing' },
   { k: 'led', label: 'LED tracks on site', q: 'LED tracks on site?', sub: 'The channels that go in the tile, if the designer wants them', byRoom: 'all', no: 'LED track missing' },
   { k: 'windows', label: 'Windows ready', q: 'Windows ready?', sub: 'Sills and openings framed, so we can tile around them', byRoom: 'all', no: 'Window not ready' },
   { k: 'plumbing', label: 'Plumbing rough-in done', q: 'Plumbing rough-in done?', sub: 'Valves, drains, the tub and the shower heads in place', byRoom: 'all', no: 'Plumbing not roughed in' },
@@ -135,7 +135,7 @@ export const siteQuestions = (rooms: Room[]) => SITE_CHECKS.filter((c) => c.byRo
 export function siteProblem(k: string, c: SiteAnswer): string {
   const def = SITE_CHECKS.find((x) => x.k === k)
   const what = k === 'walls' ? 'Wall heights' : def?.no || def?.label || k
-  return `${what}${c.rooms?.length ? ` — ${c.rooms.join(', ')}` : ''}${c.note ? ` · ${c.note}` : ''}`
+  return `${what}${c.rooms?.length ? ` · ${c.rooms.join(', ')}` : ''}${c.note ? ` · ${c.note}` : ''}`
 }
 const wrongOf = (rec?: StepRec) => Object.entries(rec?.checks || {}).filter(([, c]) => !c.ok && !c.na)
 export interface StepAction { label: string; run?: () => void; pick?: 'delivery' | 'checkin' | 'check' }
@@ -203,22 +203,22 @@ export const PHASES: { key: string; label: string }[] = [
  * The meeting, the scope after it, the layouts and showing the installer the job are checked off (or set on the
  * calendar); the rest read themselves from what happened. */
 export const STEP_DEFAULTS: StepDef[] = [
-  { key: 'estimate', phase: 'estimate', label: 'The estimate in — what we’re tiling, room by room', short: 'Add the estimate', owner: 'estimator' },
+  { key: 'estimate', phase: 'estimate', label: 'The estimate in. What we’re tiling, room by room', short: 'Add the estimate', owner: 'estimator' },
   { key: 'getpaper', phase: 'paper', label: 'Get the tile paperwork from the store', short: 'Get paperwork', owner: 'estimator' },
-  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork — every tile on its walls and floors, with its picture and grout', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper', 'estimate'] },
+  { key: 'rooms', phase: 'paper', label: 'Enter the tile paperwork. Every tile on its walls and floors, with its picture and grout', short: 'Enter paperwork', owner: 'takeoff', after: ['getpaper', 'estimate'] },
   { key: 'qty', phase: 'paper', label: 'Quantities on the paperwork are enough', short: 'Check quantities', owner: 'takeoff', after: ['rooms'] },
   { key: 'setup', phase: 'setup', label: 'Underlayment decided for every room', short: 'Decide underlayment', owner: 'yakov', after: ['estimate'] },
   { key: 'design', phase: 'meet', label: 'Design meeting', short: 'Design meeting', owner: 'office', after: ['rooms'], custom: true },
-  { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting — the same as the estimate, or what changed', short: 'Confirm scope', owner: 'yakov', after: ['design'], custom: true },
-  { key: 'tile', phase: 'grout', label: 'Tile and grout entered — a picture and the grout for every tile', short: 'Enter tile & grout', owner: 'estimator', after: ['rooms'] },
+  { key: 'change', phase: 'meet', label: 'The scope confirmed after the meeting. The same as the estimate, or what changed', short: 'Confirm scope', owner: 'yakov', after: ['design'], custom: true },
+  { key: 'tile', phase: 'grout', label: 'Tile and grout entered. A picture and the grout for every tile', short: 'Enter tile & grout', owner: 'estimator', after: ['rooms'] },
   { key: 'layouts', phase: 'layouts', label: 'Layouts drawn', short: 'Set layouts', owner: 'office', after: ['design'], custom: true },
-  { key: 'level', phase: 'level', label: 'Floor levels — the high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['estimate'] },
-  { key: 'heights', phase: 'site', label: 'Site checked — power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['estimate'] },
-  { key: 'fixes', phase: 'site', label: 'What the site check found — fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
-  { key: 'sheets', phase: 'site', label: 'Room sheets printed and up — every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['heights', 'tile', 'layouts'], custom: true },
-  { key: 'installer', phase: 'installer', label: 'Installer picked — his PO sent', short: 'Pick installer & send PO', owner: 'ys', after: ['estimate'] },
+  { key: 'level', phase: 'level', label: 'Floor levels. The high and the low point of every floor', short: 'Floor levels', owner: 'yakov', after: ['estimate'] },
+  { key: 'heights', phase: 'site', label: 'Site checked. Power, water, drains, the rough-in, the site ready for us', short: 'Site check', owner: 'yakov', after: ['estimate'] },
+  { key: 'fixes', phase: 'site', label: 'What the site check found. Fixed, and checked again on site', short: 'Fix problems', owner: 'ys' },
+  { key: 'sheets', phase: 'site', label: 'Room sheets printed and up. Every room’s tiles, grout and layouts', short: 'Hang room sheets', owner: 'yakov', after: ['heights', 'tile', 'layouts'], custom: true },
+  { key: 'installer', phase: 'installer', label: 'Installer picked. His PO sent', short: 'Pick installer & send PO', owner: 'ys', after: ['estimate'] },
   { key: 'walk', phase: 'installer', label: 'Walk-through with the installer', short: 'Walk-through', owner: 'yakov', after: ['installer'], custom: true },
-  { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates — after the walk-through', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
+  { key: 'confirmed', phase: 'installer', label: 'Installer accepted the PO and the dates. After the walk-through', short: 'Installer accepts', owner: 'ys', after: ['installer'] },
   { key: 'order', phase: 'store', label: 'Tile delivery date from the store', short: 'Get delivery date', owner: 'office', after: ['getpaper'] },
   { key: 'delivered', phase: 'store', label: 'Tile delivered and counted', short: 'Receive tile', owner: 'yakov', after: ['order'] },
   { key: 'materials', phase: 'materials', label: 'Our materials ordered', short: 'Order materials', owner: 'matBy', after: ['setup', 'heights'] },
@@ -233,7 +233,7 @@ export const BUILT_IN = new Set(STEP_DEFAULTS.filter((d) => !d.custom).map((d) =
 /** what Go through projects says on a step done before the project was in Tile OS */
 export const BEFORE_TILE_OS = 'Done before Tile OS'
 /** a step done outside this list — nobody did it here, so it isn't shown as done, and doesn't count */
-export const NOT_TRACKED = 'Not tracked — from before Tile OS'
+export const NOT_TRACKED = 'Not tracked. From before Tile OS'
 /** the steps that follow a part's main one, or only happen when something was found: "done already" on a part never
  *  ticks them — the part is done without them */
 export const FOLLOW_UPS = new Set(['change', 'layouts', 'walk', 'sheets', 'fixes'])
@@ -252,10 +252,10 @@ const ADDED: Record<number, string[]> = { 3: ['level'], 4: ['fixes'], 5: ['sheet
 const MOVED: Record<number, Record<string, [string, string]>> = { 4: { change: ['office', 'yakov'] } }
 const addedAfter = (v: number) => new Set(Object.entries(ADDED).filter(([n]) => Number(n) > v).flatMap(([, keys]) => keys))
 /* names a step had before it was renamed — a company list saved with the old name gets the new one */
-const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting — confirmed', 'Confirm what was decided',
+const RENAMED = new Set(['Estimate still right after the meeting', 'Estimate check', 'Grout and a picture for every tile', 'Grout and pictures', 'What was decided at the meeting · confirmed', 'Confirm what was decided',
   /* the clearer names (Oct 26): what a saved list still calls them gets the new name */
   'Send installer PO', 'Get the paperwork', 'Enter the paperwork', 'Quantities', 'Underlayment', 'Confirm the scope', 'Tile and grout', 'Layouts', 'Floor heights', 'Fixes', 'Installer PO', 'Show him the job', 'Installer confirmed', 'Tile delivery date', 'Tile delivered', 'Materials delivered',
-  'Floor heights — the high and the low point of every floor', 'Site checked — wall heights, water, electrical, plumbing', 'Job shown to the installer', 'Installer confirmed — he took the PO and the dates'])
+  'Floor heights. The high and the low point of every floor', 'Site checked. Wall heights, water, electrical, plumbing', 'Job shown to the installer', 'Installer confirmed. He took the PO and the dates'])
 export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
   const saved = s.rules.steps
   if (!saved?.length) return STEP_DEFAULTS
@@ -334,7 +334,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       if (rooms.length) return { state: 'done', note: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}` }
       if (rec.done) return { state: 'done', note: rec.note || 'In' }
       if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'In before this list' }
-      return { state: 'now', note: 'Add it — the rooms, walls and floors come from it', action: { label: 'Add the estimate' } }
+      return { state: 'now', note: 'Add it. The rooms, walls and floors come from it', action: { label: 'Add the estimate' } }
     }
     case 'getpaper': {
       const files = s.files.filter((f) => f.jobId === j.id && f.kind === 'paperwork')
@@ -343,18 +343,18 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       if (last) return { state: 'done', note: `${last.name} · uploaded ${last.at}` }
       if (Object.values(s.tiles[j.id] || {}).some((t) => t.paper)) return { state: 'done', note: 'Entered from the paperwork' }
       const tiled = flat.filter((x) => takesTile(x.name))
-      if (tiled.length && tiled.every((x) => x.tile)) return { state: 'done', note: 'In — every wall and floor has its tile' }
+      if (tiled.length && tiled.every((x) => x.tile)) return { state: 'done', note: 'In. Every wall and floor has its tile' }
       if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: 'In before this list' }
       return { state: 'now', note: 'Ask the tile store for it, then upload it here', action: { label: 'Upload it' } }
     }
     case 'rooms': {
-      if (!rooms.length) return { state: 'now', note: 'After the estimate is in — the tile goes on its walls and floors', action: { label: 'Add the estimate' } }
+      if (!rooms.length) return { state: 'now', note: 'After the estimate is in. The tile goes on its walls and floors', action: { label: 'Add the estimate' } }
       const tiled = flat.filter((x) => takesTile(x.name))
       const picked = tiled.filter((x) => x.tile).length
       if (rec.done) return { state: 'done', note: rec.note || 'Every tile is matched to its walls and floors' }
       if (!['awarded', 'setup'].includes(j.stage)) return { state: 'done', note: `${rooms.length} rooms · ${flat.length} surfaces` }
       if (tiled.length && picked === tiled.length) return { state: 'done', note: 'Every wall and floor has its tile' }
-      return { state: 'now', note: picked ? `${picked} of ${tiled.length} walls and floors have their tile` : 'Upload it — AI matches every tile to the walls and floors', action: { label: 'Enter it' } }
+      return { state: 'now', note: picked ? `${picked} of ${tiled.length} walls and floors have their tile` : 'Upload it · AI matches every tile to the walls and floors', action: { label: 'Enter it' } }
     }
     case 'qty': {
       if (rec.done) return { state: 'done', note: rec.note || 'Checked' }
@@ -366,7 +366,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const blank = rows.filter((r) => r.have == null)
       if (sent && (short.length || blank.length)) {
         const back = addDays(isoFromLabel(sent.at) || TODAY, 2)
-        return { state: 'wait', due: back, note: `Revised quantities sent ${sent.at} — waiting for the new paperwork`, action: { label: 'Check it' } }
+        return { state: 'wait', due: back, note: `Revised quantities sent ${sent.at}. Waiting for the new paperwork`, action: { label: 'Check it' } }
       }
       if (short.length) return { state: 'bad', note: short.map((r) => `${r.tag} is ${r.short.toLocaleString('en-US')} ${r.unit === 'boxes' ? 'boxes' : 'SF'} short`).join(' · '), action: { label: 'Send revised quantities' } }
       if (blank.length) return { state: 'now', note: `How much does the paperwork have of ${blank.slice(0, 3).map((r) => r.tag).join(', ')}${blank.length > 3 ? '…' : ''}?`, action: { label: 'Check it' } }
@@ -385,8 +385,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const st = settingStatus(s, j.id)
       if (!st.total) return { state: 'now', note: 'Add the square feet first', action: { label: 'Open scope', run: openJob('scope') } }
       /* projects past setup had theirs decided before this list existed */
-      if (['verification', 'ready', 'scheduled'].includes(j.stage) && st.set < st.total) return { state: 'done', note: 'Decided at setup — open the scope to see it' }
-      return st.set === st.total ? { state: 'done', note: 'Decided for every surface — materials follow it' } : { state: 'now', note: `${st.set} of ${st.total} surfaces decided · suggestions ready`, action: { label: 'Decide the setup', run: () => s.open({ t: 'setting', jobId: j.id }) } }
+      if (['verification', 'ready', 'scheduled'].includes(j.stage) && st.set < st.total) return { state: 'done', note: 'Decided at setup. Open the scope to see it' }
+      return st.set === st.total ? { state: 'done', note: 'Decided for every surface. Materials follow it' } : { state: 'now', note: `${st.set} of ${st.total} surfaces decided · suggestions ready`, action: { label: 'Decide the setup', run: () => s.open({ t: 'setting', jobId: j.id }) } }
     }
     case 'order': {
       const checks = s.checks.filter((c) => c.jobId === j.id)
@@ -408,17 +408,17 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const wrong = wrongOf(rec)
       if (rec.done) return { state: 'done', note: rec.note || 'Checked on site' }
       /* everything looked at — what's wrong is on its way to be fixed (Fix problems) */
-      if (asked === qs.length) return { state: 'done', note: wrong.length ? `Checked on site — ${wrong.length} to fix` : 'Everything checked on site' }
+      if (asked === qs.length) return { state: 'done', note: wrong.length ? `Checked on site · ${wrong.length} to fix` : 'Everything checked on site' }
       /* projects past the site check had theirs taken before this list existed */
       if (['ready', 'scheduled'].includes(j.stage) && !Object.keys(answers).length && !s.tasks.some((t) => t.step === `${j.id}:heights` && t.state !== 'done')) return { state: 'done', note: 'Checked at the site visit' }
-      return { state: 'now', note: asked ? `${asked} of ${qs.length} answered${wrong.length ? ` · ${wrong.length} to fix` : ''}` : 'Power, water, drains, LED tracks, windows, the rough-in — and the site ready for us', action: { label: 'Do the site check' } }
+      return { state: 'now', note: asked ? `${asked} of ${qs.length} answered${wrong.length ? ` · ${wrong.length} to fix` : ''}` : 'Power, water, drains, LED tracks, windows, the rough-in, and the site ready for us', action: { label: 'Do the site check' } }
     }
     case 'fixes': {
       /* what the site check found: someone gets each one fixed — then it's back on the site manager's list to look again */
       const wrong = wrongOf(s.stepRecs[j.id]?.heights)
-      if (!wrong.length) return rec.done ? { state: 'done', note: rec.note || 'Fixed — and checked again on site' } : { state: 'na', note: 'Nothing to fix' }
+      if (!wrong.length) return rec.done ? { state: 'done', note: rec.note || 'Fixed, and checked again on site' } : { state: 'na', note: 'Nothing to fix' }
       const open = wrong.filter(([, c]) => !c.fixed)
-      if (open.length) return { state: 'bad', note: open.map(([k, c]) => siteProblem(k, c)).join(' · '), action: { label: 'Fixed — check it again' } }
+      if (open.length) return { state: 'bad', note: open.map(([k, c]) => siteProblem(k, c)).join(' · '), action: { label: 'Fixed. Check it again' } }
       const siteRec = s.stepRecs[j.id]?.heights
       const siteDef = companySteps(s).find((d) => d.key === 'heights')
       const site = (siteRec?.owner || (siteDef && siteDef.owner !== 'matBy' ? siteDef.owner : 'yakov')) as PersonKey
@@ -428,26 +428,26 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const fl = floorRooms(rooms)
       if (rec.done) return { state: 'done', note: rec.note || 'Measured' }
       /* no estimate in yet: the floors come from it — part of the site check all the same */
-      if (!rooms.length) return { state: 'now', note: 'The floors come from the estimate — the high and the low point of each' }
+      if (!rooms.length) return { state: 'now', note: 'The floors come from the estimate. The high and the low point of each' }
       if (!fl.length) return { state: 'na', note: 'No floors on this project' }
       const toDo = fl.filter((f) => !f.mud)
-      if (!toDo.length) return { state: 'done', note: 'Mud beds — they level themselves' }
+      if (!toDo.length) return { state: 'done', note: 'Mud beds. They level themselves' }
       const measured = toDo.filter((f) => f.word)
       const bad = measured.filter((f) => f.word!.tone === 'bad')
       const prep = measured.filter((f) => f.word!.tone === 'warn')
-      if (bad.length) return { state: 'bad', note: bad.map((f) => `${f.room.name} is ${fracIn(f.word!.diff)} out — the GC has to fix it`).join(' · '), action: { label: 'Tell the office', run: () => sendFloorProblems(j.id) } }
+      if (bad.length) return { state: 'bad', note: bad.map((f) => `${f.room.name} is ${fracIn(f.word!.diff)} out. The GC has to fix it`).join(' · '), action: { label: 'Tell the office', run: () => sendFloorProblems(j.id) } }
       /* projects past the site check had their floors looked at before this step existed */
       if (['ready', 'scheduled'].includes(j.stage) && !measured.length) return { state: 'done', note: 'Looked at on the site visit' }
-      if (measured.length < toDo.length) return { state: 'now', note: measured.length ? `${measured.length} of ${toDo.length} floors measured` : `${toDo.length} floor${toDo.length === 1 ? '' : 's'} to measure — the high and the low point of each`, action: { label: 'Enter the high and low' } }
-      return { state: 'done', note: prep.length ? `${prep.map((f) => f.room.name).join(', ')} get${prep.length === 1 ? 's' : ''} self-leveler first — the materials follow` : 'Every floor is flat enough to tile' }
+      if (measured.length < toDo.length) return { state: 'now', note: measured.length ? `${measured.length} of ${toDo.length} floors measured` : `${toDo.length} floor${toDo.length === 1 ? '' : 's'} to measure. The high and the low point of each`, action: { label: 'Enter the high and low' } }
+      return { state: 'done', note: prep.length ? `${prep.map((f) => f.room.name).join(', ')} get${prep.length === 1 ? 's' : ''} self-leveler first. The materials follow` : 'Every floor is flat enough to tile' }
     }
     case 'materials': {
       const ms = materialStatus(s, j.id)
       if (ms.state === 'yes') return { state: 'done', note: 'Everything the setup needs is on site' }
-      if (ms.state === 'wait') return { state: 'done', note: `Ordered — ${ms.hint.replace(/ — on the way$/, '')}` }
+      if (ms.state === 'wait') return { state: 'done', note: `Ordered · ${ms.hint.replace(/(?: —|\.| ·) on the way$/i, '')}` }
       if (rec.done) return { state: 'done', note: rec.note || 'Ordered' }
       if (ms.go === 'scope') return { state: 'now', note: ms.hint, action: { label: 'Open scope', run: openJob('scope') } }
-      return { state: 'now', note: `${ms.label} — worked out from the setup and square feet`, action: { label: 'Order materials', run: () => s.open({ t: 'newpo', jobId: j.id, fromTakeoff: true }) } }
+      return { state: 'now', note: `${ms.label}. Worked out from the setup and square feet`, action: { label: 'Order materials', run: () => s.open({ t: 'newpo', jobId: j.id, fromTakeoff: true }) } }
     }
     case 'matin': {
       const open = s.pos.filter((p) => p.jobId === j.id && p.step >= 1 && p.step < 3)
@@ -457,8 +457,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
         const first = open.map((p) => ({ p, iso: dueOf(p) })).sort((x, y) => (x.iso || '9999').localeCompare(y.iso || '9999'))[0]
         const what = `${first.p.id} from ${first.p.supplier}`
         if (first.iso && first.iso > TODAY) return { state: 'wait', due: first.iso, note: `${what} · coming ${labelFromIso(first.iso)}${open.length > 1 ? ` · ${open.length - 1} more on the way` : ''}`, action: { label: 'It came' } }
-        if (first.iso) return { state: 'now', due: first.iso, note: first.iso < TODAY ? `${what} was due ${labelFromIso(first.iso)} — did it come?` : `${what} is due today — did it come?`, action: { label: 'It came' } }
-        return { state: 'wait', note: `${what} — no delivery date yet`, action: { label: 'It came' } }
+        if (first.iso) return { state: 'now', due: first.iso, note: first.iso < TODAY ? `${what} was due ${labelFromIso(first.iso)}. Did it come?` : `${what} is due today. Did it come?`, action: { label: 'It came' } }
+        return { state: 'wait', note: `${what}. No delivery date yet`, action: { label: 'It came' } }
       }
       const ms = materialStatus(s, j.id)
       if (ms.state === 'yes') return { state: 'done', note: 'Everything the setup needs is on site' }
@@ -467,7 +467,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     case 'delivered': {
       /* tile that came broken, wrong or short (logged as a problem) — it isn't delivered until those are sorted */
       const probs = s.tasks.filter((t) => t.jobId === j.id && isTileProblem(t))
-      if (probs.length) return { state: 'bad', note: probs.length === 1 ? probs[0].title : `${probs.length} problems — ${probs.map((t) => t.title.replace(/^(T-\d+): \d+ boxes? (came )?/, '$1 ')).join(' · ')}`, action: { label: probs.length === 1 ? 'Open it' : 'Open the first', run: () => s.open({ t: 'task', id: probs[0].id }) } }
+      if (probs.length) return { state: 'bad', note: probs.length === 1 ? probs[0].title : `${probs.length} problems · ${probs.map((t) => t.title.replace(/^(T-\d+): \d+ boxes? (came )?/, '$1 ')).join(' · ')}`, action: { label: probs.length === 1 ? 'Open it' : 'Open the first', run: () => s.open({ t: 'task', id: probs[0].id }) } }
       const checks = s.checks.filter((c) => c.jobId === j.id)
       if (checks.length) {
         if (checks.every((c) => c.received >= c.ordered)) return { state: 'done', note: 'All of it is on site' }
@@ -476,7 +476,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
         const eta = isoFromLabel(open.find((c) => c.eta)?.eta)
         if (checks.some((c) => c.received > 0)) return { state: 'bad', due: eta, note: open.map((c) => `${c.tag} ${c.received} of ${c.ordered} ${c.unit}`).join(' · '), action: { label: 'Check it in', run } }
         if (eta && eta > TODAY) return { state: 'wait', due: eta, note: `Delivery ${labelFromIso(eta)} · ${checks[0].supplier}`, action: { label: 'Check it in', run } }
-        return { state: 'now', due: eta || TODAY, note: eta && eta < TODAY ? `Was due ${labelFromIso(eta)} — did it come?` : 'Being delivered today', action: { label: 'Check it in', run } }
+        return { state: 'now', due: eta || TODAY, note: eta && eta < TODAY ? `Was due ${labelFromIso(eta)}. Did it come?` : 'Being delivered today', action: { label: 'Check it in', run } }
       }
       const p = s.prep[j.id]?.tile
       if (rec.done || p === 'yes') return { state: 'done', note: rec.note || 'On site' }
@@ -485,7 +485,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
         const d = rec.due
         return d > TODAY
           ? { state: 'wait', due: d, note: `Delivery ${labelFromIso(d)}`, action: { label: 'Check it in', pick: 'checkin' } }
-          : { state: 'now', due: d, note: d < TODAY ? `Was due ${labelFromIso(d)} — did it come?` : 'Being delivered today', action: { label: 'Check it in', pick: 'checkin' } }
+          : { state: 'now', due: d, note: d < TODAY ? `Was due ${labelFromIso(d)}. Did it come?` : 'Being delivered today', action: { label: 'Check it in', pick: 'checkin' } }
       }
       return { state: 'now', note: 'No delivery date yet' }
     }
@@ -498,11 +498,11 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
         return { state: 'done', note: `${ipo.id} sent to ${PEOPLE[ipo.crew].name}`, on: sent?.date || (ipo.status === 'Sent' ? ipo.date : undefined), onTime: sent?.time, by: sent?.who as PersonKey | undefined }
       }
       /* on the job without a PO — unless a PO with prices was drafted since */
-      if (rec.done && crew && !(ipo?.status === 'Draft' && ipo.lines.some((l) => (l.amount || 0) > 0))) return { state: 'done', note: rec.note || `${PEOPLE[crew].name} — no PO` }
-      if (ipo?.status === 'Draft') return { state: 'now', note: `${ipo.id} for ${PEOPLE[ipo.crew].short} — saved, not sent yet`, action: { label: 'Send his PO', run: () => s.open({ t: 'ipo', id: ipo.id }) } }
-      if (ipo?.status === 'Rejected') return { state: 'bad', note: `${PEOPLE[ipo.crew].short} turned it down — pick someone else`, action: { label: 'Pick an installer' } }
+      if (rec.done && crew && !(ipo?.status === 'Draft' && ipo.lines.some((l) => (l.amount || 0) > 0))) return { state: 'done', note: rec.note || `${PEOPLE[crew].name} · no PO` }
+      if (ipo?.status === 'Draft') return { state: 'now', note: `${ipo.id} for ${PEOPLE[ipo.crew].short}. Saved, not sent yet`, action: { label: 'Send his PO', run: () => s.open({ t: 'ipo', id: ipo.id }) } }
+      if (ipo?.status === 'Rejected') return { state: 'bad', note: `${PEOPLE[ipo.crew].short} turned it down. Pick someone else`, action: { label: 'Pick an installer' } }
       if (!['awarded', 'setup', 'verification'].includes(j.stage) && crew) return { state: 'done', note: `${PEOPLE[crew].name} has it` }
-      return { state: 'now', note: crew ? `${PEOPLE[crew].short} is penciled in — his PO isn’t out` : 'Nobody picked yet', action: { label: crew ? 'Send his PO' : 'Pick an installer' } }
+      return { state: 'now', note: crew ? `${PEOPLE[crew].short} is penciled in. His PO isn’t out` : 'Nobody picked yet', action: { label: crew ? 'Send his PO' : 'Pick an installer' } }
     }
     case 'confirmed': {
       const ipo = [...s.ipos].reverse().find((p) => p.jobId === j.id)
@@ -511,7 +511,7 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       if (ipo?.status === 'Sent') {
         const sent = [...ipo.log].reverse().find((l) => /sent/i.test(l.text))?.date || ipo.date
         const back = addDays(isoFromLabel(sent) || TODAY, 2)
-        return { state: 'wait', due: back, note: `${ipo.id} sent ${sent} — waiting for ${PEOPLE[ipo.crew].short} to say yes`, action: { label: 'He said yes' } }
+        return { state: 'wait', due: back, note: `${ipo.id} sent ${sent} · waiting for ${PEOPLE[ipo.crew].short} to say yes`, action: { label: 'He said yes' } }
       }
       if (ipo?.status === 'Rejected') return { state: 'bad', note: `${PEOPLE[ipo.crew].short} turned it down` }
       if (!['awarded', 'setup', 'verification'].includes(j.stage) && installerOf(s, j)) return { state: 'done', note: 'Confirmed before this list' }
@@ -523,8 +523,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
       const open = () => s.open({ t: 'money', id: dep.id })
       if (dep.state === 'paid') return { state: 'done', note: `Paid${dep.date ? ' ' + dep.date : ''}` }
       if (dep.paid) return { state: 'wait', note: `${fmtMoney((dep.amount || 0) - dep.paid)} still open`, action: { label: 'Record payment', run: open } }
-      if (dep.step >= 1) return { state: 'wait', note: `Invoice ${dep.ref || ''} sent — not paid yet`, action: { label: 'Record payment', run: open } }
-      return { state: 'now', note: 'Not invoiced yet — a warning, not a stop', action: { label: 'Create invoice', run: open } }
+      if (dep.step >= 1) return { state: 'wait', note: `Invoice ${dep.ref || ''} sent, not paid yet`, action: { label: 'Record payment', run: open } }
+      return { state: 'now', note: 'Not invoiced yet. A warning, not a stop', action: { label: 'Create invoice', run: open } }
     }
   }
   return null
@@ -556,12 +556,12 @@ export function lanesFor(steps: StepView[]): LaneView[] {
 /** the step that has to happen before this one on its track — when this one is done, that one is too */
 const BEFORE: Record<string, string[]> = { rooms: ['getpaper'], qty: ['rooms'], delivered: ['order'], confirmed: ['installer'], change: ['design'], matin: ['materials'] }
 const BEFORE_NOTE: Record<string, string> = {
-  getpaper: 'Got it — the paperwork is entered',
-  rooms: 'Entered — the quantities are checked',
+  getpaper: 'Got it. The paperwork is entered',
+  rooms: 'Entered. The quantities are checked',
   order: 'The tile came',
-  installer: 'His PO went out — he accepted it',
-  design: 'Met — the scope is confirmed',
-  materials: 'Ordered — they came',
+  installer: 'His PO went out. He accepted it',
+  design: 'Met. The scope is confirmed',
+  materials: 'Ordered · they came',
 }
 
 /** every step of one project, in order, with who has it and where it stands */
@@ -575,7 +575,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
       /* the design meeting and the walkthrough: set on the calendar from here, done once they've happened */
       const ev = d.key === 'design' ? s.events.find((x) => x.jobId === j.id && /design/i.test(x.title)) : d.key === 'walk' ? s.events.find((x) => x.jobId === j.id && x.kind === 'walkthrough' && /installer|crew/i.test(`${x.title} ${x.with || ''}`)) : undefined
       if (!rec.done && !rec.na && ev) raw = ev.date < TODAY ? { state: 'done', note: `${ev.kind === 'walkthrough' ? 'Walked through' : 'Met'} ${labelFromIso(ev.date)}` } : { state: 'wait', due: ev.date, note: `Set for ${labelFromIso(ev.date)}` }
-      else if (!rec.done && !rec.na && (d.key === 'design' || d.key === 'walk')) raw = { state: 'now', due: rec.due, note: d.key === 'design' ? 'With the designer or the client — tile, layout, grout' : 'Show him the job before he starts', action: { label: d.key === 'design' ? 'Set the meeting' : 'Set the walkthrough', run: () => s.open({ t: 'record', type: 'meeting', jobId: j.id, title: d.key === 'design' ? 'Design meeting' : 'Walkthrough with the installer', meetKind: d.key === 'walk' ? 'walkthrough' : 'meeting' }) } }
+      else if (!rec.done && !rec.na && (d.key === 'design' || d.key === 'walk')) raw = { state: 'now', due: rec.due, note: d.key === 'design' ? 'With the designer or the client. Tile, layout, grout' : 'Show him the job before he starts', action: { label: d.key === 'design' ? 'Set the meeting' : 'Set the walkthrough', run: () => s.open({ t: 'record', type: 'meeting', jobId: j.id, title: d.key === 'design' ? 'Design meeting' : 'Walkthrough with the installer', meetKind: d.key === 'walk' ? 'walkthrough' : 'meeting' }) } }
     }
     /* the scope after the meeting, the layouts, the room sheets: a project that was past setup before this list had them
        outside it — not tracked here (not "done": nobody did them here) */
@@ -583,11 +583,11 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     /* the room sheets: one page a room — print them, hang one in each before the crew starts */
     if (!raw && !rec.done && !rec.na && d.key === 'sheets' && !d.only) {
       const n = (s.rooms[j.id] || []).filter((r) => r.surfaces.some((x) => x.tile && takesTile(x.name))).length
-      raw = { state: 'now', due: rec.due, note: n ? `${n} room${n === 1 ? '' : 's'} — print them and hang one in each` : 'One page for each room, once the tile is in', action: { label: 'Print the room sheets' } }
+      raw = { state: 'now', due: rec.due, note: n ? `${n} room${n === 1 ? '' : 's'}. Print them and hang one in each` : 'One page for each room, once the tile is in', action: { label: 'Print the room sheets' } }
     }
     if (!raw && !rec.done && !rec.na && d.key === 'change' && !d.only) {
       const cos = s.money.filter((m) => m.jobId === j.id && m.kind === 'change' && m.meta?.meeting).length
-      raw = { state: 'now', due: rec.due, note: cos ? `${cos} change${cos === 1 ? '' : 's'} so far — say when that’s everything` : 'The same as the estimate — or what changed (each change becomes a change order)', action: { label: 'Confirm it' } }
+      raw = { state: 'now', due: rec.due, note: cos ? `${cos} change${cos === 1 ? '' : 's'} so far. Say when that’s everything` : 'The same as the estimate, or what changed (each change becomes a change order)', action: { label: 'Confirm it' } }
     }
     if (!raw && !rec.done && !rec.na && d.key === 'layouts' && !d.only) {
       /* how many walls and floors have their layout — the system suggests the rest */
@@ -600,20 +600,20 @@ export function stepsFor(s: Store, j: Job): StepView[] {
         ? { state: 'done', note: rec.note }
         : rec.na
           ? { state: 'na', note: 'Not needed on this project' }
-          : { state: 'now', due: rec.due, note: rec.note || (d.key === 'rough' ? 'Boxes, valves and drains where the layout needs them' : d.only ? 'Added for this project' : 'Your own step — check it off when it’s done'), action: { label: d.key === 'rough' ? 'Checked — all good' : 'Mark done', pick: 'check' } }
+          : { state: 'now', due: rec.due, note: rec.note || (d.key === 'rough' ? 'Boxes, valves and drains where the layout needs them' : d.only ? 'Added for this project' : 'Your own step. Check it off when it’s done'), action: { label: d.key === 'rough' ? 'Checked, all good' : 'Mark done', pick: 'check' } }
     }
     /* "done already" on Go through projects used to tick every step of a part — the follow-ups nobody did (the scope
        after the meeting, the layouts, the walk-through, the room sheets) and Fix problems with nothing found: those
        aren't tracked, not done */
     if (raw.state === 'done' && rec.done && rec.note === BEFORE_TILE_OS && FOLLOW_UPS.has(d.key)) raw = { state: 'na', note: NOT_TRACKED }
     if (rec.na && raw.state !== 'done') raw = { state: 'na', note: rec.note === BEFORE_TILE_OS ? NOT_TRACKED : 'Not needed on this project' }
-    if (d.off && raw.state !== 'done') raw = { state: 'na', note: 'Turned off in Settings — not on our projects' }
+    if (d.off && raw.state !== 'done') raw = { state: 'na', note: 'Turned off in Settings, not on our projects' }
     /* waiting on someone outside: off the list until the day it's due back — then "did it come?" */
     if (rec.wait && raw.state !== 'done' && raw.state !== 'na') {
       const back = rec.wait.back
       raw = back > TODAY
-        ? { ...raw, state: 'wait', due: back, note: `Waiting on ${rec.wait.on} — back ${labelFromIso(back)}` }
-        : { ...raw, state: 'now', due: back, note: `Asked ${rec.wait.on} ${rec.wait.at} — did it come through?` }
+        ? { ...raw, state: 'wait', due: back, note: `Waiting on ${rec.wait.on} · back ${labelFromIso(back)}` }
+        : { ...raw, state: 'now', due: back, note: `Asked ${rec.wait.on} ${rec.wait.at}. Did it come through?` }
     }
     /* late, and its owner moved it to a later day: due that day */
     if (rec.moved && (raw.state === 'now' || raw.state === 'bad') && (raw.due || rec.due || '') < rec.moved) raw = { ...raw, due: rec.moved }
@@ -622,7 +622,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
     if (IN_FIELD_STAGES.includes(j.stage) && (raw.state === 'now' || raw.state === 'later') && d.key !== 'deposit' && !rec.no) raw = { state: 'done', note: 'Done before the start' }
     /* answered by hand on the project's checklist: No is a problem, with what's wrong; Yes is done — unless what really
        happened says there's a problem (that has to be fixed, not answered away) */
-    if (rec.no && !rec.na) raw = { ...raw, state: 'bad', note: rec.no.note ? `No — ${rec.no.note}` : `No — ${PEOPLE[rec.no.by]?.short || 'someone'} said it isn’t` }
+    if (rec.no && !rec.na) raw = { ...raw, state: 'bad', note: rec.no.note ? `No · ${rec.no.note}` : `No · ${PEOPLE[rec.no.by]?.short || 'someone'} said it isn’t` }
     else if (rec.done && !['done', 'bad', 'na'].includes(raw.state)) raw = { state: 'done', note: rec.note || 'Done' }
     const asked = (raw.owner || task?.owner || rec.owner || (d.owner === 'matBy' ? matBy(s) : d.owner)) as PersonKey
     const owner = realOwner(s, asked)
@@ -649,7 +649,7 @@ export function stepsFor(s: Store, j: Job): StepView[] {
         const x = list.find((y) => y.key === k)
         if (!x || x.state === 'done' || x.state === 'na') return
         x.state = 'done'
-        x.note = BEFORE_NOTE[k] || `Done — ${v.short.toLowerCase()} is done`
+        x.note = BEFORE_NOTE[k] || `Done · ${v.short.toLowerCase()} is done`
         x.action = undefined
         x.doneOn ||= v.doneOn
         changed = true
@@ -737,7 +737,7 @@ export function markStep(jobId: string, key: string, note?: string, o: { close?:
     /* the step's own task is done too */
     st.tasks.forEach((x) => { if (x.step === `${jobId}:${key}` && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'Done' }) } })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `${def.short}: done`, detail: note } as any)
-  }, `${def.short} — done!`, { tone: 'done', sub: to.length ? 'The next steps are on their lists now.' : 'The project shows it done.', to: to.length ? to : undefined, close: !!o.close })
+  }, `${def.short} · done!`, { tone: 'done', sub: to.length ? 'The next steps are on their lists now.' : 'The project shows it done.', to: to.length ? to : undefined, close: !!o.close })
 }
 
 /** the paperwork's quantities are off: they went back with the right numbers — the step waits for the new paperwork */
@@ -752,8 +752,8 @@ export function sendRevisedQty(jobId: string, o: { to: string; text: string }) {
     delete r.done
     st.prep[jobId] = { ...(st.prep[jobId] || {}), paperwork: 'qty' }
     st.tasks.forEach((x) => { if ((x.step === `${jobId}:rooms` || x.step === `${jobId}:qty`) && x.state === 'now') { x.state = 'waiting'; x.waitingOn = o.to || 'the client'; x.followUp = labelFromIso(addDays(TODAY, 2)); x.log.push({ date: NOW, who: me(), text: 'Revised quantities sent' }) } })
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Revised quantities sent on the tile paperwork', detail: `${o.to ? `To ${o.to} — ` : ''}${o.text.split('\n').filter((l) => /^[-•]/.test(l.trim())).join(' ').slice(0, 220)}` } as any)
-  }, 'Revised quantities sent', { tone: 'wait', sub: `It waits for the new paperwork — back on ${PEOPLE[owner]?.short || 'your'}’s list in 2 days if it doesn’t come.`, close: true })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Revised quantities sent on the tile paperwork', detail: `${o.to ? `To ${o.to} · ` : ''}${o.text.split('\n').filter((l) => /^[-•]/.test(l.trim())).join(' ').slice(0, 220)}` } as any)
+  }, 'Revised quantities sent', { tone: 'wait', sub: `It waits for the new paperwork · back on ${PEOPLE[owner]?.short || 'your'}’s list in 2 days if it doesn’t come.`, close: true })
 }
 
 /** waiting on someone outside — the step comes back on its owner's Today that day */
@@ -766,8 +766,8 @@ export function waitOnStep(jobId: string, key: string, on: string, back: string,
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {})[key] ||= {})
     r.wait = { on, back: iso, at: NOW }
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: again ? `${v?.short || 'Step'}: followed up — still waiting on ${on}` : `${v?.short || 'Step'}: waiting on ${on}`, detail: `${note ? `${note} · ` : ''}Back ${labelFromIso(iso)}` } as any)
-  }, again ? `Followed up — back ${labelFromIso(iso)}` : `Waiting on ${on}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)} — it comes back then if it hasn’t come.`, close: true })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: again ? `${v?.short || 'Step'}: followed up, still waiting on ${on}` : `${v?.short || 'Step'}: waiting on ${on}`, detail: `${note ? `${note} · ` : ''}Back ${labelFromIso(iso)}` } as any)
+  }, again ? `Followed up · back ${labelFromIso(iso)}` : `Waiting on ${on}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)}. It comes back then if it hasn’t come.`, close: true })
 }
 /** the tile didn't come on its day: followed up with the store — the new day it's coming. Off the list until then. */
 export function tileNotYet(jobId: string, when: string, note?: string) {
@@ -779,8 +779,8 @@ export function tileNotYet(jobId: string, when: string, note?: string) {
     const r = ((st.stepRecs[jobId] ||= {}).delivered ||= {})
     r.due = iso
     st.checks.forEach((c) => { if (c.jobId === jobId && c.received < c.ordered) c.eta = labelFromIso(iso) })
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Followed up on the tile — not here yet', detail: `${note ? `${note} · ` : ''}Now ${labelFromIso(iso)}` } as any)
-  }, `Followed up — the tile is coming ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until then — it comes back that day to check it in.` })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Followed up on the tile, not here yet', detail: `${note ? `${note} · ` : ''}Now ${labelFromIso(iso)}` } as any)
+  }, `Followed up. The tile is coming ${labelFromIso(iso) === 'Tomorrow' ? 'tomorrow' : labelFromIso(iso)}`, { tone: 'wait', sub: `Off ${v && v.owner !== me() ? `${PEOPLE[v.owner]?.short}’s` : 'your'} list until then. It comes back that day to check it in.` })
 }
 export function stopWaiting(jobId: string, key: string) {
   S().commit((st) => { const r = st.stepRecs[jobId]?.[key]; if (r) delete r.wait }, 'Not waiting any more')
@@ -797,7 +797,7 @@ export function materialsCame(jobId: string) {
       p.step = 3
       p.late = false
       p.note = 'Delivered'
-      p.log.push({ date: NOW, who: me(), text: 'Delivered to site — all of it' })
+      p.log.push({ date: NOW, who: me(), text: 'Delivered to site, all of it' })
       st.mats.forEach((m) => { if (m.po === p.id) m.status = 'delivered' })
     })
     const r = ((st.stepRecs[jobId] ||= {}).matin ||= {})
@@ -815,13 +815,13 @@ export function materialsLate(jobId: string, when: string) {
     st.pos.forEach((p) => {
       if (p.jobId !== jobId || p.step < 1 || p.step >= 3) return
       p.eta = labelFromIso(iso)
-      p.log.push({ date: NOW, who: me(), text: `Not here yet — now ${labelFromIso(iso)}` })
+      p.log.push({ date: NOW, who: me(), text: `Not here yet · now ${labelFromIso(iso)}` })
     })
   }, `Coming ${labelFromIso(iso)}`, { tone: 'wait', sub: 'It comes back on your Today that day.', close: true })
 }
 
 /** what usually changes once we see the site or meet the designer — tap one, or say it */
-export const CHANGE_KINDS = ['LED channel or track', 'A pattern — herringbone, chevron…', 'Bigger or different tile', 'An extra niche or bench', 'An accent wall', 'Taller walls · more square feet', 'Heated floor', 'Something else']
+export const CHANGE_KINDS = ['LED channel or track', 'A pattern · herringbone, chevron…', 'Bigger or different tile', 'An extra niche or bench', 'An accent wall', 'Taller walls · more square feet', 'Heated floor', 'Something else']
 /** whoever reviews the estimate for this project (the office estimator) */
 export function estimatorFor(s: Store, jobId: string): PersonKey {
   const est = s.estimates.find((e) => e.jobId === jobId)
@@ -836,7 +836,7 @@ export function logChanges(jobId: string, items: { what: string; where?: string;
   const est = s.estimates.find((e) => e.jobId === jobId)
   const who = estimatorFor(s, jobId)
   const role = (s.team.find((m) => m.key === who)?.role || 'estimator') as Role
-  const lines = items.map((c) => `${c.what}${c.where ? ` — ${c.where}` : ''}${c.note ? ` (${c.note})` : ''}`)
+  const lines = items.map((c) => `${c.what}${c.where ? ` · ${c.where}` : ''}${c.note ? ` (${c.note})` : ''}`)
   const n = items.length
   s.commit((st) => {
     const r = ((st.stepRecs[jobId] ||= {}).change ||= {})
@@ -844,7 +844,7 @@ export function logChanges(jobId: string, items: { what: string; where?: string;
     r.done = NOW
     r.doneTime = clockNow()
     r.by = me()
-    r.note = `${n} change${n === 1 ? '' : 's'} — sent to ${PEOPLE[who]?.short} to update the estimate`
+    r.note = `${n} change${n === 1 ? '' : 's'} · sent to ${PEOPLE[who]?.short} to update the estimate`
     newTask(st, { jobId, title: `Update the estimate · ${j.name}`, detail: lines.join('\n'), type: 'Pricing', owner: who, for: [role], state: 'now', due: 'Today', tone: 'warn', where: `From the meeting: ${lines.join(' · ').slice(0, 140)}`, action: est ? { label: 'Open the estimate', kind: 'estchange:' + est.id } : { label: 'Open', kind: 'open-job' }, log: [{ date: NOW, who: me(), text: `Changed from the estimate: ${lines.join(' · ')}` }] })
     ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'change', title: `${n} change${n === 1 ? '' : 's'} from the estimate`, detail: lines.join(' · ') } as any)
   }, 'Sent to update the estimate', { sub: lines.join(' · '), to: [{ who, what: `Update the estimate · ${j.name}` }], close: true })
@@ -856,10 +856,10 @@ export function sendSiteProblems(jobId: string) {
   const j = s.jobs[jobId]
   const bad = Object.entries(s.stepRecs[jobId]?.heights?.checks || {}).filter(([, c]) => !c.ok)
   if (!j || !bad.length) return
-  const text = bad.map(([k, c]) => `${SITE_CHECKS.find((x) => x.k === k)?.label || k}${c.note ? ` — ${c.note}` : ''}`).join(' · ')
+  const text = bad.map(([k, c]) => `${SITE_CHECKS.find((x) => x.k === k)?.label || k}${c.note ? ` · ${c.note}` : ''}`).join(' · ')
   s.commit((st) => {
     newTask(st, { jobId, title: `Site check at ${j.name}: ${bad.length === 1 ? 'a problem to fix' : `${bad.length} problems to fix`}`, detail: text, type: 'Setup', owner: 'ys', for: ['owner', 'office'], state: 'now', due: 'Today', tone: 'warn', where: 'Site check', log: [{ date: NOW, who: me(), text: `Found on the site check: ${text}` }] })
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: 'Site check — problems found', detail: text } as any)
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: 'Site check · problems found', detail: text } as any)
   }, 'Sent to the office', { sub: text, to: [{ who: 'ys', what: `Site check · ${j.name}` }], close: true })
 }
 
@@ -881,7 +881,7 @@ export function setSiteAnswer(jobId: string, k: string, a: { ok: boolean; note?:
     const now = wrongOf(r).length
     const fx = ((st.stepRecs[jobId] ||= {}).fixes ||= {})
     /* the last thing wrong is fine now: the fixes are done */
-    if (had && !now && !fx.done) { fx.done = NOW; fx.by = me(); fx.note = 'Fixed — and checked again on site' }
+    if (had && !now && !fx.done) { fx.done = NOW; fx.by = me(); fx.note = 'Fixed, and checked again on site' }
     if (now) delete fx.done
     if (a && !a.ok && !a.na) (st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: `Site check: ${siteProblem(k, c[k])}` } as any)
   })
@@ -974,7 +974,7 @@ export function markTileOrdered(jobId: string, when: string) {
     r.order = { ...(r.order || {}), done: NOW, by: me(), note: `Ordered · delivery ${labelFromIso(iso)}` }
     r.delivered = { ...(r.delivered || {}), due: iso }
     if (st.prep[jobId]) st.prep[jobId].tile = 'no'
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile ordered by the store', detail: `Delivery ${labelFromIso(iso)}${receiver ? ` — ${PEOPLE[receiver].name} checks it in` : ''}` } as any)
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile ordered by the store', detail: `Delivery ${labelFromIso(iso)}${receiver ? ` · ${PEOPLE[receiver].name} checks it in` : ''}` } as any)
   }, 'Delivery date saved', { sub: receiver ? `It’s on ${receiver === me() ? 'your' : `${PEOPLE[receiver].short}’s`} list ${day === 'today' ? 'today' : `on ${day}`} to check it in.` : undefined, to: receiver && receiver !== me() ? [{ who: receiver, what: `Check in the tile at ${j?.name} · ${labelFromIso(iso)}` }] : undefined })
 }
 /** the tile came: all of it, or report what's short. All of what the paperwork has is here — and if the paperwork
@@ -993,7 +993,7 @@ export function checkInTile(jobId: string) {
     r.by = me()
     r.note = `All here · checked in ${NOW}`
     if (st.prep[jobId]) st.prep[jobId].tile = 'yes'
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile delivered — all of it', detail: 'Counted on site' } as any)
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'material', title: 'Tile delivered, all of it', detail: 'Counted on site' } as any)
     const def = companySteps(st).find((d) => d.key === 'order')?.owner
     const orderer = realOwner(st, (def && def !== 'matBy' && PEOPLE[def as PersonKey] ? def : 'office') as PersonKey)
     Object.values(st.tiles[jobId] || {}).forEach((t) => {
@@ -1003,12 +1003,12 @@ export function checkInTile(jobId: string) {
       newTask(st, {
         jobId, title: `${t.tag} is ${q.short} ${q.unit} short of what the rooms need`, type: 'Materials', owner: orderer, for: ['office', 'owner', 'pm', 'materials'] as Role[],
         state: 'now', due: 'Today', tone: 'bad', urgent: true, where: `${t.tag} · ${t.name}`,
-        detail: `The walls and floors it goes on need ${q.need} ${q.unit}, with the extra for cuts — the paperwork had ${q.have} ${q.unit}, and that’s what came.`,
+        detail: `The walls and floors it goes on need ${q.need} ${q.unit}, with the extra for cuts. The paperwork had ${q.have} ${q.unit}, and that’s what came.`,
         action: { label: 'Order more tile', kind: `moretile:${t.tag}:${q.short}` },
         log: [{ date: NOW, who: 'system', text: 'Checked when the tile came in' }],
       })
     })
-  }, short.length ? 'Tile checked in — but some is short' : 'Tile checked in — all of it', { sub: short.length ? `${short.join(' · ')} of what the rooms need. Order more tile is on the Today of whoever orders the tile.` : 'The project shows it on site.', to: to.length ? to : undefined })
+  }, short.length ? 'Tile checked in, but some is short' : 'Tile checked in, all of it', { sub: short.length ? `${short.join(' · ')} of what the rooms need. Order more tile is on the Today of whoever orders the tile.` : 'The project shows it on site.', to: to.length ? to : undefined })
 }
 
 /* ---------------- your own steps ---------------- */
@@ -1030,19 +1030,19 @@ export function addCompanyStep(label: string, owner: PersonKey, after?: string, 
 }
 /** turn a step off for every project — or back on */
 export function setCompanyStepOff(key: string, off: boolean) {
-  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, off: off || undefined } : d))) }, off ? 'Turned off — it’s not on any project now' : 'Back on every project')
+  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, off: off || undefined } : d))) }, off ? 'Turned off. It’s not on any project now' : 'Back on every project')
 }
 export function removeCompanyStep(key: string) {
   S().commit((st) => { saveSteps(st, companySteps(st).filter((d) => d.key !== key)) }, 'Removed from the checklist')
 }
 export function setCompanyStepOwner(key: string, owner: PersonKey | 'matBy') {
-  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, owner } : d))) }, 'Saved — every project follows it')
+  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, owner } : d))) }, 'Saved. Every project follows it')
 }
 /** the company's own name for a step — on the project, on Today, everywhere */
 export function renameCompanyStep(key: string, name: string) {
   const n = name.trim()
   if (!n) return
-  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, label: n, short: n, named: true } : d))) }, 'Renamed — every project shows the new name')
+  S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, label: n, short: n, named: true } : d))) }, 'Renamed. Every project shows the new name')
 }
 
 /* ---------------- floors: the high and the low point, and what that means ---------------- */
@@ -1054,9 +1054,9 @@ export type LevelWord = { tone: 'ok' | 'warn' | 'bad'; label: string; diff: numb
 export function levelWord(r: { level?: { high: number; low: number } }): LevelWord | null {
   if (!r.level) return null
   const diff = Math.round(Math.abs(r.level.high - r.level.low) * 1000) / 1000
-  if (diff <= LEVEL_OK) return { tone: 'ok', label: 'Flat — good to tile', diff }
-  if (diff <= LEVEL_PREP) return { tone: 'warn', label: `${fracIn(diff)} out — self-leveler first`, diff }
-  return { tone: 'bad', label: `${fracIn(diff)} out — the GC has to fix it`, diff }
+  if (diff <= LEVEL_OK) return { tone: 'ok', label: 'Flat. Good to tile', diff }
+  if (diff <= LEVEL_PREP) return { tone: 'warn', label: `${fracIn(diff)} out · self-leveler first`, diff }
+  return { tone: 'bad', label: `${fracIn(diff)} out. The GC has to fix it`, diff }
 }
 /** a floor that gets tile (not a shower floor — that's a mud pan, sloped on purpose) */
 export const isFloor = (name: string) => /floor/i.test(name) && !/shower/i.test(name)
@@ -1116,9 +1116,9 @@ export function sendFloorProblems(jobId: string) {
   const j = s.jobs[jobId]
   const bad = floorRooms(s.rooms[jobId] || []).filter((f) => f.word?.tone === 'bad')
   if (!j || !bad.length) return
-  const text = bad.map((f) => `${f.room.name}: high ${fracIn(f.room.level!.high)}, low ${fracIn(f.room.level!.low)} — ${fracIn(f.word!.diff)} out`).join(' · ')
+  const text = bad.map((f) => `${f.room.name}: high ${fracIn(f.room.level!.high)}, low ${fracIn(f.room.level!.low)} · ${fracIn(f.word!.diff)} out`).join(' · ')
   s.commit((st) => {
-    newTask(st, { jobId, title: `${j.name}: ${bad.length === 1 ? `the ${bad[0].room.name} floor is` : `${bad.length} floors are`} too far out — the GC has to fix ${bad.length === 1 ? 'it' : 'them'}`, detail: text, type: 'Setup', owner: 'ys', for: ['owner', 'office'], state: 'now', due: 'Today', tone: 'warn', where: 'Floor heights', log: [{ date: NOW, who: me(), text: `Measured on site: ${text}` }] })
-    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: 'Floor heights — a floor the GC has to fix', detail: text } as any)
+    newTask(st, { jobId, title: `${j.name}: ${bad.length === 1 ? `the ${bad[0].room.name} floor is` : `${bad.length} floors are`} too far out. The GC has to fix ${bad.length === 1 ? 'it' : 'them'}`, detail: text, type: 'Setup', owner: 'ys', for: ['owner', 'office'], state: 'now', due: 'Today', tone: 'warn', where: 'Floor heights', log: [{ date: NOW, who: me(), text: `Measured on site: ${text}` }] })
+    ;(st.hist[jobId] ||= []).unshift({ date: NOW, who: me(), kind: 'field', title: 'Floor heights. A floor the GC has to fix', detail: text } as any)
   }, 'Sent to the office', { sub: text, to: [{ who: 'ys', what: `Floor heights · ${j.name}` }], close: true })
 }

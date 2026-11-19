@@ -63,10 +63,10 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', note: `Due ${due}`, taskId: tid }))
       const crewDoes = !!PEOPLE[owner]?.crew
       newTask(st, {
-        id: tid, jobId, title: crewDoes ? `Touch-ups at ${st.jobs[jobId].name} — check them when ${PEOPLE[owner].short} is done` : `Touch-ups at ${st.jobs[jobId].name}`,
+        id: tid, jobId, title: crewDoes ? `Touch-ups at ${st.jobs[jobId].name}. Check them when ${PEOPLE[owner].short} is done` : `Touch-ups at ${st.jobs[jobId].name}`,
         type: 'Field', owner: crewDoes ? checker : owner, for: crewDoes ? ['site'] : ['site', 'owner'], state: 'now', due, tone: 'warn',
         where: `${items.length} item${items.length > 1 ? 's' : ''}${crewDoes ? ` · ${PEOPLE[owner].name}’s crew` : ''}`,
-        detail: items.map((it) => `• ${it.where !== 'To place' ? it.where + ' — ' : ''}${it.text}`).join('\n'),
+        detail: items.map((it) => `• ${it.where !== 'To place' ? it.where + ' · ' : ''}${it.text}`).join('\n'),
         action: { label: 'Open the list', kind: 'tab:touchups' }, followers: crewDoes ? [] : [checker],
         log: [{ date: NOW, who: meOf(st.role), text: `${items.length} touch-up${items.length > 1 ? 's' : ''} logged · due ${due}` }],
       } as any)
@@ -112,7 +112,7 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
               value={r.text}
               onChange={(e) => setText(r.id, e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (r.text.trim()) addRow(r.id) } else if (e.key === 'Backspace' && !r.text && rows.length > 1) { e.preventDefault(); removeRow(r.id); const prev = rows[i - 1]; if (prev) setTimeout(() => inputs.current[prev.id]?.focus(), 20) } }}
-              placeholder={i === 0 ? 'Master bath — caulk around the tub' : i === 1 ? 'Hall bath — replace 2 chipped tiles' : 'Next one…'}
+              placeholder={i === 0 ? 'Master bath. Caulk around the tub' : i === 1 ? 'Hall bath. Replace 2 chipped tiles' : 'Next one…'}
               className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-faint"
             />
             {r.files.length > 0 && <span className="shrink-0 text-[0.78125rem] font-semibold text-brand-700">{r.files.length} {r.files.length === 1 ? 'photo' : 'photos'}</span>}

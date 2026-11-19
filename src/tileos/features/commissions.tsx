@@ -278,8 +278,8 @@ export function CommissionModal({ jobId, level }: { jobId: string; level: number
     <Modal level={level} size="md" onClose={s.close} title={`Commission · ${job.name}`} sub={`${job.client} · invoiced ${money(pic.billed)} · the client paid ${money(pic.paid)}`} footer={<>{client && <Button icon={<Users />} onClick={() => s.open({ t: 'clientsales', clientId: client.id })} data-open-client-sales>{client.name}’s salespeople</Button>}<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
       <div className="flex flex-col gap-3" data-commission={jobId}>
         {rows.map((r) => <ShareCard key={r.share.who} r={r} locked={!own} />)}
-        {!rows.length && <p className="text-[0.875rem] text-muted">Nobody sells to {client?.name || 'this client'} yet — give them their salesperson and every project of theirs goes by it.</p>}
-        <p className="text-[0.78125rem] text-muted">{own ? 'Someone was paid on this project, so it keeps the salespeople and rates it had then.' : `It goes by ${client?.name || 'the client'}’s salespeople — change them there and every project of theirs follows.`}</p>
+        {!rows.length && <p className="text-[0.875rem] text-muted">Nobody sells to {client?.name || 'this client'} yet. Give them their salesperson and every project of theirs goes by it.</p>}
+        <p className="text-[0.78125rem] text-muted">{own ? 'Someone was paid on this project, so it keeps the salespeople and rates it had then.' : `It goes by ${client?.name || 'the client'}’s salespeople. Change them there and every project of theirs follows.`}</p>
       </div>
     </Modal>
   )
@@ -297,18 +297,18 @@ export function ClientSalesModal({ clientId, level }: { clientId: string; level:
   const total = r2(list.reduce((n, x) => n + x.rate, 0))
   const jobs = won(s).filter((j) => j.clientId === clientId)
   return (
-    <Modal level={level} size="md" onClose={s.close} title={`Salespeople · ${c.name}`} sub={`${jobs.length} ${jobs.length === 1 ? 'project' : 'projects'} go by it — on what’s invoiced on each`} footer={<><span className="text-[0.8125rem] text-muted">{list.length ? `Total ${pct(total)}` : ''}</span><Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
+    <Modal level={level} size="md" onClose={s.close} title={`Salespeople · ${c.name}`} sub={`${jobs.length} ${jobs.length === 1 ? 'project' : 'projects'} go by it. On what’s invoiced on each`} footer={<><span className="text-[0.8125rem] text-muted">{list.length ? `Total ${pct(total)}` : ''}</span><Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button></>}>
       <div className="flex flex-col gap-3" data-client-sales={clientId}>
         {list.length > 0 && (
           <div className="overflow-hidden rounded-xl border border-line">
             {list.map((x) => <ClientShareRow key={x.who} clientId={clientId} who={x.who} rate={x.rate} name={people.find((p) => p.id === x.who)?.name || 'Salesperson'} />)}
           </div>
         )}
-        {!list.length && <p className="text-[0.875rem] text-muted">Who sells to {c.name}? One gets {pct(rateOf(s))}; add a second and it’s split — {pct(r2(rateOf(s) / 2))} each.</p>}
+        {!list.length && <p className="text-[0.875rem] text-muted">Who sells to {c.name}? One gets {pct(rateOf(s))}; add a second and it’s split · {pct(r2(rateOf(s) / 2))} each.</p>}
         <SearchSelect
           label="Add a salesperson"
           value={adding}
-          placeholder={list.length ? `Add another — split it ${pct(r2(rateOf(s) / (list.length + 1)))} each` : 'Pick the salesperson'}
+          placeholder={list.length ? `Add another · split it ${pct(r2(rateOf(s) / (list.length + 1)))} each` : 'Pick the salesperson'}
           options={free.map((p) => ({ key: p.id, label: p.name, hint: p.email }))}
           onChange={(k) => { setAdding(''); addToClient(clientId, k) }}
           onCreate={(text) => { const id = addSalesPerson(text); addToClient(clientId, id) }}
@@ -395,7 +395,7 @@ export function SalesPeopleModal({ level }: { level: number }) {
   const count = (id: string) => clientsWon(s).filter((c) => clientShares(s, c).some((x) => x.who === id)).length
   const add = () => { if (!name.trim()) return; addSalesPerson(name, { email }); setName(''); setEmail('') }
   return (
-    <Modal level={level} size="md" onClose={s.close} title="Salespeople" sub="Who sells for the company — give each client theirs from Commissions." footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}>
+    <Modal level={level} size="md" onClose={s.close} title="Salespeople" sub="Who sells for the company. Give each client theirs from Commissions." footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}>
       <div className="flex flex-col gap-4">
         {people.length > 0 && (
           <div className="overflow-hidden rounded-xl border border-line">
@@ -405,7 +405,7 @@ export function SalesPeopleModal({ level }: { level: number }) {
                   <span className="block truncate text-[0.9375rem] text-ink">{p.name}</span>
                   <span className="block truncate text-[0.78125rem] text-muted">{[p.email, `${count(p.id)} ${count(p.id) === 1 ? 'client' : 'clients'}`].filter(Boolean).join(' · ')}</span>
                 </span>
-                <button type="button" onClick={() => setMsg(removeSalesPerson(p.id) ? '' : `${p.name} was paid commissions — they stay on the list for the record.`)} aria-label={`Take ${p.name} off the list`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setMsg(removeSalesPerson(p.id) ? '' : `${p.name} was paid commissions. They stay on the list for the record.`)} aria-label={`Take ${p.name} off the list`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-faint hover:bg-wash hover:text-ink"><Trash2 className="h-4 w-4" /></button>
               </div>
             ))}
           </div>
@@ -430,7 +430,7 @@ export function CommissionRateModal({ level }: { level: number }) {
   const n = Number(rate)
   const ok = rate !== '' && n >= 0 && n <= 50
   return (
-    <Modal level={level} size="sm" onClose={s.close} title="Commission rate" sub="On what’s invoiced on a project — for each salesperson on it." footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok || (n === now && !all)} onClick={() => { setCompanyRate(n, all); s.close() }} data-save-rate>Save</Button></>}>
+    <Modal level={level} size="sm" onClose={s.close} title="Commission rate" sub="On what’s invoiced on a project. For each salesperson on it." footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" disabled={!ok || (n === now && !all)} onClick={() => { setCompanyRate(n, all); s.close() }} data-save-rate>Save</Button></>}>
       <div className="flex flex-col gap-4">
         <Field label="Rate">
           <div className="flex items-center gap-2">

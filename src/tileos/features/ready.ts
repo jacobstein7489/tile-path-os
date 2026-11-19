@@ -25,7 +25,7 @@ export const QUESTION: Record<string, string> = {
   rooms: 'Paperwork entered?',
   qty: 'Enough tile on the paperwork?',
   design: 'Design meeting done?',
-  change: 'What was decided — confirmed?',
+  change: 'What was decided · confirmed?',
   tile: 'Tile and grout picked?',
   setup: 'Underlayment decided?',
   layouts: 'Layouts confirmed?',
@@ -79,16 +79,16 @@ function siteRows(s: Store, job: Job, v: StepView): ReadyRow[] {
   const row = (k: string, q: string, sub: string, auto?: { state: StepState; note?: string }): ReadyRow => {
     const a = answers[k]
     const base = { id: 'site:' + k, kind: 'site' as const, key: k, q, sub, owner: v.owner, due: v.due, step: v }
-    if (a) return { ...base, state: a.na ? 'na' : a.ok ? 'done' : 'bad', answer: a.na ? 'na' : a.ok ? 'yes' : 'no', note: a.na ? 'Not needed here' : a.ok ? undefined : a.note ? `No — ${a.note}` : 'No', doneOn: a.at, doneBy: a.by }
+    if (a) return { ...base, state: a.na ? 'na' : a.ok ? 'done' : 'bad', answer: a.na ? 'na' : a.ok ? 'yes' : 'no', note: a.na ? 'Not needed here' : a.ok ? undefined : a.note ? `No · ${a.note}` : 'No', doneOn: a.at, doneBy: a.by }
     if (auto) return { ...base, state: auto.state, note: auto.note, answer: auto.state === 'done' ? 'yes' : auto.state === 'na' ? 'na' : undefined }
     if (stepDone) return { ...base, state: 'done', answer: 'yes', note: v.note, doneOn: v.doneOn, doneBy: v.doneBy }
     return { ...base, state: open }
   }
   const walls = !hs.total ? { state: 'na' as StepState, note: 'No tiled walls' }
-    : hs.measured === hs.total ? { state: 'done' as StepState, note: 'Measured on site — the square feet follow' }
+    : hs.measured === hs.total ? { state: 'done' as StepState, note: 'Measured on site. The square feet follow' }
       : stepDone ? undefined
         : { state: open, note: hs.measured ? `${hs.measured} of ${hs.total} walls measured` : `${hs.total} walls to measure` }
-  return [row('walls', 'Wall heights measured?', 'How high the tile goes on every wall — the square feet follow', walls), ...SITE_CHECKS.map((c) => row(c.k, c.q, c.sub))]
+  return [row('walls', 'Wall heights measured?', 'How high the tile goes on every wall. The square feet follow', walls), ...SITE_CHECKS.map((c) => row(c.k, c.q, c.sub))]
 }
 
 /** the project's checklist, part by part */
@@ -160,8 +160,8 @@ export function answeredByHand(s: Store, job: Job, r: ReadyRow) {
 /** answers that can't be given: the row says it by itself, from what really happened */
 export function lockedOf(s: Store, job: Job, r: ReadyRow): Partial<Record<Answer, string>> | undefined {
   if (answeredByHand(s, job, r)) return undefined
-  if (r.state === 'done') return { yes: 'It says Yes by itself — from what happened on the project', na: 'It’s already done' }
+  if (r.state === 'done') return { yes: 'It says Yes by itself. From what happened on the project', na: 'It’s already done' }
   if (r.state === 'na') return { yes: r.note || 'Not on this project', no: r.note || 'Not on this project', na: r.note || 'Not on this project' }
-  if (r.state === 'bad') return { yes: 'Fix what’s wrong first — it says Yes by itself once it’s fixed' }
+  if (r.state === 'bad') return { yes: 'Fix what’s wrong first. It says Yes by itself once it’s fixed' }
   return undefined
 }

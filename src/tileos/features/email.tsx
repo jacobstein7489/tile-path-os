@@ -42,7 +42,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     greeting = `Hi ${d.supplier} team,`
     body = REAL.cloud
       ? <>Here is our purchase order <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. Please reply to confirm it and the delivery date.</>
-      : <>Please confirm <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. One click below tells us — no need to reply.</>
+      : <>Please confirm <b>{id}</b> for <b>{j?.name}</b>. Deliver to {j?.address}, needed on site <b>{d.neededBy}</b>. One click below tells us. No need to reply.</>
     buttons = REAL.cloud ? null : (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Confirm the order</span>
@@ -54,9 +54,9 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
       const priced = po.paidBy === 'us'
       /* word for word what the store gets (mailout): more tile asks them to add it */
       subject = `${id}${po.more ? ' · more tile' : ' · tile'}${po.storeRef ? ` · your order ${po.storeRef}` : ''} · ${j?.name}${d.neededBy ? ` · needed ${d.neededBy}` : ''}`
-      const intro = po.more && !priced ? <>We need more of the tile below{po.storeRef ? <> on order <b>{po.storeRef}</b></> : null} — please add it and deliver it. Our reference is <b>{id}</b>.</>
+      const intro = po.more && !priced ? <>We need more of the tile below{po.storeRef ? <> on order <b>{po.storeRef}</b></> : null} · please add it and deliver it. Our reference is <b>{id}</b>.</>
         : po.more ? <>Here is our purchase order <b>{id}</b> for more of the same tile.</>
-          : !priced ? <>Please deliver the tile below{po.storeRef ? <> from order <b>{po.storeRef}</b></> : null} — our reference is <b>{id}</b>.</>
+          : !priced ? <>Please deliver the tile below{po.storeRef ? <> from order <b>{po.storeRef}</b></> : null} · our reference is <b>{id}</b>.</>
             : <>Here is our tile purchase order <b>{id}</b>{po.storeRef ? <> (your order {po.storeRef})</> : null}.</>
       body = <>{intro} Please reply to confirm it and the delivery date, with {id} in the subject.<br /><br /><b>Project:</b> {j?.name}<br /><b>Deliver to:</b> {j?.address}{d.neededBy ? <><br /><b>Needed on site:</b> {d.neededBy}</> : null}</>
       doc = (
@@ -115,10 +115,10 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     subject = `Invoice ${ref} · ${j?.name} · ${m.title}`
     attach = `Invoice ${ref}.pdf`
     greeting = `Hello${ap ? ` ${ap.name.split(' ')[0]}` : ''},`
-    body = <>Attached is invoice <b>{ref}</b> for <b>{j?.name}</b> — {m.title.toLowerCase()}. You can pay it online in a minute with the button below, by card or bank transfer.</>
+    body = <>Attached is invoice <b>{ref}</b> for <b>{j?.name}</b> · {m.title.toLowerCase()}. You can pay it online in a minute with the button below, by card or bank transfer.</>
     buttons = <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Lock className="h-4 w-4" />Pay {fmtMoney(due)} securely</span>
     doc = (
-      <Doc title="Invoice" refNo={ref} rows={[['Bill to', c?.name || j?.client || ''], ['Project', j?.name || ''], ['Their PO', j?.clientPO || '—'], ['Terms', 'Net 30']]}>
+      <Doc title="Invoice" refNo={ref} rows={[['Bill to', c?.name || j?.client || ''], ['Project', j?.name || ''], ['Their PO', j?.clientPO || ''], ['Terms', 'Net 30']]}>
         <div className="flex items-center justify-between border-y border-[#e8eaee] py-2.5 text-[0.875rem]"><span className="text-[#394150]">{m.title}</span><b className="tnum text-[#101828]">{fmtMoney(m.amount || 0)}</b></div>
         {m.paid ? <div className="flex items-center justify-between py-1.5 text-[0.84375rem] text-[#66707f]"><span>Paid</span><span className="tnum">−{fmtMoney(m.paid)}</span></div> : null}
         <div className="mt-1 flex justify-end gap-6 text-[0.875rem]"><span className="text-[#66707f]">Due{smp(' · sample')}</span><b className="tnum text-[#101828]">{fmtMoney(due)}</b></div>
@@ -140,7 +140,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
     greeting = 'Hello,'
     body = REAL.cloud
       ? <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Reply to approve it, or tell us what to change.</>
-      : <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Approve it, or tell us what to change — one click below.</>
+      : <>Here is our estimate for <b>{j?.name}</b>, with the scope of work room by room. Approve it, or tell us what to change. One click below.</>
     buttons = REAL.cloud ? null : (
       <>
         <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#2650cf] px-4 text-[0.875rem] font-semibold text-white"><Check className="h-4 w-4" />Approve</span>
@@ -184,7 +184,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
             <p className="mt-2 text-[0.90625rem] leading-relaxed text-[#394150]">{body}</p>
             <div className="mt-4 flex flex-wrap gap-2">{buttons}</div>
             <div className="mt-6">{doc}</div>
-            <p className="mt-5 text-[0.8125rem] leading-relaxed text-[#66707f]">{REAL.cloud ? 'Questions about it? Just reply to this email.' : 'Questions? Reply to this email — it lands on the project in Tile OS.'}</p>
+            <p className="mt-5 text-[0.8125rem] leading-relaxed text-[#66707f]">{REAL.cloud ? 'Questions about it? Just reply to this email.' : 'Questions? Reply to this email. It lands on the project in Tile OS.'}</p>
           </div>
         </div>
         <div className={cn('flex items-center gap-2 border-t border-line-2 px-5 py-3 text-[0.8125rem] text-muted max-sm:px-4', !attach && what.kind !== 'invoice' && 'hidden')}>

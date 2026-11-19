@@ -34,7 +34,7 @@ const TPL: Tpl[] = [
   { key: 'delivery', label: 'Delivery arrived', hint: 'Tile or materials landed on site', icon: Truck, color: 'teal', kindQ: 'How did it arrive?', kindStep: 'Arrived', kinds: [['All of it, correct', 'Nothing outstanding'], ['Part of it', 'Some of it came'], ['Wrong item', 'Not what was ordered'], ['Damaged', 'Broken boxes or cracked tile']] },
   { key: 'decision', label: 'Decision made', hint: 'The designer, GC or client answered', icon: Gavel, color: 'indigo', kindQ: 'What was decided?', kindStep: 'Decided', kinds: [['Layout or direction', 'Centered, full tile, start point'], ['Edge or metal', 'Miter or profile, size, finish'], ['Height or where it stops', 'Where the tile ends'], ['Niche, bench or curb', 'Treatment and edges']], where: true },
   { key: 'meeting', label: 'Meeting or walkthrough', hint: 'On the agenda with a day and a time', icon: CalendarPlus, color: 'blue' },
-  { key: 'call', label: 'Call or follow-up', hint: 'Spoke with someone, or no answer', icon: Phone, color: 'cyan', kindQ: 'How did it go?', kindStep: 'Result', kinds: [['Spoke — they’ll confirm', 'A promise with a date'], ['Still reviewing', 'No decision yet'], ['No answer', 'Left a message'], ['They approved it', 'Said yes']], wait: true },
+  { key: 'call', label: 'Call or follow-up', hint: 'Spoke with someone, or no answer', icon: Phone, color: 'cyan', kindQ: 'How did it go?', kindStep: 'Result', kinds: [['Spoke · they’ll confirm', 'A promise with a date'], ['Still reviewing', 'No decision yet'], ['No answer', 'Left a message'], ['They approved it', 'Said yes']], wait: true },
   { key: 'daily', label: 'Daily update', hint: 'What the crew tiled today', icon: ClipboardList, color: 'orange' },
   { key: 'payment', label: 'Payment received', hint: 'A check or transfer came in', icon: Wallet, color: 'green' },
 ]
@@ -49,7 +49,7 @@ export const openInvoices = (s: Store, jobId?: string) => s.money.filter((m) => 
 /** what's still coming to a project: our POs not delivered, tile the GC ordered that isn't all here */
 type Delivery = { key: string; kind: 'po' | 'tile'; id: string; title: string; sub: string }
 function deliveriesOf(s: Store, jobId: string): Delivery[] {
-  const pos = s.pos.filter((p) => p.jobId === jobId && p.step < 3).map((p) => ({ key: 'po:' + p.id, kind: 'po' as const, id: p.id, title: `${p.id} · ${p.what}`, sub: `${p.supplier} · ${p.late ? 'late — ' : ''}${p.eta || p.note}` }))
+  const pos = s.pos.filter((p) => p.jobId === jobId && p.step < 3).map((p) => ({ key: 'po:' + p.id, kind: 'po' as const, id: p.id, title: `${p.id} · ${p.what}`, sub: `${p.supplier} · ${p.late ? 'late · ' : ''}${p.eta || p.note}` }))
   const tile = s.checks.filter((c) => c.jobId === jobId && c.received < c.ordered).map((c) => ({ key: 'tile:' + c.tag, kind: 'tile' as const, id: c.tag, title: `${c.tag} tile · ${c.where}`, sub: `${c.received} of ${c.ordered} ${c.unit} here · from ${c.supplier}` }))
   return [...pos, ...tile]
 }
@@ -172,7 +172,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const busy = date ? busyFor(s, date, people) : []
   const timeOpts = Array.from({ length: (19 - 6) * 4 + 1 }, (_, i) => 6 * 60 + i * 15).map((m) => {
     const hit = busy.find((b) => m < b.start + b.dur && m + dur > b.start)
-    return { key: String(m), label: timeLabel(m).replace(/^(\d+) /, '$1:00 '), hint: hit ? `Busy — ${hit.title} ${rangeLabel(hit.start, hit.dur)}` : undefined }
+    return { key: String(m), label: timeLabel(m).replace(/^(\d+) /, '$1:00 '), hint: hit ? `Busy · ${hit.title} ${rangeLabel(hit.start, hit.dur)}` : undefined }
   })
   const dayOpts = Array.from({ length: 28 }, (_, i) => addDays(TODAY, i)).filter((d) => dow(d) !== 6 || d === TODAY).map((d) => ({ key: d, label: dayLabel(d) === 'Today' || dayLabel(d) === 'Tomorrow' ? `${dayLabel(d)} · ${dayShort(d)}` : dayShort(d) }))
 
@@ -203,7 +203,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     <FormRow label={type === 'meeting' ? 'About' : 'Project'}>
       {type === 'meeting' ? (
         <div className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
-          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project — or leave it for a company meeting" picks={false} /></div>
+          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project, or leave it for a company meeting" picks={false} /></div>
           {jobId && <Button variant="ghost" icon={<Building2 className="h-4 w-4" />} onClick={() => setJobId('')}>Company meeting</Button>}
         </div>
       ) : (
@@ -258,7 +258,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
               />
             </FormRow>
             {/* who from outside — right there to tap, never hidden at the bottom of a list */}
-            <FormRow label="With" hint="From outside — if anyone">
+            <FormRow label="With" hint="From outside, if anyone">
               <div className="flex flex-wrap gap-1.5" data-meet-with>
                 {OTHERS.map((o) => {
                   const on = others.includes(o)
@@ -282,7 +282,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
               </button>
             )}
             {meetMore && <>
-              <FormRow label="Where" hint={meetKind === 'walkthrough' && job && whereAt === job.address ? 'The project’s address — change it if you meet somewhere else' : undefined}>
+              <FormRow label="Where" hint={meetKind === 'walkthrough' && job && whereAt === job.address ? 'The project’s address. Change it if you meet somewhere else' : undefined}>
                 <TextInput aria-label="Where" value={whereAt} onChange={(e) => { setWhereAt(e.target.value); setWhereTouched(true) }} placeholder={meetKind === 'walkthrough' ? 'The address on site' : 'The office, the showroom, an address…'} />
               </FormRow>
               <FormRow label="How long">
@@ -292,7 +292,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                 <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={autoTitle} />
               </FormRow>
               <FormRow label="Note">
-                <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s about — e.g. go over the tiles we saw today (optional)" />
+                <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s about · e.g. go over the tiles we saw today (optional)" />
               </FormRow>
             </>}
           </div>
@@ -305,13 +305,13 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
                 label="Invoice"
                 value={invoice}
                 onChange={(k) => { setInvoice(k); setFull(true); setPart('') }}
-                options={invoices.map((m) => ({ key: m.id, label: `${m.ref} · ${s.jobs[m.jobId]?.name} — ${m.title}`, hint: `${fmtMoney((m.amount || 0) - (m.paid || 0))} open · ${s.jobs[m.jobId]?.client}` }))}
+                options={invoices.map((m) => ({ key: m.id, label: `${m.ref} · ${s.jobs[m.jobId]?.name} · ${m.title}`, hint: `${fmtMoney((m.amount || 0) - (m.paid || 0))} open · ${s.jobs[m.jobId]?.client}` }))}
                 placeholder="Pick the invoice"
                 searchPlaceholder="Invoice number, project or client…"
                 width={460}
                 search
               />
-              {!invoices.length && <div className="mt-1.5 text-[0.78125rem] text-muted">No open invoices — everything sent is paid.</div>}
+              {!invoices.length && <div className="mt-1.5 text-[0.78125rem] text-muted">No open invoices. Everything sent is paid.</div>}
             </FormRow>
             {inv && (
               <FormRow label="How much">
@@ -332,7 +332,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
         {type === 'daily' && (
           <div>
             {projectRow}
-            <div className="mt-1 text-[0.8125rem] text-muted">Pick the project — the daily update opens with its rooms.</div>
+            <div className="mt-1 text-[0.8125rem] text-muted">Pick the project. The daily update opens with its rooms.</div>
           </div>
         )}
 

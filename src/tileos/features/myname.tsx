@@ -26,7 +26,7 @@ export function MyNameModal({ level }: { level: number }) {
       size="sm"
       onClose={s.close}
       title="Your name"
-      sub="How the team sees you — on tasks, notes and the schedule."
+      sub="How the team sees you. On tasks, notes and the schedule."
       footer={
         <>
           <Button className="ml-auto" variant="ghost" onClick={s.close}>Cancel</Button>

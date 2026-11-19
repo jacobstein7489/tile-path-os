@@ -28,17 +28,17 @@ const boss = (s: Store) => meOf('owner')
 const siteMgr = (s: Store) => roleHolder(s, 'site') || (onTeam(s, 'yakov') ? 'yakov' : boss(s))
 const books = (s: Store) => roleHolder(s, 'accounting') || (onTeam(s, 'accounting') ? 'accounting' : boss(s))
 export const AUTOS: AutoDef[] = [
-  { key: 'crew-morning', who: siteMgr, what: 'Where the crews are tomorrow', sub: 'After 3 in the afternoon it pops up: each project with a crew the next work day, the people already filled in — he fixes what’s different and sends it to you. Not sent by the morning: it comes up again then, for that day.', when: () => 'The night before', icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count|tomorrow/i },
-  { key: 'rounds', who: boss, what: 'Visit the jobs', sub: 'Every work day on your Today: each job site with work going on, in driving order from where you are — Google Maps through all of them, and a video from each one (it goes out on WhatsApp and stays with the project)', when: () => 'Every work day', icon: MapPinned, toggle: true, words: /visit|rounds|route|google maps|video/i },
-  { key: 'daily-update', who: siteMgr, what: 'Daily update for each crew on site', sub: 'One per project with a crew working — how far each wall and floor moved, with photos. It’s what installer pay is figured from.', when: () => 'Every work day', icon: ClipboardList, toggle: true, words: /daily|update|progress|how far/i },
-  { key: 'delivery', who: (s) => matBy(s), what: 'Check in each delivery', sub: 'On the day it’s due — all here, or short, wrong or broken', when: () => 'On the delivery day', icon: Truck, toggle: false, words: /deliver|check in|arriv/i },
+  { key: 'crew-morning', who: siteMgr, what: 'Where the crews are tomorrow', sub: 'After 3 in the afternoon it pops up: each project with a crew the next work day, the people already filled in. He fixes what’s different and sends it to you. Not sent by the morning: it comes up again then, for that day.', when: () => 'The night before', icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count|tomorrow/i },
+  { key: 'rounds', who: boss, what: 'Visit the jobs', sub: 'Every work day on your Today: each job site with work going on, in driving order from where you are · Google Maps through all of them, and a video from each one (it goes out on WhatsApp and stays with the project)', when: () => 'Every work day', icon: MapPinned, toggle: true, words: /visit|rounds|route|google maps|video/i },
+  { key: 'daily-update', who: siteMgr, what: 'Daily update for each crew on site', sub: 'One per project with a crew working. How far each wall and floor moved, with photos. It’s what installer pay is figured from.', when: () => 'Every work day', icon: ClipboardList, toggle: true, words: /daily|update|progress|how far/i },
+  { key: 'delivery', who: (s) => matBy(s), what: 'Check in each delivery', sub: 'On the day it’s due, all here, or short, wrong or broken', when: () => 'On the delivery day', icon: Truck, toggle: false, words: /deliver|check in|arriv/i },
   { key: 'pay-review', who: boss, what: 'Approve installer pay for the week', sub: 'Every installer’s week from the daily updates, next to his bill', when: () => 'Every Monday', icon: HandCoins, toggle: true, words: /\bpay\b|payroll|approve/i },
-  { key: 'est-final', who: (s) => companyTeam(s).final, what: 'Final review of every estimate', sub: 'When the office review is done — approve it and it goes to the client', when: () => 'When it’s their turn', icon: BadgeCheck, toggle: false, words: /final review|review.*estimate/i },
-  { key: 'est-followup', who: (s) => companyTeam(s).follow, what: 'Follow up on estimates that went out', sub: 'The client hasn’t answered — call or email, then set the next date', when: () => '3 work days after it’s sent', icon: PhoneCall, toggle: true, words: /follow.?up|estimate.*(sent|answer)/i },
-  { key: 'steps', who: boss, what: 'Getting-ready steps, in order', sub: 'Every project’s steps — each lands on its own person’s Today when the one before it is done (Who does what)', when: () => 'When it’s their turn', icon: ListChecks, toggle: false, words: /paperwork|design meeting|site check|heights|installer|materials|tile delivery/i },
-  { key: 'late', who: boss, what: 'What’s late — a pop-up for each person', sub: 'Once a day, the first time they open it: what’s past its date on their Today. You also see the team’s, with “Remind” — it pops up on their screen.', when: () => 'Once a day', icon: AlarmClock, toggle: true, words: /\blate\b|overdue|past due|behind/i },
+  { key: 'est-final', who: (s) => companyTeam(s).final, what: 'Final review of every estimate', sub: 'When the office review is done. Approve it and it goes to the client', when: () => 'When it’s their turn', icon: BadgeCheck, toggle: false, words: /final review|review.*estimate/i },
+  { key: 'est-followup', who: (s) => companyTeam(s).follow, what: 'Follow up on estimates that went out', sub: 'The client hasn’t answered. Call or email, then set the next date', when: () => '3 work days after it’s sent', icon: PhoneCall, toggle: true, words: /follow.?up|estimate.*(sent|answer)/i },
+  { key: 'steps', who: boss, what: 'Getting-ready steps, in order', sub: 'Every project’s steps. Each lands on its own person’s Today when the one before it is done (Who does what)', when: () => 'When it’s their turn', icon: ListChecks, toggle: false, words: /paperwork|design meeting|site check|heights|installer|materials|tile delivery/i },
+  { key: 'late', who: boss, what: 'What’s late. A pop-up for each person', sub: 'Once a day, the first time they open it: what’s past its date on their Today. You also see the team’s, with “Remind”. It pops up on their screen.', when: () => 'Once a day', icon: AlarmClock, toggle: true, words: /\blate\b|overdue|past due|behind/i },
   { key: 'inv-remind', who: books, what: 'Remind clients about unpaid invoices', sub: 'A reminder email, ready to send, until it’s paid', when: (s) => `Every ${s.rules.reminderDays} days after it’s due`, icon: Mail, toggle: true, words: /unpaid|invoice|remind.*pa/i },
-  { key: 'billing-day', who: books, what: 'Bill last week’s progress', sub: 'What got installed on every project last week, from the daily updates — what to bill each client, one click per bill', when: () => 'Every Monday', icon: Receipt, toggle: true, words: /\bbill|billing/i },
+  { key: 'billing-day', who: books, what: 'Bill last week’s progress', sub: 'What got installed on every project last week, from the daily updates. What to bill each client, one click per bill', when: () => 'Every Monday', icon: Receipt, toggle: true, words: /\bbill|billing/i },
 ]
 export const autoOn = (s: Pick<Store, 'rules'>, key: string) => !(s.rules.autoOff || []).includes(key)
 /** who gets each of the app's own: changed right in its window where the company sets it (the estimate's final review
@@ -54,16 +54,16 @@ const WHO_EDIT: Record<string, { set?: (p: PersonKey) => void; note?: string; go
   'billing-day': { note: 'Whoever does the books', go: 'team' },
   rounds: { note: 'The admin' },
   'pay-review': { note: 'The admin' },
-  late: { note: 'Each person gets their own — the admin also sees the team’s' },
+  late: { note: 'Each person gets their own. The admin also sees the team’s' },
 }
 export function toggleAuto(key: string) {
   const on = autoOn(S(), key)
   const def = AUTOS.find((a) => a.key === key)
-  S().commit((s) => { s.rules.autoOff = on ? [...(s.rules.autoOff || []), key] : (s.rules.autoOff || []).filter((k) => k !== key) }, `${def?.what || 'Automation'} — ${on ? 'off' : 'on'}`)
+  S().commit((s) => { s.rules.autoOff = on ? [...(s.rules.autoOff || []), key] : (s.rules.autoOff || []).filter((k) => k !== key) }, `${def?.what || 'Automation'} · ${on ? 'off' : 'on'}`)
 }
 export function pauseRepeating(id: string) {
   const t0 = S().tasks.find((t) => t.id === id)
-  S().commit((s) => { const t = s.tasks.find((x) => x.id === id); if (t) t.paused = !t.paused }, t0?.paused ? 'Back on' : 'Paused — it stops coming until you turn it back on')
+  S().commit((s) => { const t = s.tasks.find((x) => x.id === id); if (t) t.paused = !t.paused }, t0?.paused ? 'Back on' : 'Paused. It stops coming until you turn it back on')
 }
 export function removeRepeating(id: string) {
   S().commit((s) => { s.tasks = s.tasks.filter((t) => t.id !== id) }, 'Automation removed')
@@ -140,7 +140,7 @@ export function AutomationsTab() {
  *  fills in the words and how often; who gets it stays who you picked. */
 const COMMON_REMINDERS: { t: string; repeat: NonNullable<Task['repeat']>; at: string }[] = [
   { t: 'Send me how many people are on each job', repeat: 'weekdays', at: '4 PM' },
-  { t: 'Check next week’s starts — tile, materials and installer all set?', repeat: 'weekly', at: '8 AM' },
+  { t: 'Check next week’s starts. Tile, materials and installer all set?', repeat: 'weekly', at: '8 AM' },
   { t: 'Order the setting materials for next week’s starts', repeat: 'weekly', at: '8 AM' },
   { t: 'Walk every job with a crew on it', repeat: 'weekdays', at: '8 AM' },
   { t: 'Send the GC this week’s progress photos', repeat: 'weekly', at: '4 PM' },
@@ -196,7 +196,7 @@ export function NewAutomationModal({ level, who: who0, id }: { level: number; wh
         placeholder="The reminder, in your words"
         listLabel="Common reminders"
       />
-      {built && <div className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-[0.8125rem] text-brand-800">The system already does this by itself: <b className="font-semibold">{built.what}</b> — {PEOPLE[built.who(s)]?.short}, {built.when(s).toLowerCase()}. It’s on the list behind this window.</div>}
+      {built && <div className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-[0.8125rem] text-brand-800">The system already does this by itself: <b className="font-semibold">{built.what}</b> · {PEOPLE[built.who(s)]?.short}, {built.when(s).toLowerCase()}. It’s on the list behind this window.</div>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Menu align="start" width={260} trigger={<button type="button" aria-label="Who gets it" className={chip}><Avatar who={owner} size={20} /><span className="truncate">{PEOPLE[owner]?.short}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>Who gets it</MenuLabel>
@@ -209,7 +209,7 @@ export function NewAutomationModal({ level, who: who0, id }: { level: number; wh
         <Menu align="start" width={180} trigger={<button type="button" aria-label="At" className={chip}><span className="inline-flex h-5 w-5 items-center justify-center text-muted"><Clock3 className="h-4 w-4" /></span>at {at}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           {['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => <MenuItem key={x} checked={at === x} onSelect={() => setAt(x)}>{x}</MenuItem>)}
         </Menu>
-        <SearchSelect value={job} onChange={setJob} emptyLabel="Company — not one project" placeholder="Project" icon={<Building2 />} width={340} label="For one project" className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
+        <SearchSelect value={job} onChange={setJob} emptyLabel="Company, not one project" placeholder="Project" icon={<Building2 />} width={340} label="For one project" className="h-8 w-auto max-w-[16.25rem] gap-1.5 rounded-full border-[#d9d3c9] pl-2.5 pr-2.5 text-[0.8125rem] font-medium text-ink-2 [&>span:nth-child(2)]:flex-initial" options={projects.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} />
       </div>
     </Modal>
   )
@@ -243,7 +243,7 @@ export function AutomationModal({ level, k }: { level: number; k: string }) {
         </div>
       </div>
       <div className="mt-5 flex items-center justify-between gap-3">
-        <span className="text-[0.84375rem] font-semibold text-ink-2">{a.toggle ? (on ? 'On' : 'Off') : 'Always on — every project needs it'}</span>
+        <span className="text-[0.84375rem] font-semibold text-ink-2">{a.toggle ? (on ? 'On' : 'Off') : 'Always on. Every project needs it'}</span>
         {a.toggle && <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} />}
       </div>
     </Modal>

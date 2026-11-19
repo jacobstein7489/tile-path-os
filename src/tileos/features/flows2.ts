@@ -98,7 +98,7 @@ export function estSend(estId: string) {
     closeTasks(s, s.tasks.filter((t) => t.jobId === e.jobId && t.state !== 'done' && t.type === 'Pricing').map((t) => t.id), 'Estimate sent')
     if (!(s.rules.autoOff || []).includes('est-followup')) newTask(s, { jobId: e.jobId, title: `Follow up on ${e.id} · ${j?.name}`, type: 'Pricing', owner: fol, also: fols.length > 1 ? fols.slice(1) : undefined, for: fols.length ? rolesOf(s as any, fols) : [FOL_ROLE[fol] || 'office'], watch: ['owner'], state: 'waiting', waitingOn: 'Client', followUp: fu, tone: 'neutral', where: `Revision ${r.n} · ${fmtMoney(total)} · sent ${NOW}`, action: { label: 'Open estimate', kind: 'estimate:' + e.id } })
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `${e.id} revision ${r.n} sent · ${fmtMoney(total)}`, ref: { t: 'estimate', id: e.id } })
-  }, `${e0.id} sent — it’s ${namesOf(fols.length ? fols : [fol], null, true)}’s now`, { close: true, sub: `${namesOf(fols.length ? fols : [fol])} ${fols.length > 1 ? 'follow' : 'follows'} up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu} — it’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [...estSteps(S()).map((x) => ({ who: peopleOn(S(), e0, x.key)[0], label: x.label, state: 'done' as const })), { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
+  }, `${e0.id} sent · it’s ${namesOf(fols.length ? fols : [fol], null, true)}’s now`, { close: true, sub: `${namesOf(fols.length ? fols : [fol])} ${fols.length > 1 ? 'follow' : 'follows'} up with ${S().jobs[e0.jobId]?.client || 'the client'} ${fu === 'Today' ? 'today' : fu}. It’s on their Today. Yes makes it a project; changes start the next revision.`, flow: [...estSteps(S()).map((x) => ({ who: peopleOn(S(), e0, x.key)[0], label: x.label, state: 'done' as const })), { who: fol, label: 'Follows up', state: 'now' }, { label: 'Client', state: 'next' }] })
   /* QuickBooks connected: the estimate goes there and to the client by email, with QuickBooks' PDF */
   if (qbLive()) void pushEstimate(estId, { email: true })
 }
@@ -113,13 +113,13 @@ export function estRevise(estId: string, what: string, o: { changes?: { text: st
     ;(o.changes || []).forEach((c, i) => (e.notes ||= []).push({ id: 'nt' + Date.now().toString(36) + i, rev: last.n + 1, by: me(), step: 'review', area: c.area, text: c.text, date: NOW }))
     e.status = 'revision'
     e.backTo = undefined
-    e.log.push(L(me(), `Revision ${last.n + 1} started — ${what || 'changes requested'}`))
+    e.log.push(L(me(), `Revision ${last.n + 1} started · ${what || 'changes requested'}`))
     const j = s.jobs[e.jobId]
     if (j && PRICING_STAGES.includes(j.stage)) j.stage = 'proposal'
     /* a revision walks the same path: takeoff, office review, owner review */
     giveTo(s, e, 'takeoff')
     addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Revision ${last.n + 1} requested · ${what || 'changes'}`, ref: { t: 'estimate', id: e.id } })
-  }, `Revision started — it’s on ${namesOf(peopleOn(S(), S().estimates.find((x) => x.id === estId)!, 'takeoff'))}’s Today`)
+  }, `Revision started · it’s on ${namesOf(peopleOn(S(), S().estimates.find((x) => x.id === estId)!, 'takeoff'))}’s Today`)
 }
 
 export function estLost(estId: string, reason: string) {
@@ -129,7 +129,7 @@ export function estLost(estId: string, reason: string) {
   S().commit((s) => {
     const e = s.estimates.find((x) => x.id === estId)!
     e.status = 'lost'
-    e.log.push(L(me(), `Marked lost — ${reason}`))
+    e.log.push(L(me(), `Marked lost · ${reason}`))
     if (j0) s.lost.unshift({ name: j0.name, client: j0.client, reason, date: NOW })
     closeTasks(s, s.tasks.filter((t) => t.jobId === e.jobId && t.state !== 'done').map((t) => t.id), 'Lost')
   }, `${e0.id} marked lost`)
@@ -198,10 +198,10 @@ export function approveEstimateInAward(s: any, jobId: string, revN?: number) {
   e.approvedOn = NOW
   /* the revision picked on the window — else the one sent, else the newest */
   const r = (revN != null ? e.revs.find((x) => x.n === revN) : undefined) || [...e.revs].reverse().find((x) => x.status === 'sent') || curRev(e)
-  if (!r) { e.log.push(L(meOf(s.role), 'Approved — it became the project')); return }
+  if (!r) { e.log.push(L(meOf(s.role), 'Approved. It became the project')); return }
   e.revs.forEach((x) => { if (x !== r && x.status === 'sent') x.status = 'superseded' })
   r.status = 'approved'
-  e.log.push(L(meOf(s.role), `Approved — revision ${r.n} became the project`))
+  e.log.push(L(meOf(s.role), `Approved · revision ${r.n} became the project`))
   if (!s.rooms[jobId]?.length) {
     const rooms = roomsFromEstimate({ ...e, revs: [r] }, s.items)
     if (rooms.length) s.rooms[jobId] = rooms
@@ -245,7 +245,7 @@ export function draftIPOLines(s: any, jobId: string, crew?: string): IPOLine[] {
     /* never a made-up price: with no contract and no estimate, the lines wait for his prices */
     const contract = s.jobs[jobId]?.contract || revTotal(e ? curRev(e) : undefined) || 0
     const names = rooms.length ? rooms.map((r) => r.name) : ['All areas']
-    lines = names.map((n) => ({ item: `${n} — install per plans`, qty: 'Per plans', amount: contract ? Math.round((contract * 0.32) / names.length / 10) * 10 : 0 }))
+    lines = names.map((n) => ({ item: `${n}. Install per plans`, qty: 'Per plans', amount: contract ? Math.round((contract * 0.32) / names.length / 10) * 10 : 0 }))
   }
   return lines
 }
@@ -272,8 +272,8 @@ export function pickInstaller(jobId: string, crew: PersonKey | 'tbd') {
     id = 'IPO-' + (/^\d/.test(jobId) ? jobId.toUpperCase() : 201 + s.ipos.length)
     if (s.ipos.some((p) => p.id === id)) id = id + '-' + (s.ipos.length + 1)
     s.ipos.push({ id, jobId, crew, status: 'Draft', date: NOW, lines: draftIPOLines(s, jobId, crew), changes: [], log: [L(me(), `Drafted for ${PEOPLE[crew].name} from the project scope${s.rules.crewRates?.[crew] ? ' at his prices' : ''}`)] })
-    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer picked · ${PEOPLE[crew].name}`, detail: `PO ${id} drafted — waiting for your approval`, ref: { t: 'ipo', id } })
-  }, `${PEOPLE[crew].name} picked — his PO is drafted for you to approve`)
+    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer picked · ${PEOPLE[crew].name}`, detail: `PO ${id} drafted. Waiting for your approval`, ref: { t: 'ipo', id } })
+  }, `${PEOPLE[crew].name} picked. His PO is drafted for you to approve`)
   if (id) S().open({ t: 'ipo', id })
 }
 /** the installer penciled in before his PO can be made (no estimate yet — the PO is made from it): he's the one, and
@@ -298,12 +298,12 @@ export function putOnNoPO(jobId: string, crew: PersonKey) {
       const r = (recs[key] ||= {})
       r.done = NOW
       r.by = me()
-      r.note = `${PEOPLE[crew].name} — no PO`
+      r.note = `${PEOPLE[crew].name} · no PO`
       delete r.na
     }
-    s.tasks.forEach((x) => { if ((x.step === `${jobId}:installer` || x.step === `${jobId}:confirmed`) && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'On the job — no PO' }) } })
-    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer on the job · ${PEOPLE[crew].name}`, detail: 'No PO in Tile OS — one can be made from Billing any time' })
-  }, `${PEOPLE[crew].short} is on the job`, { sub: 'No PO — make one from Billing any time.' })
+    s.tasks.forEach((x) => { if ((x.step === `${jobId}:installer` || x.step === `${jobId}:confirmed`) && x.state !== 'done') { x.state = 'done'; x.doneAt = 'Just now'; x.log.push({ date: NOW, who: me(), text: 'On the job · no PO' }) } })
+    addHist(s, jobId, { who: me(), kind: 'schedule', title: `Installer on the job · ${PEOPLE[crew].name}`, detail: 'No PO in Tile OS. One can be made from Billing any time' })
+  }, `${PEOPLE[crew].short} is on the job`, { sub: 'No PO. Make one from Billing any time.' })
 }
 /** book the installer: his PO (lines from the project scope) is created and sent to him in one step.
  *  It shows in Purchase orders and on the project; he accepts or turns it down. */
@@ -320,7 +320,7 @@ export function bookInstaller(jobId: string, crew: PersonKey, o: { send: boolean
     s.ipos.push({ id, jobId, crew, status: o.send ? 'Sent' : 'Draft', date: NOW, lines, changes: [], log: [L(me(), o.send ? `Created from the project scope and sent to ${PEOPLE[crew].name}` : `Drafted for ${PEOPLE[crew].name} from the project scope`), ...(o.note ? [L(me(), o.note)] : [])] })
     if (o.send) newTask(s, { jobId, title: `${PEOPLE[crew].name} to accept ${id} · ${s.jobs[jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[crew].name, followUp: 'Tomorrow', tone: 'info', where: id, action: { label: 'Open PO', kind: 'ipo:' + id } })
     addHist(s, jobId, { who: me(), kind: 'schedule', title: o.send ? `${id} sent to ${PEOPLE[crew].name} · ${fmtMoney(total)}` : `${id} drafted for ${PEOPLE[crew].name}`, detail: 'Installer PO from the project scope', ref: { t: 'ipo', id } })
-  }, o.send ? `PO sent to ${PEOPLE[crew].name}` : `Draft PO saved for ${PEOPLE[crew].name}`, o.send ? { sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] } : undefined)
+  }, o.send ? `PO sent to ${PEOPLE[crew].name}` : `Draft PO saved for ${PEOPLE[crew].name}`, o.send ? { sub: 'When he answers, record it on the PO. He accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] } : undefined)
   /* the real app: his PO goes to him by email */
   if (o.send && id && mailLive()) void emailIPO(id)
   return id
@@ -335,7 +335,7 @@ export function sendDraftIPO(ipoId: string) {
     p.log.push(L(me(), `Approved and sent to ${PEOPLE[p.crew].name}`))
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
     addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(p.lines.reduce((n, l) => n + l.amount, 0))}`, ref: { t: 'ipo', id: p.id } })
-  }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'When he answers, record it on the PO — he accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
+  }, `${p0.id} sent to ${PEOPLE[p0.crew].name}`, { close: true, sub: 'When he answers, record it on the PO. He accepted or turned it down.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'He accepts', state: 'now' }, { label: 'On the calendar', state: 'next' }] })
   if (mailLive()) void emailIPO(ipoId)
 }
 /** change the lines of an installer's PO. A draft simply changes; a PO he already has goes to him again as a new
@@ -358,7 +358,7 @@ export function setIPOLines(ipoId: string, lines: IPOLine[], o: { revise?: boole
     p.log.push(L(me(), `Revision ${rev} sent to ${PEOPLE[p.crew].name} · ${fmtMoney(before)} → ${fmtMoney(after)}`))
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'ipo:' + p.id && t.state !== 'done').map((t) => t.id), 'Replaced by the revision')
     newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} to accept ${p.id} revision ${rev} · ${s.jobs[p.jobId]?.name}`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'waiting', waitingOn: PEOPLE[p.crew].name, followUp: 'Tomorrow', tone: 'info', where: p.id, action: { label: 'Open PO', kind: 'ipo:' + p.id } })
-    addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised — revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
+    addHist(s, p.jobId, { who: me(), kind: 'schedule', title: `${p.id} revised · revision ${rev} sent to ${PEOPLE[p.crew].name}`, detail: `${fmtMoney(before)} → ${fmtMoney(after)}`, ref: { t: 'ipo', id: p.id } })
   }, o.revise ? `Revision ${rev} sent to ${PEOPLE[p0.crew].short}` : undefined, o.revise ? { sub: `${fmtMoney(before)} → ${fmtMoney(after)}. When he OKs it, record it on the PO.` } : undefined)
   if (o.revise && mailLive()) void emailIPO(ipoId)
 }
@@ -370,12 +370,12 @@ export function answerIPO(ipoId: string, ok: boolean, reason?: string, o: { from
     p.status = ok ? 'Accepted' : 'Rejected'
     p.reason = ok ? undefined : reason
     p.date = NOW
-    p.log.push(L(p.crew, ok ? 'Accepted' : `Rejected${reason ? ' — ' + reason : ''}`))
+    p.log.push(L(p.crew, ok ? 'Accepted' : `Rejected${reason ? ' · ' + reason : ''}`))
     if (ok) s.prep[p.jobId] = { ...(s.prep[p.jobId] || {}), installer: p.crew }
     closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'ipo:' + ipoId || t.action?.kind === 'ipoaccept:' + ipoId).map((t) => t.id), ok ? 'Accepted' : 'Rejected')
-    if (!ok) newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} turned down ${s.jobs[p.jobId]?.name} — pick another installer`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: reason || p.id, action: { label: 'Open game plan', kind: 'upcoming' } })
+    if (!ok) newTask(s, { jobId: p.jobId, title: `${PEOPLE[p.crew].name} turned down ${s.jobs[p.jobId]?.name}. Pick another installer`, type: 'Schedule', owner: 'ys', for: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: reason || p.id, action: { label: 'Open game plan', kind: 'upcoming' } })
     addHist(s, p.jobId, { who: p.crew, kind: 'schedule', title: `${PEOPLE[p.crew].name} ${ok ? 'accepted' : 'turned down'} ${p.id}`, detail: reason, ref: { t: 'ipo', id: p.id } })
-  }, o.fromCrew ? (ok ? `You said yes to ${p0.id}` : `You turned down ${p0.id}`) : ok ? `${PEOPLE[p0.crew].name} accepted ${p0.id}` : `${PEOPLE[p0.crew].name} turned it down`, o.fromCrew ? { close: true, sub: ok ? 'The office books your days once it’s ready — they show here.' : 'The office knows.' } : ok ? { close: true, sub: 'Next: put him on the calendar from the Schedule.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'Accepted', state: 'done' }, { label: 'On the calendar', state: 'now' }] } : { close: true, sub: 'Pick another installer — it’s on your Today.' })
+  }, o.fromCrew ? (ok ? `You said yes to ${p0.id}` : `You turned down ${p0.id}`) : ok ? `${PEOPLE[p0.crew].name} accepted ${p0.id}` : `${PEOPLE[p0.crew].name} turned it down`, o.fromCrew ? { close: true, sub: ok ? 'The office books your days once it’s ready. They show here.' : 'The office knows.' } : ok ? { close: true, sub: 'Next: put him on the calendar from the Schedule.', flow: [{ who: meOf(S().role), label: 'Sent', state: 'done' }, { who: p0.crew, label: 'Accepted', state: 'done' }, { label: 'On the calendar', state: 'now' }] } : { close: true, sub: 'Pick another installer. It’s on your Today.' })
 }
 
 /* ================= materials, priced from our items ================= */
@@ -435,7 +435,7 @@ export function setSurfaceMethod(jobId: string, room: string, surface: string, m
     if (!x) return
     x.method = method
     addHist(s, jobId, { who: me(), kind: 'setup', title: `${room} · ${surface.toLowerCase()} set on ${METHODS[method].label.toLowerCase()}`, detail: 'Materials recalculated' })
-  }, `${room} · ${surface} — ${METHODS[method].label.toLowerCase()} · materials updated`)
+  }, `${room} · ${surface} · ${METHODS[method].label.toLowerCase()} · materials updated`)
 }
 /** square feet for a wall or floor */
 export function setSurfaceSF(jobId: string, room: string, surface: string, sf: number) {
@@ -467,15 +467,15 @@ export function sendCrewReport(taskId: string | undefined, rows: { jobId: string
       addHist(s, r.jobId, { who: me(), kind: 'field', title: ahead ? (r.workers ? `Crew for ${dayShort(day)} · ${who}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'}` : `Crew for ${dayShort(day)} · nobody there`) : r.workers ? `Crew report · ${who}, ${r.workers} ${r.workers === 1 ? 'person' : 'people'} on site` : 'Crew report · nobody on site today', detail: r.note || undefined })
     })
     const on = rows.filter((r) => r.workers > 0)
-    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crews ${when}, from ${PEOPLE[me()].short}: ${on.map((r) => `${s.jobs[r.jobId]?.name} ${r.workers}`).join(' · ') || 'nobody on site'} — ${people} people`, when: 'Just now', kind: 'field', unread: true })
+    s.notices.unshift({ id: 'cr' + Date.now(), text: `Crews ${when}, from ${PEOPLE[me()].short}: ${on.map((r) => `${s.jobs[r.jobId]?.name} ${r.workers}`).join(' · ') || 'nobody on site'} · ${people} people`, when: 'Just now', kind: 'field', unread: true })
     const t = taskId ? s.tasks.find((x) => x.id === taskId) : s.tasks.find((x) => x.action?.kind === 'crewreport' && x.state === 'now')
     if (t) {
       t.state = 'done'
       t.doneAt = 'Just now'
-      t.log.push(L(me(), `Sent — ${rows.length} jobs, ${people} people`))
+      t.log.push(L(me(), `Sent · ${rows.length} jobs, ${people} people`))
       if (t.repeat) repeatTask(s, t)
     }
-  }, `Sent — ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: ahead ? `The office has ${when === 'tomorrow' ? 'tomorrow’s' : `${dayShort(day)}’s`} crews.` : 'The office has it.' })
+  }, `Sent · ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: ahead ? `The office has ${when === 'tomorrow' ? 'tomorrow’s' : `${dayShort(day)}’s`} crews.` : 'The office has it.' })
 }
 
 export function estFollowUp(estId: string, o: { how: string; outcome: string; next: string }) {
@@ -483,7 +483,7 @@ export function estFollowUp(estId: string, o: { how: string; outcome: string; ne
     const e = s.estimates.find((x) => x.id === estId)
     if (!e) return
     e.followUp = o.next
-    e.log.push(L(me(), `${o.how} — ${o.outcome.toLowerCase()}`))
+    e.log.push(L(me(), `${o.how} · ${o.outcome.toLowerCase()}`))
     const p = s.pricing[e.jobId]
     if (p) {
       p.fu.push({ date: NOW, how: o.how, outcome: o.outcome, by: me() })
@@ -492,8 +492,8 @@ export function estFollowUp(estId: string, o: { how: string; outcome: string; ne
     s.tasks.forEach((t) => {
       if (t.jobId === e.jobId && t.state === 'waiting' && t.type === 'Pricing') t.followUp = o.next
     })
-    addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Follow-up on ${e.id} · ${o.how.toLowerCase()} — ${o.outcome.toLowerCase()}`, detail: `Next follow-up ${o.next}`, ref: { t: 'estimate', id: e.id } })
-  }, `Logged — next follow-up ${o.next}`)
+    addHist(s, e.jobId, { who: me(), kind: 'pricing', title: `Follow-up on ${e.id} · ${o.how.toLowerCase()} · ${o.outcome.toLowerCase()}`, detail: `Next follow-up ${o.next}`, ref: { t: 'estimate', id: e.id } })
+  }, `Logged · next follow-up ${o.next}`)
 }
 export function estAssign(estId: string, who: PersonKey) {
   S().commit((s) => {
@@ -515,5 +515,5 @@ export function logTileOrder(jobId: string, tag: string, o: { sf: number; where:
     if (s.checks.some((c) => c.jobId === jobId && c.tag === tag)) return
     s.checks.push({ jobId, tag, where: o.where, unit: 'SF', measured: Math.round(o.sf), wastePct: waste, ordered: need, received: 0, supplier: t?.supplier || 'Best Tile', suppliedBy: t?.suppliedBy || 'GC', eta: 'TBD' })
     addHist(s, jobId, { who: me(), kind: 'material', title: `${tag} ordered by the ${t?.suppliedBy || 'GC'} · ${need} SF`, detail: `Covers our takeoff of ${Math.round(o.sf)} SF + ${waste}% waste` })
-  }, `${tag} logged — ${need} SF, matches our takeoff`)
+  }, `${tag} logged · ${need} SF, matches our takeoff`)
 }

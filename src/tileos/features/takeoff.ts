@@ -118,7 +118,7 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
       if (x.state === 'unknown' && /tile not confirmed/i.test(x.reason || '')) { skipped.push({ room: r.name, surface: x.name, why: 'Tile not confirmed yet' }); continue }
       /* what's under the tile goes by the square feet and how it's set — it's counted before the tile is picked;
          the thinset and the grout go by the tile, so they wait for it */
-      if (!x.tile) skipped.push({ room: r.name, surface: x.name, why: 'Thinset and grout — after its tile is picked' })
+      if (!x.tile) skipped.push({ room: r.name, surface: x.name, why: 'Thinset and grout. After its tile is picked' })
       counted++
       sf += x.sf
       const k = kindOf(x)
@@ -251,17 +251,17 @@ export type MatState = { state: 'yes' | 'no' | 'part' | 'wait'; label: string; h
 export function materialStatus(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules' | 'items'>, jobId: string): MatState {
   const t = takeoff(s, jobId)
   const name = (id: string) => (s.items.find((i) => i.id === id)?.name || id).split(' ·')[0].replace(' 3×5', '')
-  if (!t.total) return { state: 'no', label: 'No scope', hint: 'Build the rooms first — the materials calculate from them', go: 'scope' }
+  if (!t.total) return { state: 'no', label: 'No scope', hint: 'Build the rooms first. The materials calculate from them', go: 'scope' }
   if (!t.counted) return { state: 'no', label: 'Add SF', hint: 'Add square feet to the scope and the materials calculate by themselves', go: 'scope' }
   const miss = t.lines.filter((l) => l.toOrder > 0)
   if (miss.length) {
     const names = miss.slice(0, 3).map((l) => name(l.itemId).toLowerCase())
-    return { state: t.lines.some((l) => l.have > 0) ? 'part' : 'no', label: `${miss.length} to order`, hint: `${names.join(', ')}${miss.length > 3 ? ` and ${miss.length - 3} more` : ''} — worked out from the scope`, go: 'order' }
+    return { state: t.lines.some((l) => l.have > 0) ? 'part' : 'no', label: `${miss.length} to order`, hint: `${names.join(', ')}${miss.length > 3 ? ` and ${miss.length - 3} more` : ''}. Worked out from the scope`, go: 'order' }
   }
   const coming = t.lines.filter((l) => l.onSite < l.need)
   if (coming.length) {
     const refs = Array.from(new Set(coming.flatMap((l) => l.refs))).slice(0, 2)
-    return { state: 'wait', label: 'Ordered', hint: `${refs.join(', ')} — on the way`, go: 'orders' }
+    return { state: 'wait', label: 'Ordered', hint: `${refs.join(', ')}. On the way`, go: 'orders' }
   }
   return { state: 'yes', label: 'On site', hint: 'Everything the scope needs is on site', go: 'orders' }
 }

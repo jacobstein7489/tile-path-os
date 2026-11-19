@@ -72,7 +72,7 @@ export function BillingPage() {
         />
       }
       toolbar={
-        tab === 'progress' ? <ProgressToolbar week={week} onWeek={setWeek} /> : tab === 'jobs' ? <span className="bar-title text-[0.9375rem] font-semibold text-ink">Installed, billed and paid — per project</span> : (
+        tab === 'progress' ? <ProgressToolbar week={week} onWeek={setWeek} /> : tab === 'jobs' ? <span className="bar-title text-[0.9375rem] font-semibold text-ink">Installed, billed and paid · per project</span> : (
           <>
             <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ progress: '', todo: 'To invoice', waiting: 'Waiting for payment', upcoming: 'Coming up', paid: 'Paid', jobs: '' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
             <Filter icon={<Layers />} label="Type" value={kind} options={(Object.keys(MONEY_KIND_LABEL) as MoneyKind[]).map((k) => ({ key: k, label: MONEY_KIND_LABEL[k] }))} onChange={setKind} />
@@ -107,19 +107,19 @@ export function BillingPage() {
                     {m.ref ? (
                       <span className="inline-flex h-7 items-center rounded-md bg-wash-2 px-2 text-[0.8125rem] font-semibold tnum text-ink">{m.ref}</span>
                     ) : (
-                      <span className="text-[0.8125rem] text-faint">—</span>
+                      <span className="text-[0.8125rem] text-faint"></span>
                     )}
                   </Td>
                   <Td>
                     <div className="truncate text-[0.875rem] font-medium text-ink">{j?.name}</div>
-                    <div className="truncate text-[0.78125rem] text-muted">{m.title}<span className="md:hidden"> · {m.amount ? fmtMoney(m.amount) : '—'}</span></div>
+                    <div className="truncate text-[0.78125rem] text-muted">{m.title}<span className="md:hidden"> · {m.amount ? fmtMoney(m.amount) : ''}</span></div>
                   </Td>
                   <Td className="max-xl:hidden">
                     <div className="truncate text-[0.84375rem] text-ink-2">{j?.client}</div>
                     <div className="truncate text-[0.75rem] text-muted">{[j?.clientPO ? `PO ${j.clientPO}` : '', s.estimates.find((e) => e.jobId === m.jobId && e.status === 'approved')?.id].filter(Boolean).join(' · ') || 'No client PO yet'}</div>
                   </Td>
                   <Td right className="max-md:hidden">
-                    <div className="text-[0.90625rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : '—'}</div>
+                    <div className="text-[0.90625rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : ''}</div>
                     {m.paid && m.state !== 'paid' ? <div className="text-[0.75rem] text-muted">{fmtMoney(m.amount! - m.paid)} open</div> : null}
                   </Td>
                   <Td className="max-md:hidden"><Status tone={tone(m)}>{m.state === 'paid' ? `Paid ${m.date || ''}` : statusOf(m)}</Status></Td>
@@ -132,7 +132,7 @@ export function BillingPage() {
                 </Tr>
               )
             })}
-            {!list.length && <EmptyRow colSpan={7} title={tab === 'todo' ? 'Nothing to send — every bill is out' : tab === 'waiting' ? 'Nobody owes us anything right now' : 'Nothing here'} />}
+            {!list.length && <EmptyRow colSpan={7} title={tab === 'todo' ? 'Nothing to send. Every bill is out' : tab === 'waiting' ? 'Nobody owes us anything right now' : 'Nothing here'} />}
           </tbody>
         </Table>
       ) : (
@@ -171,7 +171,7 @@ function ByProject() {
               <Td right className="tnum max-md:hidden">{b.installedPct}%</Td>
               <Td right className="tnum max-md:hidden">{b.billedPct}%</Td>
               <Td right className="tnum max-lg:hidden">{b.paidPct}%</Td>
-              <Td right className="tnum text-muted max-lg:hidden">{b.retainage ? fmtMoney(b.retainage) : '—'}</Td>
+              <Td right className="tnum text-muted max-lg:hidden">{b.retainage ? fmtMoney(b.retainage) : ''}</Td>
               <Td className="max-xl:hidden">{b.toBill > 0 ? <Status tone="warn">{fmtMoney(b.toBill)} to bill</Status> : <Status tone="ok" plain>Billing caught up</Status>}</Td>
             </Tr>
           )

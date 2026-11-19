@@ -19,7 +19,7 @@ import { Section, Empty, Word } from './kit'
 
 /** where a materials PO is, in plain words */
 const poWord = (step: number, eta?: string) =>
-  step <= 0 ? 'Draft — not sent' : step === 1 ? 'Waiting to confirm' : step === 2 ? (eta ? `Coming ${eta}` : 'Confirmed') : step === 3 ? 'Delivered' : step === 4 ? 'Delivered · bill came in' : 'Paid'
+  step <= 0 ? 'Draft, not sent' : step === 1 ? 'Waiting to confirm' : step === 2 ? (eta ? `Coming ${eta}` : 'Confirmed') : step === 3 ? 'Delivered' : step === 4 ? 'Delivered · bill came in' : 'Paid'
 const COLS = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_15rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_13rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
 /** two simple tabs — the tile, and what we buy (thinset, grout, boards, metal edges) — one at a time, no long scroll.
  *  Each says in a few words where it's at */

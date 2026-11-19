@@ -33,11 +33,11 @@ export function askFor(o: { jobId: string; what: string; when: string; who: Pers
     newTask(st, {
       jobId: o.jobId, title: `Bring to ${j?.name || 'the site'}: ${o.what}`, detail: [o.note, `${PEOPLE[by]?.name || 'Someone'} asked for it`].filter(Boolean).join(' · '),
       type: 'Materials', owner: o.who, for: rolesOf(st, o.who), by, followers: o.who === by ? [] : [by], state: 'now', due, tone: 'warn',
-      req: { what: o.what, trip: 'asked' }, where: j?.address, log: [{ date: NOW, who: by, text: `Asked for ${o.what} — by ${due}` }],
+      req: { what: o.what, trip: 'asked' }, where: j?.address, log: [{ date: NOW, who: by, text: `Asked for ${o.what} · by ${due}` }],
     } as Partial<Task> & { jobId: string; title: string })
-    if (o.who !== by) st.notices.unshift({ id: 'nr' + Date.now(), jobId: o.jobId, text: `${PEOPLE[by]?.short || 'Someone'} needs ${o.what} at ${j?.name || 'the site'} — by ${due}`, when: 'Just now', kind: 'material', unread: true, for: [o.who] })
+    if (o.who !== by) st.notices.unshift({ id: 'nr' + Date.now(), jobId: o.jobId, text: `${PEOPLE[by]?.short || 'Someone'} needs ${o.what} at ${j?.name || 'the site'} · by ${due}`, when: 'Just now', kind: 'material', unread: true, for: [o.who] })
     addHist(st, o.jobId, { who: by, kind: 'material', title: `Asked for ${o.what}`, detail: `${PEOPLE[o.who]?.short || 'Someone'} brings it · by ${due}` })
-  }, o.who === by ? 'On your list' : `Asked — ${PEOPLE[o.who]?.short || 'they'} brings it`, { tone: o.who === by ? undefined : 'wait', sub: `${o.what} · by ${due}. It stays on the list until it’s dropped off.`, to: o.who === by ? undefined : [{ who: o.who, what: `Bring ${o.what}` }], close: true })
+  }, o.who === by ? 'On your list' : `Asked · ${PEOPLE[o.who]?.short || 'they'} brings it`, { tone: o.who === by ? undefined : 'wait', sub: `${o.what} · by ${due}. It stays on the list until it’s dropped off.`, to: o.who === by ? undefined : [{ who: o.who, what: `Bring ${o.what}` }], close: true })
 }
 /** on the way: the one who asked hears it */
 export function onTheWay(id: string) {
@@ -49,7 +49,7 @@ export function onTheWay(id: string) {
     const x = st.tasks.find((y) => y.id === id)!
     x.req = { ...x.req!, trip: 'onway', at: NOW }
     ;(x.log ||= []).push({ date: NOW, who: me(), text: 'On the way' })
-    if (x.by && x.by !== me()) st.notices.unshift({ id: 'nw' + Date.now(), jobId: x.jobId, text: `On the way · ${x.req.what} to ${j?.name || 'the site'} — ${PEOPLE[me()]?.short || 'someone'}`, when: 'Just now', kind: 'material', unread: true, open: { t: 'task', id }, for: [x.by] })
+    if (x.by && x.by !== me()) st.notices.unshift({ id: 'nw' + Date.now(), jobId: x.jobId, text: `On the way · ${x.req.what} to ${j?.name || 'the site'} · ${PEOPLE[me()]?.short || 'someone'}`, when: 'Just now', kind: 'material', unread: true, open: { t: 'task', id }, for: [x.by] })
   }, 'On the way', { sub: t.by && t.by !== me() ? `${PEOPLE[t.by]?.short} knows it’s coming.` : undefined, undo: false })
 }
 
@@ -115,7 +115,7 @@ export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number 
           </div>
         )}
         <div className="mt-2">
-          <SearchSelect label="Something else" value="" placeholder="Something else — pick it from the list" options={options} onChange={pick} onCreate={(t) => { const x = t.trim(); if (x.length > 1) add(x) }} createLabel={(t) => `Add “${t}”`} search width={380} />
+          <SearchSelect label="Something else" value="" placeholder="Something else. Pick it from the list" options={options} onChange={pick} onCreate={(t) => { const x = t.trim(); if (x.length > 1) add(x) }} createLabel={(t) => `Add “${t}”`} search width={380} />
         </div>
         {lines.length > 0 && (
           <div className="mt-3 overflow-hidden rounded-[0.625rem] border border-line" data-need-lines>

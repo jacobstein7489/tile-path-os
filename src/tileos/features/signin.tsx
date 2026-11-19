@@ -58,7 +58,7 @@ export function SignIn({ note }: { note?: string } = {}) {
       if (error) throw error
       markSignedIn()
     } catch (err: any) {
-      setMsg({ bad: true, text: /invalid login/i.test(err?.message || '') ? 'That email and password don’t match.' : err?.message || 'That didn’t work — try again.' })
+      setMsg({ bad: true, text: /invalid login/i.test(err?.message || '') ? 'That email and password don’t match.' : err?.message || 'That didn’t work · try again.' })
     } finally {
       setBusy(false)
     }
@@ -74,8 +74,8 @@ export function SignIn({ note }: { note?: string } = {}) {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl() })
       if (error) throw error
-      setMsg({ text: `Check ${email.trim()} for a link — it opens Tile OS and asks for a new password.` })
-    } catch (err: any) { setMsg({ bad: true, text: err?.message || 'That didn’t work — try again.' }) } finally { setBusy(false) }
+      setMsg({ text: `Check ${email.trim()} for a link. It opens Tile OS and asks for a new password.` })
+    } catch (err: any) { setMsg({ bad: true, text: err?.message || 'That didn’t work · try again.' }) } finally { setBusy(false) }
   }
   return (
     <Sheet>
@@ -115,15 +115,15 @@ export function SetPassword({ email, name, why, was, onDone, onSkip }: { email: 
       if (error) throw error
       markSignedIn()
       onDone()
-    } catch (err: any) { setMsg(err?.message || 'That didn’t work — try again.'); setBusy(false) }
+    } catch (err: any) { setMsg(err?.message || 'That didn’t work · try again.'); setBusy(false) }
   }
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600"><KeyRound className="h-5 w-5" /></span>
       <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">{why === 'invite' ? `Welcome to Tile OS${name ? `, ${name.split(' ')[0]}` : ''}` : `${name ? `${name.split(' ')[0]}, pick` : 'Pick'} your password`}</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'invite' ? 'Pick a password — you sign in with it from now on, with your email, on your phone and your computer.' : 'You sign in with it from now on — with your email, on your phone and your computer.'}</p>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{why === 'invite' ? 'Pick a password. You sign in with it from now on, with your email, on your phone and your computer.' : 'You sign in with it from now on. With your email, on your phone and your computer.'}</p>
       <div className="mt-3 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted" data-password-for>For <b className="font-semibold text-ink-2">{email}</b></div>
-      {was && <div className="mt-2 rounded-[10px] border border-line px-3 py-2 text-[12.5px] leading-snug text-muted" data-was-signed-in>This browser was signed in as <b className="font-semibold text-ink-2">{was}</b> — the link signed that out here. Sign in as yourself again after.</div>}
+      {was && <div className="mt-2 rounded-[10px] border border-line px-3 py-2 text-[12.5px] leading-snug text-muted" data-was-signed-in>This browser was signed in as <b className="font-semibold text-ink-2">{was}</b> · the link signed that out here. Sign in as yourself again after.</div>}
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Password</span><TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="At least 8 characters" className="h-10" autoComplete="new-password" autoFocus /></label>
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Once more</span><TextInput type="password" value={again} onChange={(e) => setAgain(e.target.value)} required minLength={8} placeholder="The same again" className="h-10" autoComplete="new-password" /></label>
@@ -147,16 +147,16 @@ export function LinkUsed({ as, onContinue, onSignIn, onSignOut }: { as?: string;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl() })
       if (error) throw error
-      setMsg({ text: `Sent to ${email.trim()} — open the newest email (check Spam too). It opens Tile OS and asks for a password.` })
+      setMsg({ text: `Sent to ${email.trim()}. Open the newest email (check Spam too). It opens Tile OS and asks for a password.` })
     } catch (err: any) {
-      setMsg({ bad: true, text: /60 seconds|rate limit|security purposes/i.test(err?.message || '') ? 'One a minute — wait a moment and send it again.' : err?.message || 'That didn’t work — try again.' })
+      setMsg({ bad: true, text: /60 seconds|rate limit|security purposes/i.test(err?.message || '') ? 'One a minute. Wait a moment and send it again.' : err?.message || 'That didn’t work · try again.' })
     } finally { setBusy(false) }
   }
   return (
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-warn-50 text-warn-600"><Link2Off className="h-5 w-5" /></span>
       <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink" data-link-used>This link doesn’t work anymore</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Each link works once, and only for a day. Type your email and we’ll send a fresh one — or ask your admin to send the invite again.</p>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Each link works once, and only for a day. Type your email and we’ll send a fresh one, or ask your admin to send the invite again.</p>
       <form onSubmit={send} className="mt-4 flex flex-col gap-3">
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium text-ink-2">Your email</span><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@company.com" className="h-10" autoComplete="email" autoFocus={!as} /></label>
         {msg && <div className={msg.bad ? 'rounded-[10px] bg-bad-50 px-3 py-2 text-[13px] font-medium text-bad-700' : 'rounded-[10px] bg-ok-50 px-3 py-2 text-[13px] font-medium text-ok-700'}>{msg.text}</div>}
@@ -182,7 +182,7 @@ export function WaitingRoom({ email, name, onSignOut, onCheck }: { email: string
     <Sheet>
       <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-warn-50 text-warn-600"><Hourglass className="h-5 w-5" /></span>
       <h1 className="mt-4 font-display text-[20px] font-semibold tracking-[-0.01em] text-ink">You’re not on the team yet, {name.split(' ')[0]}</h1>
-      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Ask your admin to invite this email — or to let you in from Settings → Team. Then this page opens the app.</p>
+      <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Ask your admin to invite this email, or to let you in from Settings → Team. Then this page opens the app.</p>
       <div className="mt-4 rounded-[10px] bg-wash px-3 py-2 text-[13px] text-muted">Signed in as <b className="font-semibold text-ink-2">{email}</b></div>
       <div className="mt-5 flex gap-2">
         <Button variant="primary" icon={<RefreshCw />} onClick={onCheck}>Check again</Button>

@@ -20,9 +20,9 @@ function pricingNodes(job: Job, p: Pricing): StepNode[] {
   const subs = [
     p.docs.every((d) => d.status === 'in') ? 'Docs in' : `${p.docs.filter((d) => d.status === 'missing').length} docs missing`,
     p.takeoff ? `Takeoff ${p.takeoff.pct}%` : 'Not started',
-    latest ? `${latest.r} · ${latest.status.toLowerCase()}` : '—',
-    p.nextFollowUp ? `Next: ${p.nextFollowUp}` : p.fu.length ? `${p.fu.length} logged` : '—',
-    '—',
+    latest ? `${latest.r} · ${latest.status.toLowerCase()}` : '',
+    p.nextFollowUp ? `Next: ${p.nextFollowUp}` : p.fu.length ? `${p.fu.length} logged` : '',
+    '',
   ]
   return ['Request', 'Estimating', 'Proposal', 'Follow-up', 'Award'].map((l, i) => ({
     key: l,
@@ -59,7 +59,7 @@ export function PricingWorkspace({ job }: { job: Job }) {
               <Row label="Estimator" value={p.estimator ? <span className="inline-flex items-center gap-2"><Avatar who={p.estimator} size={22} />{PEOPLE[p.estimator].name}</span> : <span className="text-warn-700">Not assigned</span>} />
               <Row label="Client" value={<button onClick={() => s.open({ t: 'customer', id: job.clientId })} className="inline-flex items-center gap-1.5 text-brand-700 hover:underline"><Building2 className="h-4 w-4" />{job.client}</button>} />
               <Row label="Contact" value={p.contact} />
-              <Row label="Latest amount" value={latest ? `${fmtMoney(latest.amount!)} · ${latest.r}` : '—'} />
+              <Row label="Latest amount" value={latest ? `${fmtMoney(latest.amount!)} · ${latest.r}` : ''} />
               {p.nextFollowUp && <Row label="Next follow-up" value={<span className="text-warn-700">{p.nextFollowUp}</span>} />}
             </div>
           </Card>
@@ -98,7 +98,7 @@ function RequestPanel({ job, p }: { job: Job; p: Pricing }) {
   return (
     <>
       <Card>
-        <CardHeader icon={<NumberBadge n={1} />} title="What came in" sub="An attachment is evidence — the status is what we track." />
+        <CardHeader icon={<NumberBadge n={1} />} title="What came in" sub="An attachment is evidence. The status is what we track." />
         <div className="grid grid-cols-3 gap-3 px-6 pb-6 max-lg:grid-cols-1 max-sm:px-4">
           {p.docs.map((d) => {
             const inn = d.status === 'in'
@@ -139,7 +139,7 @@ function RequestPanel({ job, p }: { job: Job; p: Pricing }) {
         <IconCircle tone="info" size={46} className="max-sm:hidden"><Ruler className="h-5 w-5" /></IconCircle>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-semibold text-ink">Start estimating</div>
-          <div className="text-[0.84375rem] text-muted">{missing.length ? `${missing.length} document${missing.length > 1 ? 's' : ''} still missing — they stay on follow-up while you start.` : 'Everything is in.'}</div>
+          <div className="text-[0.84375rem] text-muted">{missing.length ? `${missing.length} document${missing.length > 1 ? 's' : ''} still missing. They stay on follow-up while you start.` : 'Everything is in.'}</div>
         </div>
         <Button size="lg" variant="primary" className="max-sm:w-full" disabled={!p.estimator} icon={!p.estimator ? <Lock className="h-[1.125rem] w-[1.125rem]" /> : undefined} onClick={() => startEstimating(job.id)}>
           {p.estimator ? 'Start estimating' : 'Pick an estimator first'}
@@ -192,7 +192,7 @@ function EstimatingPanel({ job, p }: { job: Job; p: Pricing }) {
         </Card>
       )}
       <Card>
-        <CardHeader icon={<NumberBadge n={2} />} title="Estimate ready" sub="The system checks the gates — it tells you exactly what’s missing." />
+        <CardHeader icon={<NumberBadge n={2} />} title="Estimate ready" sub="The system checks the gates. It tells you exactly what’s missing." />
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 px-6 max-sm:grid-cols-1 max-sm:px-4">
           {gates.map((g) => (
             <div key={g.l} className="flex items-center gap-2.5 text-[0.90625rem]">
@@ -229,7 +229,7 @@ function RevCards({ job, p, editable }: { job: Job; p: Pricing; editable?: boole
               <div className={cn('truncate text-[0.9375rem] font-semibold', r.status === 'Superseded' ? 'text-muted' : 'text-ink')}>{r.what}</div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.8125rem] text-muted">
                 <Pill tone={tone as any} size="sm">{r.status === 'Pricing' ? 'Being priced' : r.status}</Pill>
-                {r.date === '—' ? 'Not sent yet' : `Sent ${r.date}`}
+                {!r.date || r.date === '—' ? 'Not sent yet' : `Sent ${r.date}`}
               </div>
             </div>
             {draft && editable && !r.amount ? (
@@ -238,7 +238,7 @@ function RevCards({ job, p, editable }: { job: Job; p: Pricing; editable?: boole
                 <Button size="sm" disabled={!amt} onClick={() => setRevAmount(job.id, r.r, Number(amt.replace(/[^0-9]/g, '')))}>Save</Button>
               </div>
             ) : (
-              <div className={cn('text-[1.125rem] font-bold tnum', r.status === 'Superseded' ? 'text-muted line-through decoration-faint' : 'text-ink')}>{r.amount ? fmtMoney(r.amount) : '—'}</div>
+              <div className={cn('text-[1.125rem] font-bold tnum', r.status === 'Superseded' ? 'text-muted line-through decoration-faint' : 'text-ink')}>{r.amount ? fmtMoney(r.amount) : ''}</div>
             )}
           </div>
         )
@@ -252,7 +252,7 @@ function ProposalPanel({ job, p }: { job: Job; p: Pricing }) {
   return (
     <>
       <Card>
-        <CardHeader icon={<NumberBadge n={1} />} title="Revisions" sub="Every revision side by side — nothing overwritten." />
+        <CardHeader icon={<NumberBadge n={1} />} title="Revisions" sub="Every revision side by side · nothing overwritten." />
         <div className="px-6 pb-6"><RevCards job={job} p={p} editable /></div>
       </Card>
       <div className="flex items-center gap-5 rounded-2xl border border-line bg-white px-6 py-5 shadow-card max-sm:flex-wrap max-sm:gap-3 max-sm:px-4">
@@ -311,7 +311,7 @@ function FollowUpPanel({ job, p }: { job: Job; p: Pricing }) {
                   {f.how === 'Emailed' ? <Mail className="h-4 w-4" /> : f.how === 'Texted' ? <MessageSquare className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[0.875rem] font-semibold text-ink">{f.how} — {f.outcome.toLowerCase()}</div>
+                  <div className="text-[0.875rem] font-semibold text-ink">{f.how} · {f.outcome.toLowerCase()}</div>
                   {f.note && <div className="text-[0.8125rem] text-ink-2">{f.note}</div>}
                   <div className="text-[0.75rem] text-muted">{f.date} · {PEOPLE[f.by].name}</div>
                 </div>
@@ -342,7 +342,7 @@ export function FollowUpModal({ jobId, outcome: initial, level }: { jobId: strin
   }, [outcome])
   if (!job || !p) return null
   const nextRev = 'R' + (p.revs.length + 1)
-  const label = outcome === 'approved' ? 'Approved — make it a project' : outcome === 'revision' ? `Open ${nextRev} for the estimator` : outcome === 'lost' ? 'Mark not won' : 'Save follow-up'
+  const label = outcome === 'approved' ? 'Approved. Make it a project' : outcome === 'revision' ? `Open ${nextRev} for the estimator` : outcome === 'lost' ? 'Mark not won' : 'Save follow-up'
   return (
     <Modal
       level={level}
@@ -423,7 +423,7 @@ export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
   const close = useStore((s) => s.close)
   /* the estimate's revisions with a total — newest first; else the old pricing record's */
   const fromEst = est ? [...est.revs].reverse().filter((r) => revTotal(r) > 0).map((r) => ({ key: 'E' + r.n, title: `Revision ${r.n}`, amount: Math.round(revTotal(r)), sub: [r.what, r.status === 'sent' || r.sentOn ? `sent ${r.sentOn || r.date}` : r.status === 'approved' ? 'approved' : 'not sent'].filter(Boolean).join(' · '), sent: r.status === 'sent' })) : []
-  const fromPricing = p ? [...p.revs].reverse().filter((r) => r.amount).map((r) => ({ key: r.r, title: r.r, amount: r.amount!, sub: `${r.what} · ${r.date === '—' ? 'not sent' : 'sent ' + r.date}`, sent: r.status === 'Sent' })) : []
+  const fromPricing = p ? [...p.revs].reverse().filter((r) => r.amount).map((r) => ({ key: r.r, title: r.r, amount: r.amount!, sub: `${r.what} · ${!r.date || r.date === '—' ? 'not sent' : 'sent ' + r.date}`, sent: r.status === 'Sent' })) : []
   const revs = fromEst.length ? fromEst : fromPricing
   const [rev, setRev] = React.useState(revs.find((r) => r.sent)?.key || revs[0]?.key || '')
   const chosen = revs.find((r) => r.key === rev)
@@ -442,7 +442,7 @@ export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
       level={level}
       size="lg"
       onClose={close}
-      title={`${job.name} — approved`}
+      title={`${job.name} · approved`}
       sub="It becomes a project and goes on the Schedule to get ready."
       footer={
         <>
@@ -465,7 +465,7 @@ export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
           </Field>
         )}
         <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
-          <Field label="Contract amount" hint={chosen ? `${chosen.title} of the estimate — change it if what was sold is different` : 'No estimate total — type what was sold'}>
+          <Field label="Contract amount" hint={chosen ? `${chosen.title} of the estimate. Change it if what was sold is different` : 'No estimate total. Type what was sold'}>
             <TextInput value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="$0" data-award-amount />
           </Field>
           <Field label="Deposit" hint={dep ? `${fmtMoney(Math.round((amt * dep) / 100))} · company rule: ${rules.depositRule === 'warn' ? 'warn before start' : 'block start'}` : 'No deposit on this project'}>
@@ -478,7 +478,7 @@ export function AwardModal({ jobId, level }: { jobId: string; level: number }) {
         </div>
         <Field label="Do they need to send us a PO or contract?">
           <div className="flex gap-2">
-            <Chip on={custPO === true} onClick={() => setCustPO(true)}>Yes — we need their PO</Chip>
+            <Chip on={custPO === true} onClick={() => setCustPO(true)}>Yes. We need their PO</Chip>
             <Chip on={custPO === false} onClick={() => setCustPO(false)}>No</Chip>
           </div>
         </Field>

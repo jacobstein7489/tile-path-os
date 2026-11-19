@@ -20,17 +20,17 @@ import { tracksFor } from './tracks'
 export function comingWords(s: Store, job: Job, me: PersonKey): { text: string; tone: 'ok' | 'warn' | 'info' | 'muted' } {
   const b = s.bookings.find((x) => x.jobId === job.id && x.crew === me && x.start > TODAY && x.label !== 'Return visit')
   if (b) return { text: `You start ${dayShort(b.start)}`, tone: 'ok' }
-  if (job.hold?.shortage) return { text: 'On hold — waiting for the tile', tone: 'warn' }
+  if (job.hold?.shortage) return { text: 'On hold. Waiting for the tile', tone: 'warn' }
   const tracks = tracksFor(s, job)
   /* the tile isn't all here: the day it comes (or was due), or that some of it is still missing */
   const d = tracks.flatMap((t) => t.steps).find((v) => v.key === 'delivered')
   if (d && d.state !== 'done' && d.state !== 'na') {
     if (d.state === 'bad') return { text: 'Waiting for the rest of the tile', tone: 'warn' }
-    if (d.due) return { text: d.due >= TODAY ? `Waiting for the tile — it comes ${labelFromIso(d.due).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}` : `Waiting for the tile — it was due ${labelFromIso(d.due)}`, tone: 'warn' }
-    return { text: 'Waiting for the tile — no delivery date yet', tone: 'warn' }
+    if (d.due) return { text: d.due >= TODAY ? `Waiting for the tile · it comes ${labelFromIso(d.due).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}` : `Waiting for the tile. It was due ${labelFromIso(d.due)}`, tone: 'warn' }
+    return { text: 'Waiting for the tile. No delivery date yet', tone: 'warn' }
   }
   const open = tracks.filter((t) => t.state !== 'done').length
-  if (!open) return { text: 'Ready — the office books your days', tone: 'info' }
+  if (!open) return { text: 'Ready. The office books your days', tone: 'info' }
   return { text: `Getting ready · ${tracks.length - open} of ${tracks.length} parts done`, tone: 'muted' }
 }
 const COMING_TONE = { ok: 'text-ok-700', warn: 'text-warn-700', info: 'text-brand-700', muted: 'text-muted' }
@@ -80,7 +80,7 @@ export function CrewView() {
   const work = flat.filter((x) => x.sf.state === 'working').concat(flat.filter((x) => x.sf.state === 'ready').slice(0, 3))
   const stop = flat.filter((x) => ['blocked', 'hold', 'waitmat'].includes(x.sf.state))
   const changed = jobId === '119' ? [
-    ...(rooms.find((r) => r.name === 'Boys Bath')?.surfaces.find((x) => x.name === 'Main walls')?.state === 'ready' ? [{ t: 'Boys bath walls → full height', d: 'CO-004 approved — go above 3 ft' }] : []),
+    ...(rooms.find((r) => r.name === 'Boys Bath')?.surfaces.find((x) => x.name === 'Main walls')?.state === 'ready' ? [{ t: 'Boys bath walls → full height', d: 'CO-004 approved. Go above 3 ft' }] : []),
     ...(rooms.find((r) => r.name === 'Master Bath')?.surfaces.find((x) => x.name === 'Shower floor')?.state === 'ready' ? [{ t: 'Master shower floor released', d: 'Tile first; the plumber sets the trim after' }] : []),
     { t: 'Powder accent wall: 48″', d: shiftText('CO-003 approved Sep 12') },
   ] : (s.hist[jobId] || []).filter((h) => h.kind === 'change' || h.kind === 'field').slice(0, 3).map((h) => ({ t: h.title, d: `${h.date}${h.detail ? ' · ' + h.detail : ''}` }))
@@ -140,7 +140,7 @@ export function CrewView() {
                   <div className="mt-0.5 text-[0.8125rem] text-bad-700">{x.sf.reason}</div>
                 </div>
               ))}
-              {!stop.length && <div className="rounded-2xl bg-white p-3.5 text-[0.84375rem] text-muted">Nothing is held — every area is open.</div>}
+              {!stop.length && <div className="rounded-2xl bg-white p-3.5 text-[0.84375rem] text-muted">Nothing is held. Every area is open.</div>}
             </div>
 
             <div className="mb-2 mt-5 flex items-center gap-2 px-1 text-[0.9375rem] font-bold text-ink"><Hammer className="h-4 w-4 text-brand-600" />Work on today</div>
@@ -149,7 +149,7 @@ export function CrewView() {
                 const t = tileOf(job?.id, x.sf.tile)
                 const g = x.sf.grout ? GROUTS[x.sf.grout] : undefined
                 return (
-                  <button key={i} onClick={() => toast(`${x.room} · ${x.sf.name} — the installer sheet with layout and elevations`)} className="rounded-2xl bg-white p-3.5 text-left shadow-card">
+                  <button key={i} onClick={() => toast(`${x.room} · ${x.sf.name}. The installer sheet with layout and elevations`)} className="rounded-2xl bg-white p-3.5 text-left shadow-card">
                     <div className="flex items-center gap-3">
                       <TileImg tile={t} size={44} />
                       <div className="min-w-0 flex-1">
@@ -167,7 +167,7 @@ export function CrewView() {
                   </button>
                 )
               })}
-              {!work.length && <div className="rounded-2xl bg-white p-3.5 text-[0.84375rem] text-muted">The rooms for this job aren’t set up yet — the office adds them from the estimate.</div>}
+              {!work.length && <div className="rounded-2xl bg-white p-3.5 text-[0.84375rem] text-muted">The rooms for this job aren’t set up yet. The office adds them from the estimate.</div>}
             </div>
             </>}
 
@@ -182,7 +182,7 @@ export function CrewView() {
                         <div key={p.id} className="flex items-center gap-3 border-t border-line-2 px-3.5 py-2.5 first:border-t-0">
                           <div className="min-w-0 flex-1">
                             <div className="text-[0.875rem] font-semibold text-ink">{p.text}</div>
-                            <div className="truncate text-[0.78125rem] text-muted">{p.where}{p.status === 'verify' ? ' · done — waiting for the check' : p.note ? ` · ${p.note}` : ''}</div>
+                            <div className="truncate text-[0.78125rem] text-muted">{p.where}{p.status === 'verify' ? ' · done. Waiting for the check' : p.note ? ` · ${p.note}` : ''}</div>
                           </div>
                           {p.status === 'verify'
                             ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ok-50 px-2 py-1 text-[0.75rem] font-semibold text-ok-700"><Check className="h-3.5 w-3.5" />Done</span>
@@ -230,9 +230,9 @@ export function CrewView() {
       <div className="max-w-[26.25rem] max-lg:max-w-[17.5rem] max-md:hidden">
         <div className="text-[0.8125rem] font-semibold text-brand-600">Crew phone view</div>
         <h1 className="h-display mt-2 text-[2.125rem] font-bold leading-tight text-ink">What {PEOPLE[me].short} sees{job ? ` at ${job.name}` : ' today'}</h1>
-        <p className="mt-3 text-[1rem] leading-relaxed text-ink-2">No office workflow — just where to work, the approved details, what not to start, and what changed. Reporting a shortage, a problem or extra work takes a few taps, and it goes straight to the right person.</p>
+        <p className="mt-3 text-[1rem] leading-relaxed text-ink-2">No office workflow. Just where to work, the approved details, what not to start, and what changed. Reporting a shortage, a problem or extra work takes a few taps, and it goes straight to the right person.</p>
         <div className="mt-6 flex flex-col gap-3">
-          {['Do-not-start comes from the project — blocked surfaces and unapproved changes', 'Approved answers show up here as installation details', 'The daily update fills each room’s diary — what was tiled, with photos and videos'].map((t) => (
+          {['Do-not-start comes from the project. Blocked surfaces and unapproved changes', 'Approved answers show up here as installation details', 'The daily update fills each room’s diary. What was tiled, with photos and videos'].map((t) => (
             <div key={t} className="flex gap-3 text-[0.90625rem] text-ink-2"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-ok-500" />{t}</div>
           ))}
         </div>

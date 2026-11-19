@@ -268,13 +268,13 @@ function useSetupChecks(job: Job): Check[] {
   return [
     {
       n: 1, title: 'Rooms and surfaces', state: rooms.length ? 'ok' : 'todo', blocking: !rooms.length,
-      detail: rooms.length ? `${rooms.length} rooms · ${surfaces} surfaces — only what applies` : 'Nothing built yet',
+      detail: rooms.length ? `${rooms.length} rooms · ${surfaces} surfaces. Only what applies` : 'Nothing built yet',
       action: rooms.length ? { label: 'Open rooms', run: () => s.open({ t: 'job', id: job.id, tab: 'rooms' }) } : { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: job.id }) },
     },
     { n: 2, title: 'Finish records on surfaces', state: rooms.length ? 'ok' : 'todo', detail: rooms.length ? 'Each tile assigned to the exact surfaces it goes on' : 'After the rooms are built' },
     { n: 3, title: 'Tile store paperwork', state: checks.length ? 'ok' : 'todo', detail: checks.length ? 'Best Tile order entered' : 'Waiting for the store paperwork', blocking: false },
     {
-      n: 4, title: 'Quantity check — their order vs our takeoff', state: !checks.length ? 'todo' : short.length ? 'bad' : 'ok', blocking: short.length > 0,
+      n: 4, title: 'Quantity check. Their order vs our takeoff', state: !checks.length ? 'todo' : short.length ? 'bad' : 'ok', blocking: short.length > 0,
       detail: short.length ? `${short.map((c) => `${c.tag} ${needWithWaste(c) - c.ordered} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers our takeoff + waste' : 'Runs when the paperwork is in',
       action: short.length ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short[0].tag }) } : undefined,
     },
@@ -286,11 +286,11 @@ function useSetupChecks(job: Job): Check[] {
     },
     {
       n: 7, title: 'Deposit', state: !dep ? 'todo' : dep.state === 'paid' ? 'ok' : 'warn',
-      detail: !dep ? 'No deposit on this project' : dep.state === 'paid' ? 'Received' : dep.step === 0 ? 'Not invoiced yet — accounting has it (warning, not a block)' : `Invoiced ${dep.ref} — not paid yet`,
+      detail: !dep ? 'No deposit on this project' : dep.state === 'paid' ? 'Received' : dep.step === 0 ? 'Not invoiced yet. Accounting has it (warning, not a block)' : `Invoiced ${dep.ref}, not paid yet`,
       action: dep && dep.state !== 'paid' ? { label: 'View', run: () => s.open({ t: 'money', id: dep.id }) } : undefined,
     },
-    ...(cpo ? [{ n: 8, title: 'Client PO', state: (cpo.state === 'paid' ? 'ok' : 'warn') as Check['state'], detail: cpo.state === 'paid' ? 'Received and filed' : 'Requested — waiting on the GC', action: cpo.state !== 'paid' ? { label: 'Mark received', run: () => s.open({ t: 'money', id: cpo.id }) } : undefined }] : []),
-    ...(unknown ? [{ n: cpo ? 9 : 8, title: 'Unknowns for the walkthrough', state: 'warn' as const, detail: `${unknown} surfaces flagged for the site manager to verify — not guessed at` }] : []),
+    ...(cpo ? [{ n: 8, title: 'Client PO', state: (cpo.state === 'paid' ? 'ok' : 'warn') as Check['state'], detail: cpo.state === 'paid' ? 'Received and filed' : 'Requested. Waiting on the GC', action: cpo.state !== 'paid' ? { label: 'Mark received', run: () => s.open({ t: 'money', id: cpo.id }) } : undefined }] : []),
+    ...(unknown ? [{ n: cpo ? 9 : 8, title: 'Unknowns for the walkthrough', state: 'warn' as const, detail: `${unknown} surfaces flagged for the site manager to verify, not guessed at` }] : []),
   ]
 }
 
@@ -345,8 +345,8 @@ function SetupOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void 
                   </div>
                 </div>
               ))}
-              {!blockers.length && <div className="rounded-xl border border-ok-100 bg-ok-50 px-4 py-5 text-center text-[0.875rem] font-semibold text-ok-700">Nothing blocking — ready to move on</div>}
-              <div className="mt-1 text-[0.78125rem] text-muted">Deposit and client PO show as warnings — they never block the setup on their own.</div>
+              {!blockers.length && <div className="rounded-xl border border-ok-100 bg-ok-50 px-4 py-5 text-center text-[0.875rem] font-semibold text-ok-700">Nothing blocking. Ready to move on</div>}
+              <div className="mt-1 text-[0.78125rem] text-muted">Deposit and client PO show as warnings. They never block the setup on their own.</div>
             </div>
           </Card>
         </div>
@@ -394,7 +394,7 @@ function ReadyOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void 
       detail: toOrder.length ? `${toOrder.map((m) => m.name).join(' and ')} not ordered` : sent.length ? `${sent[0].po} ${sent[0].status === 'confirmed' ? 'confirmed' : 'not confirmed yet'}` : 'Setting materials on site',
       action: toOrder.length ? { label: 'Create PO', run: () => s.open({ t: 'newpo', jobId: job.id }) } : undefined,
     },
-    { title: 'Deposit', state: dep ? 'warn' : 'ok', detail: dep ? (dep.step === 0 ? 'Deposit not invoiced — warning only' : `Deposit invoiced ${dep.ref}, not paid — warning only`) : 'Deposit received', action: dep ? { label: 'View', run: () => s.open({ t: 'money', id: dep.id }) } : undefined },
+    { title: 'Deposit', state: dep ? 'warn' : 'ok', detail: dep ? (dep.step === 0 ? 'Deposit not invoiced · warning only' : `Deposit invoiced ${dep.ref}, not paid · warning only`) : 'Deposit received', action: dep ? { label: 'View', run: () => s.open({ t: 'money', id: dep.id }) } : undefined },
     { title: 'Crew', state: booking ? 'ok' : 'todo', detail: booking ? `${PEOPLE[booking.crew as any].name} booked` : 'Not assigned yet', action: booking ? undefined : { label: 'Assign crew', run: () => s.open({ t: 'assign', jobId: job.id }) } },
   ]
   const result = job.readiness === 'ready' && !toOrder.length ? 'ready' : 'partial'
@@ -405,7 +405,7 @@ function ReadyOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void 
         <div className="min-w-0 flex-1">
           <div className="text-[0.8125rem] font-semibold text-muted">Review for scheduling</div>
           <div className="h-tight text-[1.375rem] font-bold text-ink">{result === 'ready' ? 'Ready to schedule' : 'Can start with restrictions'}</div>
-          <div className="text-[0.875rem] text-ink-2">{result === 'ready' ? 'Every hard start gate is clear.' : 'Enough approved work to mobilize — the held areas wait without stopping the project.'}</div>
+          <div className="text-[0.875rem] text-ink-2">{result === 'ready' ? 'Every hard start gate is clear.' : 'Enough approved work to mobilize. The held areas wait without stopping the project.'}</div>
         </div>
       </div>
       <div className="grid grid-cols-[1.55fr_1fr] gap-6 max-md:grid-cols-1 max-md:gap-4">
@@ -472,7 +472,7 @@ export function CloseOverview({ job, setTab, simple }: { job: Job; setTab: (t: J
     { t: 'Final photos', ok: true, d: 'On file' },
     { t: 'GC sign-off', ok: job.stage === 'closeout', d: job.stage === 'closeout' ? shiftText('Signed Sep 25') : 'Request after punch' },
     { t: 'Material returns', ok: true, d: 'Nothing to return' },
-    { t: 'Final billing to accounting', ok: !!fin && fin.step >= 0, d: fin && fin.step >= 0 ? (fin.state === 'paid' ? 'Paid' : fin.step === 0 ? 'Ready — accounting has it' : `Invoiced ${fin.ref}`) : 'Created the moment closeout passes' },
+    { t: 'Final billing to accounting', ok: !!fin && fin.step >= 0, d: fin && fin.step >= 0 ? (fin.state === 'paid' ? 'Paid' : fin.step === 0 ? 'Ready. Accounting has it' : `Invoiced ${fin.ref}`) : 'Created the moment closeout passes' },
   ]
   const done = checks.filter((c) => c.ok).length
   return (
@@ -502,7 +502,7 @@ export function CloseOverview({ job, setTab, simple }: { job: Job; setTab: (t: J
               {p.status === 'verify' && <Button size="xs" onClick={() => setPunch(p.id, 'verified')}>Verify</Button>}
               {p.status === 'working' && <Button size="xs" onClick={() => setPunch(p.id, 'verify')}>Ready to verify</Button>}
               {p.status === 'open' && (hold && /waiting/i.test(p.note || '') ? (
-                <Tip label="The return is on hold — decide the thinset first">
+                <Tip label="The return is on hold. Decide the thinset first">
                   <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ink-2"><Lock className="h-3.5 w-3.5" />On hold</span>
                 </Tip>
               ) : (
@@ -564,7 +564,7 @@ export function BuildRoomsModal({ jobId, level }: { jobId: string; level: number
       size="md"
       onClose={close}
       title={`Build ${job?.name} from the paperwork`}
-      sub="Read from the finish schedule. Keep only what Cobblestone is tiling — the site manager verifies it later."
+      sub="Read from the finish schedule. Keep only what Cobblestone is tiling. The site manager verifies it later."
       footer={
         <>
           <Button className="ml-auto" variant="primary" disabled={!pick.length} onClick={() => buildRooms(jobId, proposal.filter((p) => pick.includes(p.name)))}>

@@ -83,7 +83,7 @@ export function NextUp({ job, onStep }: { job: Job; onStep: (k: string) => void 
   }
   if (phase === 'ready' && booked) {
     const open = tracks.filter((t) => t.state !== 'done')
-    return <Card tone="mine" mark={<Mark tone="mine"><Play /></Mark>} top="Next" title="Start the job" sub={open.length ? `The crew is on the calendar — ${open.length} part${open.length === 1 ? '' : 's'} of getting ready still open` : 'The crew is on the calendar'} action={<StartJob job={job} open={open} />} />
+    return <Card tone="mine" mark={<Mark tone="mine"><Play /></Mark>} top="Next" title="Start the job" sub={open.length ? `The crew is on the calendar · ${open.length} part${open.length === 1 ? '' : 's'} of getting ready still open` : 'The crew is on the calendar'} action={<StartJob job={job} open={open} />} />
   }
   if (phase === 'crew')
     return booked
@@ -108,7 +108,7 @@ function StartJob({ job, open }: { job: Job; open: { label: string; lead?: { sho
     <Pop open={ask} onOpenChange={setAsk} align="end" side="bottom" width={340} trigger={<Button variant="primary" icon={<Play />}>Start the job</Button>}>
       <div className="text-[0.9375rem] font-semibold text-ink">Getting ready isn’t done</div>
       <ul className="mt-1.5 flex flex-col gap-0.5 text-[0.84375rem] text-ink-2" data-still-open>
-        {open.map((t) => <li key={t.label}><b className="font-semibold">{t.label}</b>{t.lead ? ` — ${t.lead.short.toLowerCase()}` : ''}</li>)}
+        {open.map((t) => <li key={t.label}><b className="font-semibold">{t.label}</b>{t.lead ? ` · ${t.lead.short.toLowerCase()}` : ''}</li>)}
       </ul>
       <p className="mt-2 text-[0.8125rem] text-muted">The crew is already on the calendar. Start anyway, and these stay open for whoever has them.</p>
       <div className="mt-3 flex justify-end gap-2">

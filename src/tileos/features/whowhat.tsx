@@ -16,7 +16,7 @@ import { insidePeople } from './steps-ui'
 import { matBy } from './flows'
 
 type Owners = Record<string, PersonKey | 'matBy'>
-const TEAM_WORDS: Record<keyof EstTeam, string> = { takeoff: 'Takeoff — from the plans', review: 'Office review — checks it, makes changes', final: 'Final review — and sends it out', follow: 'Follows up with the client' }
+const TEAM_WORDS: Record<keyof EstTeam, string> = { takeoff: 'Takeoff. From the plans', review: 'Office review. Checks it, makes changes', final: 'Final review, and sends it out', follow: 'Follows up with the client' }
 
 const byName = (s: Store, re: RegExp) => s.team.find((m) => m.status !== 'off' && re.test(`${m.first || ''} ${m.last || ''}`))?.key as PersonKey | undefined
 /** filled in the way Jacob described it (Oct 15): Malisa does the takeoffs and enters the tile paperwork; Mordechai
@@ -104,7 +104,7 @@ export function saveWhoWhat(team: EstTeam, owners: Owners, alsoOpen: boolean) {
         }
       })
     })
-  }, 'Who does what — saved', { sub: 'Every new estimate and every project follows it. Each one can still be changed on its own.', close: true })
+  }, 'Who does what · saved', { sub: 'Every new estimate and every project follows it. Each one can still be changed on its own.', close: true })
 }
 
 export function WhoWhatModal({ level, first }: { level: number; first?: boolean }) {
@@ -119,7 +119,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
     const shown = cur === 'matBy' ? matBy(s) : cur
     return (
       <Menu align="end" width={290} trigger={
-        <button aria-label={`${label} — ${PEOPLE[shown]?.name || 'nobody'}`} className={cn('inline-flex h-9 min-w-[12.5rem] items-center gap-2 rounded-full border bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink transition hover:border-[#cdc7bc] max-sm:min-w-0', start.filled.has(k) ? 'border-brand-300' : 'border-line')}>
+        <button aria-label={`${label} · ${PEOPLE[shown]?.name || 'nobody'}`} className={cn('inline-flex h-9 min-w-[12.5rem] items-center gap-2 rounded-full border bg-white py-1 pl-1 pr-3 text-[0.84375rem] font-semibold text-ink transition hover:border-[#cdc7bc] max-sm:min-w-0', start.filled.has(k) ? 'border-brand-300' : 'border-line')}>
           <Avatar who={shown} size={26} /><span className="min-w-0 flex-1 truncate text-left">{PEOPLE[shown]?.name || 'Pick someone'}{cur === 'matBy' ? <span className="font-normal text-muted"> · whoever orders</span> : null}</span>
           {start.filled.has(k) && <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-500" />}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
@@ -143,7 +143,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
       size="lg"
       onClose={s.close}
       title="Who does what"
-      sub={first && s.rules.whoSet ? 'The steps nobody had yet — I filled them in (the ones with a ✨). Check it and save.' : first ? 'Filled in the way you described it — check it and save. Change any of it later in Settings.' : 'Every new estimate and every project follows this. One project can still be changed from its own step.'}
+      sub={first && s.rules.whoSet ? 'The steps nobody had yet · I filled them in (the ones with a ✨). Check it and save.' : first ? 'Filled in the way you described it. Check it and save. Change any of it later in Settings.' : 'Every new estimate and every project follows this. One project can still be changed from its own step.'}
       footer={
         <>
           <label className="inline-flex cursor-pointer items-center gap-2 text-[0.84375rem] text-ink-2"><input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} className="h-4 w-4 accent-[#2650cf]" />Also on the estimates in progress</label>
@@ -157,7 +157,7 @@ export function WhoWhatModal({ level, first }: { level: number; first?: boolean 
         : <>The ones with a <Sparkles className="inline h-3.5 w-3.5 align-[-0.125rem]" /> are filled in from how you said it works. Nothing changes until you save.</>}</span></div>}
       <section className="overflow-hidden rounded-xl border border-line">
         <header className="border-b border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-bold text-ink">Estimates</header>
-        {TEAM_KEYS.map((k) => row(TEAM_WORDS[k].split(' — ')[0], TEAM_WORDS[k].split(' — ')[1], pick(team[k], (p) => setTeam({ ...team, [k]: p as PersonKey }), TEAM_WORDS[k], 'est:' + k), 'est' + k))}
+        {TEAM_KEYS.map((k) => row(TEAM_WORDS[k].split(/ — | · |\. (?=[A-Z])/)[0], TEAM_WORDS[k].split(/ — | · |\. (?=[A-Z])/)[1], pick(team[k], (p) => setTeam({ ...team, [k]: p as PersonKey }), TEAM_WORDS[k], 'est:' + k), 'est' + k))}
       </section>
       {PHASES.map((ph) => {
         const items = defs.filter((d) => (d.phase || 'own') === ph.key)

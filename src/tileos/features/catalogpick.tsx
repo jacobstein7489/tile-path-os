@@ -24,7 +24,7 @@ export function CatalogModal({ level }: { level: number }) {
   const addSetting = () => {
     const picks = SETTING_CATALOG.filter((c) => on.includes(c.id) && !have(c))
     if (!picks.length) return
-    s.commit((st) => { picks.forEach((c) => st.items.push({ ...c })) }, `${picks.length} added to Items`, { sub: 'No price yet — the first PO says what we paid.', close: true })
+    s.commit((st) => { picks.forEach((c) => st.items.push({ ...c })) }, `${picks.length} added to Items`, { sub: 'No price yet. The first PO says what we paid.', close: true })
   }
   const addMetal = () => {
     if (!mItem) return
@@ -40,7 +40,7 @@ export function CatalogModal({ level }: { level: number }) {
       tall
       onClose={s.close}
       title="Add from the list"
-      sub="Pick it — nothing to type. It goes into Items with no price yet."
+      sub="Pick it. Nothing to type. It goes into Items with no price yet."
       footer={tab === 'setting'
         ? <><span className="text-[0.8125rem] text-muted">{on.length ? `${on.length} picked` : 'Tick what you buy'}</span><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Plus />} disabled={!on.length} onClick={addSetting} data-catalog-add>Add to Items</Button></>
         : <><span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{mItem ? mItem.name : 'Pick the profile, the finish and the size'}</span><Button variant="ghost" onClick={s.close}>Done</Button><Button variant="primary" icon={<Plus />} disabled={!mItem} onClick={addMetal} data-catalog-metal-add>Add to Items</Button></>}

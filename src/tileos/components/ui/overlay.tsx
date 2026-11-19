@@ -340,7 +340,7 @@ export function LaterPicker({ onSave, onCancel }: { onSave: (until: string) => v
   const [when, setWhen] = React.useState('Next Mon')
   return (
     <div>
-      <div className="text-[0.90625rem] font-semibold text-ink">Not today — bring it back</div>
+      <div className="text-[0.90625rem] font-semibold text-ink">Not today. Bring it back</div>
       <div className="mt-1 text-[0.8125rem] text-muted">It leaves your list and returns on that day.</div>
       <div className="mt-3">
         <DatePresets value={when} onPick={setWhen} presets={['Tomorrow', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks']} />

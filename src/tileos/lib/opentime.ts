@@ -28,6 +28,6 @@ export function lastOpened(): string | null {
     const o: Opened | undefined = JSON.parse(localStorage.getItem(KEY) || '[]')[0]
     if (!o) return null
     const s = (ms: number) => (ms / 1000).toFixed(1)
-    return `Opened in ${s(o.total)} s — files ${s(o.files)} · sign-in & data ${s(o.data)}${o.from === 'database' ? ' (from the database)' : ''} · screen ${s(o.screen)}`
+    return `Opened in ${s(o.total)} s · files ${s(o.files)} · sign-in & data ${s(o.data)}${o.from === 'database' ? ' (from the database)' : ''} · screen ${s(o.screen)}`
   } catch { return null }
 }

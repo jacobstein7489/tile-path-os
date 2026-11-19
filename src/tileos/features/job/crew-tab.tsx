@@ -17,7 +17,7 @@ import { RatioBlock } from './ratio'
 import { poRatio } from '../poratio'
 
 const IPO_STATUS: Record<string, { tone: Tone; label: (who: string) => string }> = {
-  Draft: { tone: 'vio', label: () => 'Draft — not sent' },
+  Draft: { tone: 'vio', label: () => 'Draft, not sent' },
   Sent: { tone: 'warn', label: (who) => `Waiting for ${who} to accept` },
   Accepted: { tone: 'ok', label: () => 'Accepted' },
   Rejected: { tone: 'bad', label: () => 'Turned down' },
@@ -37,7 +37,7 @@ export function InstallerTab({ job }: { job: Job }) {
   const total = ipo ? ipo.lines.reduce((n, l) => n + l.amount, 0) + ipo.changes.filter((c) => c.status !== 'pending').reduce((n, c) => n + c.amount, 0) : 0
   const sample = save.mode === 'sample' ? ' · sample amounts' : ''
   const r = ipo && ipo.status !== 'Rejected' ? poRatio(s, ipo) : undefined
-  const days = bookings.length ? `${md(bookings[0].start)} – ${md(bookings[bookings.length - 1].end)}` : job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : '—'
+  const days = bookings.length ? `${md(bookings[0].start)} – ${md(bookings[bookings.length - 1].end)}` : job.dates?.start ? `${job.dates.start} – ${job.dates.finish}` : ''
   /* the site manager's version is simple: who, when, the daily updates, the touch-ups — no PO, no money, no booking */
   const simple = s.role === 'site'
   return (
@@ -68,7 +68,7 @@ export function InstallerTab({ job }: { job: Job }) {
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wash-2 text-ink-2"><HardHat className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">
                 <div className="text-[1rem] font-semibold text-ink">No installer yet</div>
-                <div className="text-[0.84375rem] text-muted">Pick who installs it — his PO goes out with his rates for every line on the scope.</div>
+                <div className="text-[0.84375rem] text-muted">Pick who installs it. His PO goes out with his rates for every line on the scope.</div>
               </div>
               {!simple && <Button variant="primary" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book an installer</Button>}
             </div>
@@ -127,7 +127,7 @@ export function InstallerTab({ job }: { job: Job }) {
               <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex w-full items-center justify-between border-t border-line-2 px-5 py-2.5 text-[0.8125rem] font-semibold text-ink row-hover"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" />Open the PO</span><ChevronRight className="h-4 w-4" /></button>
             </>
           ) : (
-            <Empty>{crew ? 'No PO yet — it’s made when you book him.' : 'Made when you book the installer — from the scope and his rates.'}</Empty>
+            <Empty>{crew ? 'No PO yet. It’s made when you book him.' : 'Made when you book the installer. From the scope and his rates.'}</Empty>
           )}
         </Section>
       </aside>}

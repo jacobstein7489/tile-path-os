@@ -92,7 +92,7 @@ function CrewCard({ job }: { job: Job }) {
     <section data-crew className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex items-center gap-2 border-b border-line-2 px-5 py-3">
         <h3 className="text-[1rem] font-semibold text-ink">Crew</h3>
-        <span className={cn('text-[0.8125rem]', booked ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{booked ? 'Scheduled' : 'Getting ready is done — pick the days'}</span>
+        <span className={cn('text-[0.8125rem]', booked ? 'font-medium text-[#2c8a5b]' : 'text-muted')}>{booked ? 'Scheduled' : 'Getting ready is done. Pick the days'}</span>
       </header>
       <div className="flex flex-col gap-2.5 px-5 py-3.5 text-[0.875rem]">
         <button onClick={() => (ipo ? s.open({ t: 'ipo', id: ipo.id }) : s.open({ t: 'installerwin', jobId: job.id }))} className="flex min-w-0 items-center gap-3 text-left">
@@ -110,7 +110,7 @@ function CrewCard({ job }: { job: Job }) {
         {money && dep && dep.tone === 'warn' && (
           <div className="flex items-center gap-3 text-warn-700">
             <span className="inline-flex w-8 justify-center"><Receipt className="h-4 w-4" /></span>
-            <span className="font-medium">{dep.text.replace(/^./, (c) => c.toUpperCase())} — a warning, not a stop</span>
+            <span className="font-medium">{dep.text.replace(/^./, (c) => c.toUpperCase())} · a warning, not a stop</span>
           </div>
         )}
       </div>

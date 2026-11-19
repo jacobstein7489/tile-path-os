@@ -77,7 +77,7 @@ export function setRoomDetails(jobId: string, roomName: string, lines: string[])
     const r = st.rooms[jobId]?.find((x) => x.name === roomName)
     if (!r) return
     r.details = clean
-    addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `${roomName} — the details`, detail: clean.join(' · ').slice(0, 220) })
+    addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `${roomName} · the details`, detail: clean.join(' · ').slice(0, 220) })
   })
 }
 /** is a detail line one the eye should catch first — how it's tiled, the layout */
@@ -87,6 +87,6 @@ export function whereIn(room: Room, tag: string, trim?: boolean): string {
   const on = room.surfaces.filter((x) => x.tile === tag || x.also?.includes(tag)).map((x) => x.name)
   if (!on.length) return ''
   const words = on.map((n, i) => (i ? low(n) : n)).join(' + ')
-  return trim ? `${words} — trim` : words
+  return trim ? `${words} · trim` : words
 }
 export type { Surface }

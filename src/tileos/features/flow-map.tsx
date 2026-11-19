@@ -75,7 +75,7 @@ export function FlowPage() {
               <div className="flex items-center gap-2 text-[0.8125rem] font-semibold text-muted">Step {i + 1} of {PROCESS.length}</div>
               <h2 className="h-display mt-1 text-[1.625rem] font-bold text-ink max-sm:text-[1.375rem]">{step.title}</h2>
               <p className="mt-2 text-[0.96875rem] leading-relaxed text-ink-2">{step.happens}</p>
-              <div className="mt-6 text-[0.84375rem] font-semibold text-muted">Who does what — the buttons they press</div>
+              <div className="mt-6 text-[0.84375rem] font-semibold text-muted">Who does what. The buttons they press</div>
               <div className="mt-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
                 {byLogin(step.who).map((w, k) => {
                   return (
@@ -180,14 +180,14 @@ function WhereThingsLive() {
   const go = (page: Page) => s.go({ page })
   const MAIN = [
     { page: 'estimates' as Page, icon: FileText, title: 'Estimates', n: openEst, nLabel: 'open', grad: 'bg-[#f1eefb] text-[#6b55c9]', tint: 'bg-white border-line', what: 'From the plans until the client says yes. AI drafts the takeoff; three people check it; every revision is kept with what changed.', has: ['New request', 'Estimating (takeoff → office review → final review)', 'Pending approval', 'Revision needed'], leaves: 'Client approves → it becomes a project' },
-    { page: 'projects' as Page, icon: Building2, title: 'Projects', n: coming, nLabel: 'getting ready', grad: 'bg-[#eaf0fc] text-[#2650cf]', tint: 'bg-white border-line', what: 'The game plan. Each project’s checklist — every step has an owner, and when one is done the next person has it on their Today.', has: ['Rooms', 'Tile picks', 'Setup', 'Tile order → delivery', 'Heights', 'Rough-ins', 'Materials', 'Installer', 'Deposit'], leaves: 'All steps done → book the crew' },
-    { page: 'upcoming' as Page, icon: LayoutList, title: 'Schedule', n: new Set(s.bookings.filter((b) => b.start <= TODAY && b.end >= TODAY).map((b) => b.crew)).size, nLabel: 'crews on site today', grad: 'bg-[#e9f5ee] text-[#23854f]', tint: 'bg-white border-line', what: 'The crew calendar — who’s working where, what’s ready to book, what’s on hold. Start the job and the daily updates, touch-ups and billing follow.', has: ['Booked', 'Planned', 'Ready to book', 'On hold'], leaves: 'Final bill paid → finished, kept for the record' },
+    { page: 'projects' as Page, icon: Building2, title: 'Projects', n: coming, nLabel: 'getting ready', grad: 'bg-[#eaf0fc] text-[#2650cf]', tint: 'bg-white border-line', what: 'The game plan. Each project’s checklist. Every step has an owner, and when one is done the next person has it on their Today.', has: ['Rooms', 'Tile picks', 'Setup', 'Tile order → delivery', 'Heights', 'Rough-ins', 'Materials', 'Installer', 'Deposit'], leaves: 'All steps done → book the crew' },
+    { page: 'upcoming' as Page, icon: LayoutList, title: 'Schedule', n: new Set(s.bookings.filter((b) => b.start <= TODAY && b.end >= TODAY).map((b) => b.crew)).size, nLabel: 'crews on site today', grad: 'bg-[#e9f5ee] text-[#23854f]', tint: 'bg-white border-line', what: 'The crew calendar. Who’s working where, what’s ready to book, what’s on hold. Start the job and the daily updates, touch-ups and billing follow.', has: ['Booked', 'Planned', 'Ready to book', 'On hold'], leaves: 'Final bill paid → finished, kept for the record' },
   ]
   const SIDE = [
-    { page: 'today' as Page, icon: CalendarCheck, title: 'Today', what: 'Only what’s yours — overdue, today, this week: tasks, checklist steps that are your turn, meetings.' },
-    { page: 'pos' as Page, icon: PackageCheck, title: 'Purchase orders', what: 'What we buy — supplier POs and installer POs.' },
+    { page: 'today' as Page, icon: CalendarCheck, title: 'Today', what: 'Only what’s yours. Overdue, today, this week: tasks, checklist steps that are your turn, meetings.' },
+    { page: 'pos' as Page, icon: PackageCheck, title: 'Purchase orders', what: 'What we buy. Supplier POs and installer POs.' },
     { page: 'pay' as Page, icon: HandCoins, title: 'Installer pay', what: 'Every Monday: each installer’s week from the daily updates, checked against his bill.' },
-    { page: 'money' as Page, icon: Receipt, title: 'Billing', what: 'What we bill — every invoice with its number, until it’s paid.' },
+    { page: 'money' as Page, icon: Receipt, title: 'Billing', what: 'What we bill. Every invoice with its number, until it’s paid.' },
     { page: 'clients' as Page, icon: Users, title: 'People', what: 'Clients, designers, installers and suppliers.' },
   ]
   return (
@@ -231,9 +231,9 @@ function WhereThingsLive() {
         </div>
         <div className="grid grid-cols-5 max-xl:grid-cols-3 max-md:grid-cols-1">
           {[
-            { icon: Calculator, title: 'Materials', what: 'Sand, Portland, thinset, board, grout — from the square feet and how each wall and floor is set. The PO fills itself.' },
+            { icon: Calculator, title: 'Materials', what: 'Sand, Portland, thinset, board, grout. From the square feet and how each wall and floor is set. The PO fills itself.' },
             { icon: HardHat, title: 'Installer PO', what: 'Drafted from the rooms and square feet the moment you pick the installer.' },
-            { icon: Ruler, title: 'Tile order check', what: 'The GC’s tile order against our takeoff plus waste — a shortage shows up before the crew does.' },
+            { icon: Ruler, title: 'Tile order check', what: 'The GC’s tile order against our takeoff plus waste. A shortage shows up before the crew does.' },
             { icon: Receipt, title: 'Progress bills', what: 'Filled in from the daily updates, room by room.' },
             { icon: BellRing, title: 'Follow-ups', what: 'Waiting items and unpaid invoices come back on their day.' },
           ].map((x) => (

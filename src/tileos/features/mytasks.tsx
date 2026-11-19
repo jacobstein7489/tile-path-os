@@ -25,7 +25,7 @@ import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { LinkedPO, poOfTask } from './linkedpo'
 import { POFollowUp, canEmailFollow } from './pofollow'
-import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask } from './taskshare'
+import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask, setTaskTime } from './taskshare'
 import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
@@ -325,8 +325,9 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   const t0: Turn = waitTurn || { keys: sharers.length ? sharers : [viewer] }
   const turnKeys = t0.keys || []
   const watchers = (watch || []).filter((p) => !sharers.includes(p) && !turnKeys.includes(p))
-  /* a phone: whose turn as a circle only when it says something — it isn't just the list's own person's */
-  const phoneTurn = !!t0.name || multi || turnKeys.some((p) => p !== viewer)
+  /* a phone: the same as a computer's columns, short — who does it (their circle, yours too), who's watching (the eye
+     and their circles), and the time at the end of the line */
+  const phoneTurn = !!t0.name || turnKeys.length > 0
   const dots = phoneTurn || watchers.length ? (
     <span className="inline-flex shrink-0 items-center gap-2" data-row-people>
       {phoneTurn && (turnKeys.length ? <span className="flex gap-0.5" data-row-doer={turnKeys.join(',')}>{turnKeys.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null)}
@@ -379,16 +380,16 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       </div>
       {/* a computer: the project, (who), who's watching, when — each in its column; Who, Watching and When tapped right
           there to change them */}
-      <div className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-row-where>{flagged}{where || (project === 'Company' ? <span className="text-faint">—</span> : null)}</div>
+      <div className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-row-where>{flagged}{where || (project === 'Company' ? <span className="text-faint"></span> : null)}</div>
       {who && (
         <div className="min-w-0 max-md:hidden">
-          {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={CELL_BTN} aria-label="Who does it — change it" data-row-who-pick><TurnCell turn={t0} viewer={viewer} /></button>} /> : <TurnCell turn={t0} viewer={viewer} />}
+          {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={CELL_BTN} aria-label="Who does it · change it" data-row-who-pick><TurnCell turn={t0} viewer={viewer} /></button>} /> : <TurnCell turn={t0} viewer={viewer} />}
         </div>
       )}
       <div className="min-w-0 max-md:hidden">
         {watchPick ? (
           <WatchPop pick={watchPick} trigger={
-            <button type="button" onClick={stop} className={cn(CELL_BTN, !watchers.length && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who’s watching — add or take off" data-row-watch-pick>
+            <button type="button" onClick={stop} className={cn(CELL_BTN, !watchers.length && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who’s watching. Add or take off" data-row-watch-pick>
               {watchers.length > 0 ? <WatchDots who={watchers} /> : <><Plus className="h-3.5 w-3.5" /><Eye className="h-3.5 w-3.5" /></>}
             </button>
           } />
@@ -397,7 +398,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       <div className="flex min-w-0 items-center justify-end max-md:hidden" onClick={onClick ? undefined : stop} data-todo-next>
         {!onClick ? action : whenPick ? (
           <WhenPop pick={whenPick} trigger={
-            <button type="button" onClick={stop} className={cn(CELL_BTN, '-mr-2 justify-end', !w && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="When — move it" data-row-when-pick>
+            <button type="button" onClick={stop} className={cn(CELL_BTN, '-mr-2 justify-end', !w && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="When · move it" data-row-when-pick>
               {w ? <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : <CalendarDays className="h-3.5 w-3.5" />}
             </button>
           } />
@@ -409,7 +410,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
 
 /** "4 PM", "10:30 AM" — the hour a thing happens */
 const hourLabel = (min: number) => timeLabel(min).replace(/^(\d+) /, '$1:00 ')
-function taskTime(t: Task): number | null { return t.repeatAt ? parseTime(t.repeatAt) : null }
+function taskTime(t: Task): number | null { return t.at ? parseTime(t.at) : t.repeatAt ? parseTime(t.repeatAt) : null }
 
 function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolean; followed?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } }) {
   const s = useStore()
@@ -509,7 +510,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
       onClick={() => s.open({ t: 'daily', jobId: d.jobId })}
       icon={<ClipboardList />}
       /* yesterday's not sent: its day is on the right, in red — not twice on one line */
-      title={d.missed ? 'Daily update — not sent' : 'Daily update'}
+      title={d.missed ? 'Daily update, not sent' : 'Daily update'}
       detail={`${PEOPLE[d.crew].short}’s crew · ${job.pct ?? 0}% installed`}
       owner={showOwner ? siteOf(s, job) : undefined}
       project={job.name}
@@ -614,7 +615,7 @@ function CrewRow() {
       onClick={go}
       icon={<HardHat />}
       title={`Send ${whose} crew list`}
-      detail={`${n} ${n === 1 ? 'project' : 'projects'} — how many people on each`}
+      detail={`${n} ${n === 1 ? 'project' : 'projects'}. How many people on each`}
       action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send it</Button>}
     />
   )
@@ -721,7 +722,7 @@ const teamPlateNow = (() => {
 })()
 
 /** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
-const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for )|(follows it( now)?|stopped following|is watching it( now)?|stopped watching| can do it too| taken off it)$/
+const APP_DID = /^(Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for |Time: |No set time$)|(follows it( now)?|stopped following|is watching it( now)?|stopped watching| can do it too| taken off it)$/
 export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** the billing person's week: last week's progress, ready to bill (it works like installer pay) */
@@ -785,7 +786,7 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   const me = person === undefined ? meOf(role) : person
   const out: PlateItem[] = []
   const last = addDays(TODAY, AHEAD)
-  s.events.filter((e) => e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
+  s.events.filter((e) => !e.done && e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
   /* the site manager's crew list, until it's sent: tomorrow's after 3 in the afternoon, today's first thing */
   if (role === 'site' && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : 15 * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
   /* the admin's rounds: the job sites with work going on, on a work day, until a video has gone out from each */
@@ -838,7 +839,7 @@ const TEAM_ROLES: Role[] = ['owner', 'site', 'office', 'takeoff', 'estimator', '
 function teamPlate(s: Store): PlateItem[] {
   const seen = new Map<string, PlateItem>()
   TEAM_ROLES.forEach((r) => plateOf(s, r, null).forEach((x) => { if (!seen.has(x.key)) seen.set(x.key, x) }))
-  s.events.filter((e) => e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
+  s.events.filter((e) => !e.done && e.date >= TODAY && e.date <= addDays(TODAY, AHEAD)).forEach((e) => { if (!seen.has('e' + e.id)) seen.set('e' + e.id, { key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }) })
   return sortPlate(Array.from(seen.values()))
 }
 /* The same kind of thing many times is one line — tap it and its window has them all, each done right there:
@@ -1030,9 +1031,17 @@ const partsRaw = perData((s: Store, role: Role, person: PersonKey | null, view: 
       .filter((v) => v.owner !== me && v.state !== 'done' && v.state !== 'na' && !!s.stepRecs[j.id]?.[v.key]?.followers?.includes(me) && !ahead.some((a) => a.k === 'plate' && a.x.job?.id === j.id && a.x.v?.key === v.key))
       .map((v): Line => ({ k: 'wait', key: `f:${j.id}:${v.key}`, job: j, v })))
     const rest: Line[] = [...waiting.filter((t) => !gc.includes(t)).map((t): Line => ({ k: 'task', key: t.id, t, as: 'waiting' })), ...steps, ...watched, ...ahead]
+    /* grouped by whom it's waiting on — Yakov's, Alex's, Infinity's — the one with the most first */
+    const viewer = meOf(s.role)
+    const short = (p?: PersonKey) => (p ? (p === viewer ? 'you' : PEOPLE[p]?.short || PEOPLE[p]?.name || 'someone') : 'someone')
+    const onWhom = (l: Line): string => l.k === 'task' ? (l.t.state === 'waiting' ? (l.t.waitingOn || 'someone') : l.t.owner === me ? 'someone' : short(l.t.owner))
+      : l.k === 'wait' ? (l.v.owner !== me ? short(l.v.owner) : l.v.waitsOn && l.v.waitsOn !== me ? short(l.v.waitsOn) : 'someone outside')
+        : l.k === 'plate' ? short(l.x.who) : 'someone'
+    const by = new Map<string, Line[]>()
+    rest.forEach((l) => { const k = onWhom(l); by.set(k, [...(by.get(k) || []), l]) })
     const out: Part[] = []
     if (gc.length) out.push({ key: 'gc', label: 'Waiting on the GC', tone: 'neutral', lines: gc.map((t): Line => ({ k: 'gc', key: 'g:' + t.id, t })) })
-    if (rest.length) out.push({ key: 'others', label: 'Waiting on others', tone: 'neutral', lines: rest })
+    Array.from(by.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([who, lines]) => out.push({ key: 'w:' + who, label: `Waiting on ${who}`, tone: 'neutral', lines }))
     return out
   }
   /* done: newest first */
@@ -1196,11 +1205,11 @@ export function NobodyModal({ level }: { level: number }) {
   const s = useStore()
   const parts = everyoneOf(s, 'today', 'all').nobody
   return (
-    <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet — give each one to someone, or give the login to someone on Team.">
+    <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet. Give each one to someone, or give the login to someone on Team.">
       <div className="-mx-6 max-sm:-mx-4" data-even-list style={todoCols}>
         {countOf(parts) > 0 && <TodayHead />}
         {parts.map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} />)}
-        {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing — everything is on someone’s list.</div>}
+        {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing. Everything is on someone’s list.</div>}
       </div>
     </Modal>
   )
@@ -1242,12 +1251,15 @@ function mergeParts(lists: Part[][], keys: PersonKey[] = []): Part[] {
 /** the parts of the lists picked — one list, or everyone's counted as one */
 const partsFor = (s: Store, lists: ListOf[], view: View, job: string) => mergeParts(lists.map((l) => partsOf(s, l.role, l.person, view, job)), lists.map((l) => l.key))
 /** the pick in a word: Mine, Yakov's, Everyone */
-function whoWords(s: Store, lists: ListOf[]): string {
+function whoWords(s: Store, lists: ListOf[], total = 0): string {
   const me = meOf(s.role)
-  if (lists.length === 1) return lists[0].key === me ? 'Mine' : `${PEOPLE[lists[0].key]?.short || 'Their'}’s`
-  return 'Everyone'
+  const name = (k: PersonKey) => (k === me ? 'Mine' : `${PEOPLE[k]?.short || 'Their'}’s`)
+  if (lists.length === 1) return name(lists[0].key)
+  if (total > 1 && lists.length >= total) return 'Everyone'
+  return lists.length <= 3 ? lists.map((l) => name(l.key)).join(' + ') : `${lists.length} people`
 }
-/** the admin: whose list — one at a time (tap a name: only theirs), or Everyone (each person under their own name) */
+/** the admin: whose list — one person's (tap a name: only theirs), or more than one (the switch: tick each — each one
+ *  shown apart, under its name), or Everyone. The same look as Who does it on a to-do */
 function WhoPick() {
   const s = useStore()
   const who = useTodayWho((x) => x.who)
@@ -1255,34 +1267,54 @@ function WhoPick() {
   const me = meOf(s.role)
   const all = insidePeople(s).length ? [me, ...insidePeople(s).filter((p) => p !== me)] : [me]
   const lists = listsOf(s, who)
-  const everyone = lists.length > 1
-  const one = !everyone ? lists[0].key : null
+  const keys = lists.map((l) => l.key)
+  const everyone = all.length > 1 && keys.length >= all.length
+  const one = keys.length === 1 ? keys[0] : null
   const lost = countOf(everyoneOf(s, 'today', 'all').nobody)
   const [open, setOpen] = React.useState(false)
-  const words = whoWords(s, lists)
-  const pick = (p: PersonKey | 'all') => { set(p === 'all' ? all : p === me ? [] : [p]); setOpen(false) }
+  const [many, setMany] = React.useState(keys.length > 1 && !everyone)
+  React.useEffect(() => { if (open) setMany(keys.length > 1 && !everyone) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  const words = whoWords(s, lists, all.length)
+  /* me alone is the plain list (no one picked) */
+  const put = (ks: PersonKey[]) => set(ks.length === 1 && ks[0] === me ? [] : all.filter((p) => ks.includes(p)))
+  const tap = (p: PersonKey) => {
+    if (!many) { put([p]); setOpen(false); return }
+    const next = keys.includes(p) ? keys.filter((x) => x !== p) : [...keys, p]
+    if (next.length) put(next)
+  }
+  const flip = () => { if (many) put([keys.includes(me) ? me : keys[0]]); setMany(!many) }
   const dot = (on: boolean) => <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
-  const row = (on: boolean) => cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', on && 'bg-brand-50/60 font-medium hover:bg-brand-50')
+  const box = (on: boolean) => <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
+  const row = (on: boolean) => cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', on && !many && 'bg-brand-50/60 font-medium hover:bg-brand-50')
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={
-      <button type="button" aria-label="Whose list — pick one" className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', words !== 'Mine' ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
-        {one && one !== me ? <Avatar who={one} size={20} /> : everyone ? <Users className="shrink-0 text-brand-600" /> : <UserRound className="shrink-0 text-faint" />}
-        <span className="min-w-0 truncate" data-today-who-picked={lists.map((l) => (l.key === me ? 'me' : l.key)).join(',')}>{words}</span>
+      <button type="button" aria-label="Whose list · pick" className={cn('inline-flex h-9 min-w-0 max-w-[18rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', words !== 'Mine' ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
+        {one && one !== me ? <Avatar who={one} size={20} /> : !one ? <Users className="shrink-0 text-brand-600" /> : <UserRound className="shrink-0 text-faint" />}
+        <span className="min-w-0 truncate" data-today-who-picked={keys.map((k) => (k === me ? 'me' : k)).join(',')}>{words}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
     }>
       <div className="text-[0.875rem] font-semibold text-ink">Whose list</div>
-      <div className="mb-2 mt-0.5 text-[0.8125rem] text-muted">One person’s — the same as on their phone.</div>
-      <div className="-mx-1 flex flex-col" role="radiogroup" data-who-list>
-        {all.map((p) => (
-          <button key={p} type="button" onClick={() => pick(p)} className={row(one === p)} role="radio" aria-checked={one === p} data-who-person={p}>
-            {dot(one === p)}<Avatar who={p} size={22} /><span className="min-w-0 flex-1 truncate">{p === me ? 'Mine' : PEOPLE[p]?.name || p}</span>
-            <span className="shrink-0 text-[0.8125rem] font-normal tnum text-muted">{p === me ? todayCount(s, s.role) : theirToday(s, p)}</span>
-          </button>
-        ))}
+      <div className="mb-2 mt-0.5 text-[0.8125rem] text-muted">{many ? 'Tick each one. Each list shows apart, under its name.' : 'One person’s, the same as on their phone.'}</div>
+      <div className="-mx-1 flex flex-col" role={many ? 'group' : 'radiogroup'} data-who-list>
+        {all.map((p) => {
+          const on = many ? keys.includes(p) : one === p
+          return (
+            <button key={p} type="button" onClick={() => tap(p)} className={row(on)} role={many ? 'checkbox' : 'radio'} aria-checked={on} data-who-person={p}>
+              {many ? box(on) : dot(on)}<Avatar who={p} size={22} /><span className="min-w-0 flex-1 truncate">{p === me ? 'Mine' : PEOPLE[p]?.name || p}</span>
+              <span className="shrink-0 text-[0.8125rem] font-normal tnum text-muted">{p === me ? todayCount(s, s.role) : theirToday(s, p)}</span>
+            </button>
+          )
+        })}
         {all.length > 1 && (
-          <button type="button" onClick={() => pick('all')} className={cn(row(everyone), 'mt-1 border-t border-line-2 pt-1')} role="radio" aria-checked={everyone} data-who-all>
-            {dot(everyone)}<span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-muted"><Users className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1">Everyone <span className="font-normal text-muted">— each one apart</span></span>
+          <button type="button" onClick={() => { put(all); setOpen(false) }} className={cn(row(everyone), 'mt-1 border-t border-line-2 pt-1')} role="radio" aria-checked={everyone} data-who-all>
+            {many ? box(everyone) : dot(everyone)}<span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full bg-wash-2 text-muted"><Users className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1">Everyone <span className="font-normal text-muted">· each one apart</span></span>
+          </button>
+        )}
+        {all.length > 2 && (
+          <button type="button" role="switch" aria-checked={many} onClick={flip} className="mt-1 flex min-h-10 w-full items-center gap-3 rounded-lg border-t border-line-2 px-2 pt-1 text-left text-[0.875rem] text-ink-2 transition hover:bg-wash" data-who-many>
+            <span className={cn('relative inline-flex h-[1.125rem] w-8 shrink-0 rounded-full transition-colors', many ? 'bg-brand-600' : 'bg-[#d5d0c7]')}><span className={cn('absolute top-0.5 h-[0.875rem] w-[0.875rem] rounded-full bg-white shadow-sm transition-all', many ? 'left-[0.9375rem]' : 'left-0.5')} /></span>
+            <span className="min-w-0 flex-1">More than one list</span>
           </button>
         )}
         {lost > 0 && <button type="button" onClick={() => { setOpen(false); s.open({ t: 'nobodylist' }) }} className={cn(row(false), 'mt-1 border-t border-line-2 pt-1 text-warn-800')}><UserRound className="h-4 w-4 text-warn-600" /><span className="min-w-0 flex-1">On nobody’s list</span><span className="text-[0.8125rem] tnum">{lost}</span></button>}
@@ -1362,20 +1394,20 @@ export function JobPickModal({ level }: { level: number }) {
   )
   const head = (t: string, n?: number) => <div className="flex items-baseline gap-2 bg-wash/60 px-6 pb-1.5 pt-3 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-[#4c5361] max-sm:px-4">{t}{n != null && <span className="font-semibold text-faint">{n}</span>}</div>
   return (
-    <Modal level={level} size="md" onClose={s.close} title="Pick a job" sub="See just its things — your jobs first" bodyClass="px-0 pb-4 pt-0">
+    <Modal level={level} size="md" onClose={s.close} title="Pick a job" sub="See just its things. Your jobs first" bodyClass="px-0 pb-4 pt-0">
       <div className="sticky top-0 z-[1] bg-white px-6 pb-3 pt-1 max-sm:px-4">
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-          <input {...(small ? {} : { 'data-autofocus': true })} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a job — name, address or client" aria-label="Find a job" className="h-11 w-full rounded-[0.625rem] border border-line bg-white pl-9 pr-3 text-[0.9375rem] text-ink outline-none focus:border-brand-300" data-pick-search />
+          <input {...(small ? {} : { 'data-autofocus': true })} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a job. Name, address or client" aria-label="Find a job" className="h-11 w-full rounded-[0.625rem] border border-line bg-white pl-9 pr-3 text-[0.9375rem] text-ink outline-none focus:border-brand-300" data-pick-search />
         </label>
       </div>
       {cur !== 'all' && !words.length && (
         <button type="button" onClick={() => pick('all')} className="flex min-h-12 w-full items-center gap-3 border-y border-line-2 px-6 text-left text-[0.9375rem] font-semibold text-brand-700 row-hover max-sm:px-4" data-pick-job="all">
-          <Building2 className="h-4 w-4" />All jobs — everything on your list
+          <Building2 className="h-4 w-4" />All jobs. Everything on your list
         </button>
       )}
       {yours.length > 0 && <section data-pick-yours>{head('Yours', yours.length)}{yours.map((j) => row(j, mine.get(j.id)))}</section>}
-      {rest.length > 0 && <section data-pick-rest>{head(words.length ? 'Other jobs' : 'Every other project', rest.length)}{rest.slice(0, MAX).map((j) => row(j))}{rest.length > MAX && <div className="px-6 py-3 text-[0.8125rem] text-muted max-sm:px-4">{rest.length - MAX} more — type a name or an address to find one.</div>}</section>}
+      {rest.length > 0 && <section data-pick-rest>{head(words.length ? 'Other jobs' : 'Every other project', rest.length)}{rest.slice(0, MAX).map((j) => row(j))}{rest.length > MAX && <div className="px-6 py-3 text-[0.8125rem] text-muted max-sm:px-4">{rest.length - MAX} more. Type a name or an address to find one.</div>}</section>}
       {!yours.length && !rest.length && <div className="px-6 py-6 text-center text-[0.875rem] text-muted">No job matches “{q}”.</div>}
     </Modal>
   )
@@ -1412,7 +1444,7 @@ function JobPickPop({ picked }: { picked?: Job }) {
   const head = (t: string) => <div className="px-2 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{t}</div>
   return (
     <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }} align="start" width={320} trigger={
-      <button type="button" aria-label={picked ? `Job: ${picked.name} — pick another` : 'Pick a job'}
+      <button type="button" aria-label={picked ? `Job: ${picked.name} · pick another` : 'Pick a job'}
         className={cn('inline-flex h-9 min-w-0 max-w-[22rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', picked ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-job-pick>
         <Building2 className={cn('shrink-0', picked ? 'text-brand-600' : 'text-faint')} />
         <span className="min-w-0 truncate" data-job-picked={picked?.id || 'all'}>{picked ? picked.name : 'All jobs'}</span>
@@ -1430,7 +1462,7 @@ function JobPickPop({ picked }: { picked?: Job }) {
           </button>
         )}
         {yours.length > 0 && <section data-pick-yours>{head(words.length ? 'On your list' : 'With something on your list')}{yours.map((j) => row(j, mine.get(j.id)))}</section>}
-        {others.length > 0 && <section data-pick-rest>{head('Other jobs')}{others.slice(0, SHOW).map((j) => row(j))}{others.length > SHOW && <div className="px-2 py-1.5 text-[0.8125rem] text-muted">{others.length - SHOW} more — type more of the name</div>}</section>}
+        {others.length > 0 && <section data-pick-rest>{head('Other jobs')}{others.slice(0, SHOW).map((j) => row(j))}{others.length > SHOW && <div className="px-2 py-1.5 text-[0.8125rem] text-muted">{others.length - SHOW} more. Type more of the name</div>}</section>}
         {words.length > 0 && !yours.length && !others.length && <div className="px-2 py-3 text-[0.875rem] text-muted">No job matches “{q.trim()}”.</div>}
       </div>
     </Pop>
@@ -1468,14 +1500,14 @@ export function MyTasksPage() {
   const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(partsOf(s, l.role, l.person, v, job)), 0) : countOf(partsFor(s, lists, v, job)))
   const parts = partsFor(s, lists, view, job)
   const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
-    today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up — see Coming up.` : 'New work lands here the moment it’s yours.' },
+    today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up. See Coming up.` : 'New work lands here the moment it’s yours.' },
     coming: { title: 'Nothing coming up', sub: 'Tomorrow’s things, and anything with a day after it, show here.' },
     waiting: { title: 'Nothing waiting', sub: 'What you asked someone for, what you follow, and what’s out with the GC or a supplier waits here until it’s done.' },
   }
 
   return (
     <Page
-      title={multi ? 'Everyone’s Today' : lists[0].person ? `${PEOPLE[lists[0].person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[meOf(role)].short}`}
+      title={multi ? (lists.length >= (insidePeople(s).length || 1) ? 'Everyone’s Today' : `Today · ${lists.map((l) => (l.key === meOf(role) ? 'You' : PEOPLE[l.key]?.short || '')).join(' and ')}`) : lists[0].person ? `${PEOPLE[lists[0].person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[meOf(role)].short}`}
       phoneTitle
       sub={TODAY_LABEL}
       top={
@@ -1499,6 +1531,8 @@ export function MyTasksPage() {
       <Multi.Provider value={multi}>
       <WaitView.Provider value={view === 'waiting'}>
       <div data-even-list data-list-scope="mine" style={todoColsOf(true)}>
+        {/* Waiting on others, in one line: only what you're waiting for */}
+        {view === 'waiting' && n(view) > 0 && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch. By whom it’s with.</div>}
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who />}
         {/* one person's list — or Everyone: each person's under their own name, never mixed */}
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
@@ -1524,8 +1558,8 @@ function FollowedUp({ t, onDone }: { t: Task; onDone: () => void }) {
       if (!x) return
       x.followUp = day
       x.followUps = (x.followUps || 0) + 1
-      ;(x.log ||= []).push({ date: NOW, who: meOf(st.role), text: `Followed up${note.trim() ? ` — ${note.trim()}` : ''} · back ${day}` })
-    }, `Followed up — back ${day}`, { tone: 'wait', sub: 'Off the list until then — it isn’t done until it comes.' })
+      ;(x.log ||= []).push({ date: NOW, who: meOf(st.role), text: `Followed up${note.trim() ? ` · ${note.trim()}` : ''} · back ${day}` })
+    }, `Followed up · back ${day}`, { tone: 'wait', sub: 'Off the list until then. It isn’t done until it comes.' })
     onDone()
   }
   return (
@@ -1553,7 +1587,7 @@ function NowLine({ min }: { min: number }) {
 /** where a task came from: what in the flow made it, or who asked for it — and when */
 export function taskOrigin(t: Task): string {
   const first = (t.log || [])[0]
-  const said = first?.text ? ` — ${first.text.charAt(0).toLowerCase()}${first.text.slice(1)}` : ''
+  const said = first?.text ? ` · ${first.text.charAt(0).toLowerCase()}${first.text.slice(1)}` : ''
   if (first?.who === 'system') return `Made by Tile OS · ${first.date}${said}`
   if (t.by && PEOPLE[t.by]) return `Asked by ${PEOPLE[t.by].short}${first ? ` · ${first.date}` : ''}`
   if (first && PEOPLE[first.who as PersonKey]) return `Added by ${PEOPLE[first.who as PersonKey].short} · ${first.date}`
@@ -1574,7 +1608,7 @@ function remindTask(t: Task) {
     if (late) y.checkIn = { by: me, day: TODAY }
     if (!mine) y.quiet = { ...(y.quiet || {}), [me]: TOMORROW }
     ;(y.log ||= []).push({ date: NOW, who: me, text: `Reminded ${PEOPLE[y.owner]?.short || ''}` })
-  }, `Reminder sent to ${PEOPLE[t.owner]?.short || 'them'}`, { sub: mine ? 'It pops up on their screen, and it’s on their Today.' : 'It pops up on their screen. It’s off your Today — back tomorrow if it isn’t done.', undo: false })
+  }, `Reminder sent to ${PEOPLE[t.owner]?.short || 'them'}`, { sub: mine ? 'It pops up on their screen, and it’s on their Today.' : 'It pops up on their screen. It’s off your Today. Back tomorrow if it isn’t done.', undo: false })
 }
 /** off my Today for now: I reminded its person — it's back tomorrow if it isn't done */
 export const quietForMe = (t: Task, me: PersonKey | null) => !!me && (t.quiet?.[me] || '') > TODAY
@@ -1629,7 +1663,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const items: React.ReactNode[] = [
     /* two can have it — whoever gets to it first */
     /* the admin shares it right in Who ("More than one can do it"); whoever has it, here */
-    !admin && (t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it — whoever gets to it first</MenuItem>,
+    !admin && (t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it. Whoever gets to it first</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
   ].filter(Boolean)
   const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
@@ -1667,7 +1701,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       edit={editable ? { title: t.title, sub: t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
       who={t.owner}
-      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')} — whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
+      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')}. Whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
@@ -1684,7 +1718,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
       whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       whenPick={gcw && canMove ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) }
-        : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d) }
+        : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v) }
           : t.state === 'waiting' && canMove ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) }
             : t.state === 'later' && canMove ? { title: 'Back on', value: t.laterUntil, onPick: (d) => s.laterTask(t.id, d) } : undefined}
     />
@@ -1713,7 +1747,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
         /* waiting on the store for a PO: follow up by email, right here — on the order's own email */
         <POFollowUp po={linkedPo} onSent={() => s.closeLevel(level)} />
       ) : t.state === 'waiting' ? (
-        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up — still waiting</Button>}>
+        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" width={380} trigger={<Button icon={<Hourglass />} data-followed-up>Followed up, still waiting</Button>}>
           <FollowedUp t={t} onDone={() => { setWaitOpen(false); s.close() }} />
         </Pop>
       ) : t.state !== 'now' ? (
@@ -1738,7 +1772,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   ) : panel === 'share' ? (
     <div data-task-panel="share">
       <div className="text-[0.9375rem] font-semibold text-ink">Who else can do it</div>
-      <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">It’s on their Today too — whoever does it first closes it for both.</div>
+      <div className="mb-3 mt-0.5 text-[0.8125rem] text-muted">It’s on their Today too. Whoever does it first closes it for both.</div>
       <div className="flex flex-wrap gap-1.5">
         {people.filter((p) => p !== t.owner).sort((a, b) => Number(b === me) - Number(a === me)).map((p) => <Chip key={p} on={(t.also || []).includes(p)} onClick={() => toggleAlso(t.id, p)} className="h-9 px-3" icon={<Avatar who={p} size={20} />}>{p === me ? 'Me' : PEOPLE[p]?.short || p}</Chip>)}
       </div>
@@ -1783,7 +1817,7 @@ function TaskRecord({ t, me }: { t: Task; me: PersonKey }) {
       {open && log.length > 1 && (
         <ol className="ml-[0.4375rem] mt-1.5 flex flex-col gap-1 border-l border-line-2 pl-3.5" data-record-list>
           {[...log].reverse().map((l, i) => (
-            <li key={i} className="text-muted"><span className="tnum text-faint">{l.date}{l.time ? `, ${l.time}` : ''}</span> · <span className="font-medium text-ink-2">{who(l.who).replace(/^you$/, 'You')}</span> — {l.text}</li>
+            <li key={i} className="text-muted"><span className="tnum text-faint">{l.date}{l.time ? `, ${l.time}` : ''}</span> · <span className="font-medium text-ink-2">{who(l.who).replace(/^you$/, 'You')}</span> · {l.text}</li>
           ))}
         </ol>
       )}
@@ -1940,14 +1974,14 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
         </div>
       )}
       {/* one box: what needs to be done — the rest is already filled in */}
-      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones — tap to pick" className="[&_input]:h-12 [&_input]:text-[1rem]" />
+      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones. Tap to pick" className="[&_input]:h-12 [&_input]:text-[1rem]" />
       {/* the usual answers, as chips — change one only when it's wrong */}
       <div className="mt-3 flex flex-wrap items-center gap-2" data-task-chips>
         <ProjectChip value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} />
         <span className="contents" data-task-who={owners.join(',')}>
           {several
             ? <MultiSelect label="Who does it" values={owners} options={whoOptions} onChange={(ks) => { setWhoPicked(true); setOwners((ks.length ? ks : [me]) as PersonKey[]) }} autoOpen width={340} trigger={whoChip} />
-            : <SearchSelect label="Who does it" value={owner} options={whoOptions} onChange={(p) => { setWhoPicked(true); setOwners([p as PersonKey]) }} search={whoOptions.length > 8} width={340} trigger={whoChip} footer={{ label: 'More than one person — whoever gets to it first', onClick: () => setSeveral(true) }} />}
+            : <SearchSelect label="Who does it" value={owner} options={whoOptions} onChange={(p) => { setWhoPicked(true); setOwners([p as PersonKey]) }} search={whoOptions.length > 8} width={340} trigger={whoChip} footer={{ label: 'More than one person. Whoever gets to it first', onClick: () => setSeveral(true) }} />}
         </span>
         <span className="contents" data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
@@ -2028,7 +2062,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
       size="md"
       onClose={s.close}
       title={`Where the crews are ${crewWhen(day)}`}
-      sub={`${dayShort(day)} · how many people on each project — it goes to ${boss}`}
+      sub={`${dayShort(day)} · how many people on each project. It goes to ${boss}`}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted max-sm:hidden">{on} {on === 1 ? 'project' : 'projects'} · {people} {people === 1 ? 'person' : 'people'}</span>

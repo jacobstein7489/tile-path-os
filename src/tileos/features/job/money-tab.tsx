@@ -47,7 +47,7 @@ export function MoneyRow({ m, showJob }: { m: MoneyItem; showJob?: boolean }) {
         {m.step >= 0 || m.state === 'paid' ? <MiniSteps steps={steps} at={at} tone={m.state === 'paid' ? 'ok' : 'info'} /> : <span className="text-[0.8125rem] font-medium text-muted">{m.due}</span>}
       </div>
       <div className="text-right md:max-xl:col-start-3 md:max-xl:row-start-1 max-md:col-start-2 max-md:row-start-1 max-md:self-start">
-        <div className="text-[1rem] font-bold tnum text-ink">{m.amount ? fmtMoney(m.amount) : '—'}</div>
+        <div className="text-[1rem] font-bold tnum text-ink">{m.amount ? fmtMoney(m.amount) : ''}</div>
         {m.paid ? <div className="text-[0.75rem] text-muted">{fmtMoney(m.paid)} paid</div> : null}
       </div>
       <div className="flex justify-end md:max-xl:col-start-3 md:max-xl:row-start-2 max-md:col-span-2 max-md:justify-start">
@@ -83,14 +83,14 @@ function billWhere(m: MoneyItem): { text: string; cls: string } {
   const steps = MONEY_STEPS[m.kind]
   if (m.step < 0 || m.state === 'upcoming') return { text: m.due || 'Later', cls: 'text-muted' }
   if (!ref) return { text: 'Not invoiced yet', cls: 'font-medium text-warn-700' }
-  return { text: [ref, steps[m.step] || ''].filter(Boolean).join(' · ') || '—', cls: 'text-ink-2' }
+  return { text: [ref, steps[m.step] || ''].filter(Boolean).join(' · ') || '', cls: 'text-ink-2' }
 }
 /** a bill's date: when it was paid, when it's due, or when it went out */
 function billDate(m: MoneyItem): string {
   if (m.state === 'paid') return m.date ? `Paid ${m.date}` : 'Paid'
   if (/^Due /.test(m.due || '')) return m.due!
   const sent = [...(m.log || [])].reverse().find((l) => /\bsent\b/i.test(l.text))?.date
-  return sent ? `Sent ${sent}` : '—'
+  return sent ? `Sent ${sent}` : ''
 }
 export function MoneyTab({ job }: { job: Job }) {
   const s = useStore()
@@ -135,7 +135,7 @@ export function MoneyTab({ job }: { job: Job }) {
                   {m.action && m.state !== 'paid' && <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[0.75rem] font-semibold text-brand-700" data-bill-next>{m.action}</span>}
                 </span>
                 <span className={DATE}>{billDate(m)}</span>
-                <span className={AMT}>{m.amount ? fmtMoney(m.amount) : '—'}</span>
+                <span className={AMT}>{m.amount ? fmtMoney(m.amount) : ''}</span>
               </button>
             )
           })}
@@ -149,7 +149,7 @@ export function MoneyTab({ job }: { job: Job }) {
               <button key={e.id} onClick={() => (e.revs.some((x) => x.sentOn) || e.status === 'approved' ? s.open({ t: 'estsend', id: e.id, sent: true }) : s.open({ t: 'estimate', id: e.id }))} className={LINE} data-est-line={e.id}>
                 <span className={NAME}>Estimate {e.id}{e.revs.length > 1 ? ` · revision ${r?.n}` : ''}</span>
                 <span className={cn(MID, e.status === 'approved' ? 'text-ink-2' : 'text-warn-700')}><span className="truncate">{e.status === 'approved' ? 'Approved' : 'Not approved yet'}</span></span>
-                <span className={DATE}>{e.status === 'approved' && e.approvedOn ? e.approvedOn : '—'}</span>
+                <span className={DATE}>{e.status === 'approved' && e.approvedOn ? e.approvedOn : ''}</span>
                 <span className={AMT}>{fmtMoney(revTotal(r))}</span>
               </button>
             )
@@ -160,7 +160,7 @@ export function MoneyTab({ job }: { job: Job }) {
               <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className={LINE} data-co-line={m.id}>
                 <span className={NAME}>{m.title}</span>
                 <span className={cn(MID, m.step < 0 ? 'font-medium text-warn-700' : m.state === 'paid' ? 'font-medium text-[#2c8a5b]' : 'text-ink-2')}><span className="truncate">{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for the client’s yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</span></span>
-                <span className={DATE}>{m.state === 'paid' && m.date ? `Paid ${m.date}` : sent ? `Sent ${sent}` : '—'}</span>
+                <span className={DATE}>{m.state === 'paid' && m.date ? `Paid ${m.date}` : sent ? `Sent ${sent}` : ''}</span>
                 <span className={AMT}>{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>
               </button>
             )
@@ -169,11 +169,11 @@ export function MoneyTab({ job }: { job: Job }) {
             <div className={cn(LINE, 'hover:bg-transparent')}>
               <span className={NAME}>Changes approved before Tile OS</span>
               <span className={cn(MID, 'text-ink-2')}><span className="truncate">Approved</span></span>
-              <span className={DATE}>—</span>
+              <span className={DATE}></span>
               <span className={AMT}>{fmtMoney(before)}</span>
             </div>
           )}
-          {!anyContract && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted max-sm:px-4">No estimate in the system for this project — it was priced before Tile OS.</div>}
+          {!anyContract && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted max-sm:px-4">No estimate in the system for this project. It was priced before Tile OS.</div>}
           {anyContract && (
             <div className={cn(COLS, 'min-h-12 border-t border-line bg-white px-5 py-2 max-sm:flex max-sm:px-4')} data-contract-total>
               <span className="min-w-0 flex-1 text-[0.9375rem] font-semibold text-ink">Contract</span>
@@ -188,7 +188,7 @@ export function MoneyTab({ job }: { job: Job }) {
 
       <div className="flex flex-wrap items-center gap-2 px-1 text-[0.8125rem] text-muted">
         {job.before?.billed || job.before?.paid
-          ? <>Before Tile OS: <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.paid)}</b> paid — counted in.</>
+          ? <>Before Tile OS: <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.billed)}</b> billed · <b className="font-semibold tnum text-ink-2">{fmtMoney(job.before.paid)}</b> paid · counted in.</>
           : 'Started before Tile OS?'}
         <button onClick={() => s.open({ t: 'billedbefore', jobId: job.id })} className="font-semibold text-brand-700 hover:underline">{job.before?.billed || job.before?.paid ? 'Change it' : 'Put in what was already billed'}</button>
       </div>
@@ -212,7 +212,7 @@ function InstallerSheet({ job }: { job: Job }) {
     <header className="flex min-h-12 items-center gap-x-3 gap-y-0.5 border-b border-line-2 bg-[#f6f6f4] px-5 py-2 max-sm:px-4" data-band>
       <span className="flex min-w-0 flex-1 items-center gap-2.5 max-sm:flex-wrap max-sm:gap-y-0.5">
         <span className={BAND_LABEL}>Installer PO</span>
-        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 truncate"><b className="font-medium text-ink">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Accepted' ? 'font-medium text-[#2c8a5b]' : ipo.status === 'Sent' ? 'font-medium text-warn-700' : 'text-muted'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft — not sent'}</span></span></span>}
+        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 truncate"><b className="font-medium text-ink">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Accepted' ? 'font-medium text-[#2c8a5b]' : ipo.status === 'Sent' ? 'font-medium text-warn-700' : 'text-muted'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
       </span>
       {right && <span className="flex shrink-0 items-center gap-2">{right}</span>}
     </header>
@@ -220,7 +220,7 @@ function InstallerSheet({ job }: { job: Job }) {
   if (blank && ipo0) return (
     <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet data-installer-blank>
       {head(<Button size="sm" onClick={() => s.open({ t: 'ipo', id: ipo0.id })}>Make his PO</Button>)}
-      <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[ipo0.crew]?.name || 'The installer'} is on this job — no PO with prices yet. Make one when you’re ready; it isn’t sent until you send it.</div>
+      <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[ipo0.crew]?.name || 'The installer'} is on this job. No PO with prices yet. Make one when you’re ready; it isn’t sent until you send it.</div>
     </section>
   )
   if (!ipo) {
@@ -234,13 +234,13 @@ function InstallerSheet({ job }: { job: Job }) {
     if (on && PEOPLE[on] && !turned) return (
       <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet data-installer-no-po>
         {head(<Button size="sm" onClick={() => pickInstaller(job.id, on)}>Make his PO</Button>)}
-        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[on].name} is on this job — no PO.{budget ? <> At {line}% of the estimate, his PO would stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b>.</> : null}</div>
+        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4">{PEOPLE[on].name} is on this job · no PO.{budget ? <> At {line}% of the estimate, his PO would stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b>.</> : null}</div>
       </section>
     )
     return (
       <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-installer-sheet>
         {head(<Button size="sm" onClick={() => s.open({ t: 'installerwin', jobId: job.id })}>Pick the installer</Button>)}
-        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4" data-ipo-budget>{budget ? <>No installer PO yet. At {line}% of the estimate, his PO should stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b> — it's drafted from the scope and shows here next to the estimate, line by line.</> : 'No installer PO yet — his PO is drafted from the scope, and it shows here next to the estimate.'}</div>
+        <div className="border-t border-line-2 px-5 py-3 text-[0.84375rem] text-ink-2 max-sm:px-4" data-ipo-budget>{budget ? <>No installer PO yet. At {line}% of the estimate, his PO should stay under <b className="font-semibold tnum text-ink">{fmtMoney(budget)}</b> · it's drafted from the scope and shows here next to the estimate, line by line.</> : 'No installer PO yet. His PO is drafted from the scope, and it shows here next to the estimate.'}</div>
       </section>
     )
   }
@@ -265,9 +265,9 @@ function InstallerSheet({ job }: { job: Job }) {
         {sub && <span className="block truncate text-[0.75rem] text-muted">{sub}</span>}
         <span className="block truncate text-[0.75rem] text-muted sm:hidden">{[sold != null ? `We sell it for ${fmtMoney(sold)}` : '', his != null ? `his PO ${fmtMoney(his)}` : ''].filter(Boolean).join(' · ')}</span>
       </span>
-      <span className="text-right tnum text-ink-2 max-sm:hidden">{sold != null ? fmtMoney(sold) : '—'}</span>
-      <span className="text-right tnum text-ink max-sm:hidden">{his != null ? fmtMoney(his) : '—'}</span>
-      <span className={cn('text-right tnum', pctCls(pct))}>{pct != null ? `${pct}%` : '—'}</span>
+      <span className="text-right tnum text-ink-2 max-sm:hidden">{sold != null ? fmtMoney(sold) : ''}</span>
+      <span className="text-right tnum text-ink max-sm:hidden">{his != null ? fmtMoney(his) : ''}</span>
+      <span className={cn('text-right tnum', pctCls(pct))}>{pct != null ? `${pct}%` : ''}</span>
     </div>
   )
   return (
@@ -287,14 +287,14 @@ function InstallerSheet({ job }: { job: Job }) {
       </div>
       <div className={cn(HEAD_ROW, IPO_COLS, 'px-5 max-sm:hidden')}><span>Work</span><span className="text-right">We sell it for</span><span className="text-right">His PO</span><span className="text-right">Share</span></div>
       {ipo.lines.map((l, i) => row('l' + i, l.item, r.lines[i]?.sold || null, l.amount, r.lines[i]?.pct, l.qty))}
-      {cos.map((x) => row(x.c.co, `${x.c.co} · ${x.c.text}`, x.sold || null, x.c.amount, x.pct, x.c.status === 'pending' ? 'Waiting for the client’s yes — not counted yet' : x.c.qty))}
-      {r.sold > 0 && rest > 0 && row('rest', 'The rest of the estimate', rest, null, undefined, 'Materials and the general lines — not his work')}
+      {cos.map((x) => row(x.c.co, `${x.c.co} · ${x.c.text}`, x.sold || null, x.c.amount, x.pct, x.c.status === 'pending' ? 'Waiting for the client’s yes, not counted yet' : x.c.qty))}
+      {r.sold > 0 && rest > 0 && row('rest', 'The rest of the estimate', rest, null, undefined, 'Materials and the general lines, not his work')}
       {otherCOs > 0 && row('otherco', 'Other approved change orders', otherCOs, null, undefined, 'Not on his PO')}
       <div className={cn(IPO_COLS, 'min-h-[2.75rem] border-t border-line bg-white px-5 py-2 text-[0.875rem] font-semibold max-sm:px-4')} data-ipo-total>
         <span className="min-w-0 text-ink-2">Total<span className="block truncate text-[0.75rem] font-normal text-muted sm:hidden">{r.sold ? `We sell it for ${fmtMoney(r.sold)} · his PO ${fmtMoney(r.total)}` : `His PO ${fmtMoney(r.total)}`}</span></span>
-        <span className="text-right tnum text-ink max-sm:hidden">{r.sold ? fmtMoney(r.sold) : '—'}</span>
+        <span className="text-right tnum text-ink max-sm:hidden">{r.sold ? fmtMoney(r.sold) : ''}</span>
         <span className="text-right tnum text-ink max-sm:hidden">{fmtMoney(r.total)}</span>
-        <span className={cn('text-right tnum', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{r.sold ? `${r.pct}%` : '—'}</span>
+        <span className={cn('text-right tnum', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{r.sold ? `${r.pct}%` : ''}</span>
       </div>
     </section>
   )
@@ -316,7 +316,7 @@ export function BilledBeforeModal({ jobId, level }: { jobId: string; level: numb
         const j = x.jobs[jobId]
         j.before = { billed: num(billed), paid: Math.min(num(paid), num(billed) || num(paid)), retainage: num(held), changes: j.before?.changes || 0 }
       },
-      `Saved — ${job.name} picks up from ${fmtMoney(num(billed))} billed`,
+      `Saved · ${job.name} picks up from ${fmtMoney(num(billed))} billed`,
       { close: true, sub: 'The next progress bill takes it off, so nothing is billed twice.' },
     )
   const money = (v: string, set: (v: string) => void, label: string, hint: string, auto?: boolean) => (
@@ -335,7 +335,7 @@ export function BilledBeforeModal({ jobId, level }: { jobId: string; level: numb
       size="sm"
       onClose={s.close}
       title="Billed before Tile OS"
-      sub={`${job.name} — for a project that was already going: what QuickBooks shows on it so far.`}
+      sub={`${job.name}. For a project that was already going: what QuickBooks shows on it so far.`}
       footer={
         <>
           <div className="ml-auto" aria-hidden />
@@ -344,7 +344,7 @@ export function BilledBeforeModal({ jobId, level }: { jobId: string; level: numb
       }
     >
       <div className="flex flex-col gap-4">
-        {money(billed, setBilled, 'Billed so far', 'Every invoice on it — the deposit too', true)}
+        {money(billed, setBilled, 'Billed so far', 'Every invoice on it. The deposit too', true)}
         {money(paid, setPaid, 'Paid so far', 'What the client paid on those invoices')}
         {money(held, setHeld, 'Retainage held so far', 'Leave it empty if they don’t hold any')}
         <div className="rounded-xl bg-wash px-3.5 py-2.5 text-[0.8125rem] leading-snug text-ink-2">Set the walls and floors to where they are now in the Scope tab. From then on the daily updates move them, and each week’s bill is what got installed, less what’s billed here.</div>

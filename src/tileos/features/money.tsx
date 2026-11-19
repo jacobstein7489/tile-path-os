@@ -34,7 +34,7 @@ export function MoneyPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Billing"
-        sub="Deposits, progress bills, change orders, retainage and our purchase orders — where each one is at. QuickBooks keeps the invoices."
+        sub="Deposits, progress bills, change orders, retainage and our purchase orders. Where each one is at. QuickBooks keeps the invoices."
         actions={
           REAL.cloud ? <QbHeaderStatus /> : (
             <span className="inline-flex items-center gap-2 text-[0.84375rem] text-muted">
@@ -68,7 +68,7 @@ export function MoneyPage() {
           />
         </div>
         <div className="border-t border-line">
-          {tab === 'todo' && <Rows list={todo} empty="Nothing to send — every bill is out." />}
+          {tab === 'todo' && <Rows list={todo} empty="Nothing to send. Every bill is out." />}
           {tab === 'waiting' && <Rows list={waiting} empty="Nobody owes us anything right now." />}
           {tab === 'upcoming' && <Rows list={upcoming} empty="Nothing coming up." />}
           {tab === 'paid' && <Rows list={paid} empty="No payments recorded yet." />}
@@ -158,7 +158,7 @@ function ByJob() {
               <StackBar h={10} parts={[{ pct: b.paidPct, className: 'bg-ok-500' }, { pct: Math.max(0, b.billedPct - b.paidPct), className: 'bg-brand-500' }, { pct: Math.max(0, under), className: 'bg-warn-300' }]} />
               <div className="mt-1 text-[0.75rem] text-muted">{b.installedPct}% installed · {b.billedPct}% billed · {b.paidPct}% paid</div>
             </div>
-            <div className="text-right text-[0.875rem] tnum text-ink-2 max-xl:hidden">{b.retainage ? fmtMoney(b.retainage) : '—'}</div>
+            <div className="text-right text-[0.875rem] tnum text-ink-2 max-xl:hidden">{b.retainage ? fmtMoney(b.retainage) : ''}</div>
             <div className="flex justify-end max-md:col-span-2 max-md:justify-start">
               {under >= 5 ? (
                 <Button size="xs" variant="soft" onClick={() => (next ? s.open({ t: 'money', id: next.id }) : s.open({ t: 'job', id: j.id, tab: 'money' }))}>Under-billed {under}% · bill</Button>
@@ -198,12 +198,12 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
       title={m.title}
       attrs={{ 'data-bill-win': m.id }}
       lines={<>
-        <WinLine k="money" label="Amount"><span className="text-[0.9375rem]"><b className="font-semibold tnum text-ink" data-bill-amount>{m.amount ? fmtMoney(m.amount) : '—'}</b>{m.paid ? <span className="font-medium text-[#2c8a5b]"> · {fmtMoney(m.paid)} paid</span> : <span className="text-muted"> · {smp('sample amount') || 'not paid yet'}</span>}</span></WinLine>
+        <WinLine k="money" label="Amount"><span className="text-[0.9375rem]"><b className="font-semibold tnum text-ink" data-bill-amount>{m.amount ? fmtMoney(m.amount) : ''}</b>{m.paid ? <span className="font-medium text-[#2c8a5b]"> · {fmtMoney(m.paid)} paid</span> : <span className="text-muted"> · {smp('sample amount') || 'not paid yet'}</span>}</span></WinLine>
         <WinLine k="status" label="Status"><span className={cn('text-[0.9375rem]', toneCls(m.state === 'paid' ? 'ok' : m.step < 0 ? 'quiet' : undefined))} data-bill-where>{where}</span></WinLine>
         <WinLine k="ref" label="Invoice"><span className={cn('text-[0.9375rem]', m.ref ? 'font-medium text-ink' : 'text-muted')}>{m.ref ? `Invoice ${m.ref}` : 'Not invoiced yet'}</span></WinLine>
         <WinLine k="client" label="Client">
           <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.9375rem]">
-            <span className="text-ink">{job?.client || '—'}</span>
+            <span className="text-ink">{job?.client || ''}</span>
             <span className="text-muted">{job?.clientPO ? <>Client PO <b className="font-semibold text-ink-2">{job.clientPO}</b></> : 'No client PO yet'}</span>
             {est && <button onClick={() => s.open({ t: 'estimate', id: est.id })} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline"><FileText className="h-3.5 w-3.5" />Estimate {est.id}</button>}
           </span>
@@ -222,7 +222,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
           <div className="mt-1 flex justify-between text-[0.8125rem] text-muted"><span>To</span><span>{job?.client}</span></div>
         </button>
         <Button full size="lg" variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={() => createInvoice(m.id)}>Send the invoice</Button>
-        <div className="text-[0.78125rem] text-muted">{(s.rules.autoOff || []).includes('inv-remind') ? 'Reminders are off — Settings → Automations.' : `While it’s unpaid, a reminder is ready on accounting’s Today every ${s.rules.reminderDays} days — one click sends it.`}</div>
+        <div className="text-[0.78125rem] text-muted">{(s.rules.autoOff || []).includes('inv-remind') ? 'Reminders are off · Settings → Automations.' : `While it’s unpaid, a reminder is ready on accounting’s Today every ${s.rules.reminderDays} days. One click sends it.`}</div>
       </>
     )
   else if (m.kind === 'retainage' && m.step === 0) actions = <Button full size="lg" variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={() => requestRetainage(m.id)}>Request release</Button>
@@ -232,7 +232,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
   else if (m.kind === 'progress' && m.step <= 1)
     actions = (
       <Button full size="lg" variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={() => advanceBill(m.id)}>
-        {m.step <= 0 ? 'Send to the PM for review' : 'PM approved — send it'}
+        {m.step <= 0 ? 'Send to the PM for review' : 'PM approved · send it'}
       </Button>
     )
   else if (m.kind === 'progress' && m.step === 2) actions = <Button full size="lg" variant="primary" onClick={() => advanceBill(m.id)}>GC approved it</Button>
@@ -260,7 +260,7 @@ export function MoneyModal({ id, level }: { id: string; level: number }) {
           <MiniSteps steps={steps} at={at} tone={m.state === 'paid' ? 'ok' : 'info'} />
         ) : (
           <div className="flex items-center gap-2.5 rounded-xl bg-wash-2 px-4 py-3 text-[0.875rem] text-ink-2">
-            <Ban className="h-4 w-4 text-muted" /> {m.due} — {m.kind === 'change' ? 'billing opens the moment the approval is recorded.' : 'it opens by itself when the project gets there.'}
+            <Ban className="h-4 w-4 text-muted" /> {m.due} · {m.kind === 'change' ? 'billing opens the moment the approval is recorded.' : 'it opens by itself when the project gets there.'}
           </div>
         )}
       </div>
@@ -402,24 +402,24 @@ export function POModal({ id, level }: { id: string; level: number }) {
         <div className="flex flex-col gap-3 self-start rounded-2xl border border-line bg-wash/60 p-4 max-md:order-first max-md:self-stretch">
           <div className="text-[0.84375rem] font-semibold text-muted">Next step</div>
           {cancelled ? (
-            <div className="text-[0.875rem] text-ink-2">Nothing — this PO was replaced.</div>
+            <div className="text-[0.875rem] text-ink-2">Nothing. This PO was replaced.</div>
           ) : p.step === 1 ? (
             <>
               <div className="text-[0.875rem] text-ink-2">Waiting for {p.supplier} to confirm.</div>
-              <Field label="They confirmed — arriving">
+              <Field label="They confirmed · arriving">
                 <DatePresets value={eta} onPick={setEta} presets={['Tomorrow', 'Thu', 'Fri', 'Next Mon']} />
               </Field>
               <Button full variant="primary" icon={<CheckCircle2 className="h-[1.125rem] w-[1.125rem]" />} onClick={() => confirmPO(p.id, eta)}>Mark confirmed</Button>
             </>
           ) : p.step === 2 ? (
             <>
-              <Button full variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => receivePO(p.id)}>Received — all here</Button>
+              <Button full variant="primary" icon={<Truck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => receivePO(p.id)}>Received, all here</Button>
               {p.late && (
                 <div className="mt-2 rounded-xl border border-line bg-white p-3">
-                  <div className="text-[0.84375rem] font-semibold text-ink">Followed up — what did they say?</div>
+                  <div className="text-[0.84375rem] font-semibold text-ink">Followed up. What did they say?</div>
                   <TextInput className="mt-2" value={said} onChange={(e) => setSaid(e.target.value)} placeholder="e.g. Ships Thursday" />
                   <div className="mt-2.5"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Thu', 'Fri']} /></div>
-                  <Button full className="mt-3" disabled={!said.trim()} onClick={() => { followUpPO(p.id, said.trim(), back); setSaid('') }}>Save — back {back}</Button>
+                  <Button full className="mt-3" disabled={!said.trim()} onClick={() => { followUpPO(p.id, said.trim(), back); setSaid('') }}>Save · back {back}</Button>
                 </div>
               )}
             </>
@@ -455,10 +455,10 @@ export function NewPOModal({ jobId, prefill, level }: { jobId: string; prefill?:
       size="lg"
       onClose={s.close}
       title={`New purchase order · ${job.name}`}
-      sub="Sent to the supplier from here — the PO number, confirmation and delivery are all tracked."
+      sub="Sent to the supplier from here. The PO number, confirmation and delivery are all tracked."
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">The supplier’s confirmation comes back as its own step — nothing to remember.</span>
+          <span className="text-[0.84375rem] text-muted">The supplier’s confirmation comes back as its own step. Nothing to remember.</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} disabled={!lines.some((l) => l.item.trim())} onClick={() => createPO(jobId, { supplier, lines: lines.filter((l) => l.item.trim()), amount, what: prefill?.what || (jobId === '530' ? 'Floor prep' : 'Setting materials'), neededBy: needed, replaces: prefill?.replaces, tag: prefill?.tag, addQty: prefill?.addQty })}>
             Send PO to {supplier}

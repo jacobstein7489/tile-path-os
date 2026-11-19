@@ -28,7 +28,7 @@ export function MemberModal({ k, level }: { k: PersonKey; level: number }) {
   const ok = !!first.trim() && !badMain && reachOk(more)
   const save = () => {
     const name = [first.trim(), last.trim()].filter(Boolean).join(' ')
-    updateMember(k, { first: first.trim(), last: last.trim() || undefined, ...(locked ? {} : { email: email.trim() || undefined }), phone: phone.trim() || undefined, more: cleanReach(more) }, `Saved — it shows as ${name} everywhere`)
+    updateMember(k, { first: first.trim(), last: last.trim() || undefined, ...(locked ? {} : { email: email.trim() || undefined }), phone: phone.trim() || undefined, more: cleanReach(more) }, `Saved. It shows as ${name} everywhere`)
     s.close()
   }
   const role = ROLES.find((r) => r.key === m.role)?.label.split(' · ')[0]
@@ -47,7 +47,7 @@ export function MemberModal({ k, level }: { k: PersonKey; level: number }) {
           {field('Last name', <TextInput aria-label="Last name" value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name" className="h-10" />)}
         </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {field(locked ? 'Email — their login' : 'Email to sign in', <TextInput aria-label="Email to sign in" type="email" value={email} disabled={locked} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="h-10" />)}
+          {field(locked ? 'Email · their login' : 'Email to sign in', <TextInput aria-label="Email to sign in" type="email" value={email} disabled={locked} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="h-10" />)}
           {field('Phone', <TextInput aria-label="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(718) 555-0100" className="h-10" />)}
         </div>
         {badMain && <div className="-mt-2 text-[0.75rem] font-medium text-bad-600">That isn’t an email address</div>}

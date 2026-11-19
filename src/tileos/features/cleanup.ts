@@ -117,5 +117,5 @@ export function startOver() {
   S().setRole(keepRole)
   S().closeAll()
   S().go({ page: 'today' })
-  showPop({ title: 'Clean slate', sub: `No projects, estimates, tasks or clients${REAL.cloud ? ' — cleared from the company’s database' : ''}. Your team, items and settings stayed. Start with + New.` })
+  showPop({ title: 'Clean slate', sub: `No projects, estimates, tasks or clients${REAL.cloud ? '. Cleared from the company’s database' : ''}. Your team, items and settings stayed. Start with + New.` })
 }

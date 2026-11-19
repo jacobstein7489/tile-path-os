@@ -253,11 +253,11 @@ export async function flush() {
     offline = false
     setSaveStatus({ saving: false, at: Date.now(), problem: undefined })
     keepCopy(0)
-    if (was) showPop({ title: 'Back online — everything went up', sub: 'What you did without signal is saved for everyone now.' })
+    if (was) showPop({ title: 'Back online. Everything went up', sub: 'What you did without signal is saved for everyone now.' })
   } catch (e) {
     const k = kindOf(e)
     if (k === 'network') offline = true
-    setSaveStatus({ saving: false, problem: k === 'denied' ? 'Your login can’t save changes — ask the admin' : OFFLINE_WORDS })
+    setSaveStatus({ saving: false, problem: k === 'denied' ? 'Your login can’t save changes. Ask the admin' : OFFLINE_WORDS })
     if (k !== 'denied') schedule(5000)
   } finally {
     sending = false
@@ -319,7 +319,7 @@ function keepCopy(ms = 1200) {
 /** an installer PO drafted with a made-up price — no square feet, no contract, no estimate (it used to guess $40,000 of
  *  work): its lines wait for his prices instead */
 function noMadeUpPrices(d: Data): Data | null {
-  const made = (d.ipos || []).filter((p) => p.status === 'Draft' && p.lines.length > 0 && p.lines.every((l) => /— install per plans$/.test(l.item) && l.qty === 'Per plans') && p.lines.some((l) => (l.amount || 0) > 0) && !d.jobs[p.jobId]?.contract && !(d.estimates || []).some((e) => e.jobId === p.jobId))
+  const made = (d.ipos || []).filter((p) => p.status === 'Draft' && p.lines.length > 0 && p.lines.every((l) => /(?:— |· |\. )[Ii]nstall per plans$/.test(l.item) && l.qty === 'Per plans') && p.lines.some((l) => (l.amount || 0) > 0) && !d.jobs[p.jobId]?.contract && !(d.estimates || []).some((e) => e.jobId === p.jobId))
   if (!made.length) return null
   return { ...d, ipos: d.ipos.map((p) => (made.includes(p) ? { ...p, lines: p.lines.map((l) => ({ ...l, amount: 0 })) } : p)) }
 }
@@ -575,7 +575,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
      private preview). */
   REAL.invite = opts.admin ? async (p) => {
     const email = p.email.trim().toLowerCase()
-    const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address — wait a moment and send it again' : m)
+    const say = (m: string) => (/60 seconds|rate limit|too many|security purposes/i.test(m) ? 'One a minute per address. Wait a moment and send it again' : m)
     /* from the address Settings → Email has for "Everything else" — else from the admin sending it */
     const from = useStore.getState().rules.email?.other || REAL.email
     const r = await sendInvite({ data: { email, name: p.name, role: APP_ROLE[p.role], redirectTo: appUrl(), from: from ? `Cobblestone Tile <${from}>` : undefined } })
@@ -673,10 +673,10 @@ export function startSample(user: User, opts: { admin: boolean; name: string; ap
 /* ---------------- the company's AI and file storage ---------------- */
 const AI_WORDS: Record<string, string> = {
   nokey: 'AI isn’t switched on for the app yet. In Lovable, ask: “Turn on Lovable AI for this project.”',
-  busy: 'The AI is busy right now — try again in a minute.',
-  credits: 'The AI credits are used up — add credits in Lovable (Settings → Plans & credits).',
-  denied: 'Only the team can use this — ask the admin to let you in.',
-  error: 'Couldn’t read it just now — try again.',
+  busy: 'The AI is busy right now. Try again in a minute.',
+  credits: 'The AI credits are used up. Add credits in Lovable (Settings → Plans & credits).',
+  denied: 'Only the team can use this. Ask the admin to let you in.',
+  error: 'Couldn’t read it just now · try again.',
 }
 const asDataUrl = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsDataURL(b) })
 /* a recording (16 kHz WAV, base64), written down by the company's AI — when the browser can't listen */
@@ -724,7 +724,7 @@ const files = {
   async put(jobId: string, id: string, file: Blob, name: string) {
     const path = `${jobId}/${id}-${name.replace(/[^\w.\-]+/g, '_').slice(-80)}`
     const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined, upsert: false })
-    if (error) throw new Error(/bucket|not.?found|does not exist/i.test(error.message || '') ? 'files need a one-time setup — in Lovable, type “Apply pending Supabase migrations”.' : error.message)
+    if (error) throw new Error(/bucket|not.?found|does not exist/i.test(error.message || '') ? 'files need a one-time setup. In Lovable, type “Apply pending Supabase migrations”.' : error.message)
     return path
   },
   async url(path: string) {

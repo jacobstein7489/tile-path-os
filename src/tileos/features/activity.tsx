@@ -105,7 +105,7 @@ export function ActivityModal({ entry, jobId, level }: { entry: HistEntry & { te
         {(entry.from || entry.to) && (
           <>
             <dt className="text-muted">Changed</dt>
-            <dd className="text-ink-2">{entry.from || '—'} → <span className="font-medium text-ink">{entry.to || '—'}</span></dd>
+            <dd className="text-ink-2">{entry.from || ''} → <span className="font-medium text-ink">{entry.to || ''}</span></dd>
           </>
         )}
         <dt className="text-muted">Who</dt>

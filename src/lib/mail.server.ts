@@ -86,7 +86,7 @@ export async function send(m: Mail): Promise<{ ok: true; id: string; from: strin
     const j: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = String(j.message || j.error || `Resend said ${res.status}`);
-      return { ok: false, why: /domain/i.test(msg) && /verif/i.test(msg) ? `${domainOf(from) || "The domain"} isn’t verified in Resend yet — finish the DNS step there` : msg };
+      return { ok: false, why: /domain/i.test(msg) && /verif/i.test(msg) ? `${domainOf(from) || "The domain"} isn’t verified in Resend yet. Finish the DNS step there` : msg };
     }
     return { ok: true, id: String(j.id || ""), from, threaded };
   } catch (e: any) {

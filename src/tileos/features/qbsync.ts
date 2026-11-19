@@ -26,14 +26,14 @@ export function useQb(): QbView {
 export const qbLive = () => !!REAL.qb && REAL.cloud && view.connected
 
 const WORDS: Record<string, string> = {
-  notconnected: 'QuickBooks isn’t connected — Settings → Connections',
-  reconnect: 'QuickBooks has to be connected again — Settings → Connections',
-  auth: 'QuickBooks didn’t accept the app’s keys — check them in Lovable (Settings → Secrets)',
+  notconnected: 'QuickBooks isn’t connected · Settings → Connections',
+  reconnect: 'QuickBooks has to be connected again · Settings → Connections',
+  auth: 'QuickBooks didn’t accept the app’s keys. Check them in Lovable (Settings → Secrets)',
   denied: 'Only the team can do this',
   notable: 'One step is left in Lovable: type “Apply pending Supabase migrations” in its chat',
-  noitem: 'QuickBooks has no service to put the bill on — add one there (Sales → Products and services)',
+  noitem: 'QuickBooks has no service to put the bill on. Add one there (Sales → Products and services)',
   nokeys: 'The QuickBooks keys aren’t in Lovable yet',
-  offline: 'Couldn’t reach the server — check the internet and try again',
+  offline: 'Couldn’t reach the server. Check the internet and try again',
 }
 /** a plain reason from a QuickBooks answer */
 export const qbWords = (r: { why: string; detail?: string }) => (['api', 'error', 'mail', 'db'].includes(r.why) ? r.detail || 'QuickBooks said no' : WORDS[r.why] || r.detail || 'Couldn’t reach QuickBooks')
@@ -84,10 +84,10 @@ function invoiceOf(s: Store, m: MoneyItem, findFirst: boolean): InvoiceIn {
     const it = (s.rules.qbItems || {})[kind as 'deposit'] || item
     return { amount: r2(amount), description, ...(it ? { itemId: it.id } : {}) }
   }
-  let lines = [one(m.amount || 0, `${j?.name || 'Project'} — ${m.title}`)]
+  let lines = [one(m.amount || 0, `${j?.name || 'Project'} · ${m.title}`)]
   const b = m.bill
   if (b) {
-    const parts = [one(b.progress, `${j?.name || 'Project'} — work installed through ${b.through} (${b.pct}% of ${fmtMoney(b.contract)}, less retainage and billed before)`), ...b.cos.map((c) => one(c.amount, `${j?.name || 'Project'} — ${c.title}`, 'change'))]
+    const parts = [one(b.progress, `${j?.name || 'Project'}. Work installed through ${b.through} (${b.pct}% of ${fmtMoney(b.contract)}, less retainage and billed before)`), ...b.cos.map((c) => one(c.amount, `${j?.name || 'Project'} · ${c.title}`, 'change'))]
     if (Math.abs(parts.reduce((n, l) => n + l.amount, 0) - (m.amount || 0)) < 0.01) lines = parts.filter((l) => l.amount !== 0)
   }
   const qb = m.qb?.id && !m.qb.gone ? m.qb : undefined
@@ -119,9 +119,9 @@ export async function pushBill(id: string, o: { email?: boolean; quietOk?: boole
     const fresh = !m.qb?.id || !!m.qb.gone
     const r = await REAL.qb.push(invoiceOf(s, m, !!o.findFirst))
     if (!r.ok) {
-      quiet(id, (x) => { x.qb = { ...(x.qb || {}), error: qbWords(r) }; x.log.push(L('system', `Not in QuickBooks yet — ${qbWords(r)}`)) })
+      quiet(id, (x) => { x.qb = { ...(x.qb || {}), error: qbWords(r) }; x.log.push(L('system', `Not in QuickBooks yet · ${qbWords(r)}`)) })
       if (r.why === 'reconnect' || r.why === 'notconnected') void refreshQb()
-      showPop({ title: 'Not in QuickBooks yet', sub: `${qbWords(r)}. It’s saved here — try again from the bill.`, tone: 'warn' })
+      showPop({ title: 'Not in QuickBooks yet', sub: `${qbWords(r)}. It’s saved here. Try again from the bill.`, tone: 'warn' })
       return false
     }
     const doc = r.doc ? '#' + r.doc.replace(/^#/, '') : undefined
@@ -143,7 +143,7 @@ export async function pushBill(id: string, o: { email?: boolean; quietOk?: boole
     /* a new invoice for a bill that has payments recorded on it already: they go on it there too */
     if (fresh && !r.linked && before > 0) await pushPayment(id, before, 'Recorded in Tile OS before it was in QuickBooks', { quietOk: true })
     if (o.email) return await emailBill(id, { first: true })
-    if (!o.quietOk) showPop({ title: r.linked ? `Linked to ${doc || 'the invoice'} in QuickBooks` : fresh ? `In QuickBooks as ${doc || 'a new invoice'}` : 'QuickBooks is updated', sub: r.linked ? 'It was there already — nothing was made twice.' : undefined })
+    if (!o.quietOk) showPop({ title: r.linked ? `Linked to ${doc || 'the invoice'} in QuickBooks` : fresh ? `In QuickBooks as ${doc || 'a new invoice'}` : 'QuickBooks is updated', sub: r.linked ? 'It was there already. Nothing was made twice.' : undefined })
     return true
   } catch (e: any) {
     quiet(id, (x) => { x.qb = { ...(x.qb || {}), error: WORDS.offline } })
@@ -159,8 +159,8 @@ const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '
 function invoiceHtml(o: { hello: string; doc: string; job: string; title: string; open: number; link?: string; reminder?: boolean; by: string }) {
   const pay = o.link ? `<p style="margin:22px 0"><a href="${esc(o.link)}" style="display:inline-block;background:#2650cf;color:#fff;text-decoration:none;font-weight:600;padding:12px 18px;border-radius:10px">Pay ${esc(fmtMoney(o.open, { cents: o.open % 1 !== 0 }))} online</a></p><p style="color:#5b5f68;font-size:14px">By card or bank transfer, through QuickBooks’ secure page.</p>` : ''
   const lead = o.reminder
-    ? `A friendly reminder: invoice <b>${esc(o.doc)}</b> for <b>${esc(o.job)}</b> — ${esc(o.title)} — has <b>${esc(fmtMoney(o.open, { cents: o.open % 1 !== 0 }))}</b> open. It’s attached again.`
-    : `Attached is invoice <b>${esc(o.doc)}</b> for <b>${esc(o.job)}</b> — ${esc(o.title)}.`
+    ? `A friendly reminder: invoice <b>${esc(o.doc)}</b> for <b>${esc(o.job)}</b> · ${esc(o.title)} · has <b>${esc(fmtMoney(o.open, { cents: o.open % 1 !== 0 }))}</b> open. It’s attached again.`
+    : `Attached is invoice <b>${esc(o.doc)}</b> for <b>${esc(o.job)}</b> · ${esc(o.title)}.`
   return `<div style="font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b18;max-width:560px">
 <p>${esc(o.hello)}</p>
 <p>${lead}</p>${pay}
@@ -179,8 +179,8 @@ export async function emailBill(id: string, o: { reminder?: boolean; first?: boo
   const to = billTo(s, m.jobId)
   const doc = m.ref || (m.qb.doc ? '#' + m.qb.doc : 'invoice')
   if (!to.emails.length) {
-    quiet(id, (x) => x.log.push(L('system', `Not emailed — ${to.name} has no email for invoices`)))
-    showPop({ title: o.first ? `In QuickBooks as ${doc} — not emailed` : 'Not emailed', sub: `${to.name} has no email for invoices. Add one on their page (Clients → ${to.name}), then use “Email it” on the bill.`, tone: 'warn' })
+    quiet(id, (x) => x.log.push(L('system', `Not emailed · ${to.name} has no email for invoices`)))
+    showPop({ title: o.first ? `In QuickBooks as ${doc}, not emailed` : 'Not emailed', sub: `${to.name} has no email for invoices. Add one on their page (Clients → ${to.name}), then use “Email it” on the bill.`, tone: 'warn' })
     return false
   }
   const mail = s.rules.email || {}
@@ -199,8 +199,8 @@ export async function emailBill(id: string, o: { reminder?: boolean; first?: boo
     file: `Invoice ${doc.replace(/^#/, '')}.pdf`,
   }).catch(() => ({ ok: false as const, why: 'offline' }))
   if (!r.ok) {
-    quiet(id, (x) => x.log.push(L('system', `The email didn’t go out — ${qbWords(r)}`)))
-    showPop({ title: o.first ? `In QuickBooks as ${doc} — the email didn’t go out` : 'The email didn’t go out', sub: `${qbWords(r)}. Try “Email it” on the bill again.`, tone: 'warn' })
+    quiet(id, (x) => x.log.push(L('system', `The email didn’t go out · ${qbWords(r)}`)))
+    showPop({ title: o.first ? `In QuickBooks as ${doc}. The email didn’t go out` : 'The email didn’t go out', sub: `${qbWords(r)}. Try “Email it” on the bill again.`, tone: 'warn' })
     return false
   }
   const list = [to.emails[0], ...cc].join(', ')
@@ -228,7 +228,7 @@ function estimateOf(s: Store, e: Estimate, rev: EstRev, accepted: boolean): Esti
     const ls = rev.lines.filter((l) => l.area === a)
     const parts = ls.map((l) => {
       const item = s.items.find((x) => x.id === l.itemId)
-      return `${l.desc || item?.name || 'Work'}${l.surface ? ` (${l.surface})` : ''} — ${l.qty.toLocaleString('en-US')} ${item?.unit || ''}`.trim()
+      return `${l.desc || item?.name || 'Work'}${l.surface ? ` (${l.surface})` : ''} · ${l.qty.toLocaleString('en-US')} ${item?.unit || ''}`.trim()
     })
     return { amount: r2(ls.reduce((n, l) => n + l.qty * l.rate, 0)), description: `${a}: ${parts.join('; ')}`, ...(it ? { itemId: it.id } : {}) }
   }).filter((l) => l.amount !== 0)
@@ -263,8 +263,8 @@ export async function pushEstimate(estId: string, o: { email?: boolean; accepted
   const note = (text: string, patch: Partial<NonNullable<Estimate['qb']>> = {}) => useStore.setState((st: any) => { const x = st.estimates.find((y: Estimate) => y.id === estId); if (!x) return; x.qb = { ...(x.qb || {}), ...patch }; x.log.push(L('system', text)) })
   const r = await REAL.qb.estimate(est).catch(() => ({ ok: false as const, why: 'offline' }))
   if (!r.ok) {
-    note(`Not in QuickBooks yet — ${qbWords(r)}`, { error: qbWords(r) })
-    showPop({ title: o.email ? `${e.id} is marked sent — but it didn’t go out` : 'QuickBooks didn’t take the estimate', sub: `${qbWords(r)}.${o.email ? ' Download PDF and email it yourself this time.' : ''}`, tone: 'warn' })
+    note(`Not in QuickBooks yet · ${qbWords(r)}`, { error: qbWords(r) })
+    showPop({ title: o.email ? `${e.id} is marked sent, but it didn’t go out` : 'QuickBooks didn’t take the estimate', sub: `${qbWords(r)}.${o.email ? ' Download PDF and email it yourself this time.' : ''}`, tone: 'warn' })
     return false
   }
   const fresh = !e.qb?.id
@@ -275,8 +275,8 @@ export async function pushEstimate(estId: string, o: { email?: boolean; accepted
   const to = estimateTo(s, e)
   const j = s.jobs[e.jobId]
   if (!to.length) {
-    note('Not emailed — the client has no email')
-    showPop({ title: `${e.id} is in QuickBooks — not emailed`, sub: `${j?.client || 'The client'} has no email in Tile OS. Add one on their page, or send it from QuickBooks.`, tone: 'warn' })
+    note('Not emailed. The client has no email')
+    showPop({ title: `${e.id} is in QuickBooks, not emailed`, sub: `${j?.client || 'The client'} has no email in Tile OS. Add one on their page, or send it from QuickBooks.`, tone: 'warn' })
     return false
   }
   const mail = s.rules.email || {}
@@ -289,14 +289,14 @@ export async function pushEstimate(estId: string, o: { email?: boolean; accepted
   const total = rev.lines.reduce((n, l) => n + l.qty * l.rate, 0)
   const html = `<div style="font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1b18;max-width:560px">
 <p>Hello${first ? ` ${esc(first)}` : ''},</p>
-<p>Attached is our estimate <b>${esc(e.id)}</b>${rev.n > 1 ? ` (revision ${rev.n})` : ''} for <b>${esc(j?.name || 'the project')}</b> — ${esc(fmtMoney(total))}.</p>
+<p>Attached is our estimate <b>${esc(e.id)}</b>${rev.n > 1 ? ` (revision ${rev.n})` : ''} for <b>${esc(j?.name || 'the project')}</b> · ${esc(fmtMoney(total))}.</p>
 <p>Reply to approve it, or tell us what you’d like to change.</p>
 <p>Thank you,<br>${esc(name)}<br>Cobblestone Tile</p>
 </div>`
   const sent = await REAL.qb.send({ id: r.id, kind: 'estimate', to: to[0], cc: Array.from(new Set([...(mail.cc || []), ...(mail.ccEstimates || [])])), from: fromAddr ? `${mail.estimates ? 'Cobblestone Tile' : `${name} · Cobblestone Tile`} <${fromAddr}>` : undefined, replyTo: fromAddr ? [fromAddr] : undefined, subject: `Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''} · ${j?.name || ''}`, html, file: `Estimate ${e.id}${rev.n > 1 ? `-R${rev.n}` : ''}.pdf` }).catch(() => ({ ok: false as const, why: 'offline' }))
   if (!sent.ok) {
-    note(`The email didn’t go out — ${qbWords(sent)}`)
-    showPop({ title: `${e.id} is in QuickBooks — the email didn’t go out`, sub: `${qbWords(sent)}. Send it from QuickBooks, or Download PDF and email it.`, tone: 'warn' })
+    note(`The email didn’t go out · ${qbWords(sent)}`)
+    showPop({ title: `${e.id} is in QuickBooks. The email didn’t go out`, sub: `${qbWords(sent)}. Send it from QuickBooks, or Download PDF and email it.`, tone: 'warn' })
     return false
   }
   note(`Emailed to ${to[0]}${sent.via === 'quickbooks' ? ' (sent by QuickBooks)' : ''}`, { emailed: new Date().toISOString(), emailedTo: to[0] })
@@ -313,7 +313,7 @@ export async function pushPayment(id: string, amount: number, how?: string, o: {
   const r = await REAL.qb.pay({ invoiceId: m.qb.id, customerId: m.qb.customerId, amount: r2(amount), ref: how && how.length <= 21 ? how : undefined, note: `Recorded in Tile OS by ${PEOPLE[byMe()]?.name || 'the office'}${how ? ` · ${how}` : ''}` }).catch(() => ({ ok: false as const, why: 'offline' }))
   if (!r.ok) {
     quiet(id, (x) => { if (x.qb) x.qb.unsent = [...(x.qb.unsent || []), { amount: r2(amount), how, at: new Date().toISOString() }] })
-    showPop({ title: 'Payment saved here — not in QuickBooks yet', sub: `${qbWords(r)}. It goes to QuickBooks by itself next time.`, tone: 'warn' })
+    showPop({ title: 'Payment saved here, not in QuickBooks yet', sub: `${qbWords(r)}. It goes to QuickBooks by itself next time.`, tone: 'warn' })
     return false
   }
   quiet(id, (x) => {
@@ -322,7 +322,7 @@ export async function pushPayment(id: string, amount: number, how?: string, o: {
     x.qb.balance = r2(Math.max(0, (x.qb.balance ?? x.amount ?? 0) - amount))
     x.log.push(L('system', `${fmtMoney(amount, { cents: amount % 1 !== 0 })} recorded in QuickBooks too`))
   })
-  if (!o.quietOk) showPop({ title: `${fmtMoney(amount, { cents: amount % 1 !== 0 })} recorded — QuickBooks too`, sub: 'The invoice there shows it paid.' })
+  if (!o.quietOk) showPop({ title: `${fmtMoney(amount, { cents: amount % 1 !== 0 })} recorded · QuickBooks too`, sub: 'The invoice there shows it paid.' })
   return true
 }
 /** payments that didn't reach QuickBooks: once more */
@@ -378,7 +378,7 @@ export async function pullQb(o: { say?: boolean } = {}): Promise<number> {
           x.paid = r2(Math.max(0, (x.paid || 0) + extra))
           if (x.state === 'paid' && x.amount && x.paid < x.amount - 0.01) { x.state = 'waiting'; x.step = x.kind === 'progress' ? 3 : 1; x.date = undefined; x.action = 'Record payment' }
           if (x.state !== 'paid' && x.amount) x.due = `${fmtMoney(x.amount - (x.paid || 0))} open`
-          x.log.push(L('system', `QuickBooks shows ${fmtMoney(-extra, { cents: extra % 1 !== 0 })} less paid — taken off here to match`))
+          x.log.push(L('system', `QuickBooks shows ${fmtMoney(-extra, { cents: extra % 1 !== 0 })} less paid. Taken off here to match`))
         }
       })
       if (Math.abs(extra) >= 0.01) changed++
@@ -408,7 +408,7 @@ export function remindLate() {
     for (const m of add) {
       const j = st.jobs[m.jobId]
       const open = (m.amount || 0) - (m.paid || 0)
-      newTask(st, { id: `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`, jobId: m.jobId, title: `Remind ${billTo(st, m.jobId).name} — invoice ${m.ref || ''} has ${fmtMoney(open)} open`, type: 'Money', owner, for: [books ? 'accounting' : 'owner'], state: 'now', due: 'Today', tone: 'warn', where: `${j?.name || ''} · ${m.title}`, action: { label: 'Remind', kind: 'money:' + m.id } })
+      newTask(st, { id: `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`, jobId: m.jobId, title: `Remind ${billTo(st, m.jobId).name} · invoice ${m.ref || ''} has ${fmtMoney(open)} open`, type: 'Money', owner, for: [books ? 'accounting' : 'owner'], state: 'now', due: 'Today', tone: 'warn', where: `${j?.name || ''} · ${m.title}`, action: { label: 'Remind', kind: 'money:' + m.id } })
     }
   })
 }

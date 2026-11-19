@@ -238,7 +238,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         {pricing && <span className="min-w-0 shrink-0 max-sm:hidden">{statusChip}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {!pricing && (
-            <Button size="sm" icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })} aria-label={`Messages${unread ? ` — ${unread} new` : ''}`} className="relative max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:px-0 max-sm:shadow-none max-sm:[&>span]:hidden" data-project-messages>
+            <Button size="sm" icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })} aria-label={`Messages${unread ? ` · ${unread} new` : ''}`} className="relative max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:px-0 max-sm:shadow-none max-sm:[&>span]:hidden" data-project-messages>
               <span>Messages</span>
               {unread > 0 && <span className="absolute -right-1.5 -top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-white">{unread}</span>}
             </Button>
@@ -334,7 +334,7 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
   const s = useStore()
   const job = s.jobs[jobId]
   const doc = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => { if (print) { const t = setTimeout(() => printNode(doc.current, `${s.jobs[jobId]?.name || ''} — Scope of work`), 350); return () => clearTimeout(t) } }, [print])
+  React.useEffect(() => { if (print) { const t = setTimeout(() => printNode(doc.current, `${s.jobs[jobId]?.name || ''} · Scope of work`), 350); return () => clearTimeout(t) } }, [print])
   const rooms = estId ? [] : s.rooms[jobId] || []
   const est = estId ? s.estimates.find((e) => e.id === estId) : s.estimates.find((e) => e.jobId === jobId && e.status === 'approved')
   if (!job) return null
@@ -345,12 +345,12 @@ export function ScopeDocModal({ jobId, estId, print, level }: { jobId: string; e
       size="lg"
       onClose={s.close}
       title="Scope of work"
-      sub={`${job.name} — what we install, room by room`}
+      sub={`${job.name}. What we install, room by room`}
       bodyClass="bg-wash px-8 py-6 max-sm:px-3"
       footer={
         <>
           <span className="text-[0.8125rem] text-muted">{fromEst ? `From estimate ${est!.id}, revision ${fromEst.n}` : `From the project’s rooms and surfaces${est ? ` · estimate ${est.id}` : ''}`}</span>
-          <Button className="ml-auto" variant="primary" icon={<Printer />} onClick={() => printNode(doc.current, `${job.name} — Scope of work`)}>Print</Button>
+          <Button className="ml-auto" variant="primary" icon={<Printer />} onClick={() => printNode(doc.current, `${job.name} · Scope of work`)}>Print</Button>
         </>
       }
     >

@@ -40,7 +40,7 @@ const TGRID = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem_17rem_1rem] item
 /* one slim line a material — more of the list on one screen */
 /* one slim line a material — the same 40px as the tile's and the scope's */
 const ROWPAD = 'min-h-[2.5rem] border-t border-line-2 px-5 py-1 max-sm:min-h-12 max-sm:px-3 max-sm:py-2'
-const num = (n?: number) => (n ? n.toLocaleString('en-US') : '—')
+const num = (n?: number) => (n ? n.toLocaleString('en-US') : '')
 const EXACT = new Set(['m-liner', 'm-jolly', 'm-trim', 'm-edge'])
 
 /* ---------------- tile ---------------- */
@@ -115,7 +115,7 @@ export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: 
         )}
         {!all.length && (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-3" data-tiles-empty>
-            <span className="min-w-0 flex-1">{reading ? 'The tile paperwork is being read — on the Scope of work.' : 'No tiles yet — they come from the tile paperwork, on the Scope of work (or a wall’s “Add a new tile”).'}</span>
+            <span className="min-w-0 flex-1">{reading ? 'The tile paperwork is being read. On the Scope of work.' : 'No tiles yet. They come from the tile paperwork, on the Scope of work (or a wall’s “Add a new tile”).'}</span>
             <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         )}
@@ -148,7 +148,7 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
   /* what can be done with it — the office orders and settles; the site manager checks deliveries in */
   const acts: { label: string; run: () => void }[] = []
   if (!c && sfAll > 0 && !simple) acts.push({ label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf: sfAll, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) })
-  if ((c && c.received < c.ordered) || (!c && simple)) acts.push({ label: 'It came in — count the boxes', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) })
+  if ((c && c.received < c.ordered) || (!c && simple)) acts.push({ label: 'It came in. Count the boxes', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) })
   if (c && short && !simple) acts.push({ label: 'Settle the count', run: () => s.open({ t: 'qty', jobId: job.id, tag }) })
   if (po) acts.push({ label: `Open ${po.id}`, run: () => s.open({ t: 'po', id: po.id }) })
   if (t) acts.push({ label: 'Order more of this tile', run: () => s.open({ t: 'moretile', jobId: job.id, tags: [tag] }) })
@@ -166,8 +166,8 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
           <span className="block truncate text-[0.8125rem] text-muted lg:hidden">{[xs.map((x) => x.name).join(' · '), sfHere ? `${sfHere.toLocaleString('en-US')} SF` : '', also].filter(Boolean).join(' · ') || (xs.length ? '' : 'Not on a wall or floor yet')}</span>
         </span>
       </button>
-      <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink-2 max-lg:hidden" data-tile-where>{xs.length ? xs.map((x) => x.name).join(' · ') : <span className="text-faint">—</span>}{also && <span className="text-muted" data-tile-also> · {also}</span>}</span>
-      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden" data-tile-sf>{sfHere ? `${sfHere.toLocaleString('en-US')} SF` : <span className="text-faint">—</span>}</span>
+      <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink-2 max-lg:hidden" data-tile-where>{xs.length ? xs.map((x) => x.name).join(' · ') : <span className="text-faint"></span>}{also && <span className="text-muted" data-tile-also> · {also}</span>}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden" data-tile-sf>{sfHere ? `${sfHere.toLocaleString('en-US')} SF` : <span className="text-faint"></span>}</span>
       {/* where it's at — tap it for what to do. On a tile PO that's still open: its number, one tap to it */}
       <span className="flex min-w-0 items-center justify-end gap-2">
         {po && <button type="button" onClick={() => s.open({ t: 'po', id: po.id })} className="shrink-0 text-[0.8125rem] tnum text-muted transition hover:text-brand-700 hover:underline max-sm:hidden" data-tile-po={po.id}>{po.id}</button>}
@@ -203,7 +203,7 @@ function TileStorePick({ job, canEdit }: { job: Job; canEdit: boolean }) {
   if (!may) return store ? <span data-tile-store={store}>{face}</span> : null
   return (
     <span data-tile-store={store || ''} data-tile-store-pick={store ? undefined : ''}>
-      <SearchSelect label="The tile store" value={store} onChange={set} search width={300} options={stores.map((v) => ({ key: v, label: v }))} searchPlaceholder="Type a store — e.g. Infinity Tile" onCreate={set} createLabel={(q) => `Use “${q}”`} trigger={<button type="button" aria-label="The tile store — change it" data-tile-store-change>{face}</button>} />
+      <SearchSelect label="The tile store" value={store} onChange={set} search width={300} options={stores.map((v) => ({ key: v, label: v }))} searchPlaceholder="Type a store · e.g. Infinity Tile" onCreate={set} createLabel={(q) => `Use “${q}”`} trigger={<button type="button" aria-label="The tile store · change it" data-tile-store-change>{face}</button>} />
     </span>
   )
 }
@@ -231,7 +231,7 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }
       <div className={PAPER} data-mat-list>
         {!t.counted && !shownCount ? (
           <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-[0.84375rem] text-muted max-sm:px-3">
-            <span className="min-w-0 flex-1">{t.total ? 'They work themselves out once the walls and floors have their square feet.' : 'No rooms yet — they come over from the estimate.'}</span>
+            <span className="min-w-0 flex-1">{t.total ? 'They work themselves out once the walls and floors have their square feet.' : 'No rooms yet. They come over from the estimate.'}</span>
             <Button size="sm" icon={<Ruler />} onClick={onScope}>Scope of work</Button>
           </div>
         ) : (
@@ -264,7 +264,7 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }
         {t.skipped.length > 0 && t.counted > 0 && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-3">
             <span className="font-semibold text-ink">Not counted yet</span>
-            <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} — ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
+            <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} · ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
             <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
           </div>
         )}
@@ -319,12 +319,12 @@ function Line({ l, jobId, open, onToggle, waste, canEdit }: { l: TakeLine; jobId
           <div className="text-[0.75rem] font-semibold text-muted">How it’s worked out</div>
           {l.uses.map((u, i) => (
             <div key={i} className="flex items-baseline justify-between gap-4 py-[0.1875rem] text-[0.78125rem]">
-              <span className="min-w-0 text-ink-2">{u.room === 'Added by hand' ? <b className="font-semibold text-ink">Added by hand</b> : <b className="font-semibold text-ink">{u.room} · {u.surface.toLowerCase()}</b>}{u.room === 'Added by hand' ? (u.surface ? ` — ${u.surface}` : '') : ` — ${u.note}`}</span>
+              <span className="min-w-0 text-ink-2">{u.room === 'Added by hand' ? <b className="font-semibold text-ink">Added by hand</b> : <b className="font-semibold text-ink">{u.room} · {u.surface.toLowerCase()}</b>}{u.room === 'Added by hand' ? (u.surface ? ` · ${u.surface}` : '') : ` · ${u.note}`}</span>
               <span className="shrink-0 tnum text-muted">{u.raw < 10 ? Math.round(u.raw * 10) / 10 : Math.round(u.raw)}</span>
             </div>
           ))}
           <div className="mt-1.5 flex items-baseline justify-between gap-4 border-t border-line pt-1.5 text-[0.78125rem] font-semibold text-ink">
-            <span>{l.edited != null ? `Changed by hand — worked out ${l.edited}` : l.manual ? 'Added by hand' : exact ? 'Counted as is' : `${Math.round(l.raw * 10) / 10} + ${waste}% extra, rounded up`}{l.itemId === 'm-sand' ? ` · about ${((l.need * 50) / 2000).toFixed(1)} tons` : ''}</span>
+            <span>{l.edited != null ? `Changed by hand · worked out ${l.edited}` : l.manual ? 'Added by hand' : exact ? 'Counted as is' : `${Math.round(l.raw * 10) / 10} + ${waste}% extra, rounded up`}{l.itemId === 'm-sand' ? ` · about ${((l.need * 50) / 2000).toFixed(1)} tons` : ''}</span>
             <span className="tnum">{qtyLabel(l.need, unit)}</span>
           </div>
           {l.refs.length > 0 && <div className="mt-1 text-[0.75rem] text-muted">Covered by {l.refs.join(', ')}</div>}
@@ -371,7 +371,7 @@ function AddMaterial({ jobId }: { jobId: string }) {
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={400} trigger={<Button size="sm" icon={<Plus />}>Add a material</Button>}>
       <div className="text-[0.875rem] font-semibold text-ink">Add a material</div>
-      <div className="mt-0.5 text-[0.78125rem] text-muted">Something the takeoff didn’t work out — it goes on the list and on the next order.</div>
+      <div className="mt-0.5 text-[0.78125rem] text-muted">Something the takeoff didn’t work out. It goes on the list and on the next order.</div>
       <div className="mt-3">
         <SearchSelect
           label="Material"
@@ -382,14 +382,14 @@ function AddMaterial({ jobId }: { jobId: string }) {
           searchPlaceholder="Type a material…"
           search
           width={380}
-          footer={{ label: 'A new one — add it to Items', onClick: () => { setOpen(false); s.open({ t: 'newitem' }) } }}
+          footer={{ label: 'A new one. Add it to Items', onClick: () => { setOpen(false); s.open({ t: 'newitem' }) } }}
         />
       </div>
       <div className="mt-2 flex items-center gap-2">
         <TextInput aria-label="How many" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="How many" className="h-10 w-[7rem] text-right tnum" />
         <span className="text-[0.84375rem] text-muted">{it ? qtyLabel(n || 2, it.unit).replace(/^\d[\d,]*\s/, '') : ''}</span>
       </div>
-      <TextInput className="mt-2 h-10" aria-label="What it’s for" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s for (optional) — e.g. extra for the steps" />
+      <TextInput className="mt-2 h-10" aria-label="What it’s for" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What it’s for (optional) · e.g. extra for the steps" />
       <div className="mt-3 flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
         <Button size="sm" variant="primary" disabled={!itemId || !n} onClick={add}>Add it</Button>

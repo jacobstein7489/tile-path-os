@@ -53,7 +53,7 @@ export function measureHeights(jobId: string, taskId: string | undefined, rows: 
         x.height = `${r.inches}″`
         if (r.newSF) x.sf = r.newSF
         if (x.state === 'unknown') { x.state = 'ready'; x.reason = undefined }
-        x.decided = [...(x.decided || []), `Height ${ftIn(r.inches)} measured on site ${NOW}${r.inches !== r.was ? ` — the estimate had ${ftIn(r.was)}` : ''}`]
+        x.decided = [...(x.decided || []), `Height ${ftIn(r.inches)} measured on site ${NOW}${r.inches !== r.was ? `. The estimate had ${ftIn(r.was)}` : ''}`]
       })
       if (taskId) closeTasks(s, [taskId], 'Heights measured')
       closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.action?.kind === 'heights:' + jobId && t.state !== 'done').map((t) => t.id), 'Heights measured')
@@ -67,16 +67,16 @@ export function measureHeights(jobId: string, taskId: string | undefined, rows: 
         s.money.unshift({
           id, jobId, kind: 'change', title: `${co} · walls taller than the estimate · +${delta} SF`, amount: null, step: -1, state: 'upcoming', due: 'Being priced',
           note: `Measured on site: ${changed.map((r) => `${r.room} ${r.surface.toLowerCase()} ${ftIn(r.was)} → ${ftIn(r.inches)}`).join(' · ')}. Billable the moment the approval is recorded.`,
-          log: [{ date: NOW, who: meOf(s.role), text: 'Heights measured on site — more wall than the estimate' }],
+          log: [{ date: NOW, who: meOf(s.role), text: 'Heights measured on site. More wall than the estimate' }],
           meta: { room: big.room, surface: big.surface, label: 'Wall height', from: ftIn(big.was), to: ftIn(big.inches), sfDelta: delta, tileTag: big.tile, tileSF: delta, ipoQty: `${delta} SF`, ipoAmount: Math.round(delta * (wallRate?.cost || 18)), doTile: true, doIPO: true, by: 'Site manager', estimate },
         })
-        newTask(s, { jobId, title: `Price ${co} · walls taller than the estimate`, type: 'Changes', owner: 'estimator', for: ['estimator'], watch: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: `+${delta} SF of wall`, detail: `The site manager measured the walls. About ${fmtMoney(estimate)} at our wall rate — check it and send it to the ${j.client ? 'client' : 'GC'}.`, action: { label: 'Price it', kind: 'co:' + id } })
+        newTask(s, { jobId, title: `Price ${co} · walls taller than the estimate`, type: 'Changes', owner: 'estimator', for: ['estimator'], watch: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: `+${delta} SF of wall`, detail: `The site manager measured the walls. About ${fmtMoney(estimate)} at our wall rate. Check it and send it to the ${j.client ? 'client' : 'GC'}.`, action: { label: 'Price it', kind: 'co:' + id } })
       }
     },
-    `Heights saved — ${rows.length} walls${delta ? ` · ${delta > 0 ? '+' : ''}${delta} SF` : ''}`,
+    `Heights saved · ${rows.length} walls${delta ? ` · ${delta > 0 ? '+' : ''}${delta} SF` : ''}`,
     {
       close: o.close !== false,
-      sub: delta > 0 ? `Square feet and materials updated. ${co} goes to the estimator to price.` : delta < 0 ? 'Less wall than the estimate — square feet and materials updated.' : 'Every wall matches the estimate.',
+      sub: delta > 0 ? `Square feet and materials updated. ${co} goes to the estimator to price.` : delta < 0 ? 'Less wall than the estimate. Square feet and materials updated.' : 'Every wall matches the estimate.',
       flow: delta > 0 ? [{ who: meOf(st0.role), label: 'Measured', state: 'done' }, { who: 'estimator', label: `Prices ${co}`, state: 'now' }, { label: 'Client approves', state: 'next' }, { label: 'Crew tiles it', state: 'next' }] : undefined,
     },
   )

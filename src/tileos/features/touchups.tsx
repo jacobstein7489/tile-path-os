@@ -48,12 +48,12 @@ export function TouchupsList({ job }: { job: Job }) {
       {!items.length && (
         <div className="flex flex-col items-center px-4 py-12 text-center">
           <div className="text-[1rem] font-semibold text-ink">{started ? `No touch-ups on ${job.name}` : 'Touch-ups come after the installing'}</div>
-          <div className="mt-1 max-w-sm text-[0.875rem] text-muted">{started ? 'Type the whole list at once — one per line. Each one gets its own line here, with its photos and videos.' : 'Once the crew is on site, the list goes here: one line per touch-up, with photos, done and checked one by one.'}</div>
+          <div className="mt-1 max-w-sm text-[0.875rem] text-muted">{started ? 'Type the whole list at once. One per line. Each one gets its own line here, with its photos and videos.' : 'Once the crew is on site, the list goes here: one line per touch-up, with photos, done and checked one by one.'}</div>
           {canAdd && <Button className="mt-4" variant={started ? 'primary' : undefined} icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>{started ? 'Add touch-ups' : 'Add touch-ups anyway'}</Button>}
         </div>
       )}
       {open.length > 0 && <Part label="To fix" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
-      {check.length > 0 && <Part label="Fixed — to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {check.length > 0 && <Part label="Fixed · to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
       {done.length > 0 && (
         <div>
           <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'group w-full px-5 text-left max-sm:px-4')}>
@@ -164,7 +164,7 @@ function TouchupLine({ p }: { p: PunchItem }) {
       )}
       {waitOpen && (
         <div className="mt-2 flex flex-wrap items-center gap-2 pl-8">
-          <input autoFocus value={wait} onChange={(e) => setWait(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && wait.trim()) { set({ note: `Waiting on ${wait.trim().replace(/^waiting on /i, '')}` }, 'Waiting'); setWaitOpen(false); setWait('') } }} placeholder="What it’s waiting on — e.g. the tile delivery" className="h-9 min-w-[15rem] flex-1 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50" />
+          <input autoFocus value={wait} onChange={(e) => setWait(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && wait.trim()) { set({ note: `Waiting on ${wait.trim().replace(/^waiting on /i, '')}` }, 'Waiting'); setWaitOpen(false); setWait('') } }} placeholder="What it’s waiting on · e.g. the tile delivery" className="h-9 min-w-[15rem] flex-1 rounded-[0.5625rem] border border-line bg-white px-3 text-[0.84375rem] text-ink placeholder:text-faint focus:border-brand-300 focus:outline-none focus:ring-[0.1875rem] focus:ring-brand-50" />
           <Button size="sm" variant="primary" disabled={!wait.trim()} onClick={() => { set({ note: `Waiting on ${wait.trim().replace(/^waiting on /i, '')}` }, 'Waiting'); setWaitOpen(false); setWait('') }}>Save</Button>
           <Button size="sm" variant="ghost" onClick={() => setWaitOpen(false)}>Cancel</Button>
         </div>
@@ -210,7 +210,7 @@ export function NoteModal({ jobId: j0, level }: { jobId?: string; level: number 
     >
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={setJobId} autoFocus /></FormRow>}
       <FormRow label="The note">
-        <TextArea data-autofocus={j0 ? true : undefined} aria-label="The note" rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, what was said, what to remember — tap the mic to say it" />
+        <TextArea data-autofocus={j0 ? true : undefined} aria-label="The note" rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, what was said, what to remember. Tap the mic to say it" />
       </FormRow>
     </Modal>
   )

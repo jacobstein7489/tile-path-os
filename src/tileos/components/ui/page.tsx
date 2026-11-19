@@ -902,7 +902,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
           const Tag = onPick ? 'button' : 'span'
           return (
             <li key={st.key} className={cn('flex min-w-0 items-center', i < all.length - 1 && 'flex-[1_1_0]')} aria-current={st.state === 'now' || on ? 'step' : undefined} data-state={st.state} data-here={here || undefined}>
-              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` — ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
+              <Tag {...(onPick ? { type: 'button', onClick: () => onPick(st.key), 'aria-pressed': on, 'aria-label': `${st.label}${st.sub ? ` · ${st.sub}` : ''}` } : {})} {...(st.attrs || {})} className={cn('group relative flex min-w-0 items-center gap-2 rounded-full py-0.5 pr-1 text-left', onPick && 'transition hover:opacity-90')}>
                 <span className={cn('inline-flex rounded-full transition', onPick && 'group-hover:scale-105')}><Circle st={st} size={here ? sz + 6 : sz} on={on} solid={here} /></span>
                 <span className="min-w-0 leading-tight max-sm:hidden">
                   <span className={cn('block truncate text-[0.8125rem] font-semibold', here ? 'text-[0.875rem] font-bold text-brand-700' : on && onPick ? 'text-brand-700' : st.state === 'later' ? 'text-muted' : 'text-ink')}>{st.label}</span>
@@ -942,7 +942,7 @@ export function Circles({ groups, at, onPick, layout = 'below', size, label, cla
               return (
                 <li key={st.key} className="relative flex min-w-[4.75rem] flex-[1_1_0] flex-col items-center" data-state={st.state}>
                   {i > 0 && <Link pct={linkAfter(g.steps, i - 1)} className="absolute h-[0.1875rem]" style={{ top: sz / 2 - 1.5, left: `calc(-50% + ${sz / 2 + 6}px)`, right: `calc(50% + ${sz / 2 + 6}px)` }} />}
-                  <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` — ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
+                  <button type="button" onClick={() => onPick?.(st.key)} disabled={!onPick} aria-current={on ? 'step' : undefined} aria-label={`${st.label}${st.sub ? ` · ${st.sub}` : ''}`} {...(st.attrs || {})} className="group relative z-[1] flex w-full flex-col items-center px-1 text-center disabled:cursor-default">
                     <span className="transition group-hover:scale-105"><Circle st={st} size={sz} on={on} /></span>
                     <span title={st.label.replace(/\u00AD/g, '')} className={cn('mt-1.5 line-clamp-2 max-w-full whitespace-normal text-[0.75rem] font-semibold leading-[1.15] max-sm:line-clamp-3', on ? 'text-ink' : st.state === 'later' ? 'text-muted' : 'text-ink-2')}>{st.label}</span>
                     {st.sub && <span title={st.sub} className={cn('mt-0.5 max-w-full truncate text-[0.6875rem] leading-tight', C_SUB[st.state])}>{st.sub}</span>}

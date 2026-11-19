@@ -49,7 +49,7 @@ export function SetupPage() {
           </span>
         </div>
         <div className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-setup-stand>{st.text}</div>
-        <div className={cn('min-w-0 truncate text-[0.875rem] max-md:hidden', miss.length ? 'font-medium text-warn-700' : 'text-muted')} data-setup-missing={miss.join(',')}>{miss.length ? cap(miss.join(' · ')) : <span className="text-faint">—</span>}</div>
+        <div className={cn('min-w-0 truncate text-[0.875rem] max-md:hidden', miss.length ? 'font-medium text-warn-700' : 'text-muted')} data-setup-missing={miss.join(',')}>{miss.length ? cap(miss.join(' · ')) : <span className="text-faint"></span>}</div>
         <div className="flex shrink-0 items-center justify-end gap-1 text-[0.8125rem]" data-setup-state>
           {ok ? <span className="inline-flex items-center gap-1 font-medium text-[#2c8a5b]"><Check className="h-3.5 w-3.5" strokeWidth={3} />Set up</span> : <span className="font-semibold text-brand-700">Set it up</span>}
           <ChevronRight className="h-4 w-4 text-faint" />
@@ -60,7 +60,7 @@ export function SetupPage() {
   return (
     <Page
       title="Set up projects"
-      sub="Just the basics — where it stands, who’s on it, the dates. Tap one, check it, Save."
+      sub="Just the basics. Where it stands, who’s on it, the dates. Tap one, check it, Save."
       actions={setN < jobs.length ? <Button variant="primary" icon={<ListChecks />} onClick={() => s.open({ t: 'catchup', all: true })} data-setup-go>Go through them one by one</Button> : undefined}
       top={
         <div className="flex items-center gap-3 text-[0.9375rem]" data-setup-progress>

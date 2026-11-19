@@ -185,7 +185,7 @@ export function WhatsLeft({ job }: { job: Job }) {
         {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
         {canAdd && (
           <button type="button" onClick={() => s.open({ t: 'new', jobId: job.id })} className="flex min-h-[3rem] w-full items-center gap-3.5 border-t border-line px-4 text-left text-[0.9375rem] font-medium text-brand-700 transition hover:bg-brand-50/50 max-sm:px-3.5" data-left-add>
-            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> — a to do, a meeting, a problem, something for the GC</span></span>
+            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> · a to do, a meeting, a problem, something for the GC</span></span>
           </button>
         )}
       </div>

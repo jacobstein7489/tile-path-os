@@ -120,7 +120,7 @@ export function PhaseBar({ cells, at }: { cells: PhaseCell[]; at?: string }) {
           date: c.line || undefined,
           dateTone: c.lineTone,
           onClick: c.onClick,
-          aria: `${c.label} — ${c.state === 'done' ? 'done' : [c.said || c.line, who].filter(Boolean).join(', ') || 'not started'}`,
+          aria: `${c.label} · ${c.state === 'done' ? 'done' : [c.said || c.line, who].filter(Boolean).join(', ') || 'not started'}`,
         }
       })}
     />
@@ -147,7 +147,7 @@ const GROUPS: { key: GroupKey; label: string }[] = [
   { key: 'wait', label: 'Waiting' },
   { key: 'coming', label: 'Coming up' },
 ]
-const dueWords = (iso?: string): { when: string; late: boolean } => (!iso ? { when: '—', late: false } : iso < TODAY ? { when: `Late · ${md(iso)}`, late: true } : { when: labelFromIso(iso), late: false })
+const dueWords = (iso?: string): { when: string; late: boolean } => (!iso ? { when: '', late: false } : iso < TODAY ? { when: `Late · ${md(iso)}`, late: true } : { when: labelFromIso(iso), late: false })
 /** a meeting the design-meeting or show-the-installer step already stands for — it's that step's row, not its own */
 const stepMeeting = (e: { title: string; kind?: string; with?: string }) => /design/i.test(e.title) || (e.kind === 'walkthrough' && /installer|crew/i.test(`${e.title} ${e.with || ''}`))
 
@@ -160,11 +160,11 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
   /* the checklist steps that are someone's turn, or waiting */
   const steps = ready ? stepsFor(s, job) : []
   steps.filter((v) => v.state === 'now' || v.state === 'bad' || v.state === 'wait').forEach((v) => {
-    const w = v.state === 'wait' ? { when: v.due ? labelFromIso(v.due) : '—', late: false } : dueWords(v.due)
+    const w = v.state === 'wait' ? { when: v.due ? labelFromIso(v.due) : '', late: false } : dueWords(v.due)
     /* the site check with something not ready on site: each thing is its own line — "Water on site · not on yet" */
     const notReady = v.key === 'heights' && v.state === 'bad' ? Object.entries(s.stepRecs[job.id]?.heights?.checks || {}).filter(([, c]) => !c.ok) : []
     if (notReady.length) {
-      notReady.forEach(([k, c]) => rows.push({ key: 's:heights:' + k, group: turn(v.owner, true, false), mark: { kind: 'step', state: 'bad' }, title: SITE_CHECKS.find((x) => x.k === k)?.label || k, note: c.note ? `Not ready — ${c.note}` : 'Not ready yet', noteTone: 'bad', who: v.owner, when: w.when, late: w.late, run: () => openStep(job.id, v.key) }))
+      notReady.forEach(([k, c]) => rows.push({ key: 's:heights:' + k, group: turn(v.owner, true, false), mark: { kind: 'step', state: 'bad' }, title: SITE_CHECKS.find((x) => x.k === k)?.label || k, note: c.note ? `Not ready · ${c.note}` : 'Not ready yet', noteTone: 'bad', who: v.owner, when: w.when, late: w.late, run: () => openStep(job.id, v.key) }))
       return
     }
     rows.push({ key: 's:' + v.key, group: turn(v.owner, v.state === 'bad', v.state === 'wait'), mark: { kind: 'step', state: v.state }, title: todoOf(v), note: v.note, noteTone: v.state === 'bad' ? 'bad' : v.state === 'wait' ? 'warn' : undefined, who: v.owner, when: w.when, late: w.late, run: () => openStep(job.id, v.key) })
@@ -189,7 +189,7 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
     const who = realOwner(s, (doing.length ? doing[0].owner : listTask?.owner || site || 'ys') as PersonKey)
     const waits = doing.filter((p) => /^waiting/i.test(p.note || '')).length
     const iso = isoFromLabel(listTask?.due)
-    const w = iso ? dueWords(iso) : { when: '—', late: false }
+    const w = iso ? dueWords(iso) : { when: '', late: false }
     rows.push({
       key: 'touchups', group: turn(who, false, false), mark: { kind: 'task', waiting: false },
       title: `Touch-ups · ${doing.length ? `${doing.length} to do` : `${pun.length} to check`}`,
@@ -202,13 +202,13 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
     if (l.it) {
       const it = l.it
       const who = l.owner ? realOwner(s, l.owner.owner) : ownerOfItem(it.key)
-      rows.push({ key: 'i:' + it.key, group: turn(who, it.status === 'bad', it.status === 'wait'), mark: { kind: 'item', status: it.status }, title: it.title, note: it.note, noteTone: it.status === 'bad' ? 'bad' : undefined, who, when: '—', run: it.action?.run })
+      rows.push({ key: 'i:' + it.key, group: turn(who, it.status === 'bad', it.status === 'wait'), mark: { kind: 'item', status: it.status }, title: it.title, note: it.note, noteTone: it.status === 'bad' ? 'bad' : undefined, who, when: '', run: it.action?.run })
     } else if (l.task) {
       const t = l.task
       if (stepTasks.has(t.id) || (ready && t.step)) return
       const waiting = t.state === 'waiting'
       const iso = isoFromLabel(waiting ? t.followUp : t.due)
-      const w = waiting ? { when: t.followUp ? (iso ? labelFromIso(iso) : t.followUp) : '—', late: false } : iso ? dueWords(iso) : { when: t.due || '—', late: false }
+      const w = waiting ? { when: t.followUp ? (iso ? labelFromIso(iso) : t.followUp) : '', late: false } : iso ? dueWords(iso) : { when: t.due || '', late: false }
       const who = realOwner(s, t.owner)
       const problem = t.tone === 'bad'
       const note = waiting ? `Waiting on ${t.waitingOn}${t.followUp ? ` · back ${t.followUp}` : ''}` : problem ? t.detail || t.where || undefined : t.where || undefined
@@ -235,7 +235,7 @@ function RowMark({ m, size = 24 }: { m: Mark; size?: number }) {
 function TodoLine({ r, primary, noWho }: { r: TodoRow; primary?: boolean; noWho?: boolean }) {
   const me = meOf(useStore((s) => s.role))
   /* on a phone the who and when move under the title */
-  const lead = [!noWho && r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')
+  const lead = [!noWho && r.who ? (r.who === me ? 'You' : firstName(r.who)) : '', r.when && r.when !== '—' ? r.when : ''].filter(Boolean).join(' · ')
   return (
     <button onClick={r.run} disabled={!r.run} className={cn(ROW, noWho && 'grid-cols-[1.75rem_minmax(0,1fr)_7.25rem_5.75rem]', 'w-full text-left transition-colors row-hover disabled:cursor-default disabled:hover:bg-transparent max-md:grid-cols-[1.75rem_minmax(0,1fr)_auto]')} data-todo={r.key}>
       <span className="flex justify-center"><RowMark m={r.mark} /></span>
@@ -304,9 +304,9 @@ export function WhatsOpen({ job, setTab }: { job: Job; setTab: SetTab }) {
 export function doneRows(s: Store, job: Job): TodoRow[] {
   const rows: TodoRow[] = []
   const doneNote = (what: string, when?: string, who?: PersonKey) => ['Done', when, who && PEOPLE[who] ? `by ${PEOPLE[who].short}` : '', what].filter(Boolean).join(' · ')
-  if (isGettingReady(job)) for (const v of stepsFor(s, job)) if (v.state === 'done') rows.push({ key: 'ds:' + v.key, group: 'coming', mark: { kind: 'step', state: 'done' }, title: v.label, note: doneNote(v.note || '', v.doneOn, v.doneBy), noteTone: 'ok', who: v.doneBy || v.owner, when: v.doneOn || '—', run: () => openStep(job.id, v.key) })
-  for (const t of s.tasks) if (t.jobId === job.id && t.state === 'done') rows.push({ key: 'dt:' + t.id, group: 'coming', mark: { kind: 'step', state: 'done' }, title: t.title, note: doneNote(t.result || '', t.doneAt, t.owner), noteTone: 'ok', who: t.owner, when: t.doneAt || '—', run: () => s.open({ t: 'task', id: t.id }) })
-  for (const p of s.punch) if (p.jobId === job.id && p.status === 'verified') rows.push({ key: 'dp:' + p.id, group: 'coming', mark: { kind: 'item', status: 'done' }, title: p.text, note: doneNote(`checked · ${p.where}`, undefined, p.owner), noteTone: 'ok', who: p.owner, when: '—', run: () => s.open({ t: 'touchups', jobId: job.id }) })
+  if (isGettingReady(job)) for (const v of stepsFor(s, job)) if (v.state === 'done') rows.push({ key: 'ds:' + v.key, group: 'coming', mark: { kind: 'step', state: 'done' }, title: v.label, note: doneNote(v.note || '', v.doneOn, v.doneBy), noteTone: 'ok', who: v.doneBy || v.owner, when: v.doneOn || '', run: () => openStep(job.id, v.key) })
+  for (const t of s.tasks) if (t.jobId === job.id && t.state === 'done') rows.push({ key: 'dt:' + t.id, group: 'coming', mark: { kind: 'step', state: 'done' }, title: t.title, note: doneNote(t.result || '', t.doneAt, t.owner), noteTone: 'ok', who: t.owner, when: t.doneAt || '', run: () => s.open({ t: 'task', id: t.id }) })
+  for (const p of s.punch) if (p.jobId === job.id && p.status === 'verified') rows.push({ key: 'dp:' + p.id, group: 'coming', mark: { kind: 'item', status: 'done' }, title: p.text, note: doneNote(`checked · ${p.where}`, undefined, p.owner), noteTone: 'ok', who: p.owner, when: '', run: () => s.open({ t: 'touchups', jobId: job.id }) })
   return rows.reverse()
 }
 
@@ -339,7 +339,7 @@ export function Latest({ job }: { job: Job }) {
           </span>
         </button>
       ))}
-      {!list.length && <Empty className="py-6">Nothing yet — it fills in as things happen.</Empty>}
+      {!list.length && <Empty className="py-6">Nothing yet. It fills in as things happen.</Empty>}
       <div className="flex flex-wrap items-center gap-1 border-t border-line-2 px-3 py-1.5">
         <FootLink icon={<Paperclip />} onClick={() => s.open({ t: 'files', jobId: job.id })}>Files and photos{files ? ` · ${files}` : ''}</FootLink>
         <FootLink icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })}>Messages{unread ? ` · ${unread} new` : ''}</FootLink>
@@ -376,17 +376,17 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
       icon: <HardHat />, label: 'Installer', tab: 'installer',
       value: crew ? PEOPLE[crew]?.name || firstName(crew) : 'Not picked yet',
       sub: crew ? `${start} · ${!ipo ? 'no PO yet' : ipo.status === 'Accepted' ? 'took his PO' : ipo.status === 'Sent' ? 'PO sent, waiting for his yes' : 'PO not sent yet'}` : undefined,
-      flag: !crew ? { text: 'Pick who installs it', tone: 'warn' } : ipo?.status === 'Rejected' ? { text: `He turned the PO down${ipo.reason ? ` — ${lower(ipo.reason)}` : ''}`, tone: 'bad' } : ipo?.status === 'Draft' ? { text: `${start} · PO not sent yet`, tone: 'warn' } : undefined,
+      flag: !crew ? { text: 'Pick who installs it', tone: 'warn' } : ipo?.status === 'Rejected' ? { text: `He turned the PO down${ipo.reason ? ` · ${lower(ipo.reason)}` : ''}`, tone: 'bad' } : ipo?.status === 'Draft' ? { text: `${start} · PO not sent yet`, tone: 'warn' } : undefined,
     },
     (() => {
       const bud = budgetOf(s, job)
-      if (!r) return { icon: <FileText />, label: 'His PO', tab: 'orders', value: 'No PO yet', sub: bud.sold ? `Keep it under ${fmtMoney(bud.cap)} — ${bud.line}% of our ${fmtMoney(bud.sold)}` : undefined }
+      if (!r) return { icon: <FileText />, label: 'His PO', tab: 'orders', value: 'No PO yet', sub: bud.sold ? `Keep it under ${fmtMoney(bud.cap)} · ${bud.line}% of our ${fmtMoney(bud.sold)}` : undefined }
       if (!r.total) return { icon: <FileText />, label: 'His PO', tab: 'orders', value: 'No prices on it yet', flag: { text: 'Put his prices on the PO to compare it with our estimate', tone: 'warn' as const } }
       return {
         icon: <FileText />, label: 'His PO', tab: 'orders',
         value: r.sold ? `${r.pct}% of our estimate` : fmtMoney(r.total),
         sub: r.sold ? `${fmtMoney(r.total)} of ${fmtMoney(r.sold)} · keep it under ${r.line}%` : 'No estimate to compare with',
-        flag: r.sold && r.over ? { text: `Over the ${r.line}% line — ${fmtMoney(r.total)} of ${fmtMoney(r.sold)}`, tone: 'bad' as const } : undefined,
+        flag: r.sold && r.over ? { text: `Over the ${r.line}% line · ${fmtMoney(r.total)} of ${fmtMoney(r.sold)}`, tone: 'bad' as const } : undefined,
       }
     })(),
     roomsFact(s, job),
@@ -400,13 +400,13 @@ export function AtAGlance({ job, setTab }: { job: Job; setTab: SetTab }) {
       icon: <Package />, label: 'Materials', tab: 'orders',
       value: ms.state === 'yes' ? 'On site' : ms.state === 'wait' ? 'Ordered' : ms.label === 'Add SF' || ms.label === 'No scope' ? 'Not worked out yet' : ms.label,
       sub: ms.label === 'Add SF' ? 'Needs the square feet first' : ms.label === 'No scope' ? 'Needs the rooms first' : ms.go === 'order' ? undefined : ms.hint,
-      flag: ms.go === 'order' ? { text: ms.hint.split(' — ')[0], tone: 'warn' } : undefined,
+      flag: ms.go === 'order' ? { text: ms.hint.split(/ — | · |\. (?=[A-Z])/)[0], tone: 'warn' } : undefined,
     },
     ...(s.role !== 'site' ? [{
       icon: <Wallet />, label: 'Billing', tab: 'money',
       value: m.contract ? fmtMoney(m.contract + m.changes) : 'No contract yet',
       sub: `${m.billedPct}% billed · ${m.paidPct}% paid`,
-      flag: m.toBill > 0 ? { text: `${fmtMoney(m.toBill)} ready to bill · ${m.billedPct}% billed so far`, tone: 'warn' as const } : dep && dep.state !== 'paid' && isGettingReady(job) ? { text: dep.step >= 1 ? `Deposit invoiced${dep.ref ? ` (${dep.ref})` : ''} — not paid yet` : 'Deposit not invoiced yet', tone: 'warn' as const } : undefined,
+      flag: m.toBill > 0 ? { text: `${fmtMoney(m.toBill)} ready to bill · ${m.billedPct}% billed so far`, tone: 'warn' as const } : dep && dep.state !== 'paid' && isGettingReady(job) ? { text: dep.step >= 1 ? `Deposit invoiced${dep.ref ? ` (${dep.ref})` : ''}, not paid yet` : 'Deposit not invoiced yet', tone: 'warn' as const } : undefined,
     }] : []),
   ]
   const shownFacts = s.role === 'site' ? facts.filter((x) => x.label !== 'His PO') : facts
@@ -433,7 +433,7 @@ function roomsFact(s: Store, job: Job): Fact {
   const rooms = s.rooms[job.id] || []
   const flat = rooms.flatMap((r) => r.surfaces).filter((x) => takesTile(x.name))
   const sf = flat.reduce((n, x) => n + (x.sf || 0), 0)
-  if (!rooms.length) return { icon: <Ruler />, label: 'Rooms', value: 'No rooms yet', flag: { text: 'They come from the estimate — or build them on Scope of work', tone: 'warn' }, tab: 'scope' }
+  if (!rooms.length) return { icon: <Ruler />, label: 'Rooms', value: 'No rooms yet', flag: { text: 'They come from the estimate, or build them on Scope of work', tone: 'warn' }, tab: 'scope' }
   if (IN_FIELD.includes(job.stage)) {
     const done = rooms.filter((r) => (r.pct ?? roomPct(r)) >= 100).length
     return { icon: <Ruler />, label: 'Installed', value: `${job.pct ?? 0}%`, sub: `${done} of ${rooms.length} rooms done`, tab: 'scope' }
@@ -473,13 +473,13 @@ export function TilingCard({ job, setTab }: { job: Job; setTab: SetTab }) {
                 <span className="flex justify-end -space-x-1.5">{tags.slice(0, 3).map((t) => { const tt = tileOf(job.id, t); return tt ? <TileImg key={t} tile={tt} size={20} radius={10} className="ring-2 ring-white" /> : null })}</span>
                 {inField
                   ? <span className="flex items-center justify-end gap-1.5"><span className="h-1.5 w-7 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-ok-500' : 'bg-brand-500')} style={{ width: `${Math.max(4, pct)}%` }} /></span><span className="w-8 text-right text-[0.78125rem] font-semibold tnum text-ink-2">{pct}%</span></span>
-                  : <span className={cn('text-right text-[0.8125rem] font-semibold tnum', rsf ? 'text-ink-2' : 'text-faint')}>{rsf ? `${rsf.toLocaleString('en-US')} SF` : '—'}</span>}
+                  : <span className={cn('text-right text-[0.8125rem] font-semibold tnum', rsf ? 'text-ink-2' : 'text-faint')}>{rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>}
               </button>
             )
           })}
         </div>
       ))}
-      {!rooms.length && <Empty>No rooms yet — they come from the estimate.</Empty>}
+      {!rooms.length && <Empty>No rooms yet. They come from the estimate.</Empty>}
     </Section>
   )
 }
@@ -494,11 +494,11 @@ export function EstimateAndChanges({ job }: { job: Job }) {
   return (
     <Section title="Estimate and changes" count={ests.length + cos.length + (before ? 1 : 0)} action={canChange ? <Button size="sm" icon={<Plus />} onClick={() => s.open({ t: 'sitechange', jobId: job.id })}>Client wants a change</Button> : undefined}>
       {ests.map((e) => <EstRow key={e.id} e={e} />)}
-      {!ests.length && <Empty>No estimate in the system for this project — it was priced before Tile OS.</Empty>}
+      {!ests.length && <Empty>No estimate in the system for this project. It was priced before Tile OS.</Empty>}
       {cos.map((m) => (
         <button key={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="grid min-h-[3rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_7rem_9rem] items-center gap-3 border-t border-line-2 px-5 py-2 text-left row-hover max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:px-4">
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-wash-2 text-ink-2 max-sm:hidden"><Pencil className="h-4 w-4" /></span>
-          <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || '—'}</span></span>
+          <span className="min-w-0"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{[m.ref, m.due].filter(Boolean).join(' · ') || ''}</span></span>
           <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:hidden">{fmtMoney(m.amount || m.meta?.estimate || 0)}</span>
           <span className="flex justify-end"><Word tone={m.state === 'paid' ? 'ok' : m.step < 0 ? undefined : 'ok'}>{m.state === 'paid' ? 'Paid' : m.step < 0 ? 'Waiting for a yes' : m.state === 'waiting' ? 'Billed' : 'Approved'}</Word></span>
         </button>

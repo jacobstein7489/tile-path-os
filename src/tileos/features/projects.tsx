@@ -243,7 +243,7 @@ function GoingOn({ j, issues, tasks, onOpen }: { j: Job; issues: Job['issues']; 
             ))}
           </div>
         ) : (
-          <div className="text-[0.875rem] text-muted">Nothing open — {j.headline.toLowerCase()}</div>
+          <div className="text-[0.875rem] text-muted">Nothing open · {j.headline.toLowerCase()}</div>
         )}
       </div>
       <div className="min-w-0">
@@ -272,7 +272,7 @@ export function LostModal({ level }: { level: number }) {
   const lost = useStore((s) => s.lost)
   const close = useStore((s) => s.close)
   return (
-    <Modal level={level} size="md" onClose={close} title="Not won" sub="Projects that didn’t go ahead stay here with the reason — never deleted.">
+    <Modal level={level} size="md" onClose={close} title="Not won" sub="Projects that didn’t go ahead stay here with the reason · never deleted.">
       <div className="flex flex-col divide-y divide-line-2 rounded-2xl border border-line">
         {lost.map((l, i) => (
           <div key={i} className="flex items-center gap-4 px-5 py-4">
@@ -333,7 +333,7 @@ export function CustomerModal({ id, level }: { id: string; level: number }) {
           </div>
           <div className="mb-3 mt-7 flex items-center justify-between">
             <div className="text-[0.84375rem] font-semibold text-muted">People we deal with</div>
-            <Button size="xs" variant="ghost" icon={<UserPlus className="h-4 w-4" />} onClick={() => toast('Add a person — their role, phone and email')}>Add person</Button>
+            <Button size="xs" variant="ghost" icon={<UserPlus className="h-4 w-4" />} onClick={() => toast('Add a person. Their role, phone and email')}>Add person</Button>
           </div>
           <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
             {c.contacts.map((p, i) => (

@@ -207,7 +207,7 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
     inField || booked
       ? { key: 'crew', label: 'Crew scheduled', state: 'done', sub: [crew ? PEOPLE[crew]?.short : '', start].filter(Boolean).join(' · ') || 'Scheduled' }
       : open
-        ? { key: 'crew', label: 'Crew scheduled', state: 'now', sub: crew ? `${PEOPLE[crew]?.short} — pick the days` : 'Pick the days' }
+        ? { key: 'crew', label: 'Crew scheduled', state: 'now', sub: crew ? `${PEOPLE[crew]?.short}. Pick the days` : 'Pick the days' }
         : { key: 'crew', label: 'Crew scheduled', state: 'later', lock: true, sub: `opens when all ${n} are done` },
     st === 'installation'
       ? { key: 'install', label: 'Installing', state: 'now', sub: `${pct}%${crew ? ` · ${PEOPLE[crew]?.short}` : ''}`, link: pct }
@@ -238,7 +238,7 @@ export function moneyLine(s: Store, job: Job) {
   const dep = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')
   const dep2: { text: string; tone: 'ok' | 'warn' | 'muted' } | null = !dep ? null
     : dep.state === 'paid' ? { text: `deposit paid${dep.date ? ` ${dep.date}` : ''}`, tone: 'ok' }
-      : dep.step >= 1 ? { text: `deposit sent${dep.date ? ` ${dep.date}` : ''} — not paid yet`, tone: 'warn' }
+      : dep.step >= 1 ? { text: `deposit sent${dep.date ? ` ${dep.date}` : ''}, not paid yet`, tone: 'warn' }
         : { text: 'deposit not invoiced yet', tone: 'warn' }
   return { ...pic, total, dep: dep2 }
 }
@@ -275,8 +275,8 @@ export function problemsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, j
     /* a step that's red because of problems already reported (the tile that came broken): those problems, here */
     const mine = oldest.filter((x) => !used.has(x.id) && (note.includes(x.title.toLowerCase().slice(0, 24)) || (!!tagOf(x.title) && note.includes(tagOf(x.title)!))))
     mine.forEach((t, i) => { used.add(t.id); out.push({ key: t.id, text: t.title, task: t.id, r: rank(v.key) + i / 1000 }) })
-    if (mine.length || /^\d+ problems — /.test(v.note || '')) return
-    out.push({ key: 's:' + v.key, text: (v.note || v.label).split(' · ')[0].replace(/^No — /, ''), step: v.key, r: rank(v.key) })
+    if (mine.length || /^\d+ problems(?: —|\.| ·) /.test(v.note || '')) return
+    out.push({ key: 's:' + v.key, text: (v.note || v.label).split(' · ')[0].replace(/^No(?: —|\.| ·) /, ''), step: v.key, r: rank(v.key) })
   })
   /* the rest, oldest first (the tasks list keeps the newest first), each after the steps of its part — a problem that
      names a tile goes with the tile */
@@ -329,9 +329,9 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
     if (pct < 100) {
       /* stopped or held up on site */
       const blocked = r.surfaces.find((x) => x.state === 'blocked')
-      if (blocked) add('bad', cut(`Stopped — ${low(blocked.reason || 'blocked')}`))
+      if (blocked) add('bad', cut(`Stopped · ${low(blocked.reason || 'blocked')}`))
       const held = r.surfaces.find((x) => x.state === 'waitmat' || x.state === 'hold')
-      if (held) add('warn', cut(held.pending ? `Change pending — ${held.pending.co}` : held.reason ? `Waiting — ${low(held.reason)}` : held.state === 'hold' ? 'On hold — a change' : 'Waiting on material'))
+      if (held) add('warn', cut(held.pending ? `Change pending · ${held.pending.co}` : held.reason ? `Waiting · ${low(held.reason)}` : held.state === 'hold' ? 'On hold · a change' : 'Waiting on material'))
       /* a problem logged on this room or on its tile (when nothing above already says it) */
       if (!blocked && !held) problems.filter((t) => named(`${t.where || ''} ${t.title}`) || tags.some((tag) => t.title.startsWith(tag) || (t.where || '').startsWith(tag))).slice(0, 1).forEach((t) => add('bad', cut(t.title.replace(/^(T-\d+):\s*\d+\s+boxes?\s+/, '$1 '))))
       /* the site check: looked at room by room, only the rooms that miss it; the rest, every room it's asked in */
@@ -339,7 +339,7 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
         const def = SITE_CHECKS.find((x) => x.k === k)
         const no = def?.no || (k === 'walls' ? 'Wall heights to check' : `${k}: no`)
         const here = c.rooms?.length ? c.rooms.includes(r.name) : !def?.byRoom || siteRooms(rooms, k).includes(r.name)
-        if (here) add(c.fixed ? 'warn' : 'bad', c.fixed ? `${no} — fixed, to check` : no)
+        if (here) add(c.fixed ? 'warn' : 'bad', c.fixed ? `${no}. Fixed, to check` : no)
       })
       const fl = floors.find((f) => f.room.name === r.name)
       if (fl?.word?.tone === 'bad') add('bad', `Floor ${fracIn(fl.word.diff)} out`)
@@ -348,7 +348,7 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
         if (open('qty') && shortRows.some((x) => x.tag === tag)) add(step('qty')?.state === 'wait' ? 'warn' : 'bad', `${tag} short`)
         const c = s.checks.find((x) => x.jobId === job.id && x.tag === tag)
         if (c && c.received < c.ordered) {
-          if (c.received > 0) add('bad', `${tag} short — ${c.received} of ${c.ordered}`)
+          if (c.received > 0) add('bad', `${tag} short · ${c.received} of ${c.ordered}`)
           else if (!inField) toCome.push(c.eta && c.eta !== 'TBD' ? `tile due ${c.eta.replace(/^\w+,\s*/, '')}` : 'tile ordered')
           else add('warn', c.eta ? `${tag} coming ${c.eta.replace(/^\w+,\s*/, '')}` : `${tag} not here yet`)
         }

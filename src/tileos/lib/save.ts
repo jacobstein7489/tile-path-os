@@ -83,7 +83,7 @@ export const REAL: {
   refresh?: () => Promise<'ok' | 'offline' | 'none'>
 } = { cloud: false, admin: true, home: 'owner' }
 /** what the app says with no signal */
-export const OFFLINE_WORDS = 'No signal — what you do is kept on this phone and goes up by itself when you’re back online'
+export const OFFLINE_WORDS = 'No signal. What you do is kept on this phone and goes up by itself when you’re back online'
 /** the signed-in person, when they're on the team */
 const myKey = (team: { key: string }[]) => (REAL.me && team.some((m) => m.key === REAL.me) ? REAL.me : undefined)
 /** the admin is looking through someone else's eyes (another login, or another person on their own login) */
@@ -273,7 +273,7 @@ async function flush() {
       setStatus({ saving: false, where: 'browser', at: Date.now(), problem: undefined })
     } else {
       Object.keys(changed).forEach((k) => dirty.add(k))
-      setStatus({ saving: false, problem: e?.code === 'quota_exceeded' ? 'Your saved test is full — start fresh to make room' : 'Couldn’t save just now — trying again' })
+      setStatus({ saving: false, problem: e?.code === 'quota_exceeded' ? 'Your saved test is full. Start fresh to make room' : 'Couldn’t save just now · trying again' })
       if (e?.code !== 'quota_exceeded') schedule(4000)
     }
   } finally {

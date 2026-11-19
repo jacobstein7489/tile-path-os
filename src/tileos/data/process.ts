@@ -13,28 +13,28 @@ export interface ProcStep {
 export const PROCESS: ProcStep[] = [
   {
     stage: 'request', title: 'A price request comes in',
-    happens: 'A GC, developer, client or designer asks for a price. The office captures just enough to start — not a giant form.',
+    happens: 'A GC, developer, client or designer asks for a price. The office captures just enough to start, not a giant form.',
     who: [
       { role: 'office', buttons: ['New price request', 'Request missing info', 'Start the takeoff'], note: 'Missing documents become follow-ups with a date.' },
       { role: 'owner', buttons: ['Sees it in Estimates'] },
     ],
-    auto: ['Missing documents turn into “waiting on GC” items that come back on their date', 'With the plans in, AI drafts the rooms, surfaces and square feet — and flags what it guessed'],
+    auto: ['Missing documents turn into “waiting on GC” items that come back on their date', 'With the plans in, AI drafts the rooms, surfaces and square feet, and flags what it guessed'],
     demo: { label: 'Open 26 Cambridge St', modal: { t: 'job', id: 'b1' } },
   },
   {
     stage: 'estimating', title: 'Takeoff → office review → owner review',
-    happens: 'The takeoff estimator works from the plans, the office estimator checks it, the owner gives it the last look. Notes are pinned to the room they’re about — not comments.',
+    happens: 'The takeoff estimator works from the plans, the office estimator checks it, the owner gives it the last look. Notes are pinned to the room they’re about, not comments.',
     who: [
-      { role: 'takeoff', buttons: ['Check off what AI flagged', 'Ready for review', 'Fixed — back to the reviewer'] },
-      { role: 'estimator', buttons: ['Add a note', 'Send back', 'Looks good — to the owner'] },
+      { role: 'takeoff', buttons: ['Check off what AI flagged', 'Ready for review', 'Fixed. Back to the reviewer'] },
+      { role: 'estimator', buttons: ['Add a note', 'Send back', 'Looks good. To the owner'] },
       { role: 'owner', buttons: ['Send back', 'Approve and send to the client'] },
     ],
-    auto: ['Whose turn it is lives on the estimate — nobody’s tasks change hands', 'Each hand-off lands on the next person’s Today; a send-back comes straight back to whoever sent it', 'It can’t move on with a note still open'],
+    auto: ['Whose turn it is lives on the estimate. Nobody’s tasks change hands', 'Each hand-off lands on the next person’s Today; a send-back comes straight back to whoever sent it', 'It can’t move on with a note still open'],
     demo: { label: 'Open Green Tree Phase 2', modal: { t: 'job', id: 'b3' } },
   },
   {
     stage: 'proposal', title: 'Proposal',
-    happens: 'The proposal goes out. Every revision is kept side by side — nothing is overwritten.',
+    happens: 'The proposal goes out. Every revision is kept side by side. Nothing is overwritten.',
     who: [
       { role: 'office', buttons: ['Send proposal'] },
       { role: 'estimator', buttons: ['Price revision'] },
@@ -53,7 +53,7 @@ export const PROCESS: ProcStep[] = [
     demo: { label: 'Open Forest Circle pool house', modal: { t: 'job', id: 'b7' } },
   },
   {
-    stage: 'awarded', title: 'Award — one click, every department',
+    stage: 'awarded', title: 'Award. One click, every department',
     happens: 'The biggest trigger in the company. Awarding tells every person what they now owe the project.',
     who: [{ role: 'owner', buttons: ['Make it a project'], note: 'Approved revision, deposit %, client PO, start window, PM' }],
     auto: ['Accounting: deposit invoice', 'Back office: setup package', 'Materials: tile order vs our takeoff, setting materials', 'Scheduling: heads-up with the start window', 'PM: review the setup'],
@@ -68,12 +68,12 @@ export const PROCESS: ProcStep[] = [
       { role: 'accounting', buttons: ['Create deposit invoice', 'Record payment'] },
       { role: 'pm', buttons: ['Review setup'] },
     ],
-    auto: ['Store quantity vs our takeoff + waste — a shortage becomes an action', 'Unpaid deposit stays visible as a warning with reminders'],
+    auto: ['Store quantity vs our takeoff + waste. A shortage becomes an action', 'Unpaid deposit stays visible as a warning with reminders'],
     demo: { label: 'Open 114 Park Place', modal: { t: 'job', id: '114' } },
   },
   {
     stage: 'verification', title: 'Site verification',
-    happens: 'The site manager verifies reality. He confirms what the office built — he never re-enters it.',
+    happens: 'The site manager verifies reality. He confirms what the office built. He never re-enters it.',
     who: [
       { role: 'site', buttons: ['Start walkthrough', 'Confirm surface', 'Technical question', 'Record decision', 'Verification done'] },
       { role: 'pm', buttons: ['Design meeting decisions'] },
@@ -83,15 +83,15 @@ export const PROCESS: ProcStep[] = [
   },
   {
     stage: 'ready', title: 'Review for scheduling',
-    happens: 'The company rules check whether the project can really start — before a crew is standing there.',
+    happens: 'The company rules check whether the project can really start. Before a crew is standing there.',
     who: [{ role: 'pm', buttons: ['Review for scheduling'] }],
-    auto: ['Result: Ready · Start with restrictions · Not ready — with the reasons', 'Deposit, materials, decisions and site access checked'],
+    auto: ['Result: Ready · Start with restrictions · Not ready. With the reasons', 'Deposit, materials, decisions and site access checked'],
     demo: { label: 'Open 530 Mark', modal: { t: 'job', id: '530' } },
   },
   {
     stage: 'scheduled', title: 'Scheduled',
     happens: 'A crew is booked with dates and starting areas.',
-    who: [{ role: 'pm', buttons: ['Assign crew', 'He confirmed'], note: 'Installers don’t use Tile OS — the office records his OK.' }],
+    who: [{ role: 'pm', buttons: ['Assign crew', 'He confirmed'], note: 'Installers don’t use Tile OS. The office records his OK.' }],
     auto: ['Pre-start checks for the PM, site manager and materials'],
     demo: { label: 'Assign a crew to Green Tree', modal: { t: 'assign', jobId: 'green' } },
   },
@@ -120,7 +120,7 @@ export const PROCESS: ProcStep[] = [
   },
   {
     stage: 'closeout', title: 'Closeout and final billing',
-    happens: 'Closeout checks pass, and accounting gets the final bill — not a comment.',
+    happens: 'Closeout checks pass, and accounting gets the final bill, not a comment.',
     who: [
       { role: 'pm', buttons: ['Review for completion'] },
       { role: 'accounting', buttons: ['Send final invoice', 'Request retainage'] },

@@ -14,7 +14,7 @@ import * as React from 'react'
 import { WinStar, type StarPick } from './star'
 import { Building2, CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, Eye, HardHat, Hash, Mail, MapPin, Plus, Receipt, Trash2, UserRound, Users } from 'lucide-react'
 import { Avatar } from '@/tileos/components/ui/core'
-import { Pop, DatePresets } from '@/tileos/components/ui/overlay'
+import { Pop, DatePresets, Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
@@ -23,7 +23,9 @@ export type WinTone = 'late' | 'warn' | 'ok' | 'quiet'
 /** who it can be given to: you first ("Me"), then the rest */
 export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void; /** more than one can do it — whoever gets to it first (a task; a step has one) */ also?: PersonKey[]; onAlso?: (p: PersonKey) => void }
 /** the day it's on: tap it, pick another */
-export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string }
+export type WhenPick = { value?: string; onPick: (label: string) => void; presets?: string[]; /** over the days: "Move it to" unless it says */ title?: string; /** its time of day ("9:00 AM"), and how to change it — none: any time */ time?: string; onTime?: (t?: string) => void }
+/** the times a thing can be at — every half hour, 6 in the morning to 8 at night */
+const TIMES = Array.from({ length: 29 }, (_, i) => 6 * 60 + i * 30).map((m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`)
 /** who's watching it: their circles; + to add someone or take them off (you only yourself, unless it's yours to say) */
 export type WatchPick = { people: PersonKey[]; me: PersonKey; current: PersonKey[]; onToggle: (p: PersonKey) => void; /** anyone can be added (its person, the admin) — else only you */ anyone: boolean; /** whoever does it — not on the list: they do it, they don't watch it */ doers?: PersonKey[] }
 /** what kind of thing it is — its icon and its name */
@@ -48,7 +50,7 @@ export function WinLine({ k, label, top, children }: { k: string; label: string;
  *  any), their circle, their name */
 function PersonOption({ p, me, on, round, lock, onClick, attrs }: { p: PersonKey; me: PersonKey; on: boolean; round?: boolean; lock?: boolean; onClick: () => void; attrs: Record<string, string> }) {
   return (
-    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} aria-disabled={lock || undefined} title={lock ? 'It’s theirs — to give it to someone else, turn off “More than one”' : undefined} onClick={lock ? undefined : onClick} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition', lock ? 'cursor-default' : 'hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
+    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} aria-disabled={lock || undefined} title={lock ? 'It’s theirs. To give it to someone else, turn off “More than one”' : undefined} onClick={lock ? undefined : onClick} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition', lock ? 'cursor-default' : 'hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
       {round
         ? <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
         : <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>}
@@ -83,7 +85,7 @@ export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.React
   }
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={trigger}>
-      <PeopleHead title="Who does it" sub={many ? 'Each one ticked has it — whoever gets to it first.' : 'One person — it’s on their Today.'} />
+      <PeopleHead title="Who does it" sub={many ? 'Each one ticked has it. Whoever gets to it first.' : 'One person. It’s on their Today.'} />
       <div className="-mx-1 flex flex-col" role={many ? 'group' : 'radiogroup'} data-who-options>
         {[pick.me, ...pick.people.filter((p) => p !== pick.me)].map((p) => (
           <PersonOption key={p} p={p} me={pick.me} on={p === pick.current || (many && also.includes(p))} round={!many} lock={many && p === pick.current} onClick={() => tap(p)} attrs={{ 'data-who-option': p }} />
@@ -110,7 +112,7 @@ export function WhenPop({ pick, trigger }: { pick: WhenPick; trigger: React.Reac
 }
 /** who's watching: tick people on or off (you only yourself, unless it's yours to say) — the same in a window and on a
  *  list */
-export function WatchPop({ pick, trigger, align = 'start', title = 'Who’s watching', sub = 'They don’t do it — they hear when it moves.' }: { pick: WatchPick; trigger: React.ReactElement; align?: 'start' | 'end' | 'center'; title?: string; sub?: string }) {
+export function WatchPop({ pick, trigger, align = 'start', title = 'Who’s watching', sub = 'They don’t do it. They hear when it moves.' }: { pick: WatchPick; trigger: React.ReactElement; align?: 'start' | 'end' | 'center'; title?: string; sub?: string }) {
   const [open, setOpen] = React.useState(false)
   return (
     <Pop open={open} onOpenChange={setOpen} align={align} width={300} trigger={trigger}>
@@ -138,7 +140,7 @@ function EditText({ value, onSave, area, placeholder, label, attrs }: { value: s
     ? <textarea autoFocus value={v} rows={Math.min(6, Math.max(2, Math.ceil((v.length || 1) / 64)))} onChange={(e) => setV(e.target.value)} onBlur={keep} onKeyDown={keys} placeholder={placeholder} aria-label={label} className={cn(box, 'resize-none')} data-editing />
     : <input autoFocus value={v} onChange={(e) => setV(e.target.value)} onBlur={keep} onKeyDown={keys} aria-label={label} className={box} data-editing />
   return (
-    <button type="button" onClick={() => setOn(true)} title="Tap to change it" aria-label={`${label} — change it`} className="-mx-2 -my-1 block w-[calc(100%+1rem)] cursor-text rounded-lg border border-transparent px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none" {...attrs}>
+    <button type="button" onClick={() => setOn(true)} title="Tap to change it" aria-label={`${label} · change it`} className="-mx-2 -my-1 block w-[calc(100%+1rem)] cursor-text rounded-lg border border-transparent px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none" {...attrs}>
       {value || <span className="text-faint">{placeholder}</span>}
     </button>
   )
@@ -233,7 +235,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
         {(whoText || whoPick) && (
           <WinLine k="who" label={whoLabel}>
             {whoPick ? (
-              <WhoMenu pick={whoPick} trigger={<button type="button" className={CHIP} aria-label="Who does it — change it" data-who-pick>{whoBody}<ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
+              <WhoMenu pick={whoPick} trigger={<button type="button" className={CHIP} aria-label="Who does it · change it" data-who-pick>{whoBody}<ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
             ) : <span className="inline-flex min-w-0 items-center gap-2">{whoBody}</span>}
           </WinLine>
         )}
@@ -241,8 +243,18 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
           <WinLine k="when" label="When">
             <span className="flex min-w-0 flex-wrap items-center gap-x-2">
               {whenPick ? (
-                <WhenPop pick={whenPick} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When — change it" data-when-pick><span className="min-w-0" data-win-state>{state}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
+                <WhenPop pick={whenPick} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When · change it" data-when-pick><span className="min-w-0" data-win-state>{state}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
               ) : <span className={cn('text-[0.9375rem]', stateCls)} data-win-state>{state}</span>}
+              {/* its time, right next to its day — tap it for another (or none) */}
+              {whenPick?.onTime && (
+                <>
+                  <span className="text-faint" aria-hidden>·</span>
+                  <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem]', whenPick.time ? 'text-ink' : 'text-muted')} aria-label="The time · change it" data-when-time><span className="tnum">{whenPick.time || 'Any time'}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+                    <MenuItem checked={!whenPick.time} onSelect={() => whenPick.onTime?.(undefined)}>Any time</MenuItem>
+                    {TIMES.map((t) => <MenuItem key={t} checked={t === whenPick.time} onSelect={() => whenPick.onTime?.(t)}>{t}</MenuItem>)}
+                  </Menu>
+                </>
+              )}
               {extra && <span className="text-[0.875rem] text-muted">· {extra}</span>}
             </span>
           </WinLine>
@@ -255,7 +267,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
                 (nothing cut off); nobody yet: Add someone */}
             <span className="flex min-w-0 items-center" data-win-watch={watch.current.join(',')}>
               <WatchPop pick={watch} trigger={
-                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s watching — add or take off" data-watch-add>
+                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s watching. Add or take off" data-watch-add>
                   {watch.current.length > 0
                     ? watch.current.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={24} />{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span>)
                     : <span className="inline-flex items-center gap-1.5 text-[0.9375rem] font-medium text-brand-700"><Plus className="h-4 w-4" />Add someone</span>}

@@ -51,26 +51,26 @@ import { Notes } from './notes'
 /* ---------------- words ---------------- */
 /** what the step is, said plainly — the title of its window */
 export const TITLE: Record<string, string> = {
-  estimate: 'Add the estimate — what we’re tiling',
+  estimate: 'Add the estimate. What we’re tiling',
   getpaper: 'Get the tile paperwork from the store',
   rooms: 'Enter the tile paperwork',
   qty: 'Check the quantities on the paperwork',
   design: 'Design meeting',
   change: 'Confirm the scope after the meeting',
-  tile: 'Pick the tile and grout — a picture and the grout for every tile',
+  tile: 'Pick the tile and grout. A picture and the grout for every tile',
   layouts: 'Set the layouts',
-  heights: 'Site check — on site',
-  level: 'Floor levels — the high and low point of every floor',
+  heights: 'Site check · on site',
+  level: 'Floor levels. The high and low point of every floor',
   fixes: 'Fix what the site check found',
   sheets: 'Hang the room sheets',
-  setup: 'Decide the underlayment — what every floor and wall is set on',
-  installer: 'Pick the installer — send his PO',
+  setup: 'Decide the underlayment. What every floor and wall is set on',
+  installer: 'Pick the installer. Send his PO',
   walk: 'Walk-through with the installer',
   confirmed: 'The installer accepts the PO',
   materials: 'Order our materials',
   matin: 'Receive our materials',
   order: 'Get the tile delivery date',
-  delivered: 'Receive the tile — count it',
+  delivered: 'Receive the tile · count it',
   deposit: 'Deposit',
 }
 /** what to do, said the way you'd say it — the line on Today and on the project */
@@ -80,13 +80,13 @@ export const TODO: Record<string, string> = {
   rooms: 'Enter the tile paperwork',
   qty: 'Check the quantities on the paperwork',
   design: 'Set up the design meeting',
-  change: 'Confirm the scope — same as the estimate, or what changed',
+  change: 'Confirm the scope. Same as the estimate, or what changed',
   tile: 'Pick the tile and grout',
   layouts: 'Set the layouts',
   heights: 'Site check',
   fixes: 'Get what the site check found fixed',
   sheets: 'Print and hang the room sheets',
-  level: 'Measure the floors — high and low',
+  level: 'Measure the floors. High and low',
   setup: 'Decide the underlayment',
   installer: 'Pick the installer and send his PO',
   walk: 'Walk-through with the installer',
@@ -99,20 +99,20 @@ export const TODO: Record<string, string> = {
 }
 /** one line under the title: what this step is for */
 export const WHAT: Record<string, string> = {
-  estimate: 'Upload it and its rooms, walls and floors fill in by themselves — so the system knows what we’re tiling. The installer’s PO and our materials are made from it.',
-  getpaper: 'Ask the tile store for the paperwork — what they’re sending, how much of each. Upload it here when it comes.',
+  estimate: 'Upload it and its rooms, walls and floors fill in by themselves, so the system knows what we’re tiling. The installer’s PO and our materials are made from it.',
+  getpaper: 'Ask the tile store for the paperwork. What they’re sending, how much of each. Upload it here when it comes.',
   rooms: 'Upload it and AI reads it: every tile matched to the walls and floors from the estimate. Fix what it got wrong, pick what it couldn’t.',
-  qty: 'Is there enough of every tile, with the extra for cuts? Short — send them the right quantities, and it waits for the new paperwork.',
-  design: 'With the designer or the client — tile, layout, grout, patterns. Everyone who needs to be there gets it on their calendar.',
-  change: 'After the design meeting: is it the same as the estimate? Say so in one tap. Something changed — a border, LED channels, a pattern, taller walls — each change becomes a change order: the estimator prices it, the client OKs it, and the tile and the installer’s PO follow.',
-  tile: 'A grout and a picture for every tile — the installer’s sheet shows them.',
-  layouts: 'The system suggests each one from the tile — the pattern, and where to start so there are no thin cuts. Tap one to see it drawn, change it or send it to the designer.',
-  heights: 'On site, before we order: the whole site, then room by room. Some rooms miss something (2 of 3 drains)? Tap Some and pick them — each one goes to be fixed and comes back to you to check again.',
-  fixes: 'What the site check found. Get each one fixed (the GC, the plumber…) — once it is, it goes back to the site manager to look at again on site.',
-  sheets: 'One page for each room — its tiles, the grout, what every wall and floor is set on, and its layout drawn to scale. Print them and hang one in each room before the crew starts.',
+  qty: 'Is there enough of every tile, with the extra for cuts? Short. Send them the right quantities, and it waits for the new paperwork.',
+  design: 'With the designer or the client. Tile, layout, grout, patterns. Everyone who needs to be there gets it on their calendar.',
+  change: 'After the design meeting: is it the same as the estimate? Say so in one tap. Something changed. A border, LED channels, a pattern, taller walls · each change becomes a change order: the estimator prices it, the client OKs it, and the tile and the installer’s PO follow.',
+  tile: 'A grout and a picture for every tile. The installer’s sheet shows them.',
+  layouts: 'The system suggests each one from the tile. The pattern, and where to start so there are no thin cuts. Tap one to see it drawn, change it or send it to the designer.',
+  heights: 'On site, before we order: the whole site, then room by room. Some rooms miss something (2 of 3 drains)? Tap Some and pick them. Each one goes to be fixed and comes back to you to check again.',
+  fixes: 'What the site check found. Get each one fixed (the GC, the plumber…), once it is, it goes back to the site manager to look at again on site.',
+  sheets: 'One page for each room. Its tiles, the grout, what every wall and floor is set on, and its layout drawn to scale. Print them and hang one in each room before the crew starts.',
   level: 'Every floor we tile: the high point and the low point off one laser line. The system says flat, self-leveler, or the GC’s to fix. A mud bed levels itself.',
-  setup: 'What every floor and wall is set on — underlayment, membrane, mud. Our materials are worked out from it.',
-  installer: 'Pick who installs it and send him his PO — the meter shows it against the estimate.',
+  setup: 'What every floor and wall is set on. Underlayment, membrane, mud. Our materials are worked out from it.',
+  installer: 'Pick who installs it and send him his PO. The meter shows it against the estimate.',
   walk: 'Walk the job with the installer before he starts. Not every job needs it.',
   confirmed: 'He accepts the PO and the dates. Until he does, it comes back on the list to call him.',
   materials: 'Setting materials, worked out from the setup and the square feet.',
@@ -223,13 +223,13 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
           : v.state === 'bad' ? 'A problem'
             : mine ? 'Your turn' : `${name}’s turn`
   /* nobody has this part's login yet: it's yours until someone does — said, so it doesn't look like someone else's */
-  const cover = mine && open && v.cover ? `Yours for now — no ${v.cover.toLowerCase()} on the team yet. ` : ''
+  const cover = mine && open && v.cover ? `Yours for now · no ${v.cover.toLowerCase()} on the team yet. ` : ''
   /* the installer's PO is made from the estimate: it can't be done before it — said plainly, the estimate right under it */
   const sub = v.state === 'later' && v.key === 'installer' && v.waitsKey === 'estimate'
-    ? `His PO is made from the estimate — what we’re tiling, room by room. ${mine ? 'Add the estimate first, right here:' : `Then it’s ${name}’s.`}`
+    ? `His PO is made from the estimate. What we’re tiling, room by room. ${mine ? 'Add the estimate first, right here:' : `Then it’s ${name}’s.`}`
     : v.state === 'later'
-    ? (mine ? `It usually comes after ${v.waitsFor || 'the step before'} — you can do it now, right here.` : `It usually comes after ${v.waitsFor || 'the step before'}. Then it’s ${name}’s.`)
-    : what || cover ? `${cover}${what || ''}${!mine && open && onSite && v.state === 'now' ? ' — on site' : ''}` : undefined
+    ? (mine ? `It usually comes after ${v.waitsFor || 'the step before'}. You can do it now, right here.` : `It usually comes after ${v.waitsFor || 'the step before'}. Then it’s ${name}’s.`)
+    : what || cover ? `${cover}${what || ''}${!mine && open && onSite && v.state === 'now' ? ' · on site' : ''}` : undefined
   return (
     <div className={cn('flex min-w-0 items-start gap-3 rounded-xl border px-3.5 py-3', look.box)} data-step-status data-step-state={v.state} {...(v.state === 'later' ? { 'data-locked': '' } : {})} {...(!mine && open && v.state !== 'later' ? { 'data-not-mine': '' } : {})} {...(cover ? { 'data-covering': v.cover } : {})}>
       {v.state === 'now' && !mine ? <Avatar who={v.owner} size={30} plain /> : <StepIcon state={v.state} size={30} />}
@@ -289,8 +289,8 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
       const fl = floorRooms(s.rooms[job.id] || [])
       const measured = fl.filter((f) => f.mud || f.word)
       return (
-        <ResultBox title="The floors" empty={rec?.note === BEFORE_TILE_OS ? 'Checked before the project was in Tile OS — no readings kept here.' : 'Marked done — no readings kept with it.'}>
-          {measured.map((f) => <ResultRow key={f.room.name} icon={<Ruler />} title={f.room.name} sub={f.mud ? 'Mud bed — it levels itself' : `High ${f.room.level?.high ?? '—'} · low ${f.room.level?.low ?? '—'}`} right={f.mud ? 'Mud bed' : f.word?.label} tone={f.word?.tone === 'bad' ? 'bad' : f.word?.tone === 'warn' ? 'warn' : 'ok'} />)}
+        <ResultBox title="The floors" empty={rec?.note === BEFORE_TILE_OS ? 'Checked before the project was in Tile OS. No readings kept here.' : 'Marked done. No readings kept with it.'}>
+          {measured.map((f) => <ResultRow key={f.room.name} icon={<Ruler />} title={f.room.name} sub={f.mud ? 'Mud bed. It levels itself' : `High ${f.room.level?.high ?? ''} · low ${f.room.level?.low ?? ''}`} right={f.mud ? 'Mud bed' : f.word?.label} tone={f.word?.tone === 'bad' ? 'bad' : f.word?.tone === 'warn' ? 'warn' : 'ok'} />)}
         </ResultBox>
       )
     }
@@ -338,14 +338,14 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
       const set = all.filter((a) => a.x.layout).length
       return (
         <ResultBox title="The layouts">
-          <ResultRow icon={<Grid2x2 />} title={`${set} of ${all.length} walls and floors have a layout`} sub="Every wall and floor, drawn to scale — print or send to the designer" onClick={() => s.open({ t: 'layouts', jobId: job.id })} />
+          <ResultRow icon={<Grid2x2 />} title={`${set} of ${all.length} walls and floors have a layout`} sub="Every wall and floor, drawn to scale. Print or send to the designer" onClick={() => s.open({ t: 'layouts', jobId: job.id })} />
         </ResultBox>
       )
     }
     case 'heights': {
       const answers = Object.entries(rec?.checks || {})
       return (
-        <ResultBox title="What the site check found" empty="Checked — nothing kept with it.">
+        <ResultBox title="What the site check found" empty="Checked. Nothing kept with it.">
           {answers.map(([k, a]) => {
             const d = SITE_CHECKS.find((x) => x.k === k)
             return <ResultRow key={k} title={d?.label || k} sub={(a as any).note || ((a as any).rooms?.length ? (a as any).rooms.join(', ') : undefined)} right={(a as any).na ? 'Not needed' : (a as any).ok ? 'Yes' : (a as any).fixed ? 'Fixed' : 'No'} tone={(a as any).na ? undefined : (a as any).ok || (a as any).fixed ? 'ok' : 'bad'} />
@@ -356,7 +356,7 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
     case 'change': {
       const ch = rec?.changes || []
       return (
-        <ResultBox title="What changed from the estimate" empty="Nothing changed — the scope is the estimate's.">
+        <ResultBox title="What changed from the estimate" empty="Nothing changed. The scope is the estimate's.">
           {ch.map((c, i) => <ResultRow key={i} title={c.what} sub={[c.where, c.note].filter(Boolean).join(' · ') || undefined} />)}
         </ResultBox>
       )
@@ -386,7 +386,7 @@ function StepResult({ job, v }: { job: Job; v: StepView }) {
     case 'walk': {
       const ev = s.events.filter((e) => e.jobId === job.id && (v.key === 'design' ? e.kind === 'meeting' : e.kind === 'walkthrough'))
       return (
-        <ResultBox title={v.key === 'design' ? 'The meeting' : 'The walk-through'} empty={rec?.note === BEFORE_TILE_OS ? 'It happened before the project was in Tile OS.' : rec?.note || 'It happened — no notes kept with it.'}>
+        <ResultBox title={v.key === 'design' ? 'The meeting' : 'The walk-through'} empty={rec?.note === BEFORE_TILE_OS ? 'It happened before the project was in Tile OS.' : rec?.note || 'It happened. No notes kept with it.'}>
           {ev.map((e) => <ResultRow key={e.id} icon={<CalendarDays />} title={e.title} sub={[labelFromIso(e.date), timeLabel(e.start), e.people.map((p) => PEOPLE[p]?.short).filter(Boolean).join(', ')].filter(Boolean).join(' · ')} />)}
           {rec?.note && rec.note !== BEFORE_TILE_OS ? <ResultRow title="Notes" sub={rec.note} /> : null}
         </ResultBox>
@@ -432,7 +432,7 @@ function StepPanel({ job, v, roomy, goTo, bare }: { job: Job; v: StepView; roomy
             {hist.map((e, i) => (
               <li key={i} className="flex min-w-0 gap-2 text-[0.8125rem] leading-snug">
                 <span className="w-12 shrink-0 tnum text-muted">{e.date}</span>
-                <span className="min-w-0 text-ink-2"><b className="font-semibold text-ink">{PEOPLE[e.who as PersonKey]?.short || 'Tile OS'}</b> · {e.title.toLowerCase().startsWith(`${v.short.toLowerCase()}:`) ? e.title.slice(v.short.length + 1).trim() : e.title}{e.detail ? <span className="text-muted"> — {e.detail}</span> : null}</span>
+                <span className="min-w-0 text-ink-2"><b className="font-semibold text-ink">{PEOPLE[e.who as PersonKey]?.short || 'Tile OS'}</b> · {e.title.toLowerCase().startsWith(`${v.short.toLowerCase()}:`) ? e.title.slice(v.short.length + 1).trim() : e.title}{e.detail ? <span className="text-muted"> · {e.detail}</span> : null}</span>
               </li>
             ))}
           </ul>
@@ -662,9 +662,9 @@ function stepHead(v: StepView, me: PersonKey, mine: boolean): { who?: PersonKey;
   const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
   if (v.state === 'done') return { who: v.doneBy, whoText: v.doneBy ? (v.doneBy === me ? 'You' : PEOPLE[v.doneBy]?.short) : undefined, state: v.note === BEFORE_TILE_OS ? BEFORE_TILE_OS : `Done${v.doneOn ? ` ${v.doneOn}` : ''}`, tone: 'ok' }
   if (v.state === 'na') return { state: 'Not needed on this project', tone: 'quiet' }
-  if (v.state === 'later') return { who: v.owner, whoText: whose, state: v.key === 'installer' && v.waitsKey === 'estimate' ? 'Not yet — his PO is made from the estimate' : `Not yet — after ${v.waitsFor || 'the step before'}`, tone: 'quiet' }
+  if (v.state === 'later') return { who: v.owner, whoText: whose, state: v.key === 'installer' && v.waitsKey === 'estimate' ? 'Not yet. His PO is made from the estimate' : `Not yet · after ${v.waitsFor || 'the step before'}`, tone: 'quiet' }
   if (v.state === 'wait') return { who: v.owner, whoText: whose, state: v.note ? cap(v.note) : 'Waiting', tone: 'warn' }
-  const problem = v.state === 'bad' ? cap((v.note || '').split(' · ')[0].replace(/^No — /, '') || 'A problem') : undefined
+  const problem = v.state === 'bad' ? cap((v.note || '').split(' · ')[0].replace(/^No(?: —|\.| ·) /, '') || 'A problem') : undefined
   return { who: v.owner, whoText: whose, state: due ? cap(due.text) : undefined, tone: due?.late ? 'late' : undefined, problem }
 }
 
@@ -763,7 +763,7 @@ const Actions = ({ children }: { children: React.ReactNode }) => {
 const Good = ({ children }: { children: React.ReactNode }) => <div className="mt-4 flex items-center gap-2 rounded-xl bg-ok-50 px-4 py-3 text-[0.875rem] font-medium text-ok-700"><Check className="h-4 w-4" />{children}</div>
 
 /** waiting on someone outside — who, and the day it comes back */
-function WaitFor({ job, k, who, label = 'Asked them — waiting' }: { job: Job; k: string; who: string; label?: string }) {
+function WaitFor({ job, k, who, label = 'Asked them · waiting' }: { job: Job; k: string; who: string; label?: string }) {
   const s = useStore()
   const was = s.stepRecs[job.id]?.[k]?.wait
   const [open, setOpen] = React.useState(false)
@@ -771,13 +771,13 @@ function WaitFor({ job, k, who, label = 'Asked them — waiting' }: { job: Job; 
   const [back, setBack] = React.useState('Tomorrow')
   const [note, setNote] = React.useState('')
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button variant="ghost" icon={<Hourglass />} data-wait-for>{was ? 'Followed up — still waiting' : label}</Button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button variant="ghost" icon={<Hourglass />} data-wait-for>{was ? 'Followed up, still waiting' : label}</Button>}>
       <div className="text-[0.875rem] font-semibold text-ink">Waiting on</div>
       <TextInput className="mt-2" value={on} onChange={(e) => setOn(e.target.value)} placeholder="The tile store, the GC…" />
       {was && <><div className="mt-3 text-[0.875rem] font-semibold text-ink">What they said</div><TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. it ships Wednesday" /></>}
       <div className="mt-3 text-[0.875rem] font-semibold text-ink">Back on the list</div>
       <div className="mt-2"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
-      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until then — not done. It comes back that day if it hasn’t come.</div>
+      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until then, not done. It comes back that day if it hasn’t come.</div>
       <div className="mt-3 flex justify-end"><Button variant="primary" disabled={!on.trim()} onClick={() => { waitOnStep(job.id, k, on.trim(), back, note.trim() || undefined); setOpen(false) }}>Save</Button></div>
     </Pop>
   )
@@ -788,12 +788,12 @@ function TileNotYet({ job }: { job: Job }) {
   const [when, setWhen] = React.useState('Tomorrow')
   const [note, setNote] = React.useState('')
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />} data-tile-not-yet>Not here yet — followed up</Button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={360} trigger={<Button icon={<Hourglass />} data-tile-not-yet>Not here yet · followed up</Button>}>
       <div className="text-[0.875rem] font-semibold text-ink">What the store said</div>
       <TextInput className="mt-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. on the truck Thursday" />
       <div className="mt-3 text-[0.875rem] font-semibold text-ink">When it’s coming now</div>
       <div className="mt-2"><DatePresets value={when} onPick={setWhen} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></div>
-      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until that day — then it’s back, to check it in.</div>
+      <div className="mt-2 text-[0.75rem] text-muted">It’s off the list until that day, then it’s back, to check it in.</div>
       <div className="mt-3 flex justify-end"><Button variant="primary" onClick={() => { tileNotYet(job.id, when, note.trim() || undefined); setOpen(false) }}>Save</Button></div>
     </Pop>
   )
@@ -887,8 +887,8 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       <PaperRead job={job} />
       {v.state !== 'done' && !kept.length && (
         <Actions>
-          <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store — waiting" />
-          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
+          <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store · waiting" />
+          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it · on paper', { close: true })}>Got it on paper</Button>
         </Actions>
       )}
     </div>
@@ -922,8 +922,8 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       </div>
       {v.state !== 'done' && (
         <Actions>
-          <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store — waiting" />
-          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it — on paper', { close: true })}>Got it on paper</Button>
+          <WaitFor job={job} k="getpaper" who="The tile store" label="Asked the store · waiting" />
+          <Button variant="ghost" icon={<Check />} onClick={() => markStep(job.id, 'getpaper', 'Got it · on paper', { close: true })}>Got it on paper</Button>
         </Actions>
       )}
     </div>
@@ -937,7 +937,7 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
   const rooms = s.rooms[job.id] || []
   if (!rooms.length) return (
     <div className="flex flex-col gap-4">
-      <Block title="Scope of work" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet — they come from the estimate. Add them here, one room at a time.</Quiet></Block>
+      <Block title="Scope of work" right={<AddRoomButton jobId={job.id} have={[]} />}><Quiet>No rooms yet. They come from the estimate. Add them here, one room at a time.</Quiet></Block>
     </div>
   )
   const tiles = Object.values(s.tiles[job.id] || {}).sort(byTag)
@@ -953,11 +953,11 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
       {/* what the paperwork entered is being checked above — one list at a time */}
       {!checking && <>
       <Block title="Tile on the paperwork" right={lock.canEdit ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
-        {!tiles.length && <Quiet>{lock.canEdit ? 'None yet — upload the paperwork above, or add each tile by hand: its tag, its name, where it goes.' : `None yet — ${PEOPLE[lock.owner]?.short} enters them from the paperwork.`}</Quiet>}
+        {!tiles.length && <Quiet>{lock.canEdit ? 'None yet. Upload the paperwork above, or add each tile by hand: its tag, its name, where it goes.' : `None yet · ${PEOPLE[lock.owner]?.short} enters them from the paperwork.`}</Quiet>}
         {tiles.map((t) => <TileWhere key={t.tag} job={job} t={t} loose={loose.includes(t)} locked={!lock.canEdit} />)}
       </Block>
       {missing.length > 0 && (
-        <Block title={<span className="text-warn-800">Not matched yet — no tile</span>} right={`${missing.length} of ${tiled.length}`}>
+        <Block title={<span className="text-warn-800">Not matched yet · no tile</span>} right={`${missing.length} of ${tiled.length}`}>
           {missing.map((f) => (
             <div key={f.room + '|' + f.x.name} className="flex items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0">
               <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink"><b className="font-semibold">{f.room}</b> · {f.x.name}{f.x.sf ? <span className="text-muted"> · {f.x.sf} SF</span> : null}</span>
@@ -971,10 +971,10 @@ function EnterPaper({ job, v }: { job: Job; v: StepView }) {
         </Block>
       )}
       {!missing.length && tiled.length > 0 && tiles.length > 0 && <Good>{tiles.every((t) => t.grout && (t.photo || t.swatch)) ? 'Every wall and floor has its tile, and every tile its picture and grout.' : 'Every wall and floor has its tile.'}</Good>}
-      {!missing.length && tiles.some((t) => !t.grout || !(t.photo || t.swatch)) && <div className="text-[0.84375rem] font-medium text-warn-700" data-paper-left>{(() => { const n = tiles.filter((t) => !t.grout || !(t.photo || t.swatch)).length; return `${n} ${n === 1 ? 'tile needs' : 'tiles need'} a picture or the grout — tap the picture or Pick the grout.` })()}</div>}
-      <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF — the rooms, walls and square feet are on <b className="font-semibold text-ink-2">Scope of work</b>.</div>
+      {!missing.length && tiles.some((t) => !t.grout || !(t.photo || t.swatch)) && <div className="text-[0.84375rem] font-medium text-warn-700" data-paper-left>{(() => { const n = tiles.filter((t) => !t.grout || !(t.photo || t.swatch)).length; return `${n} ${n === 1 ? 'tile needs' : 'tiles need'} a picture or the grout. Tap the picture or Pick the grout.` })()}</div>}
+      <div className="text-[0.8125rem] text-muted">{rooms.length} {rooms.length === 1 ? 'room' : 'rooms'} · {totalSF.toLocaleString('en-US')} SF. The rooms, walls and square feet are on <b className="font-semibold text-ink-2">Scope of work</b>.</div>
       {v.state !== 'done' && tiles.length > 0 && missing.length > 0 && (
-        <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered — ${missing.length} without a tile on this paperwork`, { close: true })}>Entered — the rest isn’t on this paperwork</Button></Actions>
+        <Actions><Button icon={<Check />} onClick={() => markStep(job.id, 'rooms', `Entered · ${missing.length} without a tile on this paperwork`, { close: true })}>Entered. The rest isn’t on this paperwork</Button></Actions>
       )}
       </>}
     </div>
@@ -1038,12 +1038,12 @@ function Quantities({ job, v }: { job: Job; v: StepView }) {
   if (!rows.length) return (
     <div className="flex flex-col gap-4">
       {scopeLock(s, job.id).canEdit && <PaperRead job={job} />}
-      <Block title="Each tile"><Quiet>No tile from the paperwork on the walls and floors yet{scopeLock(s, job.id).canEdit ? ' — upload it above and AI reads it' : ''}. Then each tile shows what the paperwork has against what we need.</Quiet></Block>
+      <Block title="Each tile"><Quiet>No tile from the paperwork on the walls and floors yet{scopeLock(s, job.id).canEdit ? '. Upload it above and AI reads it' : ''}. Then each tile shows what the paperwork has against what we need.</Quiet></Block>
     </div>
   )
   return (
     <div className="flex flex-col gap-4">
-      {sent && v.state !== 'done' && <div className="rounded-xl bg-warn-50 px-4 py-3 text-[0.84375rem] text-warn-800">Revised quantities went to {sent.to} {sent.at}. When the new paperwork comes, drop it here — it reads the new numbers and checks itself.</div>}
+      {sent && v.state !== 'done' && <div className="rounded-xl bg-warn-50 px-4 py-3 text-[0.84375rem] text-warn-800">Revised quantities went to {sent.to} {sent.at}. When the new paperwork comes, drop it here. It reads the new numbers and checks itself.</div>}
       {sent && v.state !== 'done' && <PaperRead job={job} />}
       <Block title="What the paperwork has · what we need" right="with the extra for cuts">
         {rows.map((r) => <TileQty key={r.t.tag} job={job} r={r} />)}
@@ -1052,7 +1052,7 @@ function Quantities({ job, v }: { job: Job; v: StepView }) {
       {v.state !== 'done' && !sending && short.length > 0 && (
         <Actions>
           <span className="mr-auto text-[0.84375rem] font-semibold text-bad-700">{short.length === 1 ? `${short[0].t.tag} is short` : `${short.length} tiles are short`}</span>
-          <Button onClick={() => markStep(job.id, 'qty', 'Short — kept as it is', { close: true })}>Keep it as it is</Button>
+          <Button onClick={() => markStep(job.id, 'qty', 'Short. Kept as it is', { close: true })}>Keep it as it is</Button>
           <Button variant="primary" icon={<Send />} onClick={() => setSending(true)}>Send revised quantities</Button>
         </Actions>
       )}
@@ -1076,7 +1076,7 @@ function TileQty({ job, r }: { job: Job; r: QtyRow }) {
     patchTile(job.id, r.t.tag, { paper: paper || (unit !== r.unit ? { qty: r.have || 0, unit } : undefined) })
   }
   const tone: Tone = !r.on.length ? 'neutral' : r.have == null ? 'neutral' : r.need == null ? 'neutral' : r.short ? 'bad' : 'ok'
-  const word = !r.on.length ? 'Where?' : r.have == null ? 'Enter it' : r.need == null ? '—' : r.short ? `${r.short.toLocaleString('en-US')} short` : 'Enough'
+  const word = !r.on.length ? 'Where?' : r.have == null ? 'Enter it' : r.need == null ? '' : r.short ? `${r.short.toLocaleString('en-US')} short` : 'Enough'
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_11.5rem_6.5rem_6.25rem] items-center gap-3 border-t border-line-2 px-4 py-3 first:border-t-0 max-md:grid-cols-2 max-md:gap-y-2">
       <div className="flex min-w-0 items-center gap-3 max-md:col-span-2">
@@ -1087,7 +1087,7 @@ function TileQty({ job, r }: { job: Job; r: QtyRow }) {
         </div>
       </div>
       <div className="flex items-center gap-1.5">
-        <TextInput inputMode="decimal" aria-label={`${r.t.tag} on the paperwork`} value={qty} placeholder="—" onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))} onBlur={() => save()} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="h-9 w-[4.75rem] text-right tnum" />
+        <TextInput inputMode="decimal" aria-label={`${r.t.tag} on the paperwork`} value={qty} placeholder="" onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ''))} onBlur={() => save()} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="h-9 w-[4.75rem] text-right tnum" />
         <Menu align="end" width={190} trigger={<button className="inline-flex h-9 items-center gap-1 rounded-[0.5625rem] border border-line bg-white px-2 text-[0.8125rem] font-medium text-ink-2 hover:bg-wash">{unitWord(r.unit)}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
           <MenuLabel>The paperwork counts it in</MenuLabel>
           <MenuItem checked={r.unit === 'SF'} onSelect={() => save('SF')}>Square feet</MenuItem>
@@ -1097,7 +1097,7 @@ function TileQty({ job, r }: { job: Job; r: QtyRow }) {
       <div className="text-right leading-tight max-md:text-left">
         {r.unit === 'boxes' && !r.t.boxSF && r.on.length > 0
           ? <label className="inline-flex items-center gap-1 text-[0.75rem] text-muted"><TextInput inputMode="decimal" aria-label="SF in a box" value={box} placeholder="SF" onChange={(e) => setBox(e.target.value.replace(/[^\d.]/g, ''))} onBlur={() => Number(box) > 0 && patchTile(job.id, r.t.tag, { boxSF: Number(box) })} className="h-8 w-[3.5rem] text-right tnum" />in a box</label>
-          : <><span className="block text-[0.84375rem] font-semibold tnum text-ink-2">{r.need != null ? `${r.need.toLocaleString('en-US')} ${unitWord(r.unit, r.need)}` : '—'}</span><span className="block text-[0.71875rem] text-faint">we need</span></>}
+          : <><span className="block text-[0.84375rem] font-semibold tnum text-ink-2">{r.need != null ? `${r.need.toLocaleString('en-US')} ${unitWord(r.unit, r.need)}` : ''}</span><span className="block text-[0.71875rem] text-faint">we need</span></>}
       </div>
       <div className="text-right"><Status tone={tone}>{word}</Status></div>
     </div>
@@ -1111,10 +1111,10 @@ function RevisedQty({ job, rows, onCancel }: { job: Job; rows: QtyRow[]; onCance
   const contact = client?.contacts?.find((c) => /design/i.test(c.role)) || client?.contacts?.[0]
   const me = PEOPLE[meOf(s.role)]
   const [to, setTo] = React.useState(contact?.email || client?.email || '')
-  const lines = rows.filter((r) => r.on.length && r.need != null && (r.have == null || r.have < r.need)).map((r) => `- ${r.t.tag} ${r.t.name}${r.t.size ? ` (${r.t.size})` : ''}: the paperwork has ${(r.have ?? 0).toLocaleString('en-US')} ${unitWord(r.unit)} — we need ${r.need!.toLocaleString('en-US')} ${unitWord(r.unit, r.need)} for ${r.on.map((f) => `${f.room} ${f.x.name.toLowerCase()}`).join(', ')}`)
+  const lines = rows.filter((r) => r.on.length && r.need != null && (r.have == null || r.have < r.need)).map((r) => `- ${r.t.tag} ${r.t.name}${r.t.size ? ` (${r.t.size})` : ''}: the paperwork has ${(r.have ?? 0).toLocaleString('en-US')} ${unitWord(r.unit)} · we need ${r.need!.toLocaleString('en-US')} ${unitWord(r.unit, r.need)} for ${r.on.map((f) => `${f.room} ${f.x.name.toLowerCase()}`).join(', ')}`)
   const [text, setText] = React.useState(() => [`Hi${contact?.name ? ` ${contact.name.split(' ')[0]}` : ''},`, '', `We checked the tile paperwork for ${job.name} against our measurements. These quantities need to change:`, '', ...(lines.length ? lines : ['- ']), '', 'The quantities include the usual extra for cuts and breakage. Please send us the updated paperwork.', '', 'Thanks,', me?.name || 'Cobblestone'].join('\n'))
-  const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(`${job.name} — revised tile quantities`)}&body=${encodeURIComponent(text)}`
-  const copy = async () => { try { await navigator.clipboard.writeText(text); toast('Copied — paste it into your email') } catch { toast('Couldn’t copy — select the text and copy it') } }
+  const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(`${job.name}. Revised tile quantities`)}&body=${encodeURIComponent(text)}`
+  const copy = async () => { try { await navigator.clipboard.writeText(text); toast('Copied. Paste it into your email') } catch { toast('Couldn’t copy. Select the text and copy it') } }
   const sent = () => sendRevisedQty(job.id, { to: to.trim() || contact?.name || client?.name || 'the client', text })
   /* the real app with email set up: it goes from Tile OS (Settings → Email: "Everything else"), not your mail app */
   const [busy, setBusy] = React.useState(false)
@@ -1123,7 +1123,7 @@ function RevisedQty({ job, rows, onCancel }: { job: Job; rows: QtyRow[]; onCance
     if (busy) return
     setBusy(true)
     try {
-      const r = await emailText({ to, subject: `${job.name} — revised tile quantities`, text })
+      const r = await emailText({ to, subject: `${job.name}. Revised tile quantities`, text })
       if (!r.ok) { toast.error(r.why); return }
       sent()
     } finally { setBusy(false) }
@@ -1160,7 +1160,7 @@ function Selections({ job }: { job: Job }) {
   return (
     <div className="flex flex-col gap-4">
       <Block title="Each tile" right={tiles.length ? <Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button> : undefined}>
-        {!tiles.length && <div className="flex flex-wrap items-center gap-3 px-4 py-3"><span className="min-w-0 flex-1 text-[0.84375rem] text-muted">No tiles yet — they come in when the tile paperwork is entered.</span><Button size="sm" onClick={() => s.swap({ t: 'step', jobId: job.id, k: 'rooms' })}>Enter the paperwork</Button></div>}
+        {!tiles.length && <div className="flex flex-wrap items-center gap-3 px-4 py-3"><span className="min-w-0 flex-1 text-[0.84375rem] text-muted">No tiles yet. They come in when the tile paperwork is entered.</span><Button size="sm" onClick={() => s.swap({ t: 'step', jobId: job.id, k: 'rooms' })}>Enter the paperwork</Button></div>}
         {tiles.map((t) => <TilePick key={t.tag} job={job} t={t} n={flat.filter((f) => hasTile(f.x, t.tag)).length} />)}
       </Block>
       {tiles.length > 0 && tiles.every((t) => t.grout && (t.photo || t.swatch)) && <Good>Every tile has its grout and a picture.</Good>}
@@ -1251,12 +1251,12 @@ function Meeting({ job, v }: { job: Job; v: StepView }) {
         {!done && past && (
           <>
             <Field label={walk ? 'Anything he needs to know (optional)' : 'What was decided (optional)'}>
-              <TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={walk ? 'Where to start, what to watch out for' : 'Tile, layout, grout — anything that changed'} />
+              <TextArea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={walk ? 'Where to start, what to watch out for' : 'Tile, layout, grout. Anything that changed'} />
             </Field>
             <Actions><Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, v.key, notes.trim() || undefined, { close: !walk ? false : true })}>It happened</Button></Actions>
           </>
         )}
-        {!done && !past && <div className="text-[0.84375rem] text-muted">It’s on {ev.people.map((p) => PEOPLE[p]?.short).filter(Boolean).join(', ')}’s calendar and Today that day. After it happens, mark it done here{walk ? '' : ' — then say if anything changed from the estimate'}.</div>}
+        {!done && !past && <div className="text-[0.84375rem] text-muted">It’s on {ev.people.map((p) => PEOPLE[p]?.short).filter(Boolean).join(', ')}’s calendar and Today that day. After it happens, mark it done here{walk ? '' : ', then say if anything changed from the estimate'}.</div>}
       </div>
     )
   }
@@ -1271,7 +1271,7 @@ function Meeting({ job, v }: { job: Job; v: StepView }) {
         </Field>
         <Field label="With"><TextInput value={withWho} onChange={(e) => setWith(e.target.value)} placeholder={walk ? 'The installer' : 'The designer, the client…'} /></Field>
       </div>
-      <Field label="Who from us — it goes on their calendar and Today, and they’re told">
+      <Field label="Who from us. It goes on their calendar and Today, and they’re told">
         <MultiSelect
           label="Who from us"
           values={who}
@@ -1302,11 +1302,11 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
   const est = PEOPLE[estimatorFor(s, job.id)]?.short || 'the estimator'
   const crew = installerOf(s, job)
   const list = cos.length > 0 && (
-    <Block title="What changed — a change order each" right={`${cos.length}`}>
+    <Block title="What changed. A change order each" right={`${cos.length}`}>
       {cos.map((m) => (
         <OpenRow key={m.id} data-co={m.id} onClick={() => s.open({ t: 'money', id: m.id })} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
           <span className="min-w-0 flex-1"><span className="block truncate text-[0.875rem] font-semibold text-ink">{m.title}</span><span className="block truncate text-[0.78125rem] text-muted">{m.meta ? `${m.meta.from} → ${m.meta.to}` : m.note}</span></span>
-          <span className="shrink-0 text-right leading-tight"><span className="block text-[0.8125rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : '—'}</span><span className={cn('block text-[0.75rem] font-medium', m.step < 0 ? 'text-warn-700' : 'text-[#2c8a5b]')}>{coWord(m)}</span></span>
+          <span className="shrink-0 text-right leading-tight"><span className="block text-[0.8125rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : ''}</span><span className={cn('block text-[0.75rem] font-medium', m.step < 0 ? 'text-warn-700' : 'text-[#2c8a5b]')}>{coWord(m)}</span></span>
         </OpenRow>
       ))}
     </Block>
@@ -1317,18 +1317,18 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
         <Block title="What changed" right={`sent to ${est}`}>
           {old.map((c, n) => <div key={n} className="border-t border-line-2 px-4 py-2.5 text-[0.875rem] text-ink first:border-t-0"><b className="font-semibold">{c.what}</b>{c.where ? <span className="text-muted"> · {c.where}</span> : null}{c.note ? <span className="block text-[0.8125rem] text-muted">{c.note}</span> : null}</div>)}
         </Block>
-      ) : <Good>{v.note || 'Same as the estimate — confirmed'}</Good>
+      ) : <Good>{v.note || 'Same as the estimate · confirmed'}</Good>
   return (
     <div className="flex flex-col gap-4">
       {!adding && !cos.length && (
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <button data-same onClick={() => markStep(job.id, 'change', 'Same as the estimate — confirmed', { close: true })} className="flex items-start gap-3 rounded-xl border border-ok-200 bg-ok-50/60 px-4 py-3.5 text-left transition hover:bg-ok-50">
+          <button data-same onClick={() => markStep(job.id, 'change', 'Same as the estimate · confirmed', { close: true })} className="flex items-start gap-3 rounded-xl border border-ok-200 bg-ok-50/60 px-4 py-3.5 text-left transition hover:bg-ok-50">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Same as the estimate</span><span className="block text-[0.8125rem] leading-snug text-muted">Nothing changed at the meeting — the scope is set</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Same as the estimate</span><span className="block text-[0.8125rem] leading-snug text-muted">Nothing changed at the meeting. The scope is set</span></span>
           </button>
           <button data-changed onClick={() => setAdding(true)} className="flex items-start gap-3 rounded-xl border border-line bg-white px-4 py-3.5 text-left transition hover:border-[#cdc7bc] hover:bg-wash/40">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fbf2e1] text-warn-700"><Plus className="h-4 w-4" strokeWidth={3} /></span>
-            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Something changed</span><span className="block text-[0.8125rem] leading-snug text-muted">Each one a change order — {est} prices it, the client OKs it{crew ? `, ${PEOPLE[crew]?.short}’s PO` : ''} and the tile follow</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">Something changed</span><span className="block text-[0.8125rem] leading-snug text-muted">Each one a change order · {est} prices it, the client OKs it{crew ? `, ${PEOPLE[crew]?.short}’s PO` : ''} and the tile follow</span></span>
           </button>
         </div>
       )}
@@ -1337,7 +1337,7 @@ function EstimateCheck({ job, v }: { job: Job; v: StepView }) {
       {!adding && cos.length > 0 && (
         <Actions>
           <Button icon={<Plus />} onClick={() => setAdding(true)}>Another change</Button>
-          <Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, 'change', `${cos.length} change${cos.length === 1 ? '' : 's'} — change order${cos.length === 1 ? '' : 's'} started`, { close: true })}>That’s everything — the scope is set</Button>
+          <Button variant="primary" icon={<Check />} onClick={() => markStep(job.id, 'change', `${cos.length} change${cos.length === 1 ? '' : 's'} · change order${cos.length === 1 ? '' : 's'} started`, { close: true })}>That’s everything. The scope is set</Button>
         </Actions>
       )}
     </div>
@@ -1351,7 +1351,7 @@ export function InstallerAnswer({ ipo, job }: { ipo: IPO; job: Job }) {
   const name = PEOPLE[ipo.crew]?.short || 'him'
   return (
     <>
-      <WaitFor job={job} k="confirmed" who={name} label="Called him — waiting" />
+      <WaitFor job={job} k="confirmed" who={name} label="Called him · waiting" />
       <Pop open={noOpen} onOpenChange={setNoOpen} side="top" align="end" width={300} trigger={<Button icon={<X />} data-ipo-no>He said no</Button>}>
         <div className="text-[0.875rem] font-semibold text-ink">Why did {name} say no?</div>
         <div className="-mx-1 mt-2 flex flex-col">
@@ -1368,15 +1368,15 @@ function Confirmed({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const b = s.bookings.find((x) => x.jobId === job.id)
-  if (!ipo || ipo.status === 'Draft') return v.state === 'done' ? <Good>{v.note || 'Confirmed'}</Good> : <Block title="His yes"><Quiet>After his PO goes out — then it waits for his yes, and comes back on the list to call him.</Quiet></Block>
-  if (ipo.status === 'Rejected') return <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else on “Installer PO”.</div>
+  if (!ipo || ipo.status === 'Draft') return v.state === 'done' ? <Good>{v.note || 'Confirmed'}</Good> : <Block title="His yes"><Quiet>After his PO goes out, then it waits for his yes, and comes back on the list to call him.</Quiet></Block>
+  if (ipo.status === 'Rejected') return <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` · ${ipo.reason.toLowerCase()}` : ''}. Pick someone else on “Installer PO”.</div>
   return (
     <div className="flex flex-col gap-4">
       <OpenRow onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
         <Avatar who={ipo.crew} size={38} />
         <span className="min-w-0 flex-1">
           <span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew].name}</span>
-          <span className={cn('block text-[0.8125rem]', ipo.status === 'Accepted' ? 'text-ok-700' : 'text-warn-700')}>{ipo.id} · {ipo.status === 'Accepted' ? `took it ${ipo.date}` : 'sent — waiting for his yes'}{b ? ` · ${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''}</span>
+          <span className={cn('block text-[0.8125rem]', ipo.status === 'Accepted' ? 'text-ok-700' : 'text-warn-700')}>{ipo.id} · {ipo.status === 'Accepted' ? `took it ${ipo.date}` : 'sent. Waiting for his yes'}{b ? ` · ${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''}</span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
       </OpenRow>
@@ -1395,7 +1395,7 @@ function MaterialsIn({ job, v }: { job: Job; v: StepView }) {
   const open = s.pos.filter((p) => p.jobId === job.id && p.step >= 1 && p.step < 3)
   const [late, setLate] = React.useState(false)
   const [when, setWhen] = React.useState('Tomorrow')
-  if (!open.length) return v.state === 'done' ? <Good>{v.note || 'On site'}</Good> : <Block title="Our orders"><Quiet>After the order goes out — the day it’s due, it’s on the list of whoever ordered it: did it come?</Quiet></Block>
+  if (!open.length) return v.state === 'done' ? <Good>{v.note || 'On site'}</Good> : <Block title="Our orders"><Quiet>After the order goes out. The day it’s due, it’s on the list of whoever ordered it: did it come?</Quiet></Block>
   return (
     <div className="flex flex-col gap-4">
       <Block title="On the way" right={`${open.length} order${open.length === 1 ? '' : 's'}`}>
@@ -1472,7 +1472,7 @@ function Installer({ job }: { job: Job }) {
         {who ? (
           <div className="flex items-center gap-3 rounded-xl border border-line px-4 py-3" data-installer-penciled={who}>
             <Avatar who={who} size={34} />
-            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[who]?.name}</span><span className="block text-[0.8125rem] text-muted">Penciled in — his PO once the estimate is in</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[who]?.name}</span><span className="block text-[0.8125rem] text-muted">Penciled in. His PO once the estimate is in</span></span>
           </div>
         ) : (
           <>
@@ -1489,7 +1489,7 @@ function Installer({ job }: { job: Job }) {
       <div className="flex flex-col gap-4" data-installer-redo>
         <div className="flex items-center gap-3 rounded-xl border border-line px-4 py-3">
           <Avatar who={ipo.crew} size={34} />
-          <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew]?.name}</span><span className="block text-[0.8125rem] text-muted">{ipo.id} has nothing on it yet — it was made before the estimate was in</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">{PEOPLE[ipo.crew]?.name}</span><span className="block text-[0.8125rem] text-muted">{ipo.id} has nothing on it yet. It was made before the estimate was in</span></span>
         </div>
         <Actions><Button variant="primary" onClick={() => pickInstaller(job.id, ipo.crew)} data-installer-from-estimate>Make his PO from the estimate</Button></Actions>
       </div>
@@ -1497,7 +1497,7 @@ function Installer({ job }: { job: Job }) {
   }
   if (ipo && ipo.status !== 'Rejected') {
     const r = poRatio(s, ipo)
-    const said = ipo.status === 'Draft' ? 'Not sent yet' : ipo.status === 'Sent' ? 'Sent — waiting for him to accept' : `Accepted ${ipo.date}`
+    const said = ipo.status === 'Draft' ? 'Not sent yet' : ipo.status === 'Sent' ? 'Sent. Waiting for him to accept' : `Accepted ${ipo.date}`
     return (
       <div className="flex flex-col gap-3">
         <OpenRow onClick={() => s.open({ t: 'ipo', id: ipo.id })} className="flex items-center gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-[#cdc7bc] hover:bg-wash/50">
@@ -1518,11 +1518,11 @@ function Installer({ job }: { job: Job }) {
   }
   return (
     <div className="flex flex-col gap-4">
-      {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` — ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
+      {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` · ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
       {picker}
       {/* a job already going, or done on a handshake: he's on it without a PO here */}
       <Actions>
-        {ipo?.status !== 'Rejected' && <Button disabled={!pick} onClick={() => pick && putOnNoPO(job.id, pick)} data-installer-no-po>Put him on — no PO</Button>}
+        {ipo?.status !== 'Rejected' && <Button disabled={!pick} onClick={() => pick && putOnNoPO(job.id, pick)} data-installer-no-po>Put him on · no PO</Button>}
         <Button variant="primary" disabled={!pick} onClick={() => pick && pickInstaller(job.id, pick)}>Make his PO</Button>
       </Actions>
     </div>
@@ -1538,7 +1538,7 @@ function Setup({ job, v }: { job: Job; v: StepView }) {
     rooms.forEach((r) => r.surfaces.forEach((x) => { c[`${r.name}|${x.name}`] = methodOf(r.name, x).key }))
     return c
   })
-  if (!rooms.length) return <Block title="What each floor and wall is set on"><Quiet>The rooms need square feet first — the setup and our materials go by them.</Quiet></Block>
+  if (!rooms.length) return <Block title="What each floor and wall is set on"><Quiet>The rooms need square feet first. The setup and our materials go by them.</Quiet></Block>
   const patched = (s.rooms[job.id] || []).map((r) => ({ ...r, surfaces: r.surfaces.map((x) => (choice[`${r.name}|${x.name}`] ? { ...x, method: choice[`${r.name}|${x.name}`] } : x)) }))
   const t = takeoff({ ...s, rooms: { ...s.rooms, [job.id]: patched } }, job.id)
   const toOrder = t.lines.filter((l) => l.toOrder > 0)
@@ -1565,7 +1565,7 @@ function Setup({ job, v }: { job: Job; v: StepView }) {
           </div>
         ))}
       </Block>
-      <div className="mt-3 text-[0.84375rem] text-muted">{toOrder.length ? <>That comes to <b className="font-semibold text-ink">{toOrder.length} materials</b> to order, about {fmtMoney(total)} — {PEOPLE[matBy(s)]?.short} gets the order.</> : 'Nothing new to order for it.'}</div>
+      <div className="mt-3 text-[0.84375rem] text-muted">{toOrder.length ? <>That comes to <b className="font-semibold text-ink">{toOrder.length} materials</b> to order, about {fmtMoney(total)} · {PEOPLE[matBy(s)]?.short} gets the order.</> : 'Nothing new to order for it.'}</div>
       <Actions><Button variant="primary" icon={<Check />} onClick={() => confirmSetting(job.id, choice)}>{v.state === 'done' ? 'Save the changes' : 'Confirm the setup'}</Button></Actions>
     </div>
   )
@@ -1583,7 +1583,7 @@ function Order({ job, v }: { job: Job; v: StepView }) {
   const pos = s.pos.filter((p) => p.jobId === job.id && p.kind === 'tile' && !/cancelled/i.test(p.note))
   const poLine = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line px-4 py-3" data-tile-po-step>
-      <span className="min-w-0 flex-1 text-[0.84375rem] text-ink-2">{pos.length ? <>On {pos.map((p, i) => <React.Fragment key={p.id}>{i ? ', ' : ''}<button type="button" onClick={() => s.open({ t: 'po', id: p.id })} className="font-semibold text-brand-700 hover:underline">{p.id}</button></React.Fragment>)} — the store confirms the day on it.</> : 'Send the store a tile PO — it has its own number, and they confirm the delivery day on it.'}</span>
+      <span className="min-w-0 flex-1 text-[0.84375rem] text-ink-2">{pos.length ? <>On {pos.map((p, i) => <React.Fragment key={p.id}>{i ? ', ' : ''}<button type="button" onClick={() => s.open({ t: 'po', id: p.id })} className="font-semibold text-brand-700 hover:underline">{p.id}</button></React.Fragment>)} · the store confirms the day on it.</> : 'Send the store a tile PO. It has its own number, and they confirm the delivery day on it.'}</span>
       <Button size="sm" icon={<Send />} onClick={() => s.open({ t: 'newtilepo', jobId: job.id })}>{pos.length ? 'Another tile PO' : 'Tile PO'}</Button>
     </div>
   )
@@ -1609,7 +1609,7 @@ function Order({ job, v }: { job: Job; v: StepView }) {
   return (
     <div className="flex flex-col gap-4">
       {poLine}
-      <Field label="Or, the GC set it up — when is the tile being delivered?"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
+      <Field label="Or, the GC set it up, when is the tile being delivered?"><DatePresets value={when} onPick={setWhen} presets={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} /></Field>
       {receiver && (
         <div className="flex items-center gap-2.5 text-[0.84375rem] text-ink-2" data-receiver={receiver}>
           <Avatar who={receiver} size={26} />
@@ -1672,7 +1672,7 @@ function SiteCheck({ job, v }: { job: Job; v: StepView }) {
       {done && (
         <div className={cn('flex items-center gap-2.5 rounded-xl px-4 py-3 text-[0.875rem] font-semibold', wrong.length ? 'bg-[#fdf3f1] text-bad-700' : 'bg-ok-50 text-ok-700')} data-site-done>
           {wrong.length ? <StepIcon state="bad" size={22} /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full bg-ok-500 text-white"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>}
-          {wrong.length ? `Site check done — ${wrong.length === 1 ? 'one thing' : `${wrong.length} things`} to fix, on ${fixerName} list (Fix problems)` : 'Site check done — everything’s good on site'}
+          {wrong.length ? `Site check done · ${wrong.length === 1 ? 'one thing' : `${wrong.length} things`} to fix, on ${fixerName} list (Fix problems)` : 'Site check done. Everything’s good on site'}
         </div>
       )}
       <Block title="The whole site" right={`${asked} of ${qs.length} done`}>
@@ -1757,7 +1757,7 @@ function SiteFixes({ job, v }: { job: Job; v: StepView }) {
   const answers = s.stepRecs[job.id]?.heights?.checks || {}
   const wrong = Object.entries(answers).filter(([, c]) => !c.ok && !c.na)
   const site = stepsFor(s, job).find((x) => x.key === 'heights')?.owner
-  if (!wrong.length) return <Good>{v.state === 'done' ? v.note || 'Fixed — and checked again on site' : 'Nothing to fix'}</Good>
+  if (!wrong.length) return <Good>{v.state === 'done' ? v.note || 'Fixed, and checked again on site' : 'Nothing to fix'}</Good>
   const toFix = wrong.filter(([, c]) => !c.fixed).length
   return (
     <div className="flex flex-col gap-4">
@@ -1769,7 +1769,7 @@ function SiteFixes({ job, v }: { job: Job; v: StepView }) {
               <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', c.fixed ? 'bg-brand-50 text-brand-600' : 'bg-bad-50 text-bad-600')}><Ic className="h-4 w-4" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[0.875rem] font-semibold text-ink">{siteProblem(k, c)}</span>
-                <span className={cn('block text-[0.78125rem]', c.fixed ? 'text-brand-700' : 'text-muted')}>{c.fixed ? `Fixed ${c.fixed}${c.fixedBy ? ` · ${PEOPLE[c.fixedBy]?.short}` : ''} — ${site === me ? 'look at it again on site' : `${PEOPLE[site as PersonKey]?.short || 'the site manager'} looks again on site`}` : `Found ${c.at || ''}${c.by ? ` by ${PEOPLE[c.by]?.short}` : ''} on the site check`}</span>
+                <span className={cn('block text-[0.78125rem]', c.fixed ? 'text-brand-700' : 'text-muted')}>{c.fixed ? `Fixed ${c.fixed}${c.fixedBy ? ` · ${PEOPLE[c.fixedBy]?.short}` : ''} · ${site === me ? 'look at it again on site' : `${PEOPLE[site as PersonKey]?.short || 'the site manager'} looks again on site`}` : `Found ${c.at || ''}${c.by ? ` by ${PEOPLE[c.by]?.short}` : ''} on the site check`}</span>
               </span>
               {c.fixed
                 ? <span className="flex shrink-0 gap-1.5 max-sm:ml-auto"><Button size="sm" variant="ghost" onClick={() => siteRecheck(job.id, k, false)}>Still not</Button><Button size="sm" variant="primary" icon={<Check />} onClick={() => siteRecheck(job.id, k, true)}>It’s fixed</Button></span>
@@ -1778,7 +1778,7 @@ function SiteFixes({ job, v }: { job: Job; v: StepView }) {
           )
         })}
       </Block>
-      {toFix > 0 && <Actions><WaitFor job={job} k="fixes" who="The GC" label="Asked the GC — waiting" /></Actions>}
+      {toFix > 0 && <Actions><WaitFor job={job} k="fixes" who="The GC" label="Asked the GC · waiting" /></Actions>}
     </div>
   )
 }
@@ -1797,8 +1797,8 @@ function Reading({ label, value, onSave, bad, hint = '48' }: { label: string; va
     <span className="inline-flex items-center gap-1">
       <input aria-label={label} inputMode="numeric" value={whole} placeholder={hint} onChange={(e) => setWhole(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={() => commit(whole, frac)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.125rem] px-1.5 text-center')} />
       <span className="relative inline-flex">
-        <select aria-label={`${label} — the fraction`} value={String(frac)} onChange={(e) => { const f = Number(e.target.value); setFrac(f); if (whole.trim() !== '') commit(whole, f) }} className={cn(box, 'w-[3.75rem] appearance-none pl-2 pr-6')}>
-          {FRACS.map(([t, n]) => <option key={t} value={String(n)}>{t === '0' ? '—' : t}</option>)}
+        <select aria-label={`${label} · the fraction`} value={String(frac)} onChange={(e) => { const f = Number(e.target.value); setFrac(f); if (whole.trim() !== '') commit(whole, f) }} className={cn(box, 'w-[3.75rem] appearance-none pl-2 pr-6')}>
+          {FRACS.map(([t, n]) => <option key={t} value={String(n)}>{t === '0' ? '' : t}</option>)}
         </select>
         <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
       </span>
@@ -1830,20 +1830,20 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
     setFloorLevel(job.id, f.room.name, high, low)
   }
   const saveHeight = () => { const n = Number(height); if (n > 0 && n !== at) setLaser(job.id, where, n); else setHeight(String(at)) }
-  if (!rooms.length) return <div className="rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-muted">No floors on this project — nothing to measure.</div>
+  if (!rooms.length) return <div className="rounded-xl bg-wash px-4 py-3 text-[0.84375rem] text-muted">No floors on this project. Nothing to measure.</div>
   const box = 'h-9 rounded-lg border border-line bg-white px-3 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
   return (
     <div>
       <div className="rounded-xl border border-line bg-[#faf8f5] px-4 py-3" data-laser>
         <div className="text-[0.875rem] font-semibold text-ink">How to measure</div>
         <ol className="mt-1.5 flex flex-col gap-1 text-[0.84375rem] leading-snug text-ink-2">
-          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">1</b><span>Set the laser on its tripod in the middle of the floor. At the door, raise it until the line is <b className="font-semibold text-ink">{at}″ off the floor</b> — mark it on the wall.</span></li>
-          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">2</b><span>In every room, look for the highest and the lowest spot — the corners, the middle, along the walls.</span></li>
+          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">1</b><span>Set the laser on its tripod in the middle of the floor. At the door, raise it until the line is <b className="font-semibold text-ink">{at}″ off the floor</b> · mark it on the wall.</span></li>
+          <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">2</b><span>In every room, look for the highest and the lowest spot. The corners, the middle, along the walls.</span></li>
           <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">3</b><span>At each, measure from the floor up to the laser line and type it below. The highest spot has the <b className="font-semibold text-ink">shortest</b> number.</span></li>
         </ol>
         <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[0.8125rem] text-muted">
           <label className="inline-flex items-center gap-1.5">Line at<input aria-label="The laser line, inches off the floor" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} onBlur={saveHeight} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className={cn(box, 'w-[3.5rem] px-1.5 text-center tnum')} />″</label>
-          <input aria-label="Where the laser line is set" value={where} onChange={(e) => setWhere(e.target.value)} onBlur={() => setLaser(job.id, where)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="Where you marked it (optional) — e.g. the hallway wall by the door" className={cn(box, 'min-w-[12rem] flex-1')} />
+          <input aria-label="Where the laser line is set" value={where} onChange={(e) => setWhere(e.target.value)} onBlur={() => setLaser(job.id, where)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder="Where you marked it (optional) · e.g. the hallway wall by the door" className={cn(box, 'min-w-[12rem] flex-1')} />
         </div>
         {laser?.date && <div className="mt-1.5 text-[0.75rem] text-faint">Noted {labelFromIso(laser.date)}{laser.by ? ` by ${PEOPLE[laser.by as PersonKey]?.short || ''}` : ''}</div>}
       </div>
@@ -1859,7 +1859,7 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
               <span className="min-w-0 max-sm:col-span-2 @max-md:col-span-2">
                 <span className="block truncate text-[0.875rem] font-semibold text-ink">{f.room.name}</span>
                 <span className={cn('block truncate text-[0.75rem]', f.mud ? 'text-muted' : !w ? 'text-faint' : w.tone === 'ok' ? 'text-ok-700' : w.tone === 'warn' ? 'text-warn-700' : 'font-semibold text-bad-600')}>
-                  {f.mud ? 'Mud bed — it levels itself' : w ? w.label : method === 'slu' ? 'Self-leveler planned — measure it anyway' : 'Not measured yet'}
+                  {f.mud ? 'Mud bed. It levels itself' : w ? w.label : method === 'slu' ? 'Self-leveler planned. Measure it anyway' : 'Not measured yet'}
                 </span>
               </span>
               {f.mud
@@ -1867,7 +1867,7 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
                 : (['high', 'low'] as const).map((k) => (
                   <span key={k} className="inline-flex flex-col items-start gap-0.5">
                     <span className="text-[0.6875rem] font-semibold text-faint sm:hidden @max-md:block">{k === 'high' ? 'Highest spot' : 'Lowest spot'}</span>
-                    <Reading label={`${f.room.name} — ${k === 'high' ? 'highest' : 'lowest'} spot, floor to laser, in inches`} hint={String(at)} value={draft[`${f.room.name}|${k}`] ?? f.room.level?.[k]} bad={w?.tone === 'bad'} onSave={(n) => save(f, k, n)} />
+                    <Reading label={`${f.room.name} · ${k === 'high' ? 'highest' : 'lowest'} spot, floor to laser, in inches`} hint={String(at)} value={draft[`${f.room.name}|${k}`] ?? f.room.level?.[k]} bad={w?.tone === 'bad'} onSave={(n) => save(f, k, n)} />
                   </span>
                 ))}
             </div>
@@ -1877,8 +1877,8 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
       <div className="mt-2 text-[0.75rem] leading-snug text-muted">Up to {fracIn(LEVEL_OK)} out is fine. Up to {fracIn(LEVEL_PREP)} gets self-leveler, and the materials follow. More than that, the GC fixes the floor before we start.</div>
       {v.state !== 'done' && (
         <Actions>
-          {bad.length > 0 && <Button variant="primary" icon={<Send />} onClick={() => sendFloorProblems(job.id)}>Tell the office — {bad.length === 1 ? `${bad[0].room.name} is ${fracIn(bad[0].word!.diff)} out` : `${bad.length} floors are out`}</Button>}
-          {!bad.length && measured.length > 0 && measured.length < toDo.length && <span className="text-[0.8125rem] text-muted">{toDo.length - measured.length} more to measure — it’s done when every floor has its numbers.</span>}
+          {bad.length > 0 && <Button variant="primary" icon={<Send />} onClick={() => sendFloorProblems(job.id)}>Tell the office · {bad.length === 1 ? `${bad[0].room.name} is ${fracIn(bad[0].word!.diff)} out` : `${bad.length} floors are out`}</Button>}
+          {!bad.length && measured.length > 0 && measured.length < toDo.length && <span className="text-[0.8125rem] text-muted">{toDo.length - measured.length} more to measure. It’s done when every floor has its numbers.</span>}
         </Actions>
       )}
     </div>
@@ -1886,9 +1886,9 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
 }
 /* ================= 9 · our materials — by what they're for, worked out from the setup and the square feet ================= */
 const GROUP_EMPTY: Record<Group, string> = {
-  'Floor prep': 'Nothing under the floors — they go on the slab',
+  'Floor prep': 'Nothing under the floors. They go on the slab',
   'Walls and waterproofing': 'Nothing on the walls before the tile',
-  'Setting and grout': 'After the tile is picked — thinset and grout go by the tile',
+  'Setting and grout': 'After the tile is picked. Thinset and grout go by the tile',
   'Metal edges': 'No metal edges on this job',
 }
 function Materials({ job, v }: { job: Job; v: StepView }) {
@@ -1902,7 +1902,7 @@ function Materials({ job, v }: { job: Job; v: StepView }) {
   if (!t.total || !t.counted) return <Block title="Our materials"><Quiet>{ms.hint}</Quiet></Block>
   return (
     <div className="flex flex-col gap-3">
-      <Block title="What it takes" right={`${t.sf.toLocaleString('en-US')} SF · ${setupOpen ? 'the setup isn’t decided yet — suggested' : 'from the setup'}`}>
+      <Block title="What it takes" right={`${t.sf.toLocaleString('en-US')} SF · ${setupOpen ? 'the setup isn’t decided yet · suggested' : 'from the setup'}`}>
         {GROUPS.map((g) => {
           const lines = t.lines.filter((l) => l.group === g && l.need > 0)
           return (
@@ -1925,11 +1925,11 @@ function Materials({ job, v }: { job: Job; v: StepView }) {
       </Block>
       {(noSF.length > 0 || noTile.length > 0) && (
         <div className="text-[0.78125rem] leading-snug text-muted">
-          {noTile.length > 0 && <div>Thinset and grout come in once the tile is picked — {noTile.length} {noTile.length === 1 ? 'wall or floor' : 'walls and floors'} still without one.</div>}
-          {noSF.length > 0 && <div>Not counted — no square feet yet: {noSF.slice(0, 3).map((k) => `${k.room} ${k.surface.toLowerCase()}`).join(', ')}{noSF.length > 3 ? ` and ${noSF.length - 3} more` : ''}.</div>}
+          {noTile.length > 0 && <div>Thinset and grout come in once the tile is picked · {noTile.length} {noTile.length === 1 ? 'wall or floor' : 'walls and floors'} still without one.</div>}
+          {noSF.length > 0 && <div>Not counted. No square feet yet: {noSF.slice(0, 3).map((k) => `${k.room} ${k.surface.toLowerCase()}`).join(', ')}{noSF.length > 3 ? ` and ${noSF.length - 3} more` : ''}.</div>}
         </div>
       )}
-      {v.state !== 'done' && toOrder.length > 0 && <Actions><Button variant="primary" icon={<Truck />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order them — {toOrder.length} {toOrder.length === 1 ? 'material' : 'materials'}</Button></Actions>}
+      {v.state !== 'done' && toOrder.length > 0 && <Actions><Button variant="primary" icon={<Truck />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order them · {toOrder.length} {toOrder.length === 1 ? 'material' : 'materials'}</Button></Actions>}
     </div>
   )
 }
@@ -2011,7 +2011,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
   if (badTags.size) return <div className="space-y-4"><TileProblems job={job} /><Actions><Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Another problem</Button></Actions></div>
   return (
     <div>
-      <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> — count the boxes against the order.</> : 'No delivery date yet — it’s set on the tile order step.'}</div>
+      <div className="rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink">{v.due ? <>Delivery <b className="font-semibold">{labelFromIso(v.due)}</b> · count the boxes against the order.</> : 'No delivery date yet. It’s set on the tile order step.'}</div>
       <Actions>
         <Button icon={<PackageX />} onClick={() => s.open({ t: 'problem', jobId: job.id })}>Broken, wrong or missing</Button>
         {v.due && v.state !== 'wait' && <TileNotYet job={job} />}
@@ -2029,7 +2029,7 @@ function Delivered({ job, v }: { job: Job; v: StepView }) {
 function Sheets({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
   const rooms = sheetRooms(s, job.id)
-  if (!rooms.length) return <p className="text-[0.875rem] text-muted">No tile on any wall or floor yet — the sheets are made from the tile paperwork.</p>
+  if (!rooms.length) return <p className="text-[0.875rem] text-muted">No tile on any wall or floor yet. The sheets are made from the tile paperwork.</p>
   return (
     <div data-sheets-step>
       <div className="overflow-hidden rounded-xl border border-line">

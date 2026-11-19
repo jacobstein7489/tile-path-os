@@ -38,7 +38,7 @@ export function FilesTab({ job }: { job: Job }) {
     setBusy(k)
     const { problem } = await keepFiles(job.id, list, k)
     setBusy(null)
-    if (problem) toast(`Not kept — ${problem}`)
+    if (problem) toast(`Not kept · ${problem}`)
   }
   const kindOfFile = (f: File): FileRec['kind'] => (/^image\//.test(f.type) ? 'photo' : 'other')
   const photos = mine.filter((f) => f.kind === 'photo')
@@ -55,7 +55,7 @@ export function FilesTab({ job }: { job: Job }) {
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[0.90625rem] font-semibold text-ink">{busy ? `Adding ${KIND_LABEL[busy].toLowerCase()}…` : 'Add files and photos'}</span>
-          <span className="block text-[0.8125rem] text-muted">The tile paperwork, plans and spec book, site photos — drop them here or pick them.{REAL.cloud ? '' : ' (The preview keeps them only while it’s open.)'}</span>
+          <span className="block text-[0.8125rem] text-muted">The tile paperwork, plans and spec book, site photos. Drop them here or pick them.{REAL.cloud ? '' : ' (The preview keeps them only while it’s open.)'}</span>
         </span>
         <span className="flex flex-wrap gap-2">
           <Button size="sm" icon={<Camera />} onClick={() => pick('photo')}>Photos</Button>
@@ -90,7 +90,7 @@ export function FilesTab({ job }: { job: Job }) {
             {sample.map((f) => {
               const Ic = KIND_ICON[f.kind] || FileText
               return (
-                <button key={f.name} onClick={() => toast(`${f.name} — a sample document`)} className="flex items-start gap-3.5 rounded-2xl border border-line p-4 text-left transition hover:bg-wash">
+                <button key={f.name} onClick={() => toast(`${f.name}. A sample document`)} className="flex items-start gap-3.5 rounded-2xl border border-line p-4 text-left transition hover:bg-wash">
                   <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600"><Ic className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.90625rem] font-semibold text-ink">{f.name}</span>

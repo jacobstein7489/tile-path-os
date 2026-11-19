@@ -51,7 +51,7 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
   const groups = paperGroups(rev)
   const total = revTotal(rev)
   const unitOf = (l: EstLine) => { const u = s.items.find((i) => i.id === l.itemId)?.unit || 'EA'; return u === 'LS' ? 'EA' : u }
-  const qty = (l: EstLine) => (l.qty ? `${l.qty.toLocaleString('en-US')} ${unitOf(l)}` : '—')
+  const qty = (l: EstLine) => (l.qty ? `${l.qty.toLocaleString('en-US')} ${unitOf(l)}` : '')
   const date = `${rev.sentOn || rev.date}, ${TODAY.slice(0, 4)}`
   const toMeasure = rev.lines.filter((l) => !l.qty).length
   return (
@@ -76,7 +76,7 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
                     <span className="min-w-0">{paperText(l, s.items.find((i) => i.id === l.itemId)?.name, e.jobId)}</span>
                     <span className="flex shrink-0 gap-3 tnum">
                       <span className="w-[5.25rem] text-right">{qty(l)}</span>
-                      {prices && <span className="w-[5.75rem] text-right">{l.qty ? fmtMoney(l.qty * l.rate) : '—'}</span>}
+                      {prices && <span className="w-[5.75rem] text-right">{l.qty ? fmtMoney(l.qty * l.rate) : ''}</span>}
                     </span>
                   </div>
                 ))}
@@ -98,14 +98,14 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
           <div className="ml-auto flex w-full max-w-[20rem] items-center justify-between px-2 py-2 text-[0.8125rem] font-semibold text-white" style={{ background: GREEN }}>
             <span>Total</span><span className="tnum">{fmtMoney(total)}</span>
           </div>
-          {toMeasure > 0 && <div className="mt-1 text-right text-[0.6875rem] font-semibold text-[#b06a0c]">{toMeasure} {toMeasure === 1 ? 'line' : 'lines'} still to measure — not in the total yet</div>}
+          {toMeasure > 0 && <div className="mt-1 text-right text-[0.6875rem] font-semibold text-[#b06a0c]">{toMeasure} {toMeasure === 1 ? 'line' : 'lines'} still to measure, not in the total yet</div>}
           <div className="mt-6 text-[0.71875rem] leading-relaxed text-[#444]">
             <div className="mb-1 text-[0.71875rem] font-semibold" style={{ color: GREEN }}>Terms</div>
             Labor and setting materials included; finish tile supplied by others unless listed above.
             {s.rules.depositPct ? ` ${s.rules.depositPct}% deposit to schedule the work.` : ''} Progress billing monthly{s.rules.retainage ? `, ${s.rules.retainage}% retainage released at completion` : ''}. Prices good for 30 days.
           </div>
           <div className="mt-8 grid grid-cols-2 gap-8 text-[0.71875rem] max-sm:grid-cols-1">
-            {[`Accepted by — ${j.client}`, 'Cobblestone'].map((who) => (
+            {[`Accepted by · ${j.client}`, 'Cobblestone'].map((who) => (
               <div key={who}>
                 <div className="h-8 border-b border-[#999]" />
                 <div className="mt-1 flex justify-between text-[#666]"><span>{who}</span><span>Date</span></div>
@@ -115,7 +115,7 @@ export function EstimatePaper({ e, rev, prices = true, innerRef }: { e: Estimate
         </div>
       )}
 
-      <DocFoot left={prices ? `${j.name} · Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''}${smp(' — sample amounts')}` : `${j.name} · based on estimate ${e.id}`} page={1} />
+      <DocFoot left={prices ? `${j.name} · Estimate ${e.id}${rev.n > 1 ? ` · revision ${rev.n}` : ''}${smp(' · sample amounts')}` : `${j.name} · based on estimate ${e.id}`} page={1} />
     </div>
   )
 }

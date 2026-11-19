@@ -71,7 +71,7 @@ export function gcState(t: Task): GcState {
   const told = toldGc(t)
   const n = t.needBy ? daysBetween(TODAY, t.needBy) : undefined
   if (!told && fu && fu < TODAY) return { text: 'GC not told yet', tone: 'bad', flag: true }
-  if (t.promised && t.promised < TODAY) return { text: `GC said ${md(t.promised)} — not done`, tone: 'bad', flag: true }
+  if (t.promised && t.promised < TODAY) return { text: `GC said ${md(t.promised)}, not done`, tone: 'bad', flag: true }
   if (told && fu && fu < TODAY) return { text: `Reminder ${days(Math.max(1, workDaysTo(fu, TODAY)))} late`, tone: 'bad', flag: true }
   if (n !== undefined && n <= 7) return { text: n < 0 ? `Needed ${days(-n)} ago` : n === 0 ? 'Needed today' : `${days(n)} left`, tone: 'bad', flag: true }
   if (!told) return { text: 'Tell the GC today', tone: 'warn', flag: false }
@@ -90,9 +90,9 @@ export const askLabel = (t: Task) => (isQuestion(t) && !toldGc(t) ? 'Ask the GC'
 /** the item as the GC reads it — without "from the GC", "GC to…", or who asked for it */
 export function gcWords(title: string): string {
   const w = title
-    .replace(/\s*[—–-]\s*(for|tell)\s+[A-Z][\w']*\s*$/u, '')
-    .replace(/\s*[—–-]\s*(the )?(gc|contractor)\b.*$/i, '')
-    .replace(/\s*[—–-]?\s*(waiting on|from) the gc\s*$/i, '')
+    .replace(/\s*[—–·-]\s*(for|tell)\s+[A-Z][\w']*\s*$/u, '')
+    .replace(/\s*[—–·-]\s*(the )?(gc|contractor)\b.*$/i, '')
+    .replace(/\s*[—–·-]?\s*(waiting on|from) the gc\s*$/i, '')
     .replace(/^(the )?gc (to|has to|needs to|must|should|will)\s+/i, '')
     .trim()
   return w.charAt(0).toUpperCase() + w.slice(1)
@@ -104,8 +104,8 @@ export function gcMessage(s: Pick<Store, 'jobs'>, t: Task): string {
   const again = toldGc(t)
   const q = /\?\s*$/.test(what)
   const n = t.needBy ? daysBetween(TODAY, t.needBy) : undefined
-  const when = n === undefined ? '' : n > 7 ? `Our crew starts ${dayShort(t.needBy!)}.` : n > 1 ? `Our crew starts ${dayShort(t.needBy!)} — ${n} days from now.` : n === 1 ? 'Our crew starts tomorrow.' : n === 0 ? 'Our crew starts today.' : 'Our crew is on the job.'
-  const ask = q && !again ? '' : n !== undefined && n <= 2 ? 'We need it now — please let us know today.' : n !== undefined && n <= 7 ? 'We need it before then. When will it be done?' : q ? 'Can you let us know?' : 'When will it be done?'
+  const when = n === undefined ? '' : n > 7 ? `Our crew starts ${dayShort(t.needBy!)}.` : n > 1 ? `Our crew starts ${dayShort(t.needBy!)} · ${n} days from now.` : n === 1 ? 'Our crew starts tomorrow.' : n === 0 ? 'Our crew starts today.' : 'Our crew is on the job.'
+  const ask = q && !again ? '' : n !== undefined && n <= 2 ? 'We need it now. Please let us know today.' : n !== undefined && n <= 7 ? 'We need it before then. When will it be done?' : q ? 'Can you let us know?' : 'When will it be done?'
   const head = `Hi, it’s Cobblestone${again ? ' again' : ''}${j ? `, about ${j.name}` : ''}.`
   const end = /[.!?]$/.test(what) ? '' : '.'
   /* lower-case only a word, never a name or a number: "the drain" — but "CO-004", "PO-2386" stay as they are */
@@ -116,7 +116,7 @@ export function gcMessage(s: Pick<Store, 'jobs'>, t: Task): string {
 /** the answer, written for whoever was waiting for it */
 export function passOnMessage(s: Pick<Store, 'jobs'>, t: Task, answer: string): string {
   const j = s.jobs[t.jobId]
-  return `${j ? `${j.name} — ` : ''}${gcWords(t.title)}\n${answer.trim()}`
+  return `${j ? `${j.name} · ` : ''}${gcWords(t.title)}\n${answer.trim()}`
 }
 
 /** WhatsApp, open with the message ready — you pick the chat (the GC's group) and send. Its own link: official */
@@ -125,7 +125,7 @@ export function openWhatsApp(text: string) {
   try { window.open(waLink(text), '_blank', 'noopener,noreferrer') } catch { /* a blocked window: Copy is there */ }
 }
 export async function copyText(text: string) {
-  try { await navigator.clipboard.writeText(text); toast('Copied — paste it where you need it') } catch { toast('Couldn’t copy — select it and copy') }
+  try { await navigator.clipboard.writeText(text); toast('Copied. Paste it where you need it') } catch { toast('Couldn’t copy. Select it and copy') }
 }
 
 /* ---------------- what happens ---------------- */
@@ -145,7 +145,7 @@ export function askedGc(id: string) {
     if (x.promised && x.promised <= TODAY) x.promised = undefined
     x.followUp = md(next)
     ;(x.log ||= []).push({ date: NOW, who: me, text: first ? 'Told the GC' : 'Reminded the GC' })
-  }, first ? 'Sent to the GC' : 'Reminded the GC', { tone: 'wait', sub: `Next reminder ${labelFromIso(next) === 'Tomorrow' ? 'tomorrow' : labelFromIso(next)} — it’s off your list until then.` })
+  }, first ? 'Sent to the GC' : 'Reminded the GC', { tone: 'wait', sub: `Next reminder ${labelFromIso(next) === 'Tomorrow' ? 'tomorrow' : labelFromIso(next)}. It’s off your list until then.` })
 }
 /** the day it has to be done by */
 export function setNeedBy(id: string, iso?: string) {
@@ -180,18 +180,18 @@ export async function gcAnswered(id: string, o: { text: string; done?: boolean; 
       x.state = 'done'
       x.doneAt = 'Just now'
       x.doneOn = TODAY
-      x.result = o.passedTo ? `${said} — sent to ${to}` : said || (o.photos?.length ? 'Done — the photo is with the project' : 'Done')
-      x.log.push({ date: NOW, who: me, text: o.passedTo ? `Sent to ${to}` : o.photos?.length ? 'Done — with a photo' : 'Done' })
+      x.result = o.passedTo ? `${said} · sent to ${to}` : said || (o.photos?.length ? 'Done. The photo is with the project' : 'Done')
+      x.log.push({ date: NOW, who: me, text: o.passedTo ? `Sent to ${to}` : o.photos?.length ? 'Done. With a photo' : 'Done' })
       if (x.jobId) addHist(st, x.jobId, { who: me, kind: 'field', title: `Done · ${x.title}`, detail: [said && `The GC: “${said}”`, o.passedTo && `sent to ${to}`, o.photos?.length && `${o.photos.length === 1 ? 'a photo' : `${o.photos.length} photos`} of it`].filter(Boolean).join(' · ') || undefined })
       /* whoever follows it hears it's done */
       const hear = Array.from(new Set([x.by, x.owner, ...(x.followers || [])].filter((p): p is PersonKey => !!p && p !== me)))
-      if (hear.length) st.notices.unshift({ id: 'nt' + Date.now(), jobId: x.jobId, text: `Done · ${x.title}${st.jobs[x.jobId] ? ` at ${st.jobs[x.jobId].name}` : ''} — ${PEOPLE[me]?.short || 'someone'}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id: x.id }, for: hear })
+      if (hear.length) st.notices.unshift({ id: 'nt' + Date.now(), jobId: x.jobId, text: `Done · ${x.title}${st.jobs[x.jobId] ? ` at ${st.jobs[x.jobId].name}` : ''} · ${PEOPLE[me]?.short || 'someone'}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id: x.id }, for: hear })
       return
     }
     if (o.day) x.promised = o.day
     x.followUp = md(next)
     if (said && x.jobId) addHist(st, x.jobId, { who: me, kind: 'field', title: `The GC on ${x.title}`, detail: `“${said}”${o.day ? ` · checked again ${md(o.day)}` : ''}` })
-  }, o.done ? (o.passedTo ? `Sent to ${to}` : 'Done!') : o.day ? `The GC said ${labelFromIso(o.day) === 'Tomorrow' ? 'tomorrow' : labelFromIso(o.day)}` : 'Saved', { tone: o.done ? 'done' : 'wait', sub: o.done ? t0.title : `It’s back on the list ${labelFromIso(next) === 'Tomorrow' ? 'tomorrow' : labelFromIso(next)} — done only when it’s done.` })
+  }, o.done ? (o.passedTo ? `Sent to ${to}` : 'Done!') : o.day ? `The GC said ${labelFromIso(o.day) === 'Tomorrow' ? 'tomorrow' : labelFromIso(o.day)}` : 'Saved', { tone: o.done ? 'done' : 'wait', sub: o.done ? t0.title : `It’s back on the list ${labelFromIso(next) === 'Tomorrow' ? 'tomorrow' : labelFromIso(next)}. Done only when it’s done.` })
 }
 
 /* ---------------- in the item's window ---------------- */
@@ -250,7 +250,7 @@ export function GcAnswer({ t, onDone, onBack }: { t: Task; onDone: () => void; o
   return (
     <div data-gc-answer>
       <div className="text-[0.9375rem] font-semibold text-ink">What the GC said</div>
-      <TextArea className="mt-2" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={q ? 'Paste or type his answer' : 'Paste or type it — “the plumber comes Thursday”'} autoFocus data-gc-said />
+      <TextArea className="mt-2" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={q ? 'Paste or type his answer' : 'Paste or type it. “The plumber comes Thursday”'} autoFocus data-gc-said />
       <div className="mt-3 flex flex-wrap items-center gap-2" data-gc-picks>
         <Chip on={done} onClick={() => setPick(done ? '' : 'done')} icon={done ? undefined : <Check className="h-4 w-4" />}>{q ? 'That’s the answer' : 'It’s done'}</Chip>
         <span className="px-0.5 text-[0.8125rem] text-muted">or coming</span>

@@ -62,9 +62,9 @@ function nextOf(s: Store, e: Estimate): { text: string; tone?: 'bad' | 'warn' } 
   const missing = p?.docs.filter((d) => d.status === 'missing').map((d) => d.name.toLowerCase()) || []
   const b = bucketOf(e)
   const notes = openNotes(e).length
-  if (b === 'request') return missing.length ? { text: `Waiting for the ${missing.join(' and ')}`, tone: 'warn' } : { text: 'Plans are in — send it to the takeoff' }
+  if (b === 'request') return missing.length ? { text: `Waiting for the ${missing.join(' and ')}`, tone: 'warn' } : { text: 'Plans are in. Send it to the takeoff' }
   if (b === 'takeoff') {
-    if (e.backTo) return { text: `Fix ${plural(notes, 'note')} — back to ${namesOf(peopleOn(s, e, e.backTo))}`, tone: 'warn' }
+    if (e.backTo) return { text: `Fix ${plural(notes, 'note')} · back to ${namesOf(peopleOn(s, e, e.backTo))}`, tone: 'warn' }
     if (p?.takeoff?.question) return { text: `Waiting on the ${p.takeoff.question.waitingOn.toLowerCase()}`, tone: 'warn' }
     if (e.status === 'revision') return { text: 'Make the client’s changes', tone: 'warn' }
     return { text: curRev(e).lines.length ? (notes ? `${plural(notes, 'thing')} to check` : 'Finish the takeoff') : 'Do the takeoff' }
@@ -74,14 +74,14 @@ function nextOf(s: Store, e: Estimate): { text: string; tone?: 'bad' | 'warn' } 
   if (insideOf(e)) return { text: stepLabel(s, b) }
   if (b === 'sent') return { text: `Follow up ${e.followUp || 'Thu'}`, tone: e.followUp === 'Today' ? 'warn' : undefined }
   if (b === 'approved') return { text: 'It’s a project' }
-  return { text: '—' }
+  return { text: '' }
 }
 const whenOf = (e: Estimate) => {
   const sent = [...e.revs].reverse().find((r) => r.sentOn)
   if (e.status === 'approved') return `Approved ${e.approvedOn}`
   if (e.status === 'sent' && sent) return `Sent ${sent.sentOn}`
   if (e.status === 'lost') return 'Lost'
-  return e.due ? `Due ${e.due}` : '—'
+  return e.due ? `Due ${e.due}` : ''
 }
 
 type EstView = 'open' | EstCat
@@ -161,12 +161,12 @@ export function EstimatesPage() {
             <div className="min-w-0 truncate text-[0.90625rem] font-medium text-ink">{l.name}</div>
             <div className="min-w-0 truncate text-[0.8125rem] text-muted max-md:mt-0.5">{l.reason}</div>
             <div className="text-right text-[0.8125rem] text-muted max-lg:hidden">Lost {l.date}</div>
-            <div className="text-right text-faint max-md:hidden">—</div>
+            <div className="text-right text-faint max-md:hidden"></div>
           </div>
         ))}
         {!shown.length && !lostOld.length && (list.length
           ? <EmptyState title="No estimates here" sub="Try another filter." />
-          : <EmptyState icon={<FileText />} title="No estimates yet" sub="Upload the plans — it goes straight to whoever does the takeoff, and the estimate is built from there." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New project</Button>} />)}
+          : <EmptyState icon={<FileText />} title="No estimates yet" sub="Upload the plans. It goes straight to whoever does the takeoff, and the estimate is built from there." action={<Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newreq' })}>New project</Button>} />)}
       </div>
     </Page>
   )
@@ -209,8 +209,8 @@ function EstRow({ e }: { e: Estimate }) {
       <span className="flex shrink-0 -space-x-1.5">{turns.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} ring={turns.length > 1} />)}</span>
       <span className={cn('truncate text-[0.8125rem]', turns.includes(me) ? 'font-medium text-ink' : 'text-ink-2')}>{namesOf(turns, me)}</span>
     </span>
-  ) : <span className="text-[0.8125rem] text-faint">—</span>
-  const money = <span className={cn('text-[0.8125rem] tnum', amt ? 'font-medium text-ink' : 'text-faint')}>{amt ? fmtMoney(amt) : '—'}</span>
+  ) : <span className="text-[0.8125rem] text-faint"></span>
+  const money = <span className={cn('text-[0.8125rem] tnum', amt ? 'font-medium text-ink' : 'text-faint')}>{amt ? fmtMoney(amt) : ''}</span>
   return (
     <div
       role="button"
@@ -267,11 +267,11 @@ function EstDocs({ e, onDoc }: { e: Estimate; onDoc: (doc: string) => void }) {
       <input ref={add} type="file" accept=".pdf,image/*" className="hidden" aria-label="Upload a document" onChange={(x) => { const f = Array.from(x.target.files || []); x.target.value = ''; void upload(target.current, f) }} />
       {docs.map((d) =>
         d.status === 'missing' ? (
-          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} — missing. Add it.`} className={cn(chip, 'border-dashed border-warn-300 bg-[#fffaf0] text-warn-700 hover:bg-warn-50')}>
+          <button key={d.name} data-doc={d.name} onClick={() => { target.current = d.name; add.current?.click() }} title={`${d.name} · missing. Add it.`} className={cn(chip, 'border-dashed border-warn-300 bg-[#fffaf0] text-warn-700 hover:bg-warn-50')}>
             {busy === d.name ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}<span className="truncate">{d.name} · missing</span>
           </button>
         ) : (
-          <button key={d.name} data-doc={d.name} onClick={() => onDoc(d.name)} title={`Open the ${d.name.toLowerCase()}${d.note ? ` — ${d.note}` : ''}`} className={cn(chip, 'border-line bg-white text-ink hover:border-[#cfc8bc]')}>
+          <button key={d.name} data-doc={d.name} onClick={() => onDoc(d.name)} title={`Open the ${d.name.toLowerCase()}${d.note ? ` · ${d.note}` : ''}`} className={cn(chip, 'border-line bg-white text-ink hover:border-[#cfc8bc]')}>
             <FileText className="h-3.5 w-3.5 text-brand-600" /><span className="truncate">{d.name}</span><Check className="h-3.5 w-3.5 text-ok-600" strokeWidth={3} />
           </button>
         ),
@@ -297,7 +297,7 @@ function RevPick({ e, shown, onPick, onCompare }: { e: Estimate; shown: Estimate
       <MenuLabel>{e.revs.length} revisions</MenuLabel>
       {[...e.revs].reverse().map((r) => (
         <MenuItem key={r.n} checked={shown.n === r.n} hint={`${r.status === 'draft' ? 'Being priced' : r.status === 'approved' ? 'Approved' : r.status === 'sent' ? `Sent ${r.sentOn}` : `Sent ${r.sentOn || r.date} · replaced`} · ${fmtMoney(revTotal(r))}`} onSelect={() => onPick(r.n)}>
-          Revision {r.n}{r.what ? ` — ${r.what}` : ''}
+          Revision {r.n}{r.what ? ` · ${r.what}` : ''}
         </MenuItem>
       ))}
       <MenuSep />
@@ -385,13 +385,13 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         <span className="whitespace-nowrap text-[0.8125rem] tnum text-muted max-md:hidden">{e.id}</span>
         {e.revs.length > 1 && <RevPick e={e} shown={shown} onPick={(n) => { setRevN(n === cur.n ? null : n); setPanel(null) }} onCompare={() => setPanel({ t: 'revs' })} />}
         <span className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : '—'}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft' : 'total'}{smp('x') ? ' · sample' : ''}</span>
+          <span className="text-[0.8125rem] text-muted max-sm:hidden"><b className="text-[0.9375rem] font-semibold tnum text-ink">{shown.lines.length ? fmtMoney(total) : ''}</b> {st === 'approved' ? 'approved' : shown.status === 'draft' ? 'draft' : 'total'}{smp('x') ? ' · sample' : ''}</span>
           {shown.lines.length > 0 && <Button size="sm" icon={<FileText />} aria-pressed={panel?.t === 'paper'} onClick={() => setPanel(panel?.t === 'paper' ? null : { t: 'paper' })}><span className="max-sm:hidden">Scope of work</span></Button>}
           {['owner', 'pm', 'office', 'estimator'].includes(s.role) && (
             <Menu align="end" width={250} trigger={<Button size="sm" aria-label="More for this estimate" icon={<MoreHorizontal />} />}>
               <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => setPanel({ t: 'log' })}>What happened</MenuItem>
               {/* the client said yes before it went through every step here (or while it's being revised): make it a project */}
-              {['estimating', 'revision'].includes(st) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project — pick the revision they approved" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>The client approved it</MenuItem>}
+              {['estimating', 'revision'].includes(st) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project. Pick the revision they approved" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>The client approved it</MenuItem>}
               {st === 'approved' && <MenuItem icon={<Receipt className="h-4 w-4" />} onSelect={() => s.swap({ t: 'job', id: e.jobId, tab: 'money' })}>Billed and paid</MenuItem>}
               {PRICING_STAGES.includes(j.stage) && ['owner', 'pm', 'office'].includes(s.role) && <MenuItem icon={<Building2 className="h-4 w-4" />} hint="Same job, two names? Put it on the project" onSelect={() => setPanel({ t: 'same' })}>It’s for a project we have…</MenuItem>}
               <MenuSep />
@@ -407,10 +407,10 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           <span className="truncate">{j.address}</span>
           {['request', 'estimating', 'revision'].includes(st) && <span className="inline-flex items-center gap-1">Due <DueEdit id={e.id} due={e.due} /></span>}
           {inside && turn && ['owner', 'pm', 'office'].includes(s.role) && (
-            <Menu align="start" width={280} trigger={<button type="button" className="-mx-1 inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-ink-2 transition hover:bg-wash-2" aria-label="Who's on it now — change it" data-est-who={turn}><Avatar who={turn} size={18} /><span>{stepLabel(s, b)}: {namesOf(turns, null, true)}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
-              <MenuLabel>{stepLabel(s, b)} — who does it</MenuLabel>
+            <Menu align="start" width={280} trigger={<button type="button" className="-mx-1 inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-ink-2 transition hover:bg-wash-2" aria-label="Who's on it now · change it" data-est-who={turn}><Avatar who={turn} size={18} /><span>{stepLabel(s, b)}: {namesOf(turns, null, true)}</span><ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
+              <MenuLabel>{stepLabel(s, b)} · who does it</MenuLabel>
               {[me, ...insidePeople(s).filter((p) => p !== me)].map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} plain />} checked={turns.includes(p)} hint={p === me ? undefined : PEOPLE[p]?.roleLabel} onSelect={() => setEstimatePeople(e.id, b, [p])} data-est-who-option={p}>{p === me ? 'Me' : PEOPLE[p]?.name}</MenuItem>)}
-              {b === 'takeoff' && <><MenuSep /><MenuItem icon={<Ruler className="h-4 w-4" />} hint="Measured already, or nothing to measure" onSelect={() => estHandOff(e.id)} data-est-skip-takeoff>No measuring — on to pricing</MenuItem></>}
+              {b === 'takeoff' && <><MenuSep /><MenuItem icon={<Ruler className="h-4 w-4" />} hint="Measured already, or nothing to measure" onSelect={() => estHandOff(e.id)} data-est-skip-takeoff>No measuring. On to pricing</MenuItem></>}
             </Menu>
           )}
           {st === 'sent' && sent && <span>Sent {sent.sentOn}</span>}
@@ -446,7 +446,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           </span>
           <Tip label={!cur.lines.length ? 'Add the lines first' : noteCount ? 'Check off every note first' : `Goes to ${namesOf(on(e.backTo || stepAfter(s, 'takeoff') || 'review'), null, true)}`}>
             <span className="ml-auto">
-              <Button variant="primary" icon={<Send />} disabled={!cur.lines.length || noteCount > 0} onClick={() => estHandOff(e.id)}>{e.backTo ? `Fixed — back to ${namesOf(on(e.backTo))}` : (stepAfter(s, 'takeoff') || 'review') === 'review' ? 'Ready for review' : `Done — to ${namesOf(on(stepAfter(s, 'takeoff')!))}`}</Button>
+              <Button variant="primary" icon={<Send />} disabled={!cur.lines.length || noteCount > 0} onClick={() => estHandOff(e.id)}>{e.backTo ? `Fixed · back to ${namesOf(on(e.backTo))}` : (stepAfter(s, 'takeoff') || 'review') === 'review' ? 'Ready for review' : `Done · to ${namesOf(on(stepAfter(s, 'takeoff')!))}`}</Button>
             </span>
           </Tip>
         </>
@@ -459,7 +459,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
             <span className="ml-auto"><Button icon={<Undo2 />} disabled={!noteCount} onClick={() => estSendBack(e.id)}>Send back{noteCount ? ` · ${plural(noteCount, 'note')}` : ''}</Button></span>
           </Tip>
           {b !== 'final' ? (
-            <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>{b === 'review' ? 'Looks good' : 'Done'} — to {namesOf(on(stepAfter(s, b) || 'final'))}</Button>
+            <Button variant="primary" icon={<Check />} disabled={noteCount > 0} onClick={() => estHandOff(e.id)}>{b === 'review' ? 'Looks good' : 'Done'} · to {namesOf(on(stepAfter(s, b) || 'final'))}</Button>
           ) : (
             <Button variant="primary" icon={<Send />} disabled={noteCount > 0} onClick={() => s.open({ t: 'estsend', id: e.id })}>Preview and send</Button>
           )}
@@ -470,9 +470,9 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
           <Button variant="ghost" icon={<FileText />} onClick={() => s.open({ t: 'estsend', id: e.id, sent: true })}>What they got</Button>
           <span className="ml-auto text-[0.84375rem] text-muted max-md:hidden">{namesOf(on('follow'))} {on('follow').length > 1 ? 'follow' : 'follows'} up {e.followUp || 'Thu'}</span>
           <Menu align="end" width={300} trigger={<Button variant="primary" iconRight={<ChevronDown />} className="max-md:ml-auto">What did the client say?</Button>}>
-            <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project — scope, deposit, getting ready" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>Approved</MenuItem>
-            <MenuItem icon={<Undo2 className="h-4 w-4 text-warn-600" />} hint="List what they asked for — a new revision" onSelect={() => s.open({ t: 'estchanges', id: e.id })}>They want changes</MenuItem>
-            <MenuItem icon={<CalendarDays className="h-4 w-4 text-brand-600" />} hint="Called, emailed — and when to try again" onSelect={() => s.open({ t: 'estfollow', id: e.id })}>Still deciding · log a follow-up</MenuItem>
+            <MenuItem icon={<Check className="h-4 w-4 text-ok-600" />} hint="It becomes a project. Scope, deposit, getting ready" onSelect={() => s.open({ t: 'award', jobId: e.jobId })}>Approved</MenuItem>
+            <MenuItem icon={<Undo2 className="h-4 w-4 text-warn-600" />} hint="List what they asked for. A new revision" onSelect={() => s.open({ t: 'estchanges', id: e.id })}>They want changes</MenuItem>
+            <MenuItem icon={<CalendarDays className="h-4 w-4 text-brand-600" />} hint="Called, emailed, and when to try again" onSelect={() => s.open({ t: 'estfollow', id: e.id })}>Still deciding · log a follow-up</MenuItem>
             <MenuSep />
             <MenuItem icon={<X className="h-4 w-4 text-bad-600" />} hint="Kept for the record, with the reason" onSelect={() => s.open({ t: 'estlost', id: e.id })}>Not going ahead</MenuItem>
           </Menu>
@@ -521,7 +521,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         {noteAt === a && <AddNote e={e} area={a} onDone={() => setNoteAt(null)} />}
         {ls.map((l) => <LineRow key={l.id} e={e} l={l} editable={editable} diff={diffOf(l)} />)}
         {gone.map((d) => <RemovedRow key={d.key} d={d} />)}
-        {!ls.length && !gone.length && <div className="px-5 py-2 text-[0.8125rem] text-muted max-sm:px-3">No tile here yet{editable ? ' — add a surface' : ''}</div>}
+        {!ls.length && !gone.length && <div className="px-5 py-2 text-[0.8125rem] text-muted max-sm:px-3">No tile here yet{editable ? '. Add a surface' : ''}</div>}
         {editable && (
           <div className="flex flex-wrap items-center gap-1.5 px-5 pb-2 pt-1 max-sm:px-3" data-add-row>
             <SurfaceAdd have={companySurfaces(s).filter((x) => ls.some((l) => l.surface === x.label)).map((x) => x.key)} onAdd={(k) => estAddSurface(e.id, a, k)} />
@@ -549,7 +549,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         </section>
       ))}
       {goneAreas.map((a) => room(a, undefined, []))}
-      {!groups.length && !goneAreas.length && <div className="px-5 py-8 text-center text-[0.875rem] text-muted">No rooms yet — add the first one below.</div>}
+      {!groups.length && !goneAreas.length && <div className="px-5 py-8 text-center text-[0.875rem] text-muted">No rooms yet. Add the first one below.</div>}
       {shown.lines.length > 0 && (
         <div className="border-t border-[#ebe6dd] px-5 pb-5 pt-3 max-sm:px-3">
           <dl className="ml-auto w-full max-w-[19rem] text-[0.84375rem]">
@@ -575,7 +575,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
         )}
         {shown !== cur && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn-100 bg-warn-50 px-3.5 py-2.5 text-[0.8125rem] text-warn-800">
-            <span>You’re looking at revision {shown.n}{shown.what ? ` — ${shown.what}` : ''}. It’s kept as it was.</span>
+            <span>You’re looking at revision {shown.n}{shown.what ? ` · ${shown.what}` : ''}. It’s kept as it was.</span>
             <button onClick={() => setRevN(null)} className="ml-auto font-semibold text-brand-700 hover:underline">Back to revision {cur.n}</button>
           </div>
         )}
@@ -614,7 +614,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
       <div className="min-h-full bg-[#f3f0ea]" data-panel="paper">
         <PanelBar
           title={panel.prices ? 'The estimate the client gets' : 'Scope of work'}
-          sub={panel.prices ? 'with prices, ready to print or save as PDF' : 'what we install, room by room — no prices'}
+          sub={panel.prices ? 'with prices, ready to print or save as PDF' : 'what we install, room by room · no prices'}
           onBack={back}
           back="Back to the estimate"
           right={
@@ -664,7 +664,7 @@ function AreaMenu({ e, area }: { e: Estimate; area: string }) {
   const [note, setNote] = React.useState(meta?.note || '')
   React.useEffect(() => { if (open) setNote(meta?.note || '') }, [open])
   return (
-    <Pop open={open} onOpenChange={setOpen} width={310} trigger={<button type="button" aria-label={`${area} — floor and details`} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+    <Pop open={open} onOpenChange={setOpen} width={310} trigger={<button type="button" aria-label={`${area}. Floor and details`} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
       <div className="text-[0.78125rem] font-semibold text-muted">Floor</div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {['', ...FLOORS].map((f) => <button key={f || 'none'} type="button" onClick={() => estSetArea(e.id, area, { floor: f || null })} className={cn('inline-flex h-7 items-center rounded-full border px-2.5 text-[0.78125rem] font-semibold', (meta?.floor || '') === f ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2 hover:border-[#c6bfb4]')}>{f || 'No floor'}</button>)}
@@ -691,7 +691,7 @@ function AreaAdder({ e }: { e: Estimate }) {
   const addOwn = (name: string) => { const keys = guessSurfaces(name, presets); addCompanyArea(name, keys); estAddArea(e.id, name, keys, fl(name)) }
   return (
     <div className="mt-4 rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3" data-area-adder>
-      <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add an area<span className="font-normal text-muted">— it comes with its usual surfaces</span></div>
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add an area<span className="font-normal text-muted">· it comes with its usual surfaces</span></div>
       <div className="grid grid-cols-[11rem_minmax(0,22rem)] gap-2 max-sm:grid-cols-1">
         <SearchSelect label="Floor" value={floor} onChange={setFloor} emptyLabel="No floor" options={FLOORS.map((f) => ({ key: f, label: f }))} search={false} width={220} plain />
         <SearchSelect
@@ -701,10 +701,10 @@ function AreaAdder({ e }: { e: Estimate }) {
           placeholder="Pick or type an area…"
           options={presets.map((p) => ({ key: p.name, label: p.name, hint: `Comes with: ${p.surfaces.map((k) => surfaceOf(s, k).label.toLowerCase()).join(', ')}` }))}
           search
-          searchPlaceholder="Type an area — Kitchen, Mikvah…"
+          searchPlaceholder="Type an area · Kitchen, Mikvah…"
           width={380}
           onCreate={addOwn}
-          createLabel={(t) => `Add “${t}” — kept for next time`}
+          createLabel={(t) => `Add “${t}”. Kept for next time`}
         />
       </div>
     </div>
@@ -728,7 +728,7 @@ function NoteRow({ e, n }: { e: Estimate; n: EstNote }) {
       {isAi ? <Sparkles className="mt-[0.125rem] h-3.5 w-3.5 shrink-0 text-vio-600" /> : <StickyNote className="mt-[0.125rem] h-3.5 w-3.5 shrink-0 text-warn-600" />}
       <span className="min-w-0 flex-1 text-[0.84375rem] leading-snug">
         <span className={cn(n.done ? 'text-muted line-through' : 'text-ink')}>{n.text}</span>
-        <span className="ml-2 whitespace-nowrap text-[0.75rem] text-muted">{isAi ? 'From the plans — check it' : `${PEOPLE[n.by].short} · ${n.date}`}</span>
+        <span className="ml-2 whitespace-nowrap text-[0.75rem] text-muted">{isAi ? 'From the plans · check it' : `${PEOPLE[n.by].short} · ${n.date}`}</span>
       </span>
       {mine && !isAi && !n.done && (
         <button aria-label="Remove the note" onClick={() => estRemoveNote(e.id, n.id)} className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-faint hover:bg-bad-50 hover:text-bad-600"><X className="h-3.5 w-3.5" /></button>
@@ -750,7 +750,7 @@ function AddNote({ e, area, onDone }: { e: Estimate; area?: string; onDone: () =
       className="flex items-center gap-2 border-b border-line-2 bg-warn-50/60 px-5 py-2 max-sm:px-3"
     >
       <StickyNote className="h-4 w-4 shrink-0 text-warn-600" />
-      <TextInput autoFocus value={t} onChange={(x) => setT(x.target.value)} placeholder={area ? `Note on ${area} — e.g. add the niche` : 'A note for the takeoff'} className="h-8 flex-1 bg-white" />
+      <TextInput autoFocus value={t} onChange={(x) => setT(x.target.value)} placeholder={area ? `Note on ${area} · e.g. add the niche` : 'A note for the takeoff'} className="h-8 flex-1 bg-white" />
       <Button size="sm" variant="primary" type="submit" disabled={!t.trim()}>Add</Button>
       <Button size="sm" variant="ghost" type="button" onClick={onDone}>Cancel</Button>
     </form>
@@ -769,7 +769,7 @@ function AiCard({ e, filled }: { e: Estimate; filled?: boolean }) {
       {/* the documents themselves are on the right, with the job — here only what AI does with the plans */}
       <div className="min-w-0 flex-1">
         <div className="text-[0.875rem] font-semibold text-ink">{filled ? 'Fill in the square feet from the plans' : 'Draft the takeoff from the plans'}</div>
-        <div className="mt-0.5 text-[0.78125rem] text-muted">{hasPlans ? 'AI reads them and fills in the rooms and square feet — you check every number.' : 'Upload the plans and AI drafts the rooms and square feet.'}</div>
+        <div className="mt-0.5 text-[0.78125rem] text-muted">{hasPlans ? 'AI reads them and fills in the rooms and square feet. You check every number.' : 'Upload the plans and AI drafts the rooms and square feet.'}</div>
       </div>
       <span className="flex shrink-0 items-center gap-3 max-sm:w-full max-sm:justify-end">
         <button onClick={() => file.current?.click()} className={cn(hasPlans ? 'text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700' : 'inline-flex h-9 items-center gap-2 rounded-lg bg-brand-600 px-3.5 text-[0.8125rem] font-semibold text-white hover:bg-brand-700')}>
@@ -996,7 +996,7 @@ export function ItemPicker({ onPick, label = 'Add item', types }: { onPick: (it:
   const create = (name: string) => {
     const type = types?.length === 1 ? types[0] : /install|labor|setting|demo|prep|grouting|waterproofing|leveling/i.test(name) ? 'labor' : 'material'
     const it = { id: 'n' + Date.now().toString(36), name, type, unit: type === 'labor' || /tile|stone|marble|mosaic/i.test(name) ? 'SF' : 'EA', price: 0, cost: 0, qb: name } as Store['items'][number]
-    s.commit((st) => { st.items.push(it) }, `${name} — a new item`, { sub: 'Put its price on the line. It’s on Items now, for next time.' })
+    s.commit((st) => { st.items.push(it) }, `${name}. A new item`, { sub: 'Put its price on the line. It’s on Items now, for next time.' })
     onPick(it)
   }
   return (
@@ -1053,7 +1053,7 @@ export function EstSendModal({ id, sent, level }: { id: string; sent?: boolean; 
       tall
       onClose={s.close}
       title={sent ? `What ${j?.client || 'the client'} got` : `Send ${e.id} to ${j?.client || 'the client'}`}
-      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : REAL.cloud ? (qbLive() ? `“Approve and send” puts it in QuickBooks and emails it${to ? ` to ${to}` : ''} with QuickBooks’ PDF — then the follow-up starts.` : `QuickBooks isn’t connected, so Tile OS can’t email it: Download PDF and send it to ${to || 'them'}. “Approve and send” marks it sent and starts the follow-up.`) : 'This is exactly what they get — check it, then send it'}
+      sub={sent ? `Revision ${rev.n}${rev.sentOn ? ` · sent ${rev.sentOn}` : ''}` : REAL.cloud ? (qbLive() ? `“Approve and send” puts it in QuickBooks and emails it${to ? ` to ${to}` : ''} with QuickBooks’ PDF, then the follow-up starts.` : `QuickBooks isn’t connected, so Tile OS can’t email it: Download PDF and send it to ${to || 'them'}. “Approve and send” marks it sent and starts the follow-up.`) : 'This is exactly what they get. Check it, then send it'}
       bodyClass="p-0"
       footer={
         <>
@@ -1105,7 +1105,7 @@ export function EstChangesModal({ id, level }: { id: string; level: number }) {
       size="md"
       onClose={s.close}
       title="What do they want changed?"
-      sub={`One line for each thing they asked — revision ${cur.n + 1} starts with all of them, and each one is checked off as it’s done`}
+      sub={`One line for each thing they asked · revision ${cur.n + 1} starts with all of them, and each one is checked off as it’s done`}
       footer={
         <>
           <div className="ml-auto" aria-hidden />
@@ -1176,7 +1176,7 @@ function SameJob({ e, onDone }: { e: Estimate; onDone: () => void }) {
   const from = s.jobs[e.jobId]
   return (
     <div>
-      <p className="text-[0.875rem] leading-snug text-ink-2">Pick the project. The estimate goes on it — its tasks, files and messages too — and it says the project’s name everywhere: on Today, in the inbox, on the estimate.</p>
+      <p className="text-[0.875rem] leading-snug text-ink-2">Pick the project. The estimate goes on it. Its tasks, files and messages too · and it says the project’s name everywhere: on Today, in the inbox, on the estimate.</p>
       <TextInput className="mt-4" aria-label="Find the project" value={q} onChange={(ev) => setQ(ev.target.value)} placeholder="Find the project" />
       <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white">
         {list.map(({ j, score }) => (
@@ -1194,7 +1194,7 @@ function SameJob({ e, onDone }: { e: Estimate; onDone: () => void }) {
         <Button variant="ghost" onClick={onDone}>Cancel</Button>
         <Button variant="primary" icon={<ArrowRight />} disabled={!to} onClick={() => { if (to) { moveEstimateTo(e.id, to.id); onDone() } }}>{to ? `Put it on ${to.name}` : 'Pick the project'}</Button>
       </div>
-      {from && <p className="mt-3 text-[0.78125rem] text-muted">“{from.name}” goes away — it was the same job.</p>}
+      {from && <p className="mt-3 text-[0.78125rem] text-muted">“{from.name}” goes away. It was the same job.</p>}
     </div>
   )
 }

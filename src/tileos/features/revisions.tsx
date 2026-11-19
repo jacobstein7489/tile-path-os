@@ -38,8 +38,8 @@ const qty = (l: EstLine, unit: string) => `${l.qty.toLocaleString('en-US')} ${un
 
 /** one change as a sentence */
 function sentence(d: LineDiff): React.ReactNode {
-  if (d.kind === 'added') return <>Added <b className="font-semibold text-ink">{d.area} · {d.name}</b> — {qty(d.b!, d.unit)} at {money(d.b!.rate)}</>
-  if (d.kind === 'removed') return <>Removed <b className="font-semibold text-ink">{d.area} · {d.name}</b> — {qty(d.a!, d.unit)}</>
+  if (d.kind === 'added') return <>Added <b className="font-semibold text-ink">{d.area} · {d.name}</b> · {qty(d.b!, d.unit)} at {money(d.b!.rate)}</>
+  if (d.kind === 'removed') return <>Removed <b className="font-semibold text-ink">{d.area} · {d.name}</b> · {qty(d.a!, d.unit)}</>
   const parts: string[] = []
   if (d.a!.qty !== d.b!.qty) parts.push(`${qty(d.a!, d.unit)} → ${qty(d.b!, d.unit)}`)
   if (d.a!.rate !== d.b!.rate) parts.push(`${d.unit === 'LS' ? '' : 'rate '}${money(d.a!.rate)} → ${money(d.b!.rate)}`)
@@ -97,7 +97,7 @@ export function RevisionsPanel({ e, onShow }: { e: Estimate; onShow: (n: number)
                     ))}
                   </ul>
                 )}
-                {!prev && <div className="mx-4 mt-2.5 border-t border-line-2 pt-2.5 text-[0.8125rem] text-muted">{r.lines.length} lines — the starting point.</div>}
+                {!prev && <div className="mx-4 mt-2.5 border-t border-line-2 pt-2.5 text-[0.8125rem] text-muted">{r.lines.length} lines. The starting point.</div>}
                 <div className="flex flex-wrap gap-1 px-2.5 py-2">
                   <Button size="xs" variant="ghost" onClick={() => onShow(r.n)}>See its lines</Button>
                   {prev && <Button size="xs" variant="ghost" icon={<GitCompareArrows />} onClick={() => setCmp([prev.n, r.n])}>Side by side with {prev.n}</Button>}
@@ -124,7 +124,7 @@ function Compare({ e, a, b, onPick, onBack }: { e: Estimate; a: number; b: numbe
       <span className={cn('block text-[0.84375rem] font-semibold tnum', hi ? 'text-warn-700' : 'text-ink')}>{money(amt(l))}</span>
       <span className="block text-[0.75rem] tnum text-muted">{qty(l, unit)} × {money(l.rate)}</span>
     </span>
-  ) : <span className="block text-right text-[0.8125rem] text-faint">—</span>
+  ) : <span className="block text-right text-[0.8125rem] text-faint"></span>
   const Pick = ({ v, set, other }: { v: number; set: (n: number) => void; other: number }) => (
     <span className="inline-flex items-center gap-1">
       {e.revs.map((r) => <button key={r.n} disabled={r.n === other} onClick={() => set(r.n)} className={cn('inline-flex h-8 min-w-8 items-center justify-center rounded-[0.5rem] border px-2 text-[0.8125rem] font-semibold tnum transition disabled:opacity-30', v === r.n ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}>{r.n}</button>)}
@@ -160,7 +160,7 @@ function Compare({ e, a, b, onPick, onBack }: { e: Estimate; a: number; b: numbe
             {showSame && same.map((d) => (
               <div key={d.key} className="grid grid-cols-[minmax(0,1fr)_8.75rem_8.75rem_6.875rem] items-center gap-3 border-b border-line-2 px-4 py-2 text-muted">
                 <span className="min-w-0 truncate pl-[1.625rem] text-[0.8125rem]">{d.area} · {d.name}</span>
-                {cell(d.a, d.unit)}{cell(d.b, d.unit)}<span className="text-right text-[0.8125rem]">—</span>
+                {cell(d.a, d.unit)}{cell(d.b, d.unit)}<span className="text-right text-[0.8125rem]"></span>
               </div>
             ))}
           </>

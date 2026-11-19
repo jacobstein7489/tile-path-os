@@ -29,7 +29,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
     : dep.paid
       ? { key: 'dep', title: 'Deposit', status: 'part', note: `${fmtMoney((dep.amount || 0) - dep.paid)} still open`, action: { label: 'Open invoice', run: () => s.open({ t: 'money', id: dep.id }) } }
       : dep.step >= 1
-        ? { key: 'dep', title: 'Deposit', status: 'wait', note: `Invoice ${dep.ref} sent — not paid`, action: { label: 'Record payment', run: () => s.open({ t: 'money', id: dep.id }) } }
+        ? { key: 'dep', title: 'Deposit', status: 'wait', note: `Invoice ${dep.ref} sent, not paid`, action: { label: 'Record payment', run: () => s.open({ t: 'money', id: dep.id }) } }
         : { key: 'dep', title: 'Deposit', status: 'todo', note: 'Not invoiced yet', action: { label: 'Create invoice', run: () => s.open({ t: 'money', id: dep.id }) } }
   const st = job.stage
   if (['awarded', 'setup'].includes(st)) {
@@ -49,12 +49,12 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
       (() => {
         const st = settingStatus(s, job.id)
         if (!st.total) return null
-        return { key: 'set', title: 'Underlayment for every surface', status: st.set === st.total ? 'done' : st.set ? 'part' : 'todo', note: st.set === st.total ? 'Set — materials worked out from it' : `${st.set} of ${st.total} picked · suggestions ready`, action: st.set === st.total ? undefined : { label: 'Pick it', run: () => s.open({ t: 'setting', jobId: job.id }) } } as NowItem
+        return { key: 'set', title: 'Underlayment for every surface', status: st.set === st.total ? 'done' : st.set ? 'part' : 'todo', note: st.set === st.total ? 'Set. Materials worked out from it' : `${st.set} of ${st.total} picked · suggestions ready`, action: st.set === st.total ? undefined : { label: 'Pick it', run: () => s.open({ t: 'setting', jobId: job.id }) } } as NowItem
       })(),
       (() => {
         const ms = materialStatus(s, job.id)
         const status: NowState = ms.state === 'yes' ? 'done' : ms.state === 'wait' ? 'wait' : ms.state === 'part' ? 'part' : 'todo'
-        const note = ms.go === 'order' ? `${ms.label} — ${ms.hint.split(' — ')[0]}` : ms.hint
+        const note = ms.go === 'order' ? `${ms.label} · ${ms.hint.split(/ — | · |\. (?=[A-Z])/)[0]}` : ms.hint
         const action = ms.go === 'order' ? { label: 'Order', run: () => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true }) } : ms.go === 'scope' ? { label: 'Open scope', run: () => setTab('scope') } : ms.state === 'yes' ? undefined : { label: 'See it', run: () => setTab('orders') }
         return { key: 'mat', title: 'Our materials', status, note, action } as NowItem
       })(),
@@ -69,7 +69,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
     return {
       heading: 'Site check',
       items: [
-        ...(hs.total ? [{ key: 'heights', title: 'Wall heights measured', status: (hs.measured === hs.total ? 'done' : 'bad') as NowState, note: hs.measured === hs.total ? 'Square feet and materials follow the real heights' : `${hs.measured} of ${hs.total} walls — required before the start`, action: hs.measured === hs.total ? undefined : { label: 'Measure', run: () => s.open({ t: 'heights', jobId: job.id }) } }] : []),
+        ...(hs.total ? [{ key: 'heights', title: 'Wall heights measured', status: (hs.measured === hs.total ? 'done' : 'bad') as NowState, note: hs.measured === hs.total ? 'Square feet and materials follow the real heights' : `${hs.measured} of ${hs.total} walls. Required before the start`, action: hs.measured === hs.total ? undefined : { label: 'Measure', run: () => s.open({ t: 'heights', jobId: job.id }) } }] : []),
         { key: 'walk', title: 'Walkthrough on site', status: 'todo', note: 'Heights, prep and anything unclear', action: { label: 'Done', run: () => verificationDone(job.id) } },
         { key: 'unk', title: 'Surfaces to verify', status: unknown.length ? 'wait' : 'done', note: unknown.length ? unknown.map((x) => `${x.room} ${x.sf.name.toLowerCase()}`).join(' · ') : 'Nothing unclear', action: unknown.length ? { label: 'Open', run: () => setTab('scope') } : undefined },
         ...(depItem() ? [depItem()!] : []),
@@ -82,9 +82,9 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
     const items: NowItem[] = CELLS.map((c) => {
       const cell = cells[c.key]
       const label = cell.state === 'yes' || cell.state === 'na' ? undefined : c.key === 'po' ? (crew ? 'Send PO' : 'Book installer') : c.key === 'material' ? (cell.state === 'wait' ? 'Open' : cell.label === 'Add SF' || cell.label === 'No scope' ? 'Open scope' : 'Order') : c.key === 'deposit' ? 'Open invoice' : c.key === 'picked' ? 'Enter tiles' : 'Open'
-      return { key: c.key, title: c.short, status: CELL_TO_NOW[cell.state], note: /^\d|\$/.test(cell.label) ? `${cell.label} — ${cell.hint}` : cell.hint, action: label && cell.run ? { label, run: cell.run } : undefined }
+      return { key: c.key, title: c.short, status: CELL_TO_NOW[cell.state], note: /^\d|\$/.test(cell.label) ? `${cell.label} · ${cell.hint}` : cell.hint, action: label && cell.run ? { label, run: cell.run } : undefined }
     })
-    return { heading: st === 'scheduled' ? 'Scheduled — ready to start' : 'Ready — before the crew starts', items }
+    return { heading: st === 'scheduled' ? 'Scheduled. Ready to start' : 'Ready. Before the crew starts', items }
   }
   if (st === 'installation') {
     const items: NowItem[] = []
@@ -116,7 +116,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
   }
   /* closeout / complete */
   const items: NowItem[] = s.money.filter((m) => m.jobId === job.id && m.state !== 'paid' && ['final', 'retainage', 'change', 'progress'].includes(m.kind)).map((m) => ({
-    key: m.id, title: m.title, status: m.state === 'todo' ? 'todo' : 'wait', note: m.state === 'waiting' ? `Invoice ${m.ref || ''} sent — not paid` : m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) },
+    key: m.id, title: m.title, status: m.state === 'todo' ? 'todo' : 'wait', note: m.state === 'waiting' ? `Invoice ${m.ref || ''} sent, not paid` : m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) },
   }))
   if (!items.length) items.push({ key: 'paid', title: 'Everything billed and paid', status: 'done' })
   return { heading: st === 'complete' ? 'Finished' : 'Closing out', items }
@@ -154,7 +154,7 @@ export function todoLines(s: Store, job: Job, setTab: SetTab, extrasOnly?: boole
   const shorts = s.shortages.filter((x) => x.jobId === job.id && x.step !== 'received')
   const covered = new Set(shorts.flatMap((x) => x.surfaces.map((f) => `${f.room} · ${f.surface}`)))
   const items: NowItem[] = [
-    ...shorts.map((x): NowItem => ({ key: 'sh:' + x.id, title: `${x.tag} short · ${x.qty} ${x.unit}`, status: x.step === 'short' ? 'bad' : 'wait', note: x.step === 'short' ? `${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')} wait for it — reorder it` : `Reordered from ${x.orderedFrom} · arrives ${x.eta}${job.hold?.shortage === x.id ? ' · project on hold' : ''}`, action: { label: x.step === 'short' ? 'Reorder' : 'It came in', run: () => s.open({ t: 'short', id: x.id }) } })),
+    ...shorts.map((x): NowItem => ({ key: 'sh:' + x.id, title: `${x.tag} short · ${x.qty} ${x.unit}`, status: x.step === 'short' ? 'bad' : 'wait', note: x.step === 'short' ? `${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')} wait for it · reorder it` : `Reordered from ${x.orderedFrom} · arrives ${x.eta}${job.hold?.shortage === x.id ? ' · project on hold' : ''}`, action: { label: x.step === 'short' ? 'Reorder' : 'It came in', run: () => s.open({ t: 'short', id: x.id }) } })),
     ...base.filter((i) => !covered.has(i.title)),
   ]
   const depId = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')?.id

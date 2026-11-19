@@ -34,7 +34,7 @@ export function TestDataTab() {
   ]
   const fromQB = s.items.filter((i) => i.id.startsWith('qb-')).length
   const where = st.where === 'account'
-    ? { icon: <Cloud className="h-5 w-5" />, title: 'Saved to your account', sub: 'Open it on your phone or another computer — it’s the same test.' }
+    ? { icon: <Cloud className="h-5 w-5" />, title: 'Saved to your account', sub: 'Open it on your phone or another computer. It’s the same test.' }
     : st.where === 'browser'
       ? { icon: <HardDrive className="h-5 w-5" />, title: 'Saved in this browser', sub: 'Open it here again and everything you did is still there.' }
       : { icon: <CircleSlash className="h-5 w-5" />, title: 'Not being saved', sub: 'This copy is pinned to a test day, so nothing is kept.' }
@@ -75,7 +75,7 @@ export function TestDataTab() {
             <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><RotateCcw className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <div className="text-[0.9375rem] font-semibold text-ink">Bring back the sample</div>
-              <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">The sample projects, estimates and tasks — to see how every screen looks in a busy week. It replaces what’s here now.</div>
+              <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">The sample projects, estimates and tasks. To see how every screen looks in a busy week. It replaces what’s here now.</div>
               <Button className="mt-4" onClick={() => s.open({ t: 'fresh', mode: 'sample' })}>Bring back the sample…</Button>
             </div>
           </div>

@@ -128,7 +128,7 @@ export async function api(method: "GET" | "POST", path: string, body?: unknown, 
   const j: any = await res.json().catch(() => ({}));
   if (!res.ok || j.Fault) {
     const e = j.Fault?.Error?.[0];
-    throw new QbError(e?.code === "5010" ? "stale" : "api", e ? `${e.Message || "QuickBooks said no"}${e.Detail ? ` — ${e.Detail}` : ""}` : `QuickBooks said ${res.status}`);
+    throw new QbError(e?.code === "5010" ? "stale" : "api", e ? `${e.Message || "QuickBooks said no"}${e.Detail ? ` · ${e.Detail}` : ""}` : `QuickBooks said ${res.status}`);
   }
   return j;
 }

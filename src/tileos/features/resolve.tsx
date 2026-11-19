@@ -64,9 +64,9 @@ export function CO004Modal({ level }: { level: number }) {
   const [how, setHow] = React.useState('')
   const cascade = [
     { i: Layers3, t: 'Scope', d: 'Full height becomes the approved scope. The 3 ft version stays in history.' },
-    { i: Package, t: 'Finish tile', d: 'About 96 SF more T-06 — the GC is asked to add it to their order.' },
+    { i: Package, t: 'Finish tile', d: 'About 96 SF more T-06. The GC is asked to add it to their order.' },
     { i: ScrollText, t: 'Materials', d: 'Thinset, grout, clips and metal recalculated.' },
-    { i: CalendarDays, t: 'Schedule', d: shiftText('About one more crew day — finish moves to Oct 12.') },
+    { i: CalendarDays, t: 'Schedule', d: shiftText('About one more crew day. Finish moves to Oct 12.') },
     { i: Smartphone, t: 'Crew', d: 'Philip’s phone changes from “hold at 3 ft” to full height.' },
     { i: Receipt, t: 'Accounting', d: 'CO-004 becomes ready to bill · $6,850.' },
   ]
@@ -76,10 +76,10 @@ export function CO004Modal({ level }: { level: number }) {
       size="lg"
       onClose={close}
       title="Record CO-004 approval"
-      header={<JobHead jobId="119" kicker="Change order CO-004" title="Boys bath walls — 3 ft to full height" right={<div className="text-right"><div className="text-[1.5rem] font-bold tnum text-ink">$6,850</div><div className="text-[0.78125rem] text-muted">{shiftText('Priced Sep 24')}</div></div>} />}
+      header={<JobHead jobId="119" kicker="Change order CO-004" title="Boys bath walls · 3 ft to full height" right={<div className="text-right"><div className="text-[1.5rem] font-bold tnum text-ink">$6,850</div><div className="text-[0.78125rem] text-muted">{shiftText('Priced Sep 24')}</div></div>} />}
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{how === 'Verbal' ? 'Verbal is allowed — a “get it in writing” item is created.' : 'One approval updates six departments.'}</span>
+          <span className="text-[0.84375rem] text-muted">{how === 'Verbal' ? 'Verbal is allowed. A “get it in writing” item is created.' : 'One approval updates six departments.'}</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!by || !how} icon={<ShieldCheck className="h-[1.125rem] w-[1.125rem]" />} onClick={() => approveCO004({ by, how })}>Record approval</Button>
         </>
@@ -107,7 +107,7 @@ export function CO004Modal({ level }: { level: number }) {
             <div className="flex flex-wrap gap-2">
               {['Signed change order', 'Email', 'Verbal'].map((x) => <Chip key={x} on={how === x} onClick={() => setHow(x)}>{x}</Chip>)}
             </div>
-            {how === 'Verbal' && <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-warn-50 px-3 py-2.5 text-[0.84375rem] text-warn-700"><AlertTriangle className="h-4 w-4" />Allowed by company rule — written backup is required and tracked.</div>}
+            {how === 'Verbal' && <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-warn-50 px-3 py-2.5 text-[0.84375rem] text-warn-700"><AlertTriangle className="h-4 w-4" />Allowed by company rule. Written backup is required and tracked.</div>}
           </Field>
         </div>
         <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-5">
@@ -138,7 +138,7 @@ export function ThinsetModal({ level }: { level: number }) {
       size="md"
       onClose={close}
       title="Thinset decision"
-      header={<JobHead jobId="828" kicker="PO-1039 · Infinity" title="Thinset is 23 days late — chase or reorder?" right={<Pill tone="bad">Return on hold</Pill>} />}
+      header={<JobHead jobId="828" kicker="PO-1039 · Infinity" title="Thinset is 23 days late. Chase or reorder?" right={<Pill tone="bad">Return on hold</Pill>} />}
       footer={
         <>
           <div className="ml-auto" aria-hidden />
@@ -147,7 +147,7 @@ export function ThinsetModal({ level }: { level: number }) {
       }
     >
       <div className="mb-5 grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-        {shiftDeep([['Ordered', 'Aug 25'], ['Promised', 'Sep 5'], ['Last call', 'Sep 8 — “next week”']]).map(([a, b]) => (
+        {shiftDeep([['Ordered', 'Aug 25'], ['Promised', 'Sep 5'], ['Last call', 'Sep 8 · “next week”']]).map(([a, b]) => (
           <div key={a} className="rounded-xl bg-wash px-3.5 py-3">
             <div className="text-[0.78125rem] text-muted">{a}</div>
             <div className="text-[0.875rem] font-semibold text-ink">{b}</div>
@@ -155,7 +155,7 @@ export function ThinsetModal({ level }: { level: number }) {
         ))}
       </div>
       <div className="flex flex-col gap-2.5">
-        <OptionCard on={pick === 'chase'} onClick={() => setPick('chase')} icon={<Clock3 className="h-5 w-5" />} title="Chase Infinity — decide again Wednesday" sub="It waits on Infinity and comes back to you Wednesday by itself." />
+        <OptionCard on={pick === 'chase'} onClick={() => setPick('chase')} icon={<Clock3 className="h-5 w-5" />} title="Chase Infinity. Decide again Wednesday" sub="It waits on Infinity and comes back to you Wednesday by itself." />
         <OptionCard on={pick === 'reorder'} onClick={() => setPick('reorder')} icon={<Repeat className="h-5 w-5" />} title="Reorder from another supplier now" sub="PO-1039 is cancelled and kept in history. The return can be booked when it lands." />
       </div>
     </Modal>
@@ -179,7 +179,7 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
       header={<JobHead jobId={jobId} kicker={`${tag} · ${c.where}`} title={`Their order is ${short} ${c.unit} short of our takeoff`} />}
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">Settled now — not when the crew is standing there.</span>
+          <span className="text-[0.84375rem] text-muted">Settled now, not when the crew is standing there.</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!pick} onClick={() => settleQty(jobId, tag, pick as any)}>{pick === 'order' ? 'Set up the PO' : 'Save'}</Button>
         </>
@@ -207,8 +207,8 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
       </div>
       <div className="flex flex-col gap-2.5">
         <OptionCard on={pick === 'askgc'} onClick={() => setPick('askgc')} icon={<Building2 className="h-5 w-5" />} title={`Ask the GC to add ${short} ${c.unit} to their order`} sub="They supply the tile. It waits on the GC and comes back Wednesday." />
-        <OptionCard on={pick === 'order'} onClick={() => setPick('order')} icon={<Package className="h-5 w-5" />} title="We order the short tile ourselves" sub="A PO to Best Tile from here — billed back to the GC if agreed." />
-        <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="The store counted differently — accept their number" sub="Use only if our takeoff was high. It’s logged with your name." />
+        <OptionCard on={pick === 'order'} onClick={() => setPick('order')} icon={<Package className="h-5 w-5" />} title="We order the short tile ourselves" sub="A PO to Best Tile from here. Billed back to the GC if agreed." />
+        <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="The store counted differently. Accept their number" sub="Use only if our takeoff was high. It’s logged with your name." />
       </div>
     </Modal>
   )
@@ -235,7 +235,7 @@ export function ReceiveModal({ matId, level }: { matId: string; level: number })
       }
     >
       <div className="flex flex-col gap-6">
-        <Field label="How many arrived?" hint="Receipts add up — nothing is overwritten."><NumStepper value={qty} onChange={setQty} min={1} max={6} suffix="pieces" /></Field>
+        <Field label="How many arrived?" hint="Receipts add up. Nothing is overwritten."><NumStepper value={qty} onChange={setQty} min={1} max={6} suffix="pieces" /></Field>
         <Field label="Condition">
           <div className="flex flex-wrap gap-2">
             {['Good', 'Damaged', 'Wrong item'].map((x) => <Chip key={x} on={cond === x} onClick={() => setCond(x)}>{x}</Chip>)}
@@ -286,7 +286,7 @@ export function ReceiveTileModal({ jobId, tag, level }: { jobId: string; tag?: s
         </>
       }
     >
-      <div className="text-[0.875rem] text-muted">Every tile still to come — all of it is filled in. Change a number if less came.</div>
+      <div className="text-[0.875rem] text-muted">Every tile still to come, all of it is filled in. Change a number if less came.</div>
       <div className="mt-3 overflow-hidden rounded-xl border border-line" data-receive-list>
         {list.map((c) => {
           const t = tileOf(jobId, c.tag)
@@ -299,7 +299,7 @@ export function ReceiveTileModal({ jobId, tag, level }: { jobId: string; tag?: s
                 <span className="block truncate text-[0.8125rem] text-muted">{c.where} · {c.received ? `${c.received} of ${c.ordered} here` : `${c.ordered} ${c.unit} ordered`}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
-                <TextInput inputMode="numeric" value={n[c.tag] ?? ''} onChange={(e) => setN({ ...n, [c.tag]: e.target.value.replace(/[^\d]/g, '').slice(0, 5) })} aria-label={`${c.tag} — how much came`} className="h-9 w-[4.5rem] text-right tnum" data-receive-n={c.tag} />
+                <TextInput inputMode="numeric" value={n[c.tag] ?? ''} onChange={(e) => setN({ ...n, [c.tag]: e.target.value.replace(/[^\d]/g, '').slice(0, 5) })} aria-label={`${c.tag}. How much came`} className="h-9 w-[4.5rem] text-right tnum" data-receive-n={c.tag} />
                 <span className="w-12 text-[0.8125rem] text-muted">{c.unit}</span>
               </span>
               {Number(n[c.tag] || 0) < left && <span className="sr-only">{left - Number(n[c.tag] || 0)} still to come</span>}
@@ -350,9 +350,9 @@ export function RolesModal({ level }: { level: number }) {
   const pages = (r: Role) => (s.access[r] || []).map((k) => ({ today: 'Today', estimates: 'Estimates', projects: 'Projects', upcoming: 'Schedule', pos: 'POs', pay: 'Installer pay', money: 'Billing', items: 'Items', clients: 'Clients', designers: 'Designers', subs: 'Installers', suppliers: 'Suppliers' } as Record<string, string>)[k]).filter(Boolean)
   const TYPES: Role[] = LOGIN_TYPES
   const count = (r: Role) => s.team.filter((m) => loginOf(m.role) === r && m.status !== 'off').length
-  const what: Partial<Record<Role, string>> = { crew: 'An installer’s phone — only his job: where to work, what not to start, his touch-ups', client: 'A GC or client — their projects, photos, approvals, invoices, messages' }
+  const what: Partial<Record<Role, string>> = { crew: 'An installer’s phone. Only his job: where to work, what not to start, his touch-ups', client: 'A GC or client. Their projects, photos, approvals, invoices, messages' }
   return (
-    <Modal level={level} size="lg" onClose={s.close} title="See what each person sees" sub="Tap a person to see exactly their Today — every task that lands on them. In the real app everyone signs in with their own email.">
+    <Modal level={level} size="lg" onClose={s.close} title="See what each person sees" sub="Tap a person to see exactly their Today. Every task that lands on them. In the real app everyone signs in with their own email.">
       <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
         {TYPES.map((r) => {
           const on = s.role === r
@@ -363,7 +363,7 @@ export function RolesModal({ level }: { level: number }) {
                 <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.5625rem]', on ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{r === 'crew' ? <Smartphone className="h-4 w-4" /> : r === 'client' ? <Building2 className="h-4 w-4" /> : r === 'owner' ? <ShieldCheck className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}</span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ink">{r === 'owner' ? 'Admin' : r === 'crew' ? 'Installer (crew)' : r === 'client' ? 'GC / client' : label(r)}{r !== 'crew' && r !== 'client' && <span className="text-[0.75rem] font-medium text-muted">{count(r)} {count(r) === 1 ? 'person' : 'people'}</span>}</span>
-                  <span className="mt-0.5 line-clamp-2 block text-[0.78125rem] leading-snug text-muted">{what[r] || (r === 'owner' ? 'Everything, plus Settings — the team, logins and rules' : pages(r).join(' · '))}</span>
+                  <span className="mt-0.5 line-clamp-2 block text-[0.78125rem] leading-snug text-muted">{what[r] || (r === 'owner' ? 'Everything, plus Settings. The team, logins and rules' : pages(r).join(' · '))}</span>
                 </span>
                 <ArrowRight className="mt-2 h-4 w-4 shrink-0 text-faint" />
               </button>

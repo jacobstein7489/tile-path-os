@@ -21,6 +21,8 @@ export interface Task {
   watch?: Role[]
   state: TaskState
   due?: string
+  /** the time of day it's for ("9:00 AM") — none: any time that day */
+  at?: string
   dueTone?: Tone
   waitingOn?: string
   followUp?: string
@@ -87,30 +89,30 @@ export const TASKS0: Task[] = [
     id: 't-wilk-finishes', jobId: 'wilk', title: 'Client wants every finish picked today', type: 'Setup', owner: 'office', for: ['office'], watch: ['owner', 'pm', 'site'],
     followers: ['ys', 'yakov'], everyone: true, state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: 'Grout colors · edges · niche · master bath layout',
     detail: 'The client asked for all finishes to be settled today so the master bath can be released. Back office calls the designer and records each decision on its surface; everyone sees where it stands.',
-    log: [L('Sep 28', 'ys', 'Client called — wants all finishes settled today'), L('Sep 28', 'office', 'Designer reached — answers by 3 PM')],
+    log: [L('Sep 28', 'ys', 'Client called. Wants all finishes settled today'), L('Sep 28', 'office', 'Designer reached. Answers by 3 PM')],
   },
   /* ---- recurring: the site manager's report, every weekday ---- */
   {
-    id: 't-crewreport', jobId: '', title: 'Daily crew report — who is working where, and how far each job is', type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner', 'pm'],
+    id: 't-crewreport', jobId: '', title: 'Daily crew report. Who is working where, and how far each job is', type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner', 'pm'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', repeat: 'weekdays', repeatAt: '4 PM', where: 'Every weekday at 4 PM',
     detail: 'For every job with a crew today: how many people are working there, and where the job is up to. It goes straight to Yanky.',
     action: { label: 'Send the report', kind: 'crewreport' },
-    log: [L('Sep 1', 'ys', 'Set up to repeat every weekday at 4 PM'), L('Sep 25', 'yakov', 'Sent Friday’s report — 4 jobs, 12 people')],
+    log: [L('Sep 1', 'ys', 'Set up to repeat every weekday at 4 PM'), L('Sep 25', 'yakov', 'Sent Friday’s report · 4 jobs, 12 people')],
   },
   /* ---- owner / PM / site ---- */
   {
-    id: 't-thinset', jobId: '828', title: 'Thinset is three weeks late — chase it or reorder?', type: 'Materials', owner: 'ys', for: ['owner', 'pm'], watch: ['materials', 'site'],
+    id: 't-thinset', jobId: '828', title: 'Thinset is three weeks late. Chase it or reorder?', type: 'Materials', owner: 'ys', for: ['owner', 'pm'], watch: ['materials', 'site'],
     state: 'now', due: '23 days late', dueTone: 'bad', tone: 'bad', blocks: 'Punch return at 828 Clyde', where: 'Lobby · front entrance',
     detail: 'PO-1039 · 24 bags of Versabond-LFT from Infinity, confirmed for Sep 5. Nothing has arrived and the return visit is on hold.',
     action: { label: 'Chase or reorder', kind: 'thinset' },
-    log: [L('Aug 25', 'materials', 'PO-1039 sent to Infinity'), L('Aug 26', 'materials', 'Infinity confirmed · ETA Sep 5'), L('Sep 8', 'materials', 'Called Infinity — “next week”'), L('Sep 21', 'system', 'Two weeks late — raised to the owner')],
+    log: [L('Aug 25', 'materials', 'PO-1039 sent to Infinity'), L('Aug 26', 'materials', 'Infinity confirmed · ETA Sep 5'), L('Sep 8', 'materials', 'Called Infinity · “next week”'), L('Sep 21', 'system', 'Two weeks late. Raised to the owner')],
   },
   {
     id: 't-co004', jobId: '119', title: 'CO-004 waiting on the GC', type: 'Changes', owner: 'ys', for: ['owner', 'pm'], watch: ['estimator', 'accounting', 'site'],
     state: 'waiting', waitingOn: 'GC', followUp: 'Tomorrow', tone: 'warn', blocks: 'Boys bath walls above 3 ft', where: 'Boys Bath · main walls',
-    detail: 'Full-height walls instead of the approved 3 ft. Priced at $6,850 — about 96 SF more T-06 and one crew day.',
+    detail: 'Full-height walls instead of the approved 3 ft. Priced at $6,850. About 96 SF more T-06 and one crew day.',
     action: { label: 'Record approval', kind: 'co004' },
-    log: [L('Sep 24', 'ys', 'Client asked for full height in the boys bath'), L('Sep 24', 'estimator', 'Priced: 96 SF more tile, one crew day, $6,850'), L('Sep 24', 'ys', 'Sent to the GC for approval'), L('Sep 26', 'ys', 'Called the GC — reviewing with the owner')],
+    log: [L('Sep 24', 'ys', 'Client asked for full height in the boys bath'), L('Sep 24', 'estimator', 'Priced: 96 SF more tile, one crew day, $6,850'), L('Sep 24', 'ys', 'Sent to the GC for approval'), L('Sep 26', 'ys', 'Called the GC. Reviewing with the owner')],
   },
   {
     id: 't-drain', jobId: '119', title: 'Final drain sequence', type: 'Field', owner: 'ys', for: ['owner', 'pm', 'site'], watch: [],
@@ -155,23 +157,23 @@ export const TASKS0: Task[] = [
   {
     id: 't-designer-wilk', jobId: 'wilk', title: 'Set up the designer meeting for the master bath layout', type: 'Field', owner: 'ys', for: ['owner', 'pm', 'site'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: 'Master bath', blocks: 'Master bath at Wilkinson',
-    detail: 'The hall bath and laundry can start. The master bath floor and shower walls wait for the layout — the designer answers in about a week.',
+    detail: 'The hall bath and laundry can start. The master bath floor and shower walls wait for the layout. The designer answers in about a week.',
     action: { label: 'Set the meeting', kind: 'meeting-wilk' },
     log: [L('Sep 23', 'system', 'Review for scheduling · master bath held for the designer')],
   },
   {
     id: 't-heights-mdrive', jobId: 'mdrive', step: 'mdrive:heights',  title: 'Check the wall heights at Mark Drive', type: 'Field', owner: 'yakov', for: ['owner', 'pm', 'site'],
     state: 'now', due: 'Wed', tone: 'info', where: 'Kitchen · primary bath', blocks: 'Wall tile at Mark Drive',
-    detail: 'Floors are released. The wall tile waits until the heights are measured on site — backsplash to the cabinets, shower to the ceiling or 84″.',
+    detail: 'Floors are released. The wall tile waits until the heights are measured on site. Backsplash to the cabinets, shower to the ceiling or 84″.',
     action: { label: 'Record the heights', kind: 'heights-mdrive' },
     log: [L('Sep 25', 'system', 'Review for scheduling · walls held until heights are confirmed')],
   },
   {
     id: 't-fu-b7', jobId: 'b7', title: 'Pool house decision', type: 'Pricing', owner: 'ys', for: ['owner'],
     state: 'waiting', waitingOn: 'Client', followUp: 'Fri', tone: 'neutral', where: 'Revision 1 · $41,200',
-    detail: 'Called Sep 23 — still reviewing with the designer.',
+    detail: 'Called Sep 23, still reviewing with the designer.',
     action: { label: 'Record follow-up', kind: 'followup' },
-    log: [L('Sep 11', 'office', 'Revision 1 sent'), L('Sep 16', 'ys', 'Emailed — no answer'), L('Sep 23', 'ys', 'Called — still reviewing')],
+    log: [L('Sep 11', 'office', 'Revision 1 sent'), L('Sep 16', 'ys', 'Emailed · no answer'), L('Sep 23', 'ys', 'Called, still reviewing')],
   },
 
   /* ---- back office ---- */
@@ -190,9 +192,9 @@ export const TASKS0: Task[] = [
   {
     id: 't-fu-b5', jobId: 'b5', title: 'Follow up on Clyde St retail · Revision 4', type: 'Pricing', owner: 'office', for: ['office'], watch: ['owner'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: 'Revision 4 · $86,400',
-    detail: 'Sent Sep 18. Called Sep 21 — still reviewing. Emailed Sep 25 — no answer.',
+    detail: 'Sent Sep 18. Called Sep 21, still reviewing. Emailed Sep 25 · no answer.',
     action: { label: 'Record follow-up', kind: 'followup' },
-    log: [L('Sep 18', 'office', 'Revision 4 sent'), L('Sep 21', 'office', 'Called — still reviewing'), L('Sep 25', 'office', 'Emailed — no answer')],
+    log: [L('Sep 18', 'office', 'Revision 4 sent'), L('Sep 21', 'office', 'Called, still reviewing'), L('Sep 25', 'office', 'Emailed · no answer')],
   },
   {
     id: 't-spec-b1', jobId: 'b1', title: 'Spec book from the GC', type: 'Pricing', owner: 'office', for: ['office'],
@@ -202,9 +204,9 @@ export const TASKS0: Task[] = [
   {
     id: 't-custpo114', jobId: '114', title: 'Get the client’s PO from the GC', type: 'Setup', owner: 'office', for: ['office'], watch: ['accounting'],
     state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Contract',
-    detail: 'The client sends their PO before the first bill — company rule. Follow up until it comes; when it does, file it with the project’s billing. That closes this, and billing can start.',
-    action: { label: 'The PO came — file it', kind: 'money:custpo114' },
-    log: [L('Sep 21', 'system', 'Created at award — the GC gives a PO'), L('Sep 21', 'office', 'Requested from the GC')],
+    detail: 'The client sends their PO before the first bill · company rule. Follow up until it comes; when it does, file it with the project’s billing. That closes this, and billing can start.',
+    action: { label: 'The PO came · file it', kind: 'money:custpo114' },
+    log: [L('Sep 21', 'system', 'Created at award. The GC gives a PO'), L('Sep 21', 'office', 'Requested from the GC')],
   },
 
   /* ---- Green Tree: a job the way the office sees one mid-week — the design walk to confirm, tile that came broken,
@@ -218,13 +220,13 @@ export const TASKS0: Task[] = [
   {
     id: 't-green-broken', jobId: 'green', title: 'T-05: 3 boxes came broken', type: 'Materials', owner: 'office', for: ['office'], watch: ['owner'],
     state: 'waiting', waitingOn: 'Best Tile', followUp: 'Tue', tone: 'bad', where: 'T-05 · Bianco',
-    detail: 'Cracked in one corner of the pallet — the driver saw it. Best Tile is sending 3 boxes.',
+    detail: 'Cracked in one corner of the pallet. The driver saw it. Best Tile is sending 3 boxes.',
     log: [L('Sep 30', 'yakov', 'Logged as a problem'), L('Sep 30', 'office', 'Asked Best Tile for 3 boxes')],
   },
   {
     id: 't-green-wrong', jobId: 'green', title: 'T-07: 4 boxes came wrong', type: 'Materials', owner: 'office', for: ['office'], watch: ['owner'],
     state: 'now', due: 'Today', tone: 'bad', where: 'T-07 · Calacatta',
-    detail: 'Honed came instead of polished — send them back and get the right ones.',
+    detail: 'Honed came instead of polished. Send them back and get the right ones.',
     log: [L('Sep 30', 'yakov', 'Logged as a problem')],
   },
   {
@@ -236,7 +238,7 @@ export const TASKS0: Task[] = [
   {
     id: 't-green-mat', jobId: 'green', title: 'Setting materials delivered', type: 'Materials', owner: 'yakov', for: ['site'], watch: ['owner'],
     state: 'waiting', waitingOn: 'Infinity', followUp: 'Mon', tone: 'info', where: 'Thinset, grout, membrane',
-    detail: 'Ordered Sep 30 — Infinity delivers Monday.',
+    detail: 'Ordered Sep 30 · Infinity delivers Monday.',
     log: [L('Sep 30', 'yakov', 'Ordered from Infinity')],
   },
 
@@ -250,8 +252,8 @@ export const TASKS0: Task[] = [
   {
     id: 't-r2-b6', jobId: 'b6', title: 'Final review · Revision 2', type: 'Pricing', owner: 'ys', for: ['owner'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'info', where: 'Basement bath removed · office review done',
-    detail: 'The office checked it — 1 note, fixed. Approve and it goes to the client.', action: { label: 'Review', kind: 'estimate:E-1040' },
-    log: [L('Sep 22', 'ys', 'Revision requested: remove the basement bath'), L('Sep 28', 'estimator', 'Office review done — to Yaakov')],
+    detail: 'The office checked it · 1 note, fixed. Approve and it goes to the client.', action: { label: 'Review', kind: 'estimate:E-1040' },
+    log: [L('Sep 22', 'ys', 'Revision requested: remove the basement bath'), L('Sep 28', 'estimator', 'Office review done · to Yaakov')],
   },
   {
     id: 't-rev-b8', jobId: 'b8', title: 'Review the takeoff', type: 'Pricing', owner: 'estimator', for: ['estimator'],
@@ -272,7 +274,7 @@ export const TASKS0: Task[] = [
   {
     id: 't-prep530', jobId: '530', step: '530:materials',  title: 'Order Portland cement and sand', type: 'Materials', owner: 'materials', for: ['materials'], watch: ['owner', 'pm'],
     state: 'now', due: 'Today', dueTone: 'bad', tone: 'bad', blocks: 'Floors at 530 Mark', where: 'Floor prep',
-    detail: '12 bags of Portland cement and 30 bags of sand. The start is planned for Oct 5 — walls can start without it, floors cannot.',
+    detail: '12 bags of Portland cement and 30 bags of sand. The start is planned for Oct 5. Walls can start without it, floors cannot.',
     action: { label: 'Create PO', kind: 'po530' }, log: [L('Sep 22', 'system', 'Created by review for scheduling')],
   },
   {
@@ -290,7 +292,7 @@ export const TASKS0: Task[] = [
     id: 't-trim118', jobId: '118', title: 'Metal trim ETA · PO-1042', type: 'Materials', owner: 'materials', for: ['materials'], watch: ['pm'],
     state: 'waiting', waitingOn: 'Metal Works Inc.', followUp: 'Today', tone: 'bad', blocks: 'Edges in 3 rooms', where: 'Satin nickel 1/4″ × 40',
     detail: 'Confirmed for Sep 21. Seven days late. Leo keeps working on the field tile.',
-    action: { label: 'Record update', kind: 'follow' }, log: [L('Sep 14', 'materials', 'PO-1042 confirmed · ETA Sep 21'), L('Sep 23', 'materials', 'Called — “end of the week”')],
+    action: { label: 'Record update', kind: 'follow' }, log: [L('Sep 14', 'materials', 'PO-1042 confirmed · ETA Sep 21'), L('Sep 23', 'materials', 'Called. “End of the week”')],
   },
   {
     id: 't-tile24c', jobId: '24c', title: '12 boxes of basement wall tile', type: 'Materials', owner: 'materials', for: ['materials'], watch: ['pm'],
@@ -304,7 +306,7 @@ export const TASKS0: Task[] = [
     id: 't-dep114', jobId: '114', step: '114:deposit',  title: 'Send the 114 Park Place deposit invoice', type: 'Money', owner: 'accounting', for: ['accounting'], watch: ['owner'],
     state: 'now', due: '7 days late', dueTone: 'bad', tone: 'bad', blocks: 'Crew start (warning)', where: 'Deposit 20% · $25,360',
     detail: 'Created at award on Sep 21. Company rule: warn before the crew starts until it is received.',
-    action: { label: 'Create invoice', kind: 'money:dep114' }, log: [L('Sep 21', 'system', 'Created at award'), L('Sep 24', 'system', 'Reminder — not invoiced yet')],
+    action: { label: 'Create invoice', kind: 'money:dep114' }, log: [L('Sep 21', 'system', 'Created at award'), L('Sep 24', 'system', 'Reminder, not invoiced yet')],
   },
   {
     id: 't-dep115', jobId: '115', step: '115:deposit',  title: 'Send the 115 Park deposit invoice', type: 'Money', owner: 'accounting', for: ['accounting'],
@@ -315,7 +317,7 @@ export const TASKS0: Task[] = [
     id: 't-finmill', jobId: 'mill', title: 'Send the Millennium final invoice', type: 'Money', owner: 'accounting', for: ['accounting'], watch: ['owner'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'warn', where: 'Final 10% + retainage',
     detail: 'Punch verified Sep 25. Closeout checks passed.', action: { label: 'Create invoice', kind: 'money:finmill' },
-    log: [L('Sep 25', 'system', 'Final billing ready — created by closeout')],
+    log: [L('Sep 25', 'system', 'Final billing ready. Created by closeout')],
   },
   {
     id: 't-co118', jobId: '118', title: 'Bill CO-001 · kitchen backsplash return', type: 'Money', owner: 'accounting', for: ['accounting'],
@@ -325,7 +327,7 @@ export const TASKS0: Task[] = [
   {
     id: 't-dep530', jobId: '530', step: '530:deposit',  title: '530 Mark deposit · invoice #1038', type: 'Money', owner: 'accounting', for: ['accounting'], watch: ['pm'],
     state: 'waiting', waitingOn: 'Client', followUp: 'Today', tone: 'warn', where: 'Deposit · $10,860',
-    detail: 'Invoiced Sep 15 — 13 days. An automatic reminder goes out today.', action: { label: 'Record payment', kind: 'money:dep530' },
+    detail: 'Invoiced Sep 15 · 13 days. An automatic reminder goes out today.', action: { label: 'Record payment', kind: 'money:dep530' },
     log: [L('Sep 15', 'accounting', 'Invoice #1038 sent from QuickBooks'), L('Sep 22', 'system', 'Reminder sent to the client')],
   },
   {
@@ -427,8 +429,8 @@ export interface PO { id: string; jobId: string; supplier: string; what: string;
 export const POS0: PO[] = [
   { id: 'PO-1045', jobId: '114', supplier: 'Infinity', what: 'Setting materials', amount: 1374, step: 1, date: 'Sep 26', eta: 'Asked for Oct 5', note: 'Sent Sep 26 · waiting for Infinity to confirm', lines: [{ item: 'Uncoupling membrane', qty: '2 rolls', itemId: 'm-membrane', n: 2, price: 315 }, { item: 'LFT thinset', qty: '16 bags', itemId: 'm-thinset', n: 16, price: 38 }, { item: 'Grout · Silverado', qty: '4 bags', itemId: 'm-grout', n: 4, price: 34 }], log: [L('Sep 26', 'materials', 'Sent to Infinity')] },
   { id: 'PO-1041', jobId: '119', supplier: 'Metal Works Inc.', what: 'JOLLY satin brass 10 mm', amount: 684, step: 2, date: 'Sep 9', eta: 'Tomorrow', note: '4 of 6 received · 2 ship tomorrow', lines: [{ item: 'Schluter JOLLY · satin brass · 10 mm · 8 ft', qty: '6', itemId: 'm-jolly', n: 6, price: 114 }], log: [L('Sep 9', 'materials', 'Sent'), L('Sep 10', 'materials', 'Confirmed'), L('Sep 25', 'materials', 'Received 4 of 6')] },
-  { id: 'PO-1042', jobId: '118', supplier: 'Metal Works Inc.', what: 'Satin nickel trim 1/4″', amount: 1560, step: 2, late: true, date: 'Sep 13', eta: 'Was Sep 21', note: 'Confirmed for Sep 21 · 7 days late', lines: [{ item: 'Metal trim · satin nickel · 1/4″ · 8 ft', qty: '40', itemId: 'm-trim', n: 40, price: 39 }], log: [L('Sep 13', 'materials', 'Sent'), L('Sep 14', 'materials', 'Confirmed · ETA Sep 21'), L('Sep 23', 'materials', 'Called — “end of the week”')] },
-  { id: 'PO-1039', jobId: '828', supplier: 'Infinity', what: 'Versabond-LFT thinset', amount: 912, step: 2, late: true, date: 'Aug 25', eta: 'Was Sep 5', note: 'Confirmed for Sep 5 · 23 days late', lines: [{ item: 'Versabond-LFT · 50 lb', qty: '24 bags', itemId: 'm-versa', n: 24, price: 38 }], log: [L('Aug 25', 'materials', 'Sent'), L('Aug 26', 'materials', 'Confirmed · ETA Sep 5'), L('Sep 8', 'materials', 'Called — “next week”')] },
+  { id: 'PO-1042', jobId: '118', supplier: 'Metal Works Inc.', what: 'Satin nickel trim 1/4″', amount: 1560, step: 2, late: true, date: 'Sep 13', eta: 'Was Sep 21', note: 'Confirmed for Sep 21 · 7 days late', lines: [{ item: 'Metal trim · satin nickel · 1/4″ · 8 ft', qty: '40', itemId: 'm-trim', n: 40, price: 39 }], log: [L('Sep 13', 'materials', 'Sent'), L('Sep 14', 'materials', 'Confirmed · ETA Sep 21'), L('Sep 23', 'materials', 'Called. “End of the week”')] },
+  { id: 'PO-1039', jobId: '828', supplier: 'Infinity', what: 'Versabond-LFT thinset', amount: 912, step: 2, late: true, date: 'Aug 25', eta: 'Was Sep 5', note: 'Confirmed for Sep 5 · 23 days late', lines: [{ item: 'Versabond-LFT · 50 lb', qty: '24 bags', itemId: 'm-versa', n: 24, price: 38 }], log: [L('Aug 25', 'materials', 'Sent'), L('Aug 26', 'materials', 'Confirmed · ETA Sep 5'), L('Sep 8', 'materials', 'Called · “next week”')] },
   { id: 'PO-1036', jobId: '119', supplier: 'Infinity', what: 'Setting materials', amount: 4536, step: 4, date: 'Sep 5', note: 'Delivered Sep 12 · bill received Sep 20', lines: [{ item: 'LFT thinset', qty: '40 bags', itemId: 'm-thinset', n: 40, price: 37 }, { item: 'Uncoupling membrane', qty: '4 rolls', itemId: 'm-membrane', n: 4, price: 310 }, { item: 'Waterproofing', qty: '6 pails', itemId: 'm-wp', n: 6, price: 178 }, { item: 'Grout · 4 colors', qty: '22 bags', itemId: 'm-grout', n: 22, price: 34 }], log: [L('Sep 5', 'materials', 'Sent'), L('Sep 12', 'materials', 'Delivered'), L('Sep 20', 'accounting', 'Supplier bill received')] },
 ]
 
@@ -509,13 +511,13 @@ export interface BillBreakdown {
   cos: { id: string; title: string; amount: number }[]
 }
 export const MONEY0: MoneyItem[] = [
-  { id: 'dep114', jobId: '114', kind: 'deposit', title: 'Deposit 20%', amount: 25360, step: 0, state: 'todo', due: '7 days since award', dueTone: 'bad', note: 'Awarded Sep 21. Company rule: warn before the crew starts until it is received.', log: [L('Sep 21', 'system', 'Deposit required — created at award'), L('Sep 24', 'system', 'Reminder: not invoiced yet')], action: 'Create invoice' },
-  { id: 'dep115', jobId: '115', kind: 'deposit', title: 'Deposit 20%', amount: 17680, step: 0, state: 'todo', due: '5 days since award', dueTone: 'warn', note: 'Awarded Sep 23.', log: [L('Sep 23', 'system', 'Deposit required — created at award')], action: 'Create invoice' },
-  { id: 'finmill', jobId: 'mill', kind: 'final', title: 'Final bill · last 10%', amount: 6420, step: 0, state: 'todo', due: 'Ready since Sep 25', dueTone: 'warn', note: 'Punch verified Sep 25 and the closeout checks passed.', log: [L('Sep 25', 'system', 'Final billing ready — created by closeout')], action: 'Create invoice' },
+  { id: 'dep114', jobId: '114', kind: 'deposit', title: 'Deposit 20%', amount: 25360, step: 0, state: 'todo', due: '7 days since award', dueTone: 'bad', note: 'Awarded Sep 21. Company rule: warn before the crew starts until it is received.', log: [L('Sep 21', 'system', 'Deposit required. Created at award'), L('Sep 24', 'system', 'Reminder: not invoiced yet')], action: 'Create invoice' },
+  { id: 'dep115', jobId: '115', kind: 'deposit', title: 'Deposit 20%', amount: 17680, step: 0, state: 'todo', due: '5 days since award', dueTone: 'warn', note: 'Awarded Sep 23.', log: [L('Sep 23', 'system', 'Deposit required. Created at award')], action: 'Create invoice' },
+  { id: 'finmill', jobId: 'mill', kind: 'final', title: 'Final bill · last 10%', amount: 6420, step: 0, state: 'todo', due: 'Ready since Sep 25', dueTone: 'warn', note: 'Punch verified Sep 25 and the closeout checks passed.', log: [L('Sep 25', 'system', 'Final billing ready. Created by closeout')], action: 'Create invoice' },
   { id: 'retmill', jobId: 'mill', kind: 'retainage', title: 'Retainage release', amount: 5778, step: 0, state: 'todo', due: 'With the final bill', note: '10% held on every progress bill. Their terms: released 30 days after the final invoice.', log: [L('Sep 25', 'system', 'Retainage release ready')], action: 'Request release' },
   { id: 'co118', jobId: '118', kind: 'change', title: 'CO-001 · kitchen backsplash return', amount: 1280, step: 0, state: 'todo', due: 'Approved Sep 24', note: 'Approved in writing by the owner’s rep. Bills with the next progress bill.', log: [L('Sep 22', 'ys', 'Requested on site'), L('Sep 23', 'estimator', 'Priced'), L('Sep 24', 'ys', 'Approved by the owner’s rep')], action: 'Add to next bill' },
   { id: 'co2385', jobId: '2385', kind: 'change', title: 'CO-002 · ballroom epoxy upgrade', amount: 3900, step: 0, state: 'todo', due: 'Approved today', note: 'Bills with the final bill.', log: [L('Sep 26', 'estimator', 'Priced'), L('Sep 28', 'ys', 'Approved')], action: 'Add to final bill' },
-  { id: 'dep530', jobId: '530', kind: 'deposit', title: 'Deposit 20%', amount: 10860, step: 1, state: 'waiting', ref: '#1038', due: '13 days', dueTone: 'warn', note: 'Invoiced Sep 15. Automatic reminder goes out today.', log: [L('Sep 8', 'system', 'Deposit required — created at award'), L('Sep 15', 'accounting', 'Invoice #1038 sent from QuickBooks'), L('Sep 22', 'system', 'Reminder sent to the client')], action: 'Record payment' },
+  { id: 'dep530', jobId: '530', kind: 'deposit', title: 'Deposit 20%', amount: 10860, step: 1, state: 'waiting', ref: '#1038', due: '13 days', dueTone: 'warn', note: 'Invoiced Sep 15. Automatic reminder goes out today.', log: [L('Sep 8', 'system', 'Deposit required. Created at award'), L('Sep 15', 'accounting', 'Invoice #1038 sent from QuickBooks'), L('Sep 22', 'system', 'Reminder sent to the client')], action: 'Record payment' },
   { id: 'depwilk', jobId: 'wilk', kind: 'deposit', title: 'Deposit 20% · partly paid', amount: 12380, paid: 6000, step: 1, state: 'waiting', ref: '#1033', due: '$6,380 open', dueTone: 'warn', note: '$6,000 received Sep 22. Follow up Friday for the rest.', log: [L('Sep 16', 'accounting', 'Invoice #1033 sent'), L('Sep 22', 'accounting', '$6,000 received')], action: 'Record payment' },
   { id: 'req119', jobId: '119', kind: 'progress', title: 'Progress bill #1 · through Sep 19', amount: 27690, step: 3, state: 'waiting', ref: '#1047', due: 'Due Oct 25', note: 'GC approved Sep 27. 10% retainage held.', log: [L('Sep 21', 'ys', 'PM checked the progress'), L('Sep 22', 'accounting', 'Invoice #1047 sent'), L('Sep 27', 'system', 'GC approved the pay application')], action: 'Record payment' },
   { id: 'req118', jobId: '118', kind: 'progress', title: 'Progress bill #1 · through Sep 19', amount: 14000, step: 2, state: 'waiting', ref: '#1046', due: 'With the GC', note: 'Sent Sep 22. Waiting for the owner’s rep to approve.', log: [L('Sep 22', 'accounting', 'Invoice #1046 sent')], action: 'Record approval' },
@@ -565,7 +567,7 @@ export interface ReadyItem { jobId: string; kind: 'ready' | 'partial' | 'return'
 export const READY0: ReadyItem[] = [
   { jobId: 'green', kind: 'ready', label: 'Ready', days: 5, workers: 2, areas: ['Lobby', 'Unit 1A bath', 'Unit 1B bath'] },
   { jobId: '530', kind: 'partial', label: 'Start with restrictions', days: 4, workers: 2, areas: ['Kitchen walls', 'Bath walls'], warn: 'Floors wait on Portland and sand · deposit not paid' },
-  { jobId: 'mdrive', kind: 'partial', label: 'Start with restrictions', days: 3, workers: 2, areas: ['Main floor', 'Primary bath floor'], warn: 'Wall tile not confirmed — floors only' },
+  { jobId: 'mdrive', kind: 'partial', label: 'Start with restrictions', days: 3, workers: 2, areas: ['Main floor', 'Primary bath floor'], warn: 'Wall tile not confirmed · floors only' },
   { jobId: 'wilk', kind: 'partial', label: 'Start with restrictions', days: 3, workers: 2, areas: ['Hall bath', 'Laundry'], warn: 'Master bath waits on the designer' },
   { jobId: '830', kind: 'return', label: 'Return visit', days: 1, workers: 1, areas: ['Touch-ups'] },
   { jobId: 'fire', kind: 'return', label: 'Return visit', days: 1, workers: 1, areas: ['Touch-ups'] },
@@ -605,7 +607,7 @@ export const NOTICES0: Notice[] = [
 
 /* ================= follow-up outcomes ================= */
 export const OUTCOMES = [
-  { key: 'reviewing', label: 'Still reviewing', hint: 'Spoke — no decision yet', tone: 'warn' as Tone, next: 'Fri' },
+  { key: 'reviewing', label: 'Still reviewing', hint: 'Spoke. No decision yet', tone: 'warn' as Tone, next: 'Fri' },
   { key: 'noanswer', label: 'No answer', hint: 'Left a message or no reply', tone: 'neutral' as Tone, next: 'Tomorrow' },
   { key: 'later', label: 'Call back later', hint: 'They gave a date', tone: 'neutral' as Tone, next: 'In 2 weeks' },
   { key: 'revision', label: 'Revision requested', hint: 'Scope or price to change', tone: 'info' as Tone, next: '' },

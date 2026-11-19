@@ -31,7 +31,7 @@ export function AnswerPick({ value, onPick, q, disabled, locked, className }: {
             type="button"
             role="radio"
             aria-checked={on}
-            aria-label={`${label} — ${q}`}
+            aria-label={`${label} · ${q}`}
             data-answer={a}
             title={why}
             disabled={disabled || !!why}
@@ -52,7 +52,7 @@ export function AnswerPick({ value, onPick, q, disabled, locked, className }: {
 }
 
 /** under a No: what's wrong — saved when you leave the box or press Enter */
-export function NoNote({ value, onSave, autoFocus, placeholder = 'What’s wrong? — e.g. the drains aren’t here yet', disabled }: { value?: string; onSave: (t: string) => void; autoFocus?: boolean; placeholder?: string; disabled?: boolean }) {
+export function NoNote({ value, onSave, autoFocus, placeholder = 'What’s wrong? · e.g. the drains aren’t here yet', disabled }: { value?: string; onSave: (t: string) => void; autoFocus?: boolean; placeholder?: string; disabled?: boolean }) {
   const [t, setT] = React.useState(value || '')
   React.useEffect(() => setT(value || ''), [value])
   const save = () => { if (t.trim() !== (value || '')) onSave(t.trim()) }

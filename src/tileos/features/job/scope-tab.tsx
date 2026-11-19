@@ -47,7 +47,7 @@ export function tileStatus(s: Pick<Store, 'checks' | 'shortages' | 'rooms'>, job
   const c = s.checks.find((y) => y.jobId === jobId && y.tag === tag)
   const on = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, tag))
   const sf = on.reduce((n, x) => n + sfFor(jobId, x, tag), 0)
-  if (tileOf(jobId, tag)?.trim && on.length && !s.checks.some((y) => y.jobId === jobId && y.tag === tag)) return { tone: 'neutral', label: 'Trim — by the piece' }
+  if (tileOf(jobId, tag)?.trim && on.length && !s.checks.some((y) => y.jobId === jobId && y.tag === tag)) return { tone: 'neutral', label: 'Trim. By the piece' }
   if (!c) return sf ? { tone: 'warn', label: 'Not ordered yet' } : on.length ? { tone: 'neutral', label: 'No square feet yet' } : { tone: 'neutral', label: 'Not on a wall or floor yet' }
   const need = needWithWaste(c)
   if (c.ordered < need) return { tone: 'bad', label: `Order is ${need - c.ordered} ${c.unit} short` }
@@ -116,7 +116,7 @@ export function ScopeStart({ job, bare, onAdded }: { job: Job; /** just the butt
     <div className="rounded-xl border border-dashed border-[#d6cfc3] bg-white px-5 py-4 max-sm:px-4" data-scope-start>
       {card}
       <div className="text-[0.9375rem] font-semibold text-ink">No rooms yet</div>
-      <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Upload its estimate — the rooms, walls and floors fill in by themselves. Or build it here, floor by floor.' : 'They come from its estimate — the office adds it.'}</div>
+      <div className="mt-0.5 text-[0.84375rem] text-muted">{can ? 'Upload its estimate. The rooms, walls and floors fill in by themselves. Or build it here, floor by floor.' : 'They come from its estimate. The office adds it.'}</div>
       {can && (
         <>
           <div className="mt-3">
@@ -124,7 +124,7 @@ export function ScopeStart({ job, bare, onAdded }: { job: Job; /** just the butt
             <Button variant="primary" size="sm" icon={<Upload />} onClick={() => file.current?.click()} data-scope-estimate-btn>Upload the estimate</Button>
           </div>
           <div className="mt-4 border-t border-line-2 pt-3.5" data-scope-build>
-            <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers3 className="h-4 w-4 text-muted" />Or build it here<span className="font-normal text-muted">— pick the floor, then each room; it comes with its usual walls and floors</span></div>
+            <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers3 className="h-4 w-4 text-muted" />Or build it here<span className="font-normal text-muted">· pick the floor, then each room; it comes with its usual walls and floors</span></div>
             <AreaPicker jobId={job.id} onAdded={(room) => onAdded?.(room)} />
           </div>
         </>
@@ -185,7 +185,7 @@ export function ScopeNumbers({ job }: { job: Job }) {
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8125rem] text-ink-2 max-md:order-last max-md:basis-full">
       <b className="font-semibold tnum text-ink">{rooms.length}</b> {rooms.length === 1 ? 'room' : 'rooms'} ·
       <b className="font-semibold tnum text-ink">{flat.length}</b> walls and floors ·
-      <b className="font-semibold tnum text-ink">{sf ? sf.toLocaleString('en-US') : '—'}</b> SF
+      <b className="font-semibold tnum text-ink">{sf ? sf.toLocaleString('en-US') : ''}</b> SF
       {inField && <> · <b className="font-semibold tnum text-ink">{job.pct ?? 0}%</b> installed</>}
       {noTile > 0 && <span className="font-semibold text-warn-700">· {noTile} without a tile</span>}
       {noSF > 0 && <span className="font-semibold text-warn-700">· {noSF} without square feet</span>}
@@ -200,7 +200,7 @@ export function ScopeLockBar({ job }: { job: Job }) {
   const lock = scopeLock(s, job.id)
   if (!lock.done) return null
   const mine = lock.owner === meOf(s.role)
-  return <div className="flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />{lock.canEdit ? (mine ? 'Locked — it’s your scope, so only you change it.' : `Locked — it’s ${PEOPLE[lock.owner]?.short}’s scope. You can change it as the admin.`) : `Locked — it’s ${PEOPLE[lock.owner]?.short}’s scope. Only ${PEOPLE[lock.owner]?.short} changes it.`}</div>
+  return <div className="flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />{lock.canEdit ? (mine ? 'Locked. It’s your scope, so only you change it.' : `Locked · it’s ${PEOPLE[lock.owner]?.short}’s scope. You can change it as the admin.`) : `Locked · it’s ${PEOPLE[lock.owner]?.short}’s scope. Only ${PEOPLE[lock.owner]?.short} changes it.`}</div>
 }
 
 /* ---------------- the tile schedule ---------------- */
@@ -230,11 +230,11 @@ export function TileSchedule({ job, hits }: { job: Job; hits?: Hits }) {
               <span className="block truncate text-[0.8125rem] text-ink-2">{uses.length ? `${uses.length} wall${uses.length === 1 ? '' : 's'} and floor${uses.length === 1 ? '' : 's'}` : 'Not on a wall or floor yet'}</span>
               <span className={cn('block truncate text-[0.75rem]', st.tone === 'bad' ? 'font-semibold text-bad-600' : st.tone === 'ok' ? 'font-medium text-[#2c4a3e]' : st.tone === 'warn' ? 'font-medium text-ink-2' : 'text-muted')}>{st.label}</span>
             </span>
-            <span className="text-right text-[0.90625rem] font-semibold tnum text-ink">{sf ? sf.toLocaleString('en-US') : '—'}</span>
+            <span className="text-right text-[0.90625rem] font-semibold tnum text-ink">{sf ? sf.toLocaleString('en-US') : ''}</span>
           </button>
         )
       })}
-      {!tiles.length && <Empty>No tiles yet — they come in when the tile paperwork is entered.</Empty>}
+      {!tiles.length && <Empty>No tiles yet. They come in when the tile paperwork is entered.</Empty>}
       {lock.canEdit && !hits && <div className="border-t border-line-2 px-5 py-2 max-sm:px-4"><Button size="xs" icon={<Plus />} onClick={() => s.open({ t: 'tile', jobId: job.id })}>Add a tile</Button></div>}
     </section>
   )
@@ -269,7 +269,7 @@ export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; comp
                       <span className={cn('block truncate text-[0.78125rem]', problems ? 'font-medium text-bad-600' : 'text-muted')}>{problems ? `${problems} ${problems === 1 ? 'wall or floor is' : 'walls or floors are'} waiting` : `${r.surfaces.length} ${r.surfaces.length === 1 ? 'wall or floor' : 'walls and floors'}${r.note ? ` · ${r.note}` : ''}`}</span>
                     </span>
                     {inField && <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-12"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-[#2c4a3e]' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></span>}
-                    <span className={cn('w-[3.5rem] shrink-0 text-right text-[0.9375rem] font-semibold tnum', inField && pct >= 100 ? 'text-[#2c4a3e]' : 'text-ink')}>{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')}` : '—'}</span>
+                    <span className={cn('w-[3.5rem] shrink-0 text-right text-[0.9375rem] font-semibold tnum', inField && pct >= 100 ? 'text-[#2c4a3e]' : 'text-ink')}>{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')}` : ''}</span>
                     {shown ? <ChevronDown className="h-4 w-4 shrink-0 text-faint" /> : <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
                   </button>
                 ) : (
@@ -305,7 +305,7 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
       <span className="flex min-w-0 items-center gap-2.5 max-sm:col-span-2 max-sm:row-start-2">
         {t ? <TileImg tile={t} size={22} radius={5} /> : <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 rounded-md border border-dashed border-[#d1cbc0]" />}
         <span className="min-w-0">
-          <span className="block truncate text-[0.84375rem] text-ink-2">{t ? <><b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? <span className="text-muted">No tile yet</span> : <span className="text-muted">Not tiled — goes under the tile</span>}</span>
+          <span className="block truncate text-[0.84375rem] text-ink-2">{t ? <><b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}</> : takesTile(x.name) ? <span className="text-muted">No tile yet</span> : <span className="text-muted">Not tiled. Goes under the tile</span>}</span>
           {problem
             ? <span className={cn('block truncate text-[0.75rem] font-semibold', tone === 'bad' ? 'text-bad-600' : 'text-ink-2')}>{x.pending ? `${x.pending.co} · waiting on approval` : x.reason}</span>
             : details.length > 0 && <span className="flex min-w-0 items-center gap-1.5 text-[0.75rem] text-muted">{lay.pattern && <PatternPic pattern={lay.pattern} w={18} />}<span className="truncate">{details.join(' · ')}</span></span>}
@@ -314,7 +314,7 @@ function ScopeLine({ job, room, x, inField }: { job: Job; room: Room; x: Surface
       <span className="text-right max-sm:row-start-1 max-sm:col-start-2">
         {inField
           ? <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-8 overflow-hidden rounded-full bg-wash-2"><span className={cn('block h-full rounded-full', problem && tone === 'bad' ? 'bg-bad-500' : 'bg-[#2c4a3e]')} style={{ width: `${Math.max(4, pct)}%` }} /></span><span className="w-9 text-right text-[0.8125rem] font-semibold tnum text-ink">{pct}%</span></span>
-          : <span className={cn('text-[0.875rem] font-semibold tnum', x.sf ? 'text-ink' : 'text-faint')}>{x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '—'}</span>}
+          : <span className={cn('text-[0.875rem] font-semibold tnum', x.sf ? 'text-ink' : 'text-faint')}>{x.sf ? `${x.sf.toLocaleString('en-US')} SF` : ''}</span>}
       </span>
     </button>
   )
@@ -414,12 +414,12 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
         </>
       }
     >
-      {!lock.canEdit && <div className="mb-4 flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked — it’s {PEOPLE[lock.owner]?.short || 'its owner'}’s scope. Only {PEOPLE[lock.owner]?.short || 'they'} can change it.</div>}
+      {!lock.canEdit && <div className="mb-4 flex items-center gap-2.5 rounded-[0.75rem] bg-wash px-4 py-2.5 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 shrink-0" />Locked · it’s {PEOPLE[lock.owner]?.short || 'its owner'}’s scope. Only {PEOPLE[lock.owner]?.short || 'they'} can change it.</div>}
       {(x.reason || x.pending) && ['blocked', 'hold', 'waitmat', 'unknown'].includes(x.state) && (
         <div className={cn('mb-4 flex items-center gap-3 rounded-[0.75rem] border px-4 py-3 max-sm:flex-wrap', tone === 'bad' ? 'border-bad-100 bg-bad-50' : 'border-warn-100 bg-warn-50')}>
           {x.state === 'blocked' ? <Ban className="h-5 w-5 shrink-0 text-bad-500" /> : x.state === 'hold' ? <PauseCircle className="h-5 w-5 shrink-0 text-warn-600" /> : x.state === 'unknown' ? <AlertTriangle className="h-5 w-5 shrink-0 text-warn-600" /> : <Clock3 className="h-5 w-5 shrink-0 text-warn-600" />}
           <div className="min-w-0 flex-1">
-            <div className="text-[0.875rem] font-semibold text-ink">{x.state === 'blocked' ? 'Don’t start this one' : x.state === 'hold' ? 'On hold — change not approved' : x.state === 'unknown' ? 'To check on site' : 'Waiting on material'}</div>
+            <div className="text-[0.875rem] font-semibold text-ink">{x.state === 'blocked' ? 'Don’t start this one' : x.state === 'hold' ? 'On hold. Change not approved' : x.state === 'unknown' ? 'To check on site' : 'Waiting on material'}</div>
             <div className="text-[0.84375rem] text-ink-2">{x.pending ? `${x.pending.co}: ${x.pending.label} ${x.pending.from} → ${x.pending.to}` : x.reason}</div>
           </div>
           {fix && <Button size="sm" variant="primary" onClick={fix.run}>{fix.label}</Button>}
@@ -479,7 +479,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
       )}
       {/* the edges — metal or mitered — are a wall's (a floor has none) */}
       {kind === 'wall' && (
-        <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece — and on the room sheet' : edge ? 'On the room sheet' : undefined}>
+        <Row label="Edges" hint={isMetal(edge) ? 'The metal goes on the materials order by the piece, and on the room sheet' : edge ? 'On the room sheet' : undefined}>
           <EdgePicker value={edge} onChange={setEdge} />
         </Row>
       )}
@@ -490,18 +490,18 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
         </div>
       </Row>
       <Row label="Note">
-        <TextArea aria-label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the crew should know — e.g. niche centered on the wall, 12 × 24" className="min-h-[4rem]" />
+        <TextArea aria-label="Note" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the crew should know · e.g. niche centered on the wall, 12 × 24" className="min-h-[4rem]" />
       </Row>
       <button type="button" onClick={() => setMore(!more)} aria-expanded={more} data-surface-more className="mt-1 flex w-full items-center gap-2 border-t border-line-2 py-3 text-left text-[0.84375rem] font-semibold text-muted hover:text-ink">
-        {more ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}More<span className="font-normal">— where it starts, what goes under it</span>
+        {more ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}More<span className="font-normal">· where it starts, what goes under it</span>
       </button>
       {more && <>
-      <Row label="Where it starts" hint={x.dims ? 'Drawn to scale — the crew’s sheet shows every cut' : t ? 'Draw it to scale to see the cuts and the best place to start' : undefined}>
+      <Row label="Where it starts" hint={x.dims ? 'Drawn to scale. The crew’s sheet shows every cut' : t ? 'Draw it to scale to see the cuts and the best place to start' : undefined}>
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <SearchSelect label="Where it starts" value={start} onChange={setStart} options={opts(STARTS, start)} placeholder="Where it starts" emptyLabel="Not set" onCreate={setStart} createLabel={(q) => `Use “${q}”`} search={false} width={300} />
           </div>
-          <Tip label={t ? 'Draw it to scale — every cut, no slivers' : 'Pick the tile first'}>
+          <Tip label={t ? 'Draw it to scale. Every cut, no slivers' : 'Pick the tile first'}>
             <button
               disabled={!t}
               aria-label="Draw it to scale"
@@ -514,7 +514,7 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
           </Tip>
         </div>
       </Row>
-      <Row label="Under it" hint={!method && !x.method && cur.auto ? <span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-warn-500" />Suggested from the {kind === 'wall' ? 'wall' : 'floor'} — pick it to confirm</span> : undefined}>
+      <Row label="Under it" hint={!method && !x.method && cur.auto ? <span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5 text-warn-500" />Suggested from the {kind === 'wall' ? 'wall' : 'floor'} · pick it to confirm</span> : undefined}>
         <SearchSelect
           label="What goes under the tile"
           value={method || cur.key}
@@ -582,7 +582,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
       footer={
         <>
           {cur && (
-            ordered ? <span className="text-[0.78125rem] text-muted">Its order is logged — it can’t be removed</span> : (
+            ordered ? <span className="text-[0.78125rem] text-muted">Its order is logged. It can’t be removed</span> : (
               <Pop open={confirmDel} onOpenChange={setConfirmDel} side="top" align="start" width={300} trigger={<Button variant="ghost" className="text-bad-600 hover:bg-bad-50" icon={<Trash2 />}>Remove</Button>}>
                 <div className="text-[0.875rem] font-semibold text-ink">Remove {cur.tag} from {job.name}?</div>
                 <div className="mt-1 text-[0.8125rem] text-muted">The walls and floors with it go back to “no tile”.</div>
@@ -620,7 +620,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
               <TextInput data-autofocus aria-label="Tile name" value={t.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Toscana Ivory" className="h-10" />
             </label>
           </div>
-          {clash && <div className="mt-1.5 text-[0.78125rem] font-medium text-bad-600">{tagT} is already on this project — use the next tag.</div>}
+          {clash && <div className="mt-1.5 text-[0.78125rem] font-medium text-bad-600">{tagT} is already on this project. Use the next tag.</div>}
           <div className="mt-3 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
             <Field2 label="Size"><SearchSelect label="Size" value={t.size} onChange={(v) => set({ size: v })} options={opts(TILE_SIZES, t.size)} placeholder="Pick or type" onCreate={(v) => set({ size: v })} createLabel={(q) => `Use “${q}”`} search searchPlaceholder="e.g. 12 × 24" width={260} /></Field2>
             <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-3">
@@ -641,7 +641,7 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
               <Field2 label="Finish"><SearchSelect label="Finish" value={t.finish} onChange={(v) => set({ finish: v })} options={opts(FINISHES, t.finish)} search={false} width={220} /></Field2>
               <Field2 label="Maker"><TextInput aria-label="Maker" value={t.maker} onChange={(e) => set({ maker: e.target.value })} placeholder="e.g. Marca Corona" className="h-10" /></Field2>
               <Field2 label="Color or SKU"><TextInput aria-label="Color or SKU" value={t.sku} onChange={(e) => set({ sku: e.target.value })} placeholder="As on the finish schedule" className="h-10" /></Field2>
-              <Field2 label="SF in a box"><TextInput aria-label="Square feet in a box" inputMode="decimal" value={t.boxSF ? String(t.boxSF) : ''} onChange={(e) => set({ boxSF: Number(e.target.value.replace(/[^0-9.]/g, '')) || undefined })} placeholder="—" className="h-10 tnum" /></Field2>
+              <Field2 label="SF in a box"><TextInput aria-label="Square feet in a box" inputMode="decimal" value={t.boxSF ? String(t.boxSF) : ''} onChange={(e) => set({ boxSF: Number(e.target.value.replace(/[^0-9.]/g, '')) || undefined })} placeholder="" className="h-10 tnum" /></Field2>
             </div>
           )}
           {/* where it goes: said, not tapped — each wall or floor picks its own tile, on the scope of work (no window
@@ -657,14 +657,14 @@ export function TileModal({ jobId, tag, room, surface, level }: { jobId: string;
                   const fresh = !cur
                   return (
                     <div key={k} className="flex min-h-10 w-full min-w-0 items-center gap-3 border-t border-line-2 px-3.5 py-2 first:border-t-0" data-where-place={k}>
-                      <span className="min-w-0 flex-1 text-[0.875rem] text-ink">{rn} · {sn}{how && <span className="text-muted"> — {how}</span>}</span>
+                      <span className="min-w-0 flex-1 text-[0.875rem] text-ink">{rn} · {sn}{how && <span className="text-muted"> · {how}</span>}</span>
                       {fresh && <span className="shrink-0 text-[0.78125rem] text-muted">goes here when you save</span>}
                     </div>
                   )
                 })}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-line px-3.5 py-3 text-[0.8125rem] text-muted" data-where-none>Not on a wall or floor yet — on the Scope of work, tap a wall or floor and pick {tagT || 'this tile'}.</div>
+              <div className="rounded-xl border border-dashed border-line px-3.5 py-3 text-[0.8125rem] text-muted" data-where-none>Not on a wall or floor yet. On the Scope of work, tap a wall or floor and pick {tagT || 'this tile'}.</div>
             )}
           </div>
         </div>

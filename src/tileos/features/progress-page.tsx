@@ -65,7 +65,7 @@ export function ProgressToolbar({ week, onWeek }: { week: string; onWeek: (k: st
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
       <WeekPicker weeks={tiles} value={week} onChange={onWeek} />
-      <Status tone={cur.tone}>{w.current ? 'Running — bill it Monday' : cur.status}</Status>
+      <Status tone={cur.tone}>{w.current ? 'Running. Bill it Monday' : cur.status}</Status>
       <span className="ml-auto flex items-center gap-3 text-[0.8125rem] text-muted">
         <span>
           {rows.length} {rows.length === 1 ? 'project' : 'projects'} ·{' '}
@@ -96,7 +96,7 @@ export function ProgressList({ week }: { week: string }) {
         <span className="max-xl:hidden" />
       </div>
       {rows.map((r) => <BillLine key={r.jobId} r={r} only={rows.filter((x) => x.state === 'tobill').length === 1} />)}
-      {!rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.current ? 'No daily updates yet this week — it fills in as the site manager sends them.' : 'No work logged that week.'}</div>}
+      {!rows.length && <div className={cn('py-8 text-center text-[0.84375rem] text-muted', PX)}>{w.current ? 'No daily updates yet this week. It fills in as the site manager sends them.' : 'No work logged that week.'}</div>}
       <div className={cn('flex items-start gap-2 border-t border-line-2 bg-wash/60 py-3 text-[0.78125rem] leading-snug text-muted', PX)}>
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
@@ -119,7 +119,7 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
   const rooms = new Set(r.lines.map((l) => l.room)).size
   const billedPct = r.contract ? Math.min(100, Math.round((r.before / r.contract) * 100)) : 0
   return (
-    <div role="button" aria-label={`${job.name} — open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3rem] cursor-pointer border-t border-line-2 bg-white py-1.5 transition-colors first:border-t-0 row-hover', PX)}>
+    <div role="button" aria-label={`${job.name}. Open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3rem] cursor-pointer border-t border-line-2 bg-white py-1.5 transition-colors first:border-t-0 row-hover', PX)}>
       <span className="min-w-0">
         <span className="block truncate text-[0.9375rem] text-ink">{job.name}</span>
         <span className="block truncate text-[0.8125rem] text-muted">
@@ -128,7 +128,7 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
           <span className="lg:hidden"> · {st.label}</span>
         </span>
       </span>
-      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.weekAmount ? fmtMoney(r.weekAmount) : '—'}</span>
+      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.weekAmount ? fmtMoney(r.weekAmount) : ''}</span>
       <span className="min-w-0 max-lg:hidden">
         <span className="flex h-1.5 overflow-hidden rounded-full bg-wash-2">
           <span className="h-full bg-brand-500" style={{ width: `${billedPct}%` }} />
@@ -147,7 +147,7 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
         ) : r.state === 'running' ? (
           <span className="block text-[0.8125rem] text-muted">Monday</span>
         ) : (
-          <span className="block truncate text-[0.8125rem] text-faint">{nothingWhy(r) || '—'}</span>
+          <span className="block truncate text-[0.8125rem] text-faint">{nothingWhy(r) || ''}</span>
         )}
       </span>
       <span className="max-lg:hidden"><Status tone={st.tone}>{st.label}</Status></span>
@@ -196,18 +196,18 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
         </div>
         <div className="flex shrink-0 items-stretch gap-3 max-md:w-full">
           <Figure label="Work done this week" value={fmtMoney(r.weekAmount)} sub={`${r.pct}% of the contract in`} />
-          <Figure label={own ? 'Billed' : week.current ? 'To bill Monday' : 'To bill'} value={own ? fmtMoney(own.amount || 0) : week.current ? '—' : fmtMoney(canBill || r.state === 'tobill' ? total : 0)} sub={own ? billStep(own).label : week.current ? 'The week isn’t over' : 'After retainage and earlier bills'} strong={!own && !week.current} />
+          <Figure label={own ? 'Billed' : week.current ? 'To bill Monday' : 'To bill'} value={own ? fmtMoney(own.amount || 0) : week.current ? '' : fmtMoney(canBill || r.state === 'tobill' ? total : 0)} sub={own ? billStep(own).label : week.current ? 'The week isn’t over' : 'After retainage and earlier bills'} strong={!own && !week.current} />
         </div>
       </div>
       {!own && !week.current && r.state !== 'tobill' && (
         <div className={cn('mt-3.5 flex items-start gap-3 rounded-xl border px-4 py-2.5', r.state === 'noprice' ? 'border-bad-100 bg-bad-50' : 'border-line bg-wash')}>
           {r.state === 'noprice' ? <TriangleAlert className="mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 text-bad-600" /> : <Info className="mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 text-muted" />}
           <div className="min-w-0 text-[0.875rem] leading-snug text-ink-2">
-            {r.state === 'deposit' && <><b className="font-semibold text-ink">Nothing to bill yet — the deposit covers it.</b> The work in so far, less retainage, is still less than what’s billed with the deposit. Bills start once the work passes it.</>}
-            {r.state === 'ahead' && <><b className="font-semibold text-ink">Nothing to bill — the bills are caught up.</b> What’s billed already covers the work in, less retainage.</>}
+            {r.state === 'deposit' && <><b className="font-semibold text-ink">Nothing to bill yet. The deposit covers it.</b> The work in so far, less retainage, is still less than what’s billed with the deposit. Bills start once the work passes it.</>}
+            {r.state === 'ahead' && <><b className="font-semibold text-ink">Nothing to bill. The bills are caught up.</b> What’s billed already covers the work in, less retainage.</>}
             {r.state === 'later' && r.bill && <><b className="font-semibold text-ink">Billed with the week of {weekRange(r.bill.week || r.bill.bill?.week || week.key)}.</b> That bill took in this week’s work too.</>}
-            {r.state === 'final' && <><b className="font-semibold text-ink">The rest goes on the final bill.</b> The final bill is made — no more progress bills on this project.</>}
-            {r.state === 'noprice' && <><b className="font-semibold text-bad-700">No approved estimate or contract amount.</b> There’s nothing to bill the work against — approve the estimate (or put in the contract amount) and it fills in.</>}
+            {r.state === 'final' && <><b className="font-semibold text-ink">The rest goes on the final bill.</b> The final bill is made. No more progress bills on this project.</>}
+            {r.state === 'noprice' && <><b className="font-semibold text-bad-700">No approved estimate or contract amount.</b> There’s nothing to bill the work against. Approve the estimate (or put in the contract amount) and it fills in.</>}
           </div>
         </div>
       )}
@@ -220,7 +220,7 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
       <Button className={cn('max-sm:flex-1', !(own.step <= 0 && own.state !== 'paid') && 'ml-auto')} variant="primary" icon={<FileText />} onClick={() => s.open({ t: 'money', id: own.id })}>Open the bill</Button>
     </>
   ) : week.current ? (
-    <span className="text-[0.84375rem] text-muted">The week isn’t over — it grows with every daily update and is ready to bill Monday.</span>
+    <span className="text-[0.84375rem] text-muted">The week isn’t over. It grows with every daily update and is ready to bill Monday.</span>
   ) : r.state === 'later' && r.bill ? (
     <>
       <span className="text-[0.84375rem] text-muted">Billed with the week of {weekRange(r.bill.week || week.key)}.</span>
@@ -270,8 +270,8 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
                       {x.byDay[d.date] ? <span className="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded-md bg-brand-50 px-1 text-[0.75rem] font-semibold tnum text-brand-700">+{x.byDay[d.date]}%</span> : <span className="h-1 w-1 rounded-full bg-line" />}
                     </span>
                   ))}
-                  <span className="text-right tnum text-muted max-md:hidden">{x.worth ? fmtMoney(x.worth) : '—'}</span>
-                  <span className="text-right tnum text-ink">{x.worth ? fmtMoney(x.amount) : '—'}</span>
+                  <span className="text-right tnum text-muted max-md:hidden">{x.worth ? fmtMoney(x.worth) : ''}</span>
+                  <span className="text-right tnum text-ink">{x.worth ? fmtMoney(x.amount) : ''}</span>
                 </div>
               ))}
               <div className="h-1" />
@@ -308,7 +308,7 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
             </dl>
             {(b ? b.cos.length > 0 : r.cos.length > 0) && (
               <div className="mt-3 border-t border-line-2 pt-3">
-                <div className="text-[0.78125rem] font-semibold text-muted">Approved change orders{b ? ' on this bill' : ' — bill them with it'}</div>
+                <div className="text-[0.78125rem] font-semibold text-muted">Approved change orders{b ? ' on this bill' : '. Bill them with it'}</div>
                 <div className="mt-1.5 flex flex-col gap-1">
                   {b
                     ? b.cos.map((c) => <Line key={c.id} label={c.title} value={`+${fmtMoney(c.amount)}`} />)
@@ -332,7 +332,7 @@ export function ProgressModal({ jobId, week: wk, level }: { jobId: string; week?
           </section>
           <div className="rounded-2xl bg-wash p-4">
             <div className="flex items-center gap-2 text-[0.84375rem] font-bold text-ink"><ClipboardList className="h-4 w-4 text-muted" />Where it comes from</div>
-            <div className="mt-1.5 text-[0.8125rem] leading-snug text-ink-2">The site manager’s daily updates — how far each wall and floor moved — times what each one is worth on {est ? `the approved estimate (${est.id})` : 'the contract'}.</div>
+            <div className="mt-1.5 text-[0.8125rem] leading-snug text-ink-2">The site manager’s daily updates. How far each wall and floor moved · times what each one is worth on {est ? `the approved estimate (${est.id})` : 'the contract'}.</div>
             {rooms.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {rooms.map((g) => <button key={g.room} onClick={() => openRoom(jobId, g.room, 'log')} className="rounded-full border border-line bg-white px-2.5 py-1 text-[0.78125rem] font-medium text-ink-2 hover:border-brand-200 hover:text-brand-700">{g.room}</button>)}

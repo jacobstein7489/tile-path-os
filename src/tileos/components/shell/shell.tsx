@@ -232,7 +232,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {!away && <MenuItem icon={<UserPen className="h-4 w-4" />} onSelect={() => open({ t: 'myname' })} data-my-name>Your name</MenuItem>}
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="The team, the steps, the rules">Settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
-      {REAL.cloud && REAL.admin && !away && <MenuItem icon={<FlaskConical className="h-4 w-4" />} onSelect={lookAtSample} hint="Made-up projects to test — nothing saved">Try it with sample projects</MenuItem>}
+      {REAL.cloud && REAL.admin && !away && <MenuItem icon={<FlaskConical className="h-4 w-4" />} onSelect={lookAtSample} hint="Made-up projects to test · nothing saved">Try it with sample projects</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&
@@ -249,7 +249,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {/* just the version — tap it to check for a newer one (how fast it opened and the robot's times are in Settings →
           This device) */}
-      {BUILT && <MenuItem icon={<RotateCw className="h-4 w-4" />} onSelect={() => { void checkNow().then((r) => { if (r === 'same') toast(`This is the newest — Version ${BUILT}`); else if (r === 'error') toast('Couldn’t check — no signal?') }) }} hint="Tap to check for a newer one" data-version>Version {BUILT}</MenuItem>}
+      {BUILT && <MenuItem icon={<RotateCw className="h-4 w-4" />} onSelect={() => { void checkNow().then((r) => { if (r === 'same') toast(`This is the newest · Version ${BUILT}`); else if (r === 'error') toast('Couldn’t check · no signal?') }) }} hint="Tap to check for a newer one" data-version>Version {BUILT}</MenuItem>}
     </>
   )
 }
@@ -264,7 +264,7 @@ export function UpdatePill() {
     <button type="button" onClick={() => { setGoing(true); void updateNow() }} disabled={going} data-update-pill
       className="fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] z-[45] inline-flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-brand-600 px-4 py-2.5 text-[0.9375rem] font-semibold text-white shadow-[0_0.5rem_1.5rem_-0.5rem_rgba(38,80,207,.6)] lg:top-4">
       <RotateCw className={going ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-      {going ? 'Updating…' : 'New version — tap to update'}
+      {going ? 'Updating…' : 'New version. Tap to update'}
     </button>
   )
 }

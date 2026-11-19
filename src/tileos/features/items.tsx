@@ -73,7 +73,7 @@ export function ItemsPage() {
       title="Items"
       actions={<div className="flex items-center gap-2">
         <Button icon={<Upload />} onClick={() => s.open({ t: 'importitems' })}><span className="max-sm:hidden">Import from QuickBooks</span><span className="sm:hidden">Import</span></Button>
-        {canChangeItems(s.role) && <Button icon={<ListChecks />} onClick={() => s.open({ t: 'catalog' })} data-open-catalog><span className="max-sm:hidden">From the list — metals, thinset</span><span className="sm:hidden">From the list</span></Button>}
+        {canChangeItems(s.role) && <Button icon={<ListChecks />} onClick={() => s.open({ t: 'catalog' })} data-open-catalog><span className="max-sm:hidden">From the list · metals, thinset</span><span className="sm:hidden">From the list</span></Button>}
         {canChangeItems(s.role) && <Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newitem' })}>Add a material</Button>}
       </div>}
       top={
@@ -131,8 +131,8 @@ export function ItemsPage() {
                       </Td>
                       <Td className="text-[0.875rem] text-ink-2">{i.unit}</Td>
                       <Td right className={cn('tnum', i.price ? 'text-ink' : 'text-warn-700')}>{i.price ? price(i.price) : 'Priced per job'}</Td>
-                      <Td right className={cn('tnum max-md:hidden', i.cost ? 'text-ink-2' : 'text-faint')}>{i.cost ? price(i.cost) : i.type === 'labor' ? 'Not set' : '—'}</Td>
-                      <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : '—'}</Td>
+                      <Td right className={cn('tnum max-md:hidden', i.cost ? 'text-ink-2' : 'text-faint')}>{i.cost ? price(i.cost) : i.type === 'labor' ? 'Not set' : ''}</Td>
+                      <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : ''}</Td>
                     </Tr>
                   ))}
                 </React.Fragment>
@@ -187,8 +187,8 @@ export function ItemsPage() {
                 </Td>
                 <Td className="text-[0.875rem] text-muted max-md:hidden">{i.unit}</Td>
                 <Td right className="tnum text-ink">{price(i.price)}</Td>
-                <Td right className="tnum max-md:hidden">{i.cost ? price(i.cost) : '—'}</Td>
-                <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : '—'}</Td>
+                <Td right className="tnum max-md:hidden">{i.cost ? price(i.cost) : ''}</Td>
+                <Td right className="tnum text-muted max-lg:hidden">{i.cost && i.price ? `${Math.round(((i.price - i.cost) / i.price) * 100)}%` : ''}</Td>
               </Tr>
             ))}
             {!shownLabor.length && <EmptyRow colSpan={5} title="No rates match" />}
@@ -215,9 +215,9 @@ function MatRow({ i }: { i: Item }) {
           </div>
         </div>
       </Td>
-      <Td className="truncate text-ink-2 max-md:hidden">{i.vendor || '—'}</Td>
+      <Td className="truncate text-ink-2 max-md:hidden">{i.vendor || ''}</Td>
       <Td right className="tnum text-ink">{price(i.cost)}<span className="text-[0.75rem] text-muted"> / {i.unit}</span></Td>
-      <Td right className="tnum text-ink-2 max-lg:hidden">{i.price ? price(i.price) : '—'}</Td>
+      <Td right className="tnum text-ink-2 max-lg:hidden">{i.price ? price(i.price) : ''}</Td>
     </Tr>
   )
 }
@@ -229,21 +229,21 @@ export function ItemModal({ id, level }: { id: string; level: number }) {
   const [editing, setEditing] = React.useState(false)
   const [sure, setSure] = React.useState(false)
   if (!i) return null
-  if (editing && i.type === 'material') return <Modal level={level} size="lg" onClose={s.close} title={`Change ${i.name}`} sub="Everything about it — the projects’ material lists and new POs use it right away"><MaterialForm item={i} onDone={() => setEditing(false)} /></Modal>
+  if (editing && i.type === 'material') return <Modal level={level} size="lg" onClose={s.close} title={`Change ${i.name}`} sub="Everything about it. The projects’ material lists and new POs use it right away"><MaterialForm item={i} onDone={() => setEditing(false)} /></Modal>
   const can = canChangeItems(s.role)
   /* the takeoff's own materials (thinset, grout, board…) can be changed, not deleted — ones you added can */
   const usedByTakeoff = !!i.usedFor || (i.id.startsWith('m-') && !i.id.startsWith('m-own-'))
   const footer = can && i.type === 'material' ? (
     sure ? (
       <>
-        <span className="text-[0.875rem] font-medium text-bad-700">Delete {i.name}? It comes off the catalog — POs already sent keep it.</span>
+        <span className="text-[0.875rem] font-medium text-bad-700">Delete {i.name}? It comes off the catalog · POs already sent keep it.</span>
         <Button className="ml-auto" variant="ghost" onClick={() => setSure(false)}>Keep it</Button>
         <Button variant="danger" onClick={() => { s.commit((st) => { st.items = st.items.filter((x) => x.id !== i.id) }, `${i.name} deleted`); s.close() }}>Yes, delete it</Button>
       </>
     ) : (
       <>
         {usedByTakeoff
-          ? <span className="text-[0.78125rem] text-muted">The takeoff works this one out — change it, it can’t be deleted</span>
+          ? <span className="text-[0.78125rem] text-muted">The takeoff works this one out. Change it, it can’t be deleted</span>
           : <Button variant="ghost" icon={<Trash2 />} onClick={() => setSure(true)}>Delete</Button>}
         <Button className="ml-auto" icon={<Pencil />} onClick={() => setEditing(true)}>Change it</Button>
       </>
@@ -308,7 +308,7 @@ function PhotoButton({ i }: { i: Item }) {
   const saveLink = () => {
     const url = (link || '').trim()
     if (!/^https?:\/\/\S+/i.test(url)) return
-    useStore.getState().commit((s) => { const it = s.items.find((x) => x.id === i.id); if (it) it.photo = url }, 'Picture added', { undo: false, sub: 'From the link — if it ever stops loading, the drawn package shows instead.' })
+    useStore.getState().commit((s) => { const it = s.items.find((x) => x.id === i.id); if (it) it.photo = url }, 'Picture added', { undo: false, sub: 'From the link, if it ever stops loading, the drawn package shows instead.' })
     setLink(null)
   }
   return (
@@ -407,7 +407,7 @@ function MaterialForm({ item, onDone }: { item?: Item; onDone: (id?: string) => 
 export function NewItemModal({ level }: { level: number }) {
   const s = useStore()
   return (
-    <Modal level={level} size="lg" onClose={s.close} title="Add a material" sub="It joins the catalog — the projects’ material lists and POs can use it">
+    <Modal level={level} size="lg" onClose={s.close} title="Add a material" sub="It joins the catalog. The projects’ material lists and POs can use it">
       <MaterialForm onDone={(id) => { s.close(); if (id) setTimeout(() => s.open({ t: 'item', id }), 80) }} />
     </Modal>
   )
@@ -425,13 +425,13 @@ function ItemEdit({ i }: { i: Item }) {
       {i.desc && <div className="mb-4 text-[0.875rem] text-ink-2">{i.desc}</div>}
       <div className="grid grid-cols-[7.5rem_1fr_1fr] gap-4 max-sm:grid-cols-1">
         <Field label="Unit">
-          <SearchSelect label="Unit" value={i.unit} onChange={(u) => save({ unit: u }, `${i.name} — per ${u}`)} options={UNITS.map((u) => ({ key: u, label: u }))} search={false} width={160} />
+          <SearchSelect label="Unit" value={i.unit} onChange={(u) => save({ unit: u }, `${i.name} · per ${u}`)} options={UNITS.map((u) => ({ key: u, label: u }))} search={false} width={160} />
         </Field>
         <Field label="We charge" hint={i.price ? `per ${i.unit}` : 'Empty = priced on each estimate'}>
-          <TextInput inputMode="decimal" value={p} onChange={(e) => setP(e.target.value)} onBlur={() => num(p) !== i.price && save({ price: num(p) }, `${i.name} — ${price(num(p))} / ${i.unit}`)} placeholder="$0.00" className="tnum" />
+          <TextInput inputMode="decimal" value={p} onChange={(e) => setP(e.target.value)} onBlur={() => num(p) !== i.price && save({ price: num(p) }, `${i.name} · ${price(num(p))} / ${i.unit}`)} placeholder="$0.00" className="tnum" />
         </Field>
         <Field label="We pay the installer" hint={i.type === 'labor' ? 'Goes on his PO and his weekly pay' : 'Only for labor'}>
-          <TextInput inputMode="decimal" value={c} onChange={(e) => setC(e.target.value)} onBlur={() => num(c) !== i.cost && save({ cost: num(c) }, `${i.name} — installer gets ${price(num(c))} / ${i.unit}`)} placeholder="$0.00" className="tnum" />
+          <TextInput inputMode="decimal" value={c} onChange={(e) => setC(e.target.value)} onBlur={() => num(c) !== i.cost && save({ cost: num(c) }, `${i.name} · installer gets ${price(num(c))} / ${i.unit}`)} placeholder="$0.00" className="tnum" />
         </Field>
       </div>
       <div className="mt-3 text-[0.78125rem] text-muted">QuickBooks item: {i.qb}{i.group ? ` · ${i.group}` : ''}</div>
@@ -525,14 +525,14 @@ export function ImportItemsModal({ level }: { level: number }) {
       {!from && (
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           <OptionCard icon={<RefreshCw />} tone="ok" title="Your QuickBooks items" sub="The Products and Services export (CSV). New items are added, changed prices are updated." onClick={() => setFrom('qb')} />
-          <OptionCard icon={<FileSpreadsheet />} title="A supplier’s price list" sub="Setting materials from Infinity, Metal Works or anyone — with their pictures. Sample list." onClick={() => setFrom('list')} />
+          <OptionCard icon={<FileSpreadsheet />} title="A supplier’s price list" sub="Setting materials from Infinity, Metal Works or anyone. With their pictures. Sample list." onClick={() => setFrom('list')} />
         </div>
       )}
       {from === 'qb' && !read && (
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#d0d5dc] bg-wash px-6 py-12 text-center transition hover:border-brand-300 hover:bg-brand-50/40">
           <Upload className="h-6 w-6 text-brand-600" />
           <span className="text-[0.9375rem] font-semibold text-ink">Pick the CSV file from QuickBooks</span>
-          <span className="max-w-md text-[0.875rem] text-muted">Export Products and Services from QuickBooks — it saves a .csv file. Payments, deposits, fees and test items are left out by themselves.</span>
+          <span className="max-w-md text-[0.875rem] text-muted">Export Products and Services from QuickBooks. It saves a .csv file. Payments, deposits, fees and test items are left out by themselves.</span>
           <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) openFile(f) }} />
         </label>
       )}
@@ -564,14 +564,14 @@ export function ImportItemsModal({ level }: { level: number }) {
                 )
               })}
             </div>
-          ) : <div className="py-8 text-center text-[0.875rem] text-muted">Everything matches — your items are already up to date.</div>}
+          ) : <div className="py-8 text-center text-[0.875rem] text-muted">Everything matches. Your items are already up to date.</div>}
         </div>
       )}
       {from === 'list' && (
         <div>
           <div className="mb-3 flex items-center gap-3 rounded-xl border border-dashed border-[#d0d5dc] bg-wash px-4 py-3">
             <FileSpreadsheet className="h-5 w-5 text-ok-600" />
-            <span className="min-w-0 flex-1 text-[0.875rem]"><b className="font-semibold text-ink">Infinity price list — October.xlsx</b> <span className="text-muted">· sample file · {PRICE_LIST.length} products, {rows.length} new</span></span>
+            <span className="min-w-0 flex-1 text-[0.875rem]"><b className="font-semibold text-ink">Infinity price list · October.xlsx</b> <span className="text-muted">· sample file · {PRICE_LIST.length} products, {rows.length} new</span></span>
           </div>
           {rows.length ? (
             <div className="overflow-hidden rounded-xl border border-line">

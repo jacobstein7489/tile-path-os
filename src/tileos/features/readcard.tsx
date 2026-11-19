@@ -56,7 +56,7 @@ export function ReadingCard({ r, onStop, onRetry, className }: { r: Reading; onS
         </span>
         <span className="w-10 shrink-0 text-right text-[0.8125rem] font-semibold tnum text-brand-700">{pct}%</span>
       </div>
-      <div className="mt-1.5 text-[0.78125rem] text-muted">You can leave — it keeps going, and it’s here when you come back.</div>
+      <div className="mt-1.5 text-[0.78125rem] text-muted">You can leave. It keeps going, and it’s here when you come back.</div>
     </div>
   )
 }

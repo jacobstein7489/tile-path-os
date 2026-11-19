@@ -88,11 +88,11 @@ function roomWord(r: RoomView): { text: string; cls: string } {
   return { text: c.text, cls: c.tone === 'bad' ? 'font-medium text-bad-600' : c.tone === 'warn' ? 'text-warn-700' : 'text-muted' }
 }
 /** "Fully tiled", "48″ wainscot" — how high a wall goes, short */
-/** how high, short — the height itself: "Half tiled — to 4 ft" → "To 4 ft", "Fully tiled — to the ceiling" → "To the
- *  ceiling"; "Wet walls only — to the ceiling" keeps which walls */
+/** how high, short — the height itself: "Half tiled, to 4 ft" → "To 4 ft", "Fully tiled, to the ceiling" → "To the
+ *  ceiling"; "Wet walls only, to the ceiling" keeps which walls */
 const heightShort = (h?: string) => {
   if (!h) return ''
-  const [a, b] = h.split(' — ').map((x) => x.trim())
+  const [a, b] = h.split(/\s+[—·]\s+|\.\s+(?=[A-Z])|,\s+(?=to\b)/i).map((x) => x.trim())
   if (!b) return a
   return /^(fully|half) tiled$/i.test(a) ? b.charAt(0).toUpperCase() + b.slice(1) : `${a}, ${b}`
 }
@@ -105,8 +105,8 @@ function PrintMenu({ job }: { job: Job }) {
   React.useEffect(() => {
     if (!what) return
     const t = setTimeout(() => {
-      printNode(what === 'sheets' ? (ref.current?.firstElementChild as HTMLElement | null) : ref.current, `${job.name} — ${what === 'sheets' ? 'Room sheets' : 'Scope of work'}`)
-      if (what === 'sheets') s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed — ${n} room${n === 1 ? '' : 's'}` }) }, undefined, { undo: false })
+      printNode(what === 'sheets' ? (ref.current?.firstElementChild as HTMLElement | null) : ref.current, `${job.name} · ${what === 'sheets' ? 'Room sheets' : 'Scope of work'}`)
+      if (what === 'sheets') s.commit((st) => { addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Hang room sheets: printed · ${n} room${n === 1 ? '' : 's'}` }) }, undefined, { undo: false })
       setWhat(null)
     }, 60)
     return () => clearTimeout(t)
@@ -115,7 +115,7 @@ function PrintMenu({ job }: { job: Job }) {
     <>
       <Menu align="end" width={240} trigger={<Button size="sm" icon={<Printer />} data-print-menu>Print<ChevronDown className="-mr-1 h-3.5 w-3.5 text-faint" /></Button>}>
         <MenuItem icon={<FileText className="h-4 w-4" />} onSelect={() => setWhat('scope')}>The scope of work</MenuItem>
-        <MenuItem icon={<Printer className="h-4 w-4" />} onSelect={() => n && setWhat('sheets')} hint={n ? `${n} room${n === 1 ? '' : 's'} — one in each` : 'Once the tile is in'}>The room sheets</MenuItem>
+        <MenuItem icon={<Printer className="h-4 w-4" />} onSelect={() => n && setWhat('sheets')} hint={n ? `${n} room${n === 1 ? '' : 's'}. One in each` : 'Once the tile is in'}>The room sheets</MenuItem>
       </Menu>
       {/* the scope of work to hang up: room by room, its details and its tiles with their pictures */}
       {what === 'scope' && <div className="hidden"><RoomScope jobId={job.id} innerRef={ref} /></div>}
@@ -218,7 +218,7 @@ function ScopeHead({ inField }: { inField: boolean }) {
     </div>
   )
 }
-const dash = <span className="text-faint">—</span>
+const dash = <span className="text-faint"></span>
 
 const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCase())
 /** a wall or floor in words, the way the paper says it: on its line where it goes (which walls, how high); under it its
@@ -365,7 +365,7 @@ function RoomNotes({ job, room, canEdit, adding, onAdding }: { job: Job; room: R
       onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => { if (e.key === 'Enter') save(k, text); if (e.key === 'Escape') { setEditing(null); setText(''); if (k == null) onAdding(false) } }}
       onBlur={() => save(k, text)}
-      placeholder={k == null ? 'A note — e.g. 1 niche, saddle — white quartz' : 'Empty it to take it off'}
+      placeholder={k == null ? 'A note · e.g. 1 niche, saddle · white quartz' : 'Empty it to take it off'}
       aria-label={k == null ? `A note for ${room.name}` : `Change the note`}
       data-room-detail-input
       className="my-0.5 h-8 w-full min-w-0 rounded-lg border border-brand-300 bg-white px-2.5 text-[0.875rem] text-ink outline-none ring-2 ring-brand-100"
@@ -445,7 +445,7 @@ function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, n
         </span>
       </span>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-person-role>{role}</span>
-      <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:truncate" data-person-on>{sub || <span className="text-faint">—</span>}</span>
+      <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:truncate" data-person-on>{sub || <span className="text-faint"></span>}</span>
       <span className="flex shrink-0 justify-end">{!noReach && <ReachButtons r={r} who={name} onMessage={onMessage} />}</span>
     </div>
   )
@@ -459,7 +459,7 @@ function InstallerPO({ job }: { job: Job }) {
   const b = s.bookings.find((x) => x.jobId === job.id && x.label !== 'Return visit')
   /* on the job without a PO (his PO steps marked "no PO") — said plainly */
   if (!ipo && s.stepRecs[job.id]?.installer?.done) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left text-muted hover:text-brand-700">No PO</button>
-  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left font-medium text-warn-700 hover:underline">No PO yet — send it</button>
+  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left font-medium text-warn-700 hover:underline">No PO yet · send it</button>
   const r = poRatio(s, ipo)
   const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'not sent'
   return (
@@ -582,7 +582,7 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
   type Paper = { name: string; here: boolean; sub: string; go: () => void }
   const NAMED: [string, string][] = [['Plans', 'plans'], ['Spec book', 'spec'], ['Finish schedule', 'finish']]
   const papers: Paper[] = [
-    { name: 'Tile paperwork', here: !!paper || !!sp, sub: paper ? `${paper.name} · ${paper.at}` : sp ? `${sp.name} · ${sp.date}` : tiles ? `${tiles} ${tiles === 1 ? 'tile' : 'tiles'} entered — no file kept · tap to add it` : 'missing — tap to add it', go: () => (paper ? open({ t: 'doc', doc: 'Tile paperwork' }) : sp ? open({ t: 'files' }) : open({ t: 'doc', doc: 'Tile paperwork' })) },
+    { name: 'Tile paperwork', here: !!paper || !!sp, sub: paper ? `${paper.name} · ${paper.at}` : sp ? `${sp.name} · ${sp.date}` : tiles ? `${tiles} ${tiles === 1 ? 'tile' : 'tiles'} entered. No file kept · tap to add it` : 'missing. Tap to add it', go: () => (paper ? open({ t: 'doc', doc: 'Tile paperwork' }) : sp ? open({ t: 'files' }) : open({ t: 'doc', doc: 'Tile paperwork' })) },
     ...(rooms.length ? [{ name: 'Scope of work', here: true, sub: `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`, go: () => open({ t: 'scope' }) }] : []),
     ...NAMED.flatMap(([doc, kind]): Paper[] => {
       const a = asked.find((d) => d.name === doc)
@@ -590,9 +590,9 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
       const smp = sampleOf(kind)
       if (!a && !f && !smp) return []
       const here = !!f || !!smp || (!!a && a.status !== 'missing')
-      return [{ name: doc, here: !!f || !!smp, sub: f ? `${f.name} · ${f.at}` : smp ? `${smp.rev} · ${smp.date}` : a && a.status !== 'missing' ? `${a.note || 'Came in'} — no file kept · tap to add it` : 'missing — tap to add it', go: () => (!f && smp ? open({ t: 'files' }) : open({ t: 'doc', doc })) }]
+      return [{ name: doc, here: !!f || !!smp, sub: f ? `${f.name} · ${f.at}` : smp ? `${smp.rev} · ${smp.date}` : a && a.status !== 'missing' ? `${a.note || 'Came in'}. No file kept · tap to add it` : 'missing. Tap to add it', go: () => (!f && smp ? open({ t: 'files' }) : open({ t: 'doc', doc })) }]
     }),
-    ...asked.filter((d) => !NAMED.some(([x]) => x === d.name)).map((d) => { const f = last(filesOfDoc(files, job.id, d.name)); return { name: d.name, here: !!f, sub: f ? `${f.name} · ${f.at}` : d.status === 'missing' ? 'missing — tap to add it' : `${d.note || 'Came in'} — no file kept · tap to add it`, go: () => open({ t: 'doc', doc: d.name }) } }),
+    ...asked.filter((d) => !NAMED.some(([x]) => x === d.name)).map((d) => { const f = last(filesOfDoc(files, job.id, d.name)); return { name: d.name, here: !!f, sub: f ? `${f.name} · ${f.at}` : d.status === 'missing' ? 'missing. Tap to add it' : `${d.note || 'Came in'}. No file kept · tap to add it`, go: () => open({ t: 'doc', doc: d.name }) } }),
   ]
   const namedKinds = ['paperwork', 'plans', 'spec', 'finish']
   const named = new Set([...files.filter((f) => f.kind === 'paperwork').map((f) => f.id), ...NAMED.flatMap(([d]) => filesOfDoc(files, job.id, d).map((f) => f.id)), ...asked.flatMap((d) => filesOfDoc(files, job.id, d.name).map((f) => f.id))])
@@ -603,7 +603,7 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
       title="Documents"
       right={<>{n > 0 && <button onClick={() => open({ t: 'files' })} className={LINK}>All {n}</button>}<button onClick={() => add.current?.click()} disabled={busy} className={LINK}><Upload className="h-3.5 w-3.5" />{busy ? 'Adding…' : 'Add'}</button></>}
     >
-      <input ref={add} type="file" multiple className="hidden" aria-label="Add files — Documents" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void upload(f) }} />
+      <input ref={add} type="file" multiple className="hidden" aria-label="Add files · Documents" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void upload(f) }} />
       <div className="-mx-2 mb-1.5 border-b border-line-2 pb-1.5" data-papers>
         {papers.map((d) => (
           <button key={d.name} onClick={d.go} data-paper={d.name} data-here={d.here || undefined} className={row}>

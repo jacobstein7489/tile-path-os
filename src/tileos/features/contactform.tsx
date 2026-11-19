@@ -35,7 +35,7 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
       x.contacts ||= []
       if (index != null && x.contacts[index]) x.contacts[index] = rec
       else x.contacts.push(rec)
-    }, `${label(rec)} — saved`, { close: true, sub: was ? undefined : `On ${c.name}’s people.` })
+    }, `${label(rec)} · saved`, { close: true, sub: was ? undefined : `On ${c.name}’s people.` })
   }
   const remove = () => {
     if (index == null || index === 0) return
@@ -50,7 +50,7 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
       size="md"
       onClose={s.close}
       title={was ? label(was) : 'Add a person'}
-      sub={was ? `${c.name}${index === 0 ? ' · main contact' : ''}` : `Someone at ${c.name} — the PM, the super, who pays the bills`}
+      sub={was ? `${c.name}${index === 0 ? ' · main contact' : ''}` : `Someone at ${c.name}. The PM, the super, who pays the bills`}
       footer={
         <>
           {was && index ? <Button variant="ghost" className="text-bad-600" icon={<Trash2 />} onClick={remove}>Take them off</Button> : null}

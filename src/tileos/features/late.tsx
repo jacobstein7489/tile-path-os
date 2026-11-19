@@ -38,7 +38,7 @@ export function moveToTomorrow(x: PlateItem) {
       t.due = md(TOMORROW)
       t.dueTone = 'neutral'
       t.rolls = (t.rolls || 0) + 1
-      t.log.push({ date: NOW, who: me, text: `Moved to ${md(TOMORROW)} — it was late` })
+      t.log.push({ date: NOW, who: me, text: `Moved to ${md(TOMORROW)}. It was late` })
     } else if (x.job && x.v) {
       const recs = (st.stepRecs[x.job.id] ||= {})
       const r = (recs[x.v.key] ||= {})
@@ -47,7 +47,7 @@ export function moveToTomorrow(x: PlateItem) {
       r.rolls = (r.rolls || 0) + 1
       ;(st.hist[x.job.id] ||= []).unshift({ date: NOW, who: me, kind: 'field', title: `${x.v.short}: moved to ${md(TOMORROW)}`, detail: 'It was late' } as any)
     }
-  }, `${titleOf(x)} — moved to tomorrow`, { undo: true })
+  }, `${titleOf(x)}. Moved to tomorrow`, { undo: true })
 }
 
 /** "Remind": it pops up on that person's screen, it's written on the task — and it counts as checking in: off the
@@ -63,7 +63,7 @@ export function remind(who: PersonKey, items: PlateItem[], note?: string) {
         if (!t) return
         t.nudge = nudge
         t.checkIn = checkIn
-        t.log.push({ date: NOW, who: me, text: `Reminded ${PEOPLE[t.owner]?.short || ''} — it was due ${x.iso ? md(x.iso) : 'before today'}${note ? ` · ${note}` : ''}` })
+        t.log.push({ date: NOW, who: me, text: `Reminded ${PEOPLE[t.owner]?.short || ''}. It was due ${x.iso ? md(x.iso) : 'before today'}${note ? ` · ${note}` : ''}` })
       } else if (x.job && x.v) {
         const recs = (st.stepRecs[x.job.id] ||= {})
         const r = (recs[x.v.key] ||= {})
@@ -187,7 +187,7 @@ export function LateModal({ level }: { level: number }) {
       size="md"
       onClose={s.close}
       title={<span className="inline-flex items-center gap-2.5">{n > 0 && <span className="bell-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bad-50 text-bad-600 ring-1 ring-bad-100"><BellRing className="h-[1.125rem] w-[1.125rem]" /></span>}{title}</span>}
-      sub={n ? 'Past its date — open it, or move it to tomorrow.' : today.length ? 'What’s on your plate today.' : others ? 'Remind them — it pops up on their screen.' : 'Everything on your Today is on time.'}
+      sub={n ? 'Past its date. Open it, or move it to tomorrow.' : today.length ? 'What’s on your plate today.' : others ? 'Remind them. It pops up on their screen.' : 'Everything on your Today is on time.'}
       footer={
         <>
           <Menu align="start" width={240} trigger={<button className="inline-flex h-9 items-center gap-1.5 rounded-[0.5625rem] px-3 text-[0.84375rem] font-semibold text-ink-2 hover:bg-wash" data-snooze><AlarmClock className="h-4 w-4 text-faint" />Remind me later<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
@@ -218,7 +218,7 @@ export function LateModal({ level }: { level: number }) {
       )}
       {team.length > 0 && (
         <section className={cn((n > 0 || today.length > 0) && 'mt-5')} data-late-team>
-          <div className={LABEL}>The team — late<span className="font-medium normal-case tracking-normal text-faint">{checkInDays(s)}+ work days</span></div>
+          <div className={LABEL}>The team · late<span className="font-medium normal-case tracking-normal text-faint">{checkInDays(s)}+ work days</span></div>
           <div className="border-b border-line-2">
             {team.map((g) => (
               <div key={g.who} data-person={g.who} className="border-t border-line-2 py-2.5">

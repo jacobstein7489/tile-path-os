@@ -33,9 +33,9 @@ export function confirmSetting(jobId: string, choice: Choice) {
       addHist(s, jobId, { who: meOf(s.role), kind: 'setup', title: 'Underlayment set for every surface', detail: `${toOrder.length} materials worked out from the scope` })
       closeTasks(s, s.tasks.filter((x) => x.jobId === jobId && /^Plan setting materials/.test(x.title)).map((x) => x.id), 'Replaced by the calculated order')
       if (toOrder.length && !s.tasks.some((x) => x.jobId === jobId && x.action?.kind === 'order:' + jobId && x.state !== 'done'))
-        newTask(s, { jobId, title: `Order the materials · ${job.name}`, detail: `${toOrder.length} materials worked out from the scope and the underlayment — check the quantities and send the PO.`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'info', where: `${toOrder.length} items · about ${fmtMoney(total)}`, action: { label: 'Review the order', kind: 'order:' + jobId } })
+        newTask(s, { jobId, title: `Order the materials · ${job.name}`, detail: `${toOrder.length} materials worked out from the scope and the underlayment. Check the quantities and send the PO.`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'info', where: `${toOrder.length} items · about ${fmtMoney(total)}`, action: { label: 'Review the order', kind: 'order:' + jobId } })
     },
-    toOrder.length ? `Materials worked out — ${toOrder.length} to order` : 'Underlayment saved — nothing more to order',
+    toOrder.length ? `Materials worked out · ${toOrder.length} to order` : 'Underlayment saved. Nothing more to order',
     {
       close: true,
       sub: toOrder.length ? `About ${fmtMoney(total)}${smp(' · sample prices')}. ${PEOPLE[who].short} checks it and sends the PO.` : 'Everything the scope needs is already ordered.',
@@ -76,12 +76,12 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
       tall
       onClose={s.close}
       title="What each surface is set on"
-      sub={`${job.name} · pick the underlayment once — every material is worked out from the square feet`}
+      sub={`${job.name} · pick the underlayment once. Every material is worked out from the square feet`}
       bodyClass="p-0"
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">{toOrder.length ? <>{toOrder.length} to order · about <b className="font-semibold text-ink">{fmtMoney(total)}</b>{smp(' · sample prices')}</> : 'Nothing new to order'}</span>
-          <Button className="ml-auto" variant="primary" icon={<Send />} onClick={() => confirmSetting(jobId, choice)}>{toOrder.length ? `Save — ${PEOPLE[who].short} orders it` : 'Save'}</Button>
+          <Button className="ml-auto" variant="primary" icon={<Send />} onClick={() => confirmSetting(jobId, choice)}>{toOrder.length ? `Save · ${PEOPLE[who].short} orders it` : 'Save'}</Button>
         </>
       }
     >
@@ -115,7 +115,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
               })}
             </section>
           ))}
-          <div className="flex items-center gap-1.5 text-[0.78125rem] text-muted"><Sparkles className="h-3.5 w-3.5 text-brand-500" />Suggested from the surface — change it if it’s set differently.</div>
+          <div className="flex items-center gap-1.5 text-[0.78125rem] text-muted"><Sparkles className="h-3.5 w-3.5 text-brand-500" />Suggested from the surface. Change it if it’s set differently.</div>
         </div>
         <aside className="bg-[#faf8f5] px-5 py-5 max-sm:px-4">
           <div className="flex items-center gap-2 text-[0.875rem] font-bold text-ink"><Layers className="h-4 w-4 text-muted" />What it takes</div>
@@ -139,7 +139,7 @@ export function SettingModal({ jobId, level }: { jobId: string; level: number })
             })}
             {!need.length && <div className="rounded-xl border border-dashed border-line px-4 py-6 text-center text-[0.8125rem] text-muted">Add square feet and tile to the scope first.</div>}
           </div>
-          {t.skipped.length > 0 && <div className="mt-3 text-[0.75rem] text-warn-700">{t.skipped.length} {t.skipped.length > 1 ? 'walls and floors' : 'wall or floor'} not fully counted yet — {t.skipped[0].why.toLowerCase()}</div>}
+          {t.skipped.length > 0 && <div className="mt-3 text-[0.75rem] text-warn-700">{t.skipped.length} {t.skipped.length > 1 ? 'walls and floors' : 'wall or floor'} not fully counted yet · {t.skipped[0].why.toLowerCase()}</div>}
         </aside>
       </div>
     </Modal>

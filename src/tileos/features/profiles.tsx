@@ -111,7 +111,7 @@ const Two = ({ title, sub }: { title: React.ReactNode; sub?: React.ReactNode }) 
     {sub && <span className="mt-0.5 block truncate text-[0.78125rem] text-muted">{sub}</span>}
   </span>
 )
-const Money = ({ n, muted }: { n: number | null | undefined; muted?: boolean }) => <span className={cn('tnum', muted ? 'text-muted' : 'font-semibold text-ink')}>{n ? fmtMoney(n) : '—'}</span>
+const Money = ({ n, muted }: { n: number | null | undefined; muted?: boolean }) => <span className={cn('tnum', muted ? 'text-muted' : 'font-semibold text-ink')}>{n ? fmtMoney(n) : ''}</span>
 function Section({ title, right, children, className }: { title: string; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={className}>
@@ -204,9 +204,9 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
       lines={[...(c.phone ? [{ icon: <Phone />, text: c.phone, href: `tel:${c.phone}` }] : []), ...(c.email ? [{ icon: <Mail />, text: c.email, href: `mailto:${c.email}` }] : []), ...reachLines(c.more), ...(c.address ? [{ icon: <MapPin />, text: c.address }] : [])]}
       kpis={[
         { label: 'Open projects', value: live.length, sub: `${won.length} won with us`, tab: 'projects' },
-        { label: 'Estimates with them', value: out.length ? fmtMoney(out.reduce((n, e) => n + estAmount(e), 0)) : '—', sub: `${out.length} waiting · ${working.length} in the works`, tab: 'estimates' },
-        { label: 'Under contract', value: contract ? fmtMoney(contract) : '—', sub: contract ? `${fmtMoney(invoiced)} invoiced so far` : 'Nothing open', tab: 'projects' },
-        { label: 'Open to collect', value: toCollect ? fmtMoney(toCollect) : '—', sub: `${openMoney.length} ${openMoney.length === 1 ? 'invoice' : 'invoices'} out`, tone: openMoney.some((m) => m.dueTone === 'bad' || m.dueTone === 'warn') ? 'warn' : undefined, tab: 'billing' },
+        { label: 'Estimates with them', value: out.length ? fmtMoney(out.reduce((n, e) => n + estAmount(e), 0)) : '', sub: `${out.length} waiting · ${working.length} in the works`, tab: 'estimates' },
+        { label: 'Under contract', value: contract ? fmtMoney(contract) : '', sub: contract ? `${fmtMoney(invoiced)} invoiced so far` : 'Nothing open', tab: 'projects' },
+        { label: 'Open to collect', value: toCollect ? fmtMoney(toCollect) : '', sub: `${openMoney.length} ${openMoney.length === 1 ? 'invoice' : 'invoices'} out`, tone: openMoney.some((m) => m.dueTone === 'bad' || m.dueTone === 'warn') ? 'warn' : undefined, tab: 'billing' },
       ]}
       tabs={tabs}
       tab={tab}
@@ -320,9 +320,9 @@ export function DesignerProfile({ id, level }: { id: string; level: number }) {
       lines={[...(d.phone ? [{ icon: <Phone />, text: d.phone, href: `tel:${d.phone}` }] : []), ...(d.email ? [{ icon: <Mail />, text: d.email, href: `mailto:${d.email}` }] : []), ...reachLines(d.more), ...(d.clients.length ? [{ icon: <Building2 />, text: d.clients.map((c) => CUSTOMERS[c]?.name).filter(Boolean).join(' · ') }] : [])]}
       kpis={[
         { label: 'Projects', value: won.length, sub: `${won.filter((j) => j.stage !== 'complete').length} open`, tab: 'projects' },
-        { label: 'Waiting on them', value: waits.length || '—', sub: waits.length ? 'answers and selections' : 'Nothing open', tone: waits.length ? 'warn' : undefined, tab: 'overview' },
-        { label: 'Meetings coming', value: meetings.length || '—', sub: meetings[0] ? `${dayLabel(meetings[0].date)} ${timeLabel(meetings[0].start)}` : 'None on the agenda', tab: 'overview' },
-        { label: 'Tile picks', value: tiles.length || '—', sub: 'on their projects', tab: 'tiles' },
+        { label: 'Waiting on them', value: waits.length || '', sub: waits.length ? 'answers and selections' : 'Nothing open', tone: waits.length ? 'warn' : undefined, tab: 'overview' },
+        { label: 'Meetings coming', value: meetings.length || '', sub: meetings[0] ? `${dayLabel(meetings[0].date)} ${timeLabel(meetings[0].start)}` : 'None on the agenda', tab: 'overview' },
+        { label: 'Tile picks', value: tiles.length || '', sub: 'on their projects', tab: 'tiles' },
       ]}
       tabs={[
         { key: 'overview', label: 'Now' },
@@ -407,7 +407,7 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
       lines={[...(mem?.phone ? [{ icon: <Phone />, text: mem.phone, href: `tel:${mem.phone}` }] : []), ...(mem?.email ? [{ icon: <Mail />, text: mem.email, href: `mailto:${mem.email}` }] : []), ...reachLines(mem?.more), { icon: <HardHat />, text: now ? `On ${s.jobs[now.jobId]?.name} · ${now.workers || 2} people` : 'Not on a job' }, { icon: <CalendarDays />, text: free ? (free.iso === TODAY ? 'Free now' : `Free from ${shortDate(free.iso)}`) : '' }].filter((l) => l.text)}
       kpis={[
         { label: 'Working now', value: now ? s.jobs[now.jobId]?.name : 'Free', sub: now ? `${now.label} · till ${shortDate(now.end)}` : free?.iso === TODAY ? 'Ready for a job' : '', tab: 'schedule' },
-        { label: 'Last week’s pay', value: last ? fmtMoney(last.calc.total) : '—', sub: last ? PAY_STATE[last.state].label : 'No work last week', tone: last?.state === 'check' ? 'bad' : undefined, tab: 'pay' },
+        { label: 'Last week’s pay', value: last ? fmtMoney(last.calc.total) : '', sub: last ? PAY_STATE[last.state].label : 'No work last week', tone: last?.state === 'check' ? 'bad' : undefined, tab: 'pay' },
         { label: 'Installer POs', value: ipos.length, sub: openPOs.length ? `${openPOs.length} waiting for him` : `${fmtMoney(ipos.reduce((n, p) => n + poTotal(p), 0))} in all`, tone: openPOs.length ? 'warn' : undefined, tab: 'pos' },
         { label: 'Paperwork', value: '2 missing', sub: 'Insurance · W-9', tone: 'warn', tab: 'papers' },
       ]}
@@ -430,10 +430,10 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
             ) : <div className="py-3 text-[0.875rem] text-muted">Not on a job today.</div>}
             {lastUpdate && <OpenRow icon={<FileText />} tone="neutral" title={`Last daily update · ${lastUpdate.date}`} sub={lastUpdate.rooms.map((r) => `${r.room}: ${r.items.map((i) => `${i.surface} to ${i.to}%`).join(', ')}`).join(' · ')} onClick={() => s.open({ t: 'job', id: now!.jobId, tab: 'scope' })} />}
             {last && <OpenRow icon={<Receipt />} tone={PAY_STATE[last.state].tone === 'bad' ? 'bad' : PAY_STATE[last.state].tone === 'ok' ? 'ok' : 'warn'} title={`Pay · week of ${PAY_WEEKS[0].label}`} sub={`${PAY_STATE[last.state].label}${last.bill ? ` · his bill ${fmtMoney(last.bill.amount)}` : ''}`} right={<Money n={last.calc.total} />} onClick={() => s.open({ t: 'pay', crew: id, week: PAY_WEEKS[0].key })} />}
-            {openPOs.map((p) => <OpenRow key={p.id} icon={<Package />} tone="warn" title={`${p.id} · ${s.jobs[p.jobId]?.name}`} sub={p.status === 'Draft' ? 'Draft — not sent yet' : 'Sent — waiting for his answer'} right={<Money n={poTotal(p)} />} onClick={() => s.open({ t: 'ipo', id: p.id })} />)}
+            {openPOs.map((p) => <OpenRow key={p.id} icon={<Package />} tone="warn" title={`${p.id} · ${s.jobs[p.jobId]?.name}`} sub={p.status === 'Draft' ? 'Draft, not sent yet' : 'Sent. Waiting for his answer'} right={<Money n={poTotal(p)} />} onClick={() => s.open({ t: 'ipo', id: p.id })} />)}
             <h3 className="mb-2 mt-6 text-[0.90625rem] font-bold text-ink">Next</h3>
             {next.map((b) => <OpenRow key={b.id} icon={<CalendarDays />} tone="info" title={s.jobs[b.jobId]?.name} sub={`${b.label} · from ${shortDate(b.start)}`} onClick={() => s.open({ t: 'booking', id: b.id })} />)}
-            {picked.map((j) => <OpenRow key={j.id} icon={<CalendarDays />} tone="vio" title={j.name} sub="Picked on the game plan — not booked yet" onClick={() => s.open({ t: 'job', id: j.id })} />)}
+            {picked.map((j) => <OpenRow key={j.id} icon={<CalendarDays />} tone="vio" title={j.name} sub="Picked on the game plan, not booked yet" onClick={() => s.open({ t: 'job', id: j.id })} />)}
             {!next.length && !picked.length && <div className="py-3 text-[0.875rem] text-muted">Nothing booked after this.</div>}
           </Section>
           <div className="flex flex-col gap-6">
@@ -446,11 +446,11 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
                 const own = Object.entries(s.rules.crewRates?.[id] || {}).map(([itemId, rate]) => ({ it: s.items.find((i) => i.id === itemId), rate })).filter((x) => x.it)
                 return own.length ? (
                   <>
-                    {own.map(({ it, rate }) => <div key={it!.id} className="flex justify-between gap-3 border-b border-line-2 py-1.5 text-[0.84375rem] last:border-0"><span className="truncate text-ink-2">{it!.name.split(' — ')[0]}</span><span className="shrink-0 tnum text-ink">{fmtMoney(rate, { cents: rate % 1 !== 0 })}/{it!.unit}</span></div>)}
+                    {own.map(({ it, rate }) => <div key={it!.id} className="flex justify-between gap-3 border-b border-line-2 py-1.5 text-[0.84375rem] last:border-0"><span className="truncate text-ink-2">{it!.name.split(/ — | · |\. (?=[A-Z])/)[0]}</span><span className="shrink-0 tnum text-ink">{fmtMoney(rate, { cents: rate % 1 !== 0 })}/{it!.unit}</span></div>)}
                     <button onClick={() => setTab('prices')} className="mt-2 text-[0.8125rem] font-semibold text-brand-700 hover:underline">All his prices</button>
                   </>
                 ) : (
-                  <div className="text-[0.84375rem] leading-snug text-muted">The standard prices. <button onClick={() => setTab('prices')} className="font-semibold text-brand-700 hover:underline">Set his own</button> — his POs are drafted with them.</div>
+                  <div className="text-[0.84375rem] leading-snug text-muted">The standard prices. <button onClick={() => setTab('prices')} className="font-semibold text-brand-700 hover:underline">Set his own</button> · his POs are drafted with them.</div>
                 )
               })()}
             </Section>
@@ -507,7 +507,7 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
               <span className={cn('inline-flex h-10 w-10 items-center justify-center rounded-xl', i < 2 ? 'bg-warn-50 text-warn-700' : 'bg-ok-50 text-ok-700')}>{i < 2 ? <ShieldCheck className="h-5 w-5" /> : <Check className="h-5 w-5" />}</span>
               <Two title={d.name} sub={d.sub} />
               {i < 2 ? (
-                <span className="ml-auto flex items-center gap-3"><Status tone="warn">Not on file</Status><Button size="sm" onClick={() => toast.success(`Asked ${PEOPLE[id].short} for the ${d.name.toLowerCase()} — it comes back here when he sends it`)}>Ask for it</Button></span>
+                <span className="ml-auto flex items-center gap-3"><Status tone="warn">Not on file</Status><Button size="sm" onClick={() => toast.success(`Asked ${PEOPLE[id].short} for the ${d.name.toLowerCase()}. It comes back here when he sends it`)}>Ask for it</Button></span>
               ) : <span className="ml-auto"><Status tone="ok">On file · Jan 2026</Status></span>}
             </div>
           ))}
@@ -543,18 +543,18 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
       lead={<Initials name={info.name} color="#0e9384" />}
       kind="Supplier"
       name={info.name}
-      lines={[{ icon: <Truck />, text: info.supplies || 'What we buy — not set' }, ...(info.contact || info.phone ? [{ icon: <Phone />, text: [info.contact, info.phone].filter(Boolean).join(' · '), href: info.phone ? `tel:${info.phone}` : undefined }] : []), ...(info.email ? [{ icon: <Mail />, text: info.email, href: `mailto:${info.email}` }] : []), ...reachLines(info.more)]}
+      lines={[{ icon: <Truck />, text: info.supplies || 'What we buy, not set' }, ...(info.contact || info.phone ? [{ icon: <Phone />, text: [info.contact, info.phone].filter(Boolean).join(' · '), href: info.phone ? `tel:${info.phone}` : undefined }] : []), ...(info.email ? [{ icon: <Mail />, text: info.email, href: `mailto:${info.email}` }] : []), ...reachLines(info.more)]}
       footer={<Button className="ml-auto" icon={<Pencil />} onClick={() => s.open({ t: 'supplierform', name: info.name })}>Edit the supplier</Button>}
       kpis={pos.length ? [
-        { label: 'Open POs', value: open.length || '—', sub: open.length ? fmtMoney(open.reduce((n, p) => n + p.amount, 0)) : 'Nothing on order', tab: 'pos' },
-        { label: 'Late', value: late.length || '—', sub: late[0] ? `${late[0].id} · ${s.jobs[late[0].jobId]?.name}` : 'Nothing late', tone: late.length ? 'bad' : undefined, tab: 'pos' },
-        { label: 'Spent this year', value: spent ? fmtMoney(spent) : '—', sub: `${pos.length} POs${smp(' · sample')}`, tab: 'pos' },
-        { label: 'Items we buy', value: items.length || '—', sub: 'priced from QuickBooks', tab: items.length ? 'items' : undefined },
+        { label: 'Open POs', value: open.length || '', sub: open.length ? fmtMoney(open.reduce((n, p) => n + p.amount, 0)) : 'Nothing on order', tab: 'pos' },
+        { label: 'Late', value: late.length || '', sub: late[0] ? `${late[0].id} · ${s.jobs[late[0].jobId]?.name}` : 'Nothing late', tone: late.length ? 'bad' : undefined, tab: 'pos' },
+        { label: 'Spent this year', value: spent ? fmtMoney(spent) : '', sub: `${pos.length} POs${smp(' · sample')}`, tab: 'pos' },
+        { label: 'Items we buy', value: items.length || '', sub: 'priced from QuickBooks', tab: items.length ? 'items' : undefined },
       ] : [
         { label: 'Tile orders', value: tile.length, sub: 'ordered by the GC', tab: 'tile' },
-        { label: 'Not all in', value: tileOpen.length || '—', sub: tileOpen[0] ? `next ${tileOpen.map((c) => c.eta).filter(Boolean)[0]}` : 'Everything received', tone: tileOpen.length ? 'warn' : undefined, tab: 'tile' },
+        { label: 'Not all in', value: tileOpen.length || '', sub: tileOpen[0] ? `next ${tileOpen.map((c) => c.eta).filter(Boolean)[0]}` : 'Everything received', tone: tileOpen.length ? 'warn' : undefined, tab: 'tile' },
         { label: 'Projects', value: tileJobs, sub: 'with tile from them', tab: 'tile' },
-        { label: 'Our POs', value: '—', sub: 'the GC buys the tile' },
+        { label: 'Our POs', value: '', sub: 'the GC buys the tile' },
       ]}
       tabs={tabs}
       tab={tab}
@@ -573,7 +573,7 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
           rows={[...pos].sort((a, b) => b.id.localeCompare(a.id))}
           keyOf={(p) => p.id}
           onRow={(p) => s.open({ t: 'po', id: p.id })}
-          empty="No POs from us — tile is ordered by the GC."
+          empty="No POs from us. Tile is ordered by the GC."
           cols={[
             { label: 'PO', cell: (p) => <Two title={`${p.id} · ${p.what}`} sub={s.jobs[p.jobId]?.name} /> },
             { label: 'Status', w: 170, hide: 'md', cell: (p) => <Status tone={/cancelled/i.test(p.note) ? 'neutral' : p.late ? 'bad' : p.step >= 3 ? 'ok' : p.step === 2 ? 'info' : 'warn'}>{/cancelled/i.test(p.note) ? 'Cancelled' : p.late ? 'Late' : ['Draft', 'Waiting to confirm', 'Confirmed', 'Delivered', 'Bill in', 'Paid'][p.step] || 'Paid'}</Status> },
@@ -603,7 +603,7 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
           cols={[
             { label: 'Tile · project', cell: (c) => <Two title={`${c.tag} · ${tileOf(c.jobId, c.tag)?.name || ''} · ${s.jobs[c.jobId]?.name}`} sub={c.where} /> },
             { label: 'In', w: 130, right: true, cell: (c) => <span className={cn('tnum', c.received < c.ordered ? 'font-semibold text-warn-700' : 'text-ink-2')}>{c.received} of {c.ordered} {c.unit}</span> },
-            { label: 'Rest', w: 100, hide: 'md', cell: (c) => <span className="text-[0.8125rem] text-muted">{c.received < c.ordered ? c.eta || '—' : 'All in'}</span> },
+            { label: 'Rest', w: 100, hide: 'md', cell: (c) => <span className="text-[0.8125rem] text-muted">{c.received < c.ordered ? c.eta || '' : 'All in'}</span> },
           ]}
         />
       )}
@@ -667,7 +667,7 @@ function PriceRow({ crew, it, his, canEdit }: { crew: PersonKey; it: { id: strin
             <input inputMode="decimal" value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} placeholder={String(it.cost)} aria-label={`His price for ${it.name}`} className={cn('h-8 w-full rounded-lg border bg-white pl-5 pr-9 text-right text-[0.84375rem] tnum outline-none focus:border-brand-300', diff ? 'border-brand-200 font-semibold text-ink' : 'border-line text-ink-2')} />
             <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[0.75rem] text-faint">/{it.unit}</span>
           </label>
-        ) : <span className="text-[0.84375rem] tnum text-ink">{his != null ? `${fmtMoney(his, { cents: his % 1 !== 0 })}/${it.unit}` : '—'}</span>}
+        ) : <span className="text-[0.84375rem] tnum text-ink">{his != null ? `${fmtMoney(his, { cents: his % 1 !== 0 })}/${it.unit}` : ''}</span>}
       </span>
     </div>
   )

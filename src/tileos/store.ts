@@ -238,9 +238,9 @@ export function initialData(): Data {
       /* Green Tree, this week */
       green: [
         { date: 'Oct 1', who: 'office', kind: 'material', title: 'Best Tile: the missing T-04 comes Thursday', detail: '6 boxes' },
-        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Tile delivered — with problems', detail: 'T-05 3 boxes broken · T-07 4 boxes wrong (honed, not polished) · T-04 6 boxes missing' },
-        { date: 'Sep 30', who: 'yakov', kind: 'question', title: 'Site check — the water isn’t on yet', detail: 'The GC says Friday. Heights, electrical and plumbing are fine.' },
-        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Setting materials ordered from Infinity', detail: 'Thinset, grout, membrane — delivery Monday' },
+        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Tile delivered · with problems', detail: 'T-05 3 boxes broken · T-07 4 boxes wrong (honed, not polished) · T-04 6 boxes missing' },
+        { date: 'Sep 30', who: 'yakov', kind: 'question', title: 'Site check. The water isn’t on yet', detail: 'The GC says Friday. Heights, electrical and plumbing are fine.' },
+        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Setting materials ordered from Infinity', detail: 'Thinset, grout, membrane · delivery Monday' },
         { date: 'Sep 29', who: 'ys', kind: 'decision', title: 'Design walkthrough with the designer', detail: 'Grout warm gray · feature wall centered on the doors · niches move 6″ left' },
       ],
     },
@@ -425,7 +425,7 @@ export const useStore = create<Store>()(
         s.past.pop()
         DATA_KEYS.forEach((k) => ((s as any)[k] = (prev as any)[k]))
       })
-      showPop({ title: 'Undone — back to how it was' })
+      showPop({ title: 'Undone. Back to how it was' })
     },
     replaceData: (d) => {
       set((s) => {
@@ -465,13 +465,13 @@ export const useStore = create<Store>()(
         t.doneAt = 'Just now'
         t.doneOn = TODAY_T
         if (result) t.result = result
-        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done — ${result}` : 'Marked done' })
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done · ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
         /* a request from the site: whoever asked hears it's there, in their inbox */
         const hear = Array.from(new Set([t.by, t.owner, ...(t.also || []), ...(t.followers || [])].filter((p): p is PersonKey => !!p && p !== meOf(s.role))))
-        if (hear.length) s.notices.unshift({ id: 'nt' + Date.now(), jobId: t.jobId, text: isRequest(t) ? `Dropped off · ${t.req?.what || t.title.replace(/^(Get to the site|Short on site) · /, '')}${s.jobs[t.jobId] ? ` at ${s.jobs[t.jobId].name}` : ''} — ${PEOPLE[meOf(s.role)]?.short || 'someone'}` : `Done · ${t.title} — ${PEOPLE[meOf(s.role)]?.short || 'someone'}`, when: 'Just now', kind: isRequest(t) ? 'material' : 'field', unread: true, open: { t: 'task', id: t.id }, for: hear })
+        if (hear.length) s.notices.unshift({ id: 'nt' + Date.now(), jobId: t.jobId, text: isRequest(t) ? `Dropped off · ${t.req?.what || t.title.replace(/^(Get to the site|Short on site) · /, '')}${s.jobs[t.jobId] ? ` at ${s.jobs[t.jobId].name}` : ''} · ${PEOPLE[meOf(s.role)]?.short || 'someone'}` : `Done · ${t.title} · ${PEOPLE[meOf(s.role)]?.short || 'someone'}`, when: 'Just now', kind: isRequest(t) ? 'material' : 'field', unread: true, open: { t: 'task', id: t.id }, for: hear })
         if (t.repeat) repeatTask(s, t)
-      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done — the next one is on tomorrow’s list' : isRequest(get().tasks.find((x) => x.id === id)) ? 'Dropped off!' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),
+      }, get().tasks.find((x) => x.id === id)?.repeat ? 'Done. The next one is on tomorrow’s list' : isRequest(get().tasks.find((x) => x.id === id)) ? 'Dropped off!' : 'Done!', { tone: 'done', sub: get().tasks.find((x) => x.id === id)?.title }),
     waitTask: (id, on, back) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
@@ -537,12 +537,12 @@ export const useStore = create<Store>()(
       get().commit((s) => {
         const id = 'n' + tid++ + ID.sfx
         s.tasks.unshift({
-          id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: meOf(s.role), text: p.urgent ? 'Created — urgent' : 'Created' }], ...p,
+          id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: meOf(s.role), text: p.urgent ? 'Created · urgent' : 'Created' }], ...p,
         } as Task)
         if (s.tasks[0].log?.[0] && !s.tasks[0].log[0].time) s.tasks[0].log[0] = { ...s.tasks[0].log[0], time: clockNow() }
         /* urgent, for someone else: it pops up for them too, and opens the task */
         if (p.urgent && other) s.notices.unshift({ id: 'nu' + Date.now(), jobId: p.jobId || undefined, text: `Urgent from ${PEOPLE[me]?.short || 'the office'}: ${p.title}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'task', id }, for: [p.owner as PersonKey] })
-      }, p.urgent ? 'Urgent — on top of the list' : other ? `On ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s list` : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : other && (p.by === me || (p.followers || []).includes(me)) ? { sub: 'You follow it: it’s under your Waiting on others, and on your Today the day it’s due.' } : undefined)
+      }, p.urgent ? 'Urgent. On top of the list' : other ? `On ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s list` : 'Task added', p.urgent && other ? { to: [{ who: p.owner as PersonKey, what: p.title }], sub: `On top of ${PEOPLE[p.owner as PersonKey]?.short || 'their'}’s Today, in red, until it’s done.` } : other && (p.by === me || (p.followers || []).includes(me)) ? { sub: 'You follow it: it’s under your Waiting on others, and on your Today the day it’s due.' } : undefined)
     },
   })),
 )
@@ -569,7 +569,7 @@ export function newTask(s: Data, p: Partial<Task> & { jobId: string; title: stri
 /** a recurring task: when one is done, the next one is created */
 export function repeatTask(s: Data, t: Task) {
   const next = t.repeat === 'weekly' ? 'Next Mon' : t.repeat === 'monthly' ? 'Oct 28' : 'Tomorrow'
-  s.tasks.push({ ...JSON.parse(JSON.stringify(t)), id: 'n' + tid++ + ID.sfx, state: 'now', due: next, dueTone: 'neutral', doneAt: undefined, result: undefined, log: [{ date: NOW, time: clockNow(), who: 'system', text: `Repeats — created when the last one was done` }] })
+  s.tasks.push({ ...JSON.parse(JSON.stringify(t)), id: 'n' + tid++ + ID.sfx, state: 'now', due: next, dueTone: 'neutral', doneAt: undefined, result: undefined, log: [{ date: NOW, time: clockNow(), who: 'system', text: `Repeats. Created when the last one was done` }] })
 }
 export function closeTasks(s: Data, ids: string[], text = 'Done') {
   s.tasks.forEach((t) => {
@@ -617,8 +617,8 @@ export function historyOf(s: Data, id: string): HistEntry[] {
   const p = s.pricing[id]
   if (p && ['request', 'estimating', 'proposal', 'followup'].includes(job.stage)) {
     const base: HistEntry[] = []
-    ;[...p.fu].reverse().forEach((f) => base.push({ date: f.date, who: f.by, kind: 'pricing', title: `${f.how} — ${f.outcome.toLowerCase()}`, detail: f.note }))
-    ;[...p.revs].reverse().forEach((r) => r.date !== '—' && base.push({ date: r.date, who: 'office', kind: 'pricing', title: `${r.r} sent${r.amount ? ' · $' + r.amount.toLocaleString('en-US') : ''}`, detail: r.what }))
+    ;[...p.fu].reverse().forEach((f) => base.push({ date: f.date, who: f.by, kind: 'pricing', title: `${f.how} · ${f.outcome.toLowerCase()}`, detail: f.note }))
+    ;[...p.revs].reverse().forEach((r) => r.date && r.date !== '—' && base.push({ date: r.date, who: 'office', kind: 'pricing', title: `${r.r} sent${r.amount ? ' · $' + r.amount.toLocaleString('en-US') : ''}`, detail: r.what }))
     if (p.takeoff && p.takeoff.pct > 0) base.push({ date: 'Sep 16', who: p.estimator || 'estimator', kind: 'pricing', title: 'Estimating started' })
     base.push({ date: p.docs[0]?.note.match(/[A-Z][a-z]{2} \d+/)?.[0] || shiftText('Sep 25'), who: 'office', kind: 'pricing', title: 'Price request received', detail: p.docs.filter((d) => d.status === 'in').map((d) => d.name).join(', ') + ' in' })
     return [...(s.hist[id] || []), ...base]

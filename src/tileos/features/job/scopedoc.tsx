@@ -54,7 +54,7 @@ function fromProject(items: Item[], rooms: { name: string; floor?: string; note?
     areas: g.rooms.map((r) => ({
       name: r.name, note: coverageOf(r as any).join('; ') || r.note,
       lines: [
-        ...r.surfaces.map((x) => { const pat0 = splitLayout(x.layout).pattern; const pat = PATTERNS.includes(pat0) ? pat0 : ''; return { id: x.name, text: `${surfaceWords(x.name)}${x.height ? ` — ${heightWords(x.height)}` : ''}${pat ? ` · ${pat.toLowerCase()} pattern` : ''}`, qty: x.sf ? `${x.sf} SF` : '1 EA' } }),
+        ...r.surfaces.map((x) => { const pat0 = splitLayout(x.layout).pattern; const pat = PATTERNS.includes(pat0) ? pat0 : ''; return { id: x.name, text: `${surfaceWords(x.name)}${x.height ? ` · ${heightWords(x.height)}` : ''}${pat ? ` · ${pat.toLowerCase()} pattern` : ''}`, qty: x.sf ? `${x.sf} SF` : '1 EA' } }),
         ...extra(r.name).map((l) => ({ id: l.id, text: estText(items, l), qty: qtyText(l.qty, unitOf(items, l)) })),
       ],
     })),

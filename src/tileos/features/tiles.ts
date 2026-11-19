@@ -59,7 +59,7 @@ export function saveTile(jobId: string, t: Tile, o: { was?: string; on?: Surface
       addHist(s, jobId, { who: me(), kind: 'setup', title: fresh ? `Tile added · ${t.tag} ${t.name}${where}` : `Tile changed · ${t.tag} ${t.name}${where}`, detail: [t.size, t.finish, t.maker, t.grout ? `${GROUTS[t.grout]?.name} grout` : ''].filter(Boolean).join(' · ') })
     },
     fresh ? `${t.tag} ${t.name} added` : `${t.tag} ${t.name} saved`,
-    { close: true, sub: o.on?.length ? `On ${o.on.length} wall${o.on.length === 1 ? '' : 's'} and floors — the scope and the materials follow.` : 'Pick where it goes from the Scope tab.' },
+    { close: true, sub: o.on?.length ? `On ${o.on.length} wall${o.on.length === 1 ? '' : 's'} and floors. The scope and the materials follow.` : 'Pick where it goes from the Scope tab.' },
   )
 }
 
@@ -142,9 +142,9 @@ function readEdge(e: string) {
   return e
 }
 function readHeight(h: string) {
-  if (/wet/i.test(h)) return 'Wet walls only — to the ceiling'
-  if (/half|\b4\s*(ft|feet|′|')|48\s*(″|"|in)/i.test(h)) return 'Half tiled — to 4 ft'
-  if (/full|ceiling/i.test(h)) return 'Fully tiled — to the ceiling'
+  if (/wet/i.test(h)) return 'Wet walls only, to the ceiling'
+  if (/half|\b4\s*(ft|feet|′|')|48\s*(″|"|in)/i.test(h)) return 'Half tiled, to 4 ft'
+  if (/full|ceiling/i.test(h)) return 'Fully tiled, to the ceiling'
   return h
 }
 export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; rooms?: ReadRoom[] } = {}): string[] {
@@ -224,8 +224,8 @@ export function applyRead(jobId: string, picks: ReadTile[], o: { file?: string; 
       if (jj && !jj.tileStore && stores.length === 1) jj.tileStore = stores[0]
       addHist(s, jobId, { who: me(), kind: 'setup', title: `Read from the tile paperwork${o.file ? ` · ${o.file}` : ''}`, detail: `${picks.length} tile${picks.length === 1 ? '' : 's'} (${added} new) · ${placed} wall${placed === 1 ? '' : 's'} and floors matched` })
     },
-    `Read from the paperwork — ${picks.length} tile${picks.length === 1 ? '' : 's'}`,
-    { sub: `${matched} wall${matched === 1 ? '' : 's'} and floors matched — check where each one goes.` },
+    `Read from the paperwork · ${picks.length} tile${picks.length === 1 ? '' : 's'}`,
+    { sub: `${matched} wall${matched === 1 ? '' : 's'} and floors matched. Check where each one goes.` },
   )
   return tags
 }
@@ -246,7 +246,7 @@ export function removeTile(jobId: string, tag: string) {
 
 export type SurfaceEdit = Partial<Pick<Surface, 'tile' | 'grout' | 'joint' | 'layout' | 'method' | 'edge' | 'height' | 'walls' | 'sf' | 'notes'>>
 const LABEL: Record<keyof SurfaceEdit, string> = { tile: 'Tile', grout: 'Grout', joint: 'Joint', layout: 'Layout', method: 'Under it', edge: 'Edge', height: 'Height', walls: 'Which walls', sf: 'SF', notes: 'Note' }
-const shown = (k: keyof SurfaceEdit, v: any) => (v === undefined || v === '' || v === null ? '—' : k === 'grout' ? GROUTS[v]?.name || v : k === 'method' ? METHODS[v as MethodKey]?.short || v : k === 'sf' ? `${v} SF` : String(v))
+const shown = (k: keyof SurfaceEdit, v: any) => (v === undefined || v === '' || v === null ? '' : k === 'grout' ? GROUTS[v]?.name || v : k === 'method' ? METHODS[v as MethodKey]?.short || v : k === 'sf' ? `${v} SF` : String(v))
 
 /** save what changed on one wall or floor, in one go */
 export function saveSurface(jobId: string, room: string, surface: string, p: SurfaceEdit) {
@@ -274,7 +274,7 @@ export function saveSurface(jobId: string, room: string, surface: string, p: Sur
       addHist(s, jobId, {
         who: me(),
         kind: 'setup',
-        title: `${room} · ${surface.toLowerCase()} — ${changed.map((k) => LABEL[k].toLowerCase()).join(', ')}`,
+        title: `${room} · ${surface.toLowerCase()} · ${changed.map((k) => LABEL[k].toLowerCase()).join(', ')}`,
         detail: changed.map((k) => `${LABEL[k]}: ${shown(k, (x0 as any)[k])} → ${shown(k, p[k])}`).join(' · '),
       })
     },
@@ -359,12 +359,12 @@ export function patternOf(first: string): string {
   if (/pitched|to the drain/i.test(f)) return 'Pitched to the drain'
   return f
 }
-export const STARTS = ['Best start — no slivers', 'Centered', 'Full tile at the door', 'Full tile at the doorway', 'Full tile at the floor', 'From the top', 'Centered on the niche', 'Centered on the tub', 'Centered on the window', 'Long side to the door']
+export const STARTS = ['Best start · no slivers', 'Centered', 'Full tile at the door', 'Full tile at the doorway', 'Full tile at the floor', 'From the top', 'Centered on the niche', 'Centered on the tub', 'Centered on the window', 'Long side to the door']
 export const EDGES = ['Schluter JOLLY · satin brass · 10 mm', 'Schluter JOLLY · brushed nickel · 10 mm', 'Schluter JOLLY · matte black · 10 mm', 'Schluter JOLLY · aluminum · 10 mm', 'Schluter RONDEC · brushed stainless', 'Mitered', 'Bullnose tile', 'Pencil liner', 'Marble saddle at the door', 'Flush to the wood floor', 'Metal transition strip']
 /** how high a wall is tiled — fully, half, wet walls only, or a height */
 /** which walls a wall's tile goes on — said plainly; anything else typed in */
-export const WHICH_WALLS = ['All the walls', 'The wet walls', 'The back wall', 'The back and side walls', 'One wall — an accent']
-export const HEIGHTS = ['Fully tiled — to the ceiling', 'Half tiled — to 4 ft', 'Wet walls only — to the ceiling', '96″', '84″', '84″ · metal edge on top', '72″', '60″', '48″ wainscot', '42″ wainscot', '36″', '18″ backsplash', '4″ base']
+export const WHICH_WALLS = ['All the walls', 'The wet walls', 'The back wall', 'The back and side walls', 'One wall · an accent']
+export const HEIGHTS = ['Fully tiled, to the ceiling', 'Half tiled, to 4 ft', 'Wet walls only, to the ceiling', '96″', '84″', '84″, metal edge on top', '72″', '60″', '48″ wainscot', '42″ wainscot', '36″', '18″ backsplash', '4″ base']
 
 /** a layout reads "Vertical stack · full tile at the doorway" — split it into the pattern and where it starts */
 export function splitLayout(layout?: string): { pattern: string; start: string } {

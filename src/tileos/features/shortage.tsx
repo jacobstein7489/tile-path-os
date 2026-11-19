@@ -31,7 +31,7 @@ export function reportShortage(o: { jobId: string; tag: string; qty: number; uni
   const job = st0.jobs[o.jobId]
   st0.commit(
     (s) => {
-      s.shortages.unshift({ id, jobId: o.jobId, tag: o.tag, qty: o.qty, unit: o.unit, surfaces: o.surfaces, found: { who: me, date: NOW, how: o.how }, step: 'short', stops: o.stops, log: [L(me, `${o.how} — ${o.qty} ${o.unit} of ${o.tag} short`)] })
+      s.shortages.unshift({ id, jobId: o.jobId, tag: o.tag, qty: o.qty, unit: o.unit, surfaces: o.surfaces, found: { who: me, date: NOW, how: o.how }, step: 'short', stops: o.stops, log: [L(me, `${o.how} · ${o.qty} ${o.unit} of ${o.tag} short`)] })
       o.surfaces.forEach((f) => {
         const x = s.rooms[o.jobId]?.find((r) => r.name === f.room)?.surfaces.find((y) => y.name === f.surface)
         if (x && x.state !== 'done') { x.state = 'waitmat'; x.reason = `Waiting for ${o.tag} · ${o.qty} ${o.unit} short` }
@@ -39,9 +39,9 @@ export function reportShortage(o: { jobId: string; tag: string; qty: number; uni
       if (o.stops) s.jobs[o.jobId].hold = { reason: `Waiting for ${o.qty} ${o.unit} of ${o.tag}`, since: NOW, by: me, shortage: id }
       newTask(s, { jobId: o.jobId, title: `Reorder ${o.tag} · ${o.qty} ${o.unit} short`, detail: `${o.how}. ${o.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')} wait for it.`, type: 'Materials', owner: matBy(s), for: matFor(s), watch: ['owner', 'pm'], state: 'now', due: 'Today', dueTone: 'warn', tone: 'bad', blocks: o.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', '), where: `${o.tag} ${tileOf(o.jobId, o.tag)?.name || ''}`.trim(), action: { label: 'Reorder', kind: 'short:' + id } })
       setIssues(s, o.jobId, (iss) => [...iss, { tone: 'bad', text: `${o.tag} short · ${o.qty} ${o.unit}` }])
-      addHist(s, o.jobId, { who: me, kind: 'material', title: `${o.tag} short · ${o.qty} ${o.unit}`, detail: `${o.how}. ${o.stops ? 'The crew can’t keep working — on hold.' : 'The crew keeps working elsewhere.'}` })
+      addHist(s, o.jobId, { who: me, kind: 'material', title: `${o.tag} short · ${o.qty} ${o.unit}`, detail: `${o.how}. ${o.stops ? 'The crew can’t keep working · on hold.' : 'The crew keeps working elsewhere.'}` })
     },
-    `${o.tag} is short — ${PEOPLE[who].short} reorders it`,
+    `${o.tag} is short · ${PEOPLE[who].short} reorders it`,
     { close: true, sub: o.stops ? `${job?.name} is on hold until it lands.` : 'The crew keeps working on the rest.', flow: [{ who: me, label: 'Found short', state: 'done' }, { who, label: 'Reorders', state: 'now' }, { label: 'Delivery', state: 'next' }, { who: (job?.crew as PersonKey) || 'yakov', label: 'Back to work', state: 'next' }] },
   )
   return id
@@ -72,7 +72,7 @@ export function reorderShortage(id: string, o: { by: 'GC' | 'Client' | 'Us'; fro
       if (s.jobs[sh.jobId].hold?.shortage === id) s.jobs[sh.jobId].hold!.reason = `Waiting for ${x.qty} ${x.unit} of ${x.tag} · arrives ${o.eta}`
       addHist(s, sh.jobId, { who: me, kind: 'material', title: `${x.tag} reordered · arrives ${o.eta}`, detail: `From ${o.from}${o.by !== 'Us' ? `, through the ${o.by === 'GC' ? 'GC' : 'client'}` : ''}` })
     },
-    `Reordered — ${sh.tag} arrives ${o.eta}`,
+    `Reordered · ${sh.tag} arrives ${o.eta}`,
     { close: true, sub: 'The date is on the project and the Schedule. If it slips, it turns red.', flow: [{ who: sh.found.who, label: 'Found short', state: 'done' }, { who: me, label: 'Reordered', state: 'done' }, { label: `Arrives ${o.eta.replace(/^\w+, /, '')}`, state: 'now' }, { who: (job?.crew as PersonKey) || 'yakov', label: 'Back to work', state: 'next' }] },
   )
 }
@@ -88,7 +88,7 @@ export function receiveShortage(id: string, qty: number) {
     (s) => {
       const x = s.shortages.find((y) => y.id === id)!
       if (all) { x.step = 'received'; x.receivedOn = NOW } else x.qty = x.qty - qty
-      x.log.push(L(me, all ? `Received ${qty} ${x.unit} — all of it` : `Received ${qty} ${x.unit} · ${x.qty} still to come`))
+      x.log.push(L(me, all ? `Received ${qty} ${x.unit}, all of it` : `Received ${qty} ${x.unit} · ${x.qty} still to come`))
       const c = s.checks.find((y) => y.jobId === sh.jobId && y.tag === sh.tag)
       if (c) c.received = Math.min(c.ordered, c.received + qty)
       if (all) {
@@ -99,11 +99,11 @@ export function receiveShortage(id: string, qty: number) {
         if (s.jobs[sh.jobId].hold?.shortage === id) s.jobs[sh.jobId].hold = undefined
         closeTasks(s, s.tasks.filter((t) => t.action?.kind === 'short:' + id || (t.jobId === sh.jobId && /basement wall tile|boxes of/i.test(t.title) && t.state === 'waiting')).map((t) => t.id), `${sh.tag} received`)
         setIssues(s, sh.jobId, (iss) => iss.filter((i) => !i.text.includes(sh.tag)))
-        newTask(s, { jobId: sh.jobId, title: `${sh.tag} is on site — back to ${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')}`, type: 'Field', owner: crew, for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: x.surfaces.map((f) => `${f.room} · ${f.surface}`).join(' · ') })
+        newTask(s, { jobId: sh.jobId, title: `${sh.tag} is on site · back to ${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')}`, type: 'Field', owner: crew, for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: x.surfaces.map((f) => `${f.room} · ${f.surface}`).join(' · ') })
       }
       addHist(s, sh.jobId, { who: me, kind: 'material', title: all ? `${sh.tag} received · back to work` : `${sh.tag} · ${qty} ${sh.unit} received`, detail: all ? `${x.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')} open again` : `${x.qty} ${sh.unit} still to come` })
     },
-    all ? `${sh.tag} is here — back to work` : `${qty} ${sh.unit} in — ${sh.qty - qty} still to come`,
+    all ? `${sh.tag} is here. Back to work` : `${qty} ${sh.unit} in · ${sh.qty - qty} still to come`,
     { close: true, sub: all ? `${job?.name} ${job?.hold ? 'is off hold. ' : ''}${PEOPLE[crew].short} has it on his list.` : undefined, flow: all ? [{ who: sh.found.who, label: 'Found short', state: 'done' }, { who: matBy(st0), label: 'Reordered', state: 'done' }, { who: me, label: 'Received', state: 'done' }, { who: crew, label: 'Back to work', state: 'now' }] : undefined },
   )
 }
@@ -155,7 +155,7 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
       </>
     ) : sh.step === 'reordered' && sh.po && s.pos.some((p) => p.id === sh.po) ? (
       <>
-        <span className="text-[0.84375rem] text-muted">On {sh.po} — check it in there when it comes.</span>
+        <span className="text-[0.84375rem] text-muted">On {sh.po} · check it in there when it comes.</span>
         <Button className="ml-auto" variant="primary" icon={<PackageCheck />} onClick={() => s.swap({ t: 'po', id: sh.po! })}>Open {sh.po}</Button>
       </>
     ) : sh.step === 'reordered' ? (
@@ -165,11 +165,11 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
         <span className="text-[0.84375rem] text-muted">{sh.unit}</span>
         <Button className="ml-auto" variant="primary" icon={<PackageCheck />} onClick={() => receiveShortage(sh.id, Number(qty) || sh.qty)}>It came in</Button>
       </>
-    ) : <span className="text-[0.84375rem] text-muted">Closed {sh.receivedOn} — the crew is back on it.</span>
+    ) : <span className="text-[0.84375rem] text-muted">Closed {sh.receivedOn} · the crew is back on it.</span>
   return (
     <Modal level={level} size="lg" onClose={s.close} title={`${sh.tag} short · ${job?.name}`} sub={`${sh.qty} ${sh.unit}${tile ? ` of ${tile.name}` : ''} · ${sh.surfaces.map((f) => `${f.room} ${f.surface.toLowerCase()}`).join(', ')}`} footer={footer}>
       {job?.hold?.shortage === sh.id && (
-        <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-bad-50 px-4 py-3 text-[0.875rem] font-medium text-bad-700"><PauseCircle className="h-5 w-5" />{job.name} is on hold — the crew can’t keep working until it lands.</div>
+        <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-bad-50 px-4 py-3 text-[0.875rem] font-medium text-bad-700"><PauseCircle className="h-5 w-5" />{job.name} is on hold. The crew can’t keep working until it lands.</div>
       )}
       <ol className="flex items-start">
         {steps.map((st, i) => (
@@ -187,7 +187,7 @@ export function ShortageModal({ id, level }: { id: string; level: number }) {
       </ol>
       {sh.step === 'short' && !other && (
         <div className="mt-6 rounded-2xl border border-line bg-wash px-4 py-3 text-[0.875rem] text-ink-2">
-          <b className="font-semibold text-ink">Order more tile</b> sends the store a tile PO for the {sh.qty} {sh.unit} — with a number to follow, same as any PO. When it’s all here, this closes and the crew gets the walls and floors back.
+          <b className="font-semibold text-ink">Order more tile</b> sends the store a tile PO for the {sh.qty} {sh.unit} · with a number to follow, same as any PO. When it’s all here, this closes and the crew gets the walls and floors back.
         </div>
       )}
       {sh.step === 'short' && other && (
@@ -274,7 +274,7 @@ export function ReportShortModal({ jobId, room, surface, level }: { jobId: strin
           </div>
           <div>
             <div className="mb-1.5 text-[0.8125rem] font-semibold text-ink-2">Can the crew keep working?</div>
-            <SearchSelect label="Can the crew keep working" value={stops === null ? '' : stops ? 'stop' : 'go'} onChange={(k) => setStops(k === 'stop')} options={[{ key: 'go', label: 'Yes — they keep going on other things' }, { key: 'stop', label: 'No — put the project on hold' }]} placeholder="Pick one" search={false} width={320} />
+            <SearchSelect label="Can the crew keep working" value={stops === null ? '' : stops ? 'stop' : 'go'} onChange={(k) => setStops(k === 'stop')} options={[{ key: 'go', label: 'Yes. They keep going on other things' }, { key: 'stop', label: 'No. Put the project on hold' }]} placeholder="Pick one" search={false} width={320} />
           </div>
         </div>
       </div>

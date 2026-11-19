@@ -218,7 +218,7 @@ export function standOf(s: Store, j: Job): { text: string; quiet?: boolean } {
   if (t === 'done') { const bl = billingOf(j); return bl.paidPct >= 100 ? { text: 'Paid in full', quiet: true } : bl.billedPct >= 100 ? { text: 'Waiting to be paid', quiet: true } : { text: 'Bill the rest' } }
   /* getting ready: how many of its parts are done (the same count as on the project) — then the crew */
   const tracks = tracksFor(s, j)
-  if (gateOpen(tracks)) return b ? { text: `Crew booked${who}` } : { text: 'Ready — pick the crew’s days' }
+  if (gateOpen(tracks)) return b ? { text: `Crew booked${who}` } : { text: 'Ready. Pick the crew’s days' }
   return { text: `${tracks.filter((x) => x.state === 'done').length} of ${tracks.length} done` }
 }
 /** a project's problems, counted — "1 problem", "3 problems" */
@@ -247,7 +247,7 @@ export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = p
   /* getting ready: the step that's up — yours first, then the first one someone has to do (in the job's order), then
      what it waits on */
   const tracks = tracksFor(s, j, steps)
-  if (gateOpen(tracks)) return b ? { text: 'Crew booked', who: b.crew as PersonKey } : { text: 'Ready — book the crew', who: steps.find((v) => v.key === 'installer')?.owner }
+  if (gateOpen(tracks)) return b ? { text: 'Crew booked', who: b.crew as PersonKey } : { text: 'Ready. Book the crew', who: steps.find((v) => v.key === 'installer')?.owner }
   const open = tracks.filter((x) => x.state !== 'done' && x.lead)
   const leads = open.map((x) => x.lead!)
   const v = leads.find((x) => x.state === 'now' && x.owner === me) || leads.find((x) => x.state === 'now') || leads.find((x) => x.state === 'wait') || leads.find((x) => x.state === 'later') || leads[0]
@@ -291,7 +291,7 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       </div>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="flex min-w-0 items-center text-[0.875rem] max-md:hidden" data-now>{stand('')}</div>
-      {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when>—</span>)}
+      {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when></span>)}
       {/* a phone: like Today — every row the same two lines: the name (and its date on the right), and under it where it
           stands (its problems in red); the same weight, nothing wrapping */}
       <div className="hidden min-w-0 max-md:block">
@@ -365,10 +365,10 @@ export function NewRepairModal({ level }: { level: number }) {
         <TextInput mic aria-label="What needs fixing" value={what} onChange={(e) => setWhat(e.target.value)} placeholder="e.g. Cracked tiles at the elevator landing" />
       </FormRow>
       <FormRow label="Name it" hint="How it shows on Projects">
-        <TextInput aria-label="Repair name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 830 Northwood — lobby grout" />
+        <TextInput aria-label="Repair name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. 830 Northwood · lobby grout" />
       </FormRow>
       <FormRow label="Who pays?">
-        <SearchSelect label="Who pays" value={billable === null ? '' : billable ? 'bill' : 'warranty'} onChange={(k) => setBillable(k === 'bill')} placeholder="Pick one" search={false} width={300} options={[{ key: 'bill', label: 'We bill the client' }, { key: 'warranty', label: 'Warranty — no charge' }]} />
+        <SearchSelect label="Who pays" value={billable === null ? '' : billable ? 'bill' : 'warranty'} onChange={(k) => setBillable(k === 'bill')} placeholder="Pick one" search={false} width={300} options={[{ key: 'bill', label: 'We bill the client' }, { key: 'warranty', label: 'Warranty · no charge' }]} />
       </FormRow>
       <FormRow label="Who does it">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
@@ -416,7 +416,7 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
       st.prep[id] = { ...(iso ? { targetISO: iso, target: start } : { target: 'TBD' }), meeting: { text: 'TBD' }, installer: 'tbd', confirmed: 'no', paperwork: 'no', po: 'no', material: 'no', deposit: amount ? 'no' : 'na' } as any
       if (amount && pct) {
         const amt = Math.round((amount * pct) / 100)
-        st.money.unshift({ id: 'dep-' + id, jobId: id, kind: 'deposit', title: `Deposit ${pct}%`, amount: amt, step: 0, state: 'todo', due: 'Today', dueTone: 'warn', note: 'Created with the project.', log: [{ date: NOW, who: 'system', text: 'Deposit required — created with the project' }], action: 'Create invoice' } as any)
+        st.money.unshift({ id: 'dep-' + id, jobId: id, kind: 'deposit', title: `Deposit ${pct}%`, amount: amt, step: 0, state: 'todo', due: 'Today', dueTone: 'warn', note: 'Created with the project.', log: [{ date: NOW, who: 'system', text: 'Deposit required. Created with the project' }], action: 'Create invoice' } as any)
       }
       addHist(st, id, { who: meOf(st.role), kind: 'pricing', title: 'Project created', detail: amount ? `Contract ${fmtMoney(amount)}` : undefined })
       /* already under way: what's done is checked off, the rest is on people's lists */
@@ -425,7 +425,7 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
         doneKeys.forEach((k) => { recs[k] = { done: NOW, by: meOf(st.role), note: 'Done before Tile OS' } })
         st.jobs[id].headline = 'Under way'
         st.jobs[id].issues = []
-        addHist(st, id, { who: meOf(st.role), kind: 'field', title: `Entered under way — ${doneKeys.length} ${doneKeys.length === 1 ? 'step' : 'steps'} done already`, detail: doneKeys.map((k) => steps.find((d) => d.key === k)?.short || k).join(', ') })
+        addHist(st, id, { who: meOf(st.role), kind: 'field', title: `Entered under way · ${doneKeys.length} ${doneKeys.length === 1 ? 'step' : 'steps'} done already`, detail: doneKeys.map((k) => steps.find((d) => d.key === k)?.short || k).join(', ') })
       }
     }, `${finalName} is set up`, !doneKeys.length
       ? { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] }
@@ -453,8 +453,8 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
       {/* the same boxes as Price it: the project, then the client */}
       <FormRow label="Project">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'Name — e.g. Leeds Residence'} className="h-10" />
-          <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address — street, city" className="h-10" />
+          <TextInput aria-label="Project name" value={name} onChange={(e) => setName(e.target.value)} placeholder={address.split(',')[0].trim() || 'Name · e.g. Leeds Residence'} className="h-10" />
+          <TextInput aria-label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address · street, city" className="h-10" />
         </div>
       </FormRow>
       <FormRow label="Client">
@@ -466,9 +466,9 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
       {/* where it's at: tick what's done already — nothing ticked, it starts from the beginning */}
       <FormRow label="What’s done already">
         <span className="block" data-done-already={doneKeys.join(',')}>
-          <MultiSelect label="What’s done already" values={doneKeys} onChange={setDoneKeys} placeholder="Nothing yet — it starts from the beginning" searchPlaceholder="Find a step" width={360} className="w-full"
+          <MultiSelect label="What’s done already" values={doneKeys} onChange={setDoneKeys} placeholder="Nothing yet. It starts from the beginning" searchPlaceholder="Find a step" width={360} className="w-full"
             options={steps.map((d) => ({ key: d.key, label: (d.named ? d.label : TODO[d.key]) || d.label }))}
-            summary={(picked) => picked.length === steps.length ? 'All of getting ready' : `${picked.length} done — ${picked.slice(0, 3).map((o) => o.label.toLowerCase()).join(', ')}${picked.length > 3 ? '…' : ''}`} />
+            summary={(picked) => picked.length === steps.length ? 'All of getting ready' : `${picked.length} done · ${picked.slice(0, 3).map((o) => o.label.toLowerCase()).join(', ')}${picked.length > 3 ? '…' : ''}`} />
         </span>
       </FormRow>
       {!more && (
@@ -482,7 +482,7 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
         </FormRow>
         <FormRow label="Start and who runs it">
           <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-            <SearchSelect label="When can we start" value={start} onChange={setStart} placeholder="Start — not set yet" emptyLabel="Not set yet" search={false} width={260} options={startOpts} plain />
+            <SearchSelect label="When can we start" value={start} onChange={setStart} placeholder="Start, not set yet" emptyLabel="Not set yet" search={false} width={260} options={startOpts} plain />
             <SearchSelect label="Project manager" value={pm} onChange={(k) => setPm(k as PersonKey)} search={false} width={280} options={(['ys', 'office'] as PersonKey[]).map((p) => ({ key: p, label: PEOPLE[p].name, hint: 'Runs it', lead: <Avatar who={p} size={22} /> }))} plain />
           </div>
         </FormRow>

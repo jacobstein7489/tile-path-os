@@ -38,7 +38,7 @@ export function dueLabel(t: Task): { text: string; tone: Tone } {
   if (t.state === 'waiting') return { text: `${t.waitingOn} · ${t.followUp}`, tone: 'warn' }
   if (t.state === 'later') return { text: `Back ${t.laterUntil}`, tone: 'neutral' }
   if (t.state === 'done') return { text: t.doneAt || 'Done', tone: 'ok' }
-  return { text: t.due || '—', tone: (t.dueTone as Tone) || 'neutral' }
+  return { text: t.due || '', tone: (t.dueTone as Tone) || 'neutral' }
 }
 
 /* Compact priority card (Today) — job · where, what, one status */

@@ -45,7 +45,7 @@ export function JobContactModal({ jobId, index, level }: { jobId: string; index?
       size="sm"
       onClose={s.close}
       title={cur ? cur.name : 'Someone to call on this job'}
-      sub={cur ? job.name : `${job.name} — the homeowner, the designer, the super. Only this job.`}
+      sub={cur ? job.name : `${job.name}. The homeowner, the designer, the super. Only this job.`}
       footer={
         <>
           {cur && <Button variant="ghost" icon={<Trash2 />} onClick={remove} data-contact-remove>Take off</Button>}

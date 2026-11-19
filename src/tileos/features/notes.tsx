@@ -17,7 +17,7 @@ export function Notes({ notes, onAdd, me, kind, className }: {
   onAdd?: (text: string) => void
   me: PersonKey
   /** the marks the checks look for: data-task-notes / data-step-notes … */
-  kind: 'task' | 'step'
+  kind: 'task' | 'step' | 'event'
   className?: string
 }) {
   const [text, setText] = React.useState('')

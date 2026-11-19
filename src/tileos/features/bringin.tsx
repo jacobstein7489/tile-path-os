@@ -33,16 +33,16 @@ export type EstRead = {
 }
 
 export const ESTIMATE_PROMPT = [
-  'You are reading a tile installation estimate (a proposal or a quote). Cobblestone, a tile installation company, made it; the client is who it is for — never Cobblestone. The pictures are its pages.',
+  'You are reading a tile installation estimate (a proposal or a quote). Cobblestone, a tile installation company, made it; the client is who it is for · never Cobblestone. The pictures are its pages.',
   '',
   'Read:',
-  '- client: who the estimate is for (a general contractor, a builder, a homeowner) — and clientPhone, clientEmail, clientAddress if they are shown',
+  '- client: who the estimate is for (a general contractor, a builder, a homeowner), and clientPhone, clientEmail, clientAddress if they are shown',
   '- project: the project’s name (often the job’s street address, or a building or development name); address: the job site’s address',
   '- number: the estimate or proposal number; date: its date; total: the grand total, as a number without $',
   '- rooms: every room or area, in the order of the estimate, with floor = the level it is on when the estimate groups rooms by floor ("1st Floor", "2nd Floor", "Basement"), else "".',
-  '  For each room, every surface we tile, with its square feet (sf). Name it plainly: "Floor", "Shower floor", "Shower walls", "Tub walls", "Backsplash", "Base", "Niche", "Accent wall", "Wainscot", "Fireplace", "Stairs", "Bench", "Curb" — or the estimate’s own words when they are clear.',
-  '  Leave out lines that are not a surface (setting materials, demolition, waterproofing alone, delivery, permits, disposal) — if one matters for the job, say it in the room’s note in a few words ("Waterproofing included").',
-  '  note on a room: how it is tiled when the estimate says — "Fully tiled to the ceiling", "Half tiled to 4 ft", "Wet walls only".',
+  '  For each room, every surface we tile, with its square feet (sf). Name it plainly: "Floor", "Shower floor", "Shower walls", "Tub walls", "Backsplash", "Base", "Niche", "Accent wall", "Wainscot", "Fireplace", "Stairs", "Bench", "Curb", or the estimate’s own words when they are clear.',
+  '  Leave out lines that are not a surface (setting materials, demolition, waterproofing alone, delivery, permits, disposal), if one matters for the job, say it in the room’s note in a few words ("Waterproofing included").',
+  '  note on a room: how it is tiled when the estimate says · "Fully tiled to the ceiling", "Half tiled to 4 ft", "Wet walls only".',
   '',
   'Answer with JSON only, no other text, in exactly this shape:',
   '{"client":"","clientPhone":"","clientEmail":"","clientAddress":"","project":"","address":"","number":"","date":"","total":0,"rooms":[{"room":"","floor":"","note":"","surfaces":[{"name":"","sf":0,"note":""}]}],"notes":""}',
@@ -128,11 +128,11 @@ export function roomsFrom(r: EstRead): Room[] {
 /* ================= where each one stands ================= */
 type Where = 'new' | 'tile' | 'ready' | 'installing' | 'touchups'
 const WHERE: { key: Where; label: string; hint: string }[] = [
-  { key: 'new', label: 'Getting ready — just won', hint: 'Every step of getting ready is still to do' },
-  { key: 'tile', label: 'Getting ready — waiting for the tile', hint: 'Left: the tile delivery, the installer, our materials' },
-  { key: 'ready', label: 'Getting ready — the tile is here', hint: 'Left: the installer and our materials' },
-  { key: 'installing', label: 'In progress — installing', hint: 'Getting ready is checked off as done before Tile OS' },
-  { key: 'touchups', label: 'Touch-ups', hint: 'Installed — the touch-ups are left' },
+  { key: 'new', label: 'Getting ready · just won', hint: 'Every step of getting ready is still to do' },
+  { key: 'tile', label: 'Getting ready. Waiting for the tile', hint: 'Left: the tile delivery, the installer, our materials' },
+  { key: 'ready', label: 'Getting ready. The tile is here', hint: 'Left: the installer and our materials' },
+  { key: 'installing', label: 'In progress · installing', hint: 'Getting ready is checked off as done before Tile OS' },
+  { key: 'touchups', label: 'Touch-ups', hint: 'Installed. The touch-ups are left' },
 ]
 /** what's still open at each point — the rest was done before Tile OS (the deposit too: billed outside before) */
 const OPEN_AT: Record<Where, string[] | null> = {
@@ -179,7 +179,7 @@ export async function estimateInto(jobId: string, file: File): Promise<void> {
   try {
     r = await readEstimate([file], c.signal, (st) => { if (!c.signal.aborted) stepReading('estimate', jobId, st) })
   } catch (e: any) {
-    if (estCtl[jobId] === c) { delete estCtl[jobId]; c.signal.aborted ? endReading('estimate', jobId) : failReading('estimate', jobId, e instanceof ReadError ? e.message : 'Couldn’t read the estimate just now — try again.') }
+    if (estCtl[jobId] === c) { delete estCtl[jobId]; c.signal.aborted ? endReading('estimate', jobId) : failReading('estimate', jobId, e instanceof ReadError ? e.message : 'Couldn’t read the estimate just now · try again.') }
     throw e
   }
   if (estCtl[jobId] === c) delete estCtl[jobId]
@@ -198,7 +198,7 @@ export async function estimateInto(jobId: string, file: File): Promise<void> {
     if (!j.contract && r.total) j.contract = r.total
     if ((!j.address || /to confirm/i.test(j.address)) && r.address) j.address = r.address
     addHist(st, jobId, { who: me, kind: 'pricing', title: `Its estimate read${r.number ? ` · ${r.number}` : ''}`, detail: [r.total ? `total ${fmtMoney(r.total)}` : '', `${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}`, sfOf(r) ? `${Math.round(sfOf(r)).toLocaleString('en-US')} SF` : ''].filter(Boolean).join(' · ') })
-  }, had ? `${job.name}: the estimate is kept — its rooms stay as they were` : `${job.name}: ${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'} from its estimate`, { undo: false })
+  }, had ? `${job.name}: the estimate is kept. Its rooms stay as they were` : `${job.name}: ${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'} from its estimate`, { undo: false })
   await keepFiles(jobId, [file], 'other', { quiet: true, doc: 'Estimate' }).catch(() => undefined)
 }
 
@@ -217,11 +217,11 @@ function enqueue(id: string) {
     try {
       const r = await readEstimate([c.file])
       if (!cardOf(id)) return
-      if (!r.rooms.length && !r.client && !r.project) { patch(id, { st: 'bad', msg: 'Nothing on it looked like an estimate — try a clearer PDF.' }); return }
+      if (!r.rooms.length && !r.client && !r.project) { patch(id, { st: 'bad', msg: 'Nothing on it looked like an estimate. Try a clearer PDF.' }); return }
       const had = existingFor(r)
       patch(id, { st: 'read', read: r, name: r.project || r.address.split(',')[0] || bare(c.file.name), client: r.client, address: r.address || r.project, into: had?.id || '' })
     } catch (e: any) {
-      if (cardOf(id)) patch(id, { st: 'bad', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.' })
+      if (cardOf(id)) patch(id, { st: 'bad', msg: e instanceof ReadError ? e.message : 'Couldn’t read it just now · try again.' })
     }
   })
 }
@@ -300,7 +300,7 @@ export function BringInModal({ level }: { level: number }) {
         if (c.hold) addHist(st, id, { who: me, kind: 'field', title: 'On hold', detail: c.why.trim() || undefined })
         made.push({ card: c, id })
       })
-    }, ready.every((c) => c.into) ? `${ready.length} ${ready.length === 1 ? 'estimate' : 'estimates'} read into ${ready.length === 1 ? 'its project' : 'their projects'}` : `${ready.length} ${ready.length === 1 ? 'project' : 'projects'} brought in`, { sub: ready.some((c) => c.paper.length) ? 'Its tile paperwork is being read now — the tiles fill in by themselves.' : 'Each one has its rooms, walls and floors.' })
+    }, ready.every((c) => c.into) ? `${ready.length} ${ready.length === 1 ? 'estimate' : 'estimates'} read into ${ready.length === 1 ? 'its project' : 'their projects'}` : `${ready.length} ${ready.length === 1 ? 'project' : 'projects'} brought in`, { sub: ready.some((c) => c.paper.length) ? 'Its tile paperwork is being read now. The tiles fill in by themselves.' : 'Each one has its rooms, walls and floors.' })
     setCards((cs) => cs.filter((c) => !made.some((m) => m.card.id === c.id)))
     s.close()
     s.go({ page: 'projects' })
@@ -321,7 +321,7 @@ export function BringInModal({ level }: { level: number }) {
       tall
       onClose={s.close}
       title="Bring in projects"
-      sub="Every job from Asana at once — then each one’s estimate, and AI builds its rooms, walls and floors"
+      sub="Every job from Asana at once, then each one’s estimate, and AI builds its rooms, walls and floors"
       footer={src === 'asana' ? undefined : (
         <>
           <span className="min-w-0 truncate text-[0.8125rem] text-muted">{busy ? 'Reading… you can close this, it keeps going' : cards.length ? `${ready.length} of ${cards.length} ready` : 'One estimate per project'}</span>
@@ -346,7 +346,7 @@ export function BringInModal({ level }: { level: number }) {
           >
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[0.9375rem] font-semibold text-ink">{cards.length ? 'Add more estimates' : 'Drop the estimates here — or tap to pick them'}</span>
+              <span className="block text-[0.9375rem] font-semibold text-ink">{cards.length ? 'Add more estimates' : 'Drop the estimates here, or tap to pick them'}</span>
               <span className="block text-[0.8125rem] text-muted">One per project, as many as you like. A project that’s already in (from Asana) gets its rooms; a new one is made.</span>
             </span>
           </div>
@@ -375,7 +375,7 @@ function AsanaList() {
     setMsg('')
     const text = await f.text().catch(() => '')
     const r = jobsFromCsv(text, { have: Object.values(s.jobs) })
-    if (!r.columns || !r.jobs.length) { setMsg(r.columns ? 'No open jobs in that file.' : 'That doesn’t look like an Asana export — it needs a “Name” column. Export the project as CSV and drop that file.'); return }
+    if (!r.columns || !r.jobs.length) { setMsg(r.columns ? 'No open jobs in that file.' : 'That doesn’t look like an Asana export. It needs a “Name” column. Export the project as CSV and drop that file.'); return }
     setGot({ file: f.name, board: r.board, jobs: r.jobs, finished: r.finished, on: r.jobs.filter((j) => !j.dup).map((j) => j.key) })
   }
   if (!got) return (
@@ -383,11 +383,11 @@ function AsanaList() {
       <div className="rounded-xl border border-line bg-white px-4 py-3.5 text-[0.84375rem] leading-snug text-ink-2">
         <div className="mb-1.5 text-[0.9375rem] font-semibold text-ink">Every job from Asana, in one go</div>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>In Asana, open the project with the jobs — <b className="font-semibold text-ink">Cobblestone Sales Process</b>.</li>
+          <li>In Asana, open the project with the jobs · <b className="font-semibold text-ink">Cobblestone Sales Process</b>.</li>
           <li>Click the arrow next to the project’s name → <b className="font-semibold text-ink">Export / Print</b> → <b className="font-semibold text-ink">CSV</b>.</li>
-          <li>Drop the file here. (Or the file Claude sent you — it’s the same.)</li>
+          <li>Drop the file here. (Or the file Claude sent you. It’s the same.)</li>
         </ol>
-        <div className="mt-2 text-[0.78125rem] text-muted">Each job goes where it stands — being priced on Estimates, won on Projects — with its client, installer, dates and notes. The papers come after, under “2 · Estimate files”.</div>
+        <div className="mt-2 text-[0.78125rem] text-muted">Each job goes where it stands. Being priced on Estimates, won on Projects · with its client, installer, dates and notes. The papers come after, under “2 · Estimate files”.</div>
       </div>
       <input ref={input} type="file" accept=".csv,text/csv" className="hidden" aria-label="Asana CSV" data-asana-csv onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void load(f) }} />
       <div
@@ -402,7 +402,7 @@ function AsanaList() {
       >
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Table2 className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[0.9375rem] font-semibold text-ink">Drop the Asana CSV here — or tap to pick it</span>
+          <span className="block text-[0.9375rem] font-semibold text-ink">Drop the Asana CSV here, or tap to pick it</span>
           <span className="block text-[0.8125rem] text-muted">Only the open jobs come in. Done and lost ones stay out.</span>
         </span>
       </div>
@@ -489,7 +489,7 @@ function EstCard({ c }: { c: Card }) {
         <button type="button" onClick={remove} aria-label="Take this one out" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-faint hover:bg-wash hover:text-ink"><X className="h-4 w-4" /></button>
       </header>
       {c.st === 'waiting' && <div className="px-4 py-3 text-[0.84375rem] text-muted">Waiting its turn…</div>}
-      {c.st === 'reading' && <div className="px-4 py-3 text-[0.84375rem] text-muted">Reading the estimate — the client, the address, every room, wall and floor. Up to a minute.</div>}
+      {c.st === 'reading' && <div className="px-4 py-3 text-[0.84375rem] text-muted">Reading the estimate. The client, the address, every room, wall and floor. Up to a minute.</div>}
       {c.st === 'bad' && (
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 text-[0.84375rem]">
           <span className="min-w-0 flex-1 text-bad-700">{c.msg}</span>
@@ -501,7 +501,7 @@ function EstCard({ c }: { c: Card }) {
           {/* what it found: the rooms, every wall and floor, the square feet — open it to check */}
           <div className="rounded-lg border border-line-2">
             <button type="button" onClick={() => set({ open: !c.open })} aria-expanded={c.open} className="flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left" data-est-rooms>
-              <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink-2"><b className="font-semibold text-ink">{r.rooms.length} {r.rooms.length === 1 ? 'room' : 'rooms'}</b> · {nSurf} {nSurf === 1 ? 'wall or floor' : 'walls and floors'}{sf ? ` · ${Math.round(sf).toLocaleString('en-US')} SF` : ''}<span className="text-muted"> — {r.rooms.map((x) => x.room).slice(0, 4).join(', ')}{r.rooms.length > 4 ? '…' : ''}</span></span>
+              <span className="min-w-0 flex-1 truncate text-[0.84375rem] text-ink-2"><b className="font-semibold text-ink">{r.rooms.length} {r.rooms.length === 1 ? 'room' : 'rooms'}</b> · {nSurf} {nSurf === 1 ? 'wall or floor' : 'walls and floors'}{sf ? ` · ${Math.round(sf).toLocaleString('en-US')} SF` : ''}<span className="text-muted"> · {r.rooms.map((x) => x.room).slice(0, 4).join(', ')}{r.rooms.length > 4 ? '…' : ''}</span></span>
               <ChevronDown className={cn('h-4 w-4 shrink-0 text-faint transition', c.open && 'rotate-180')} />
             </button>
             {c.open && (
@@ -512,7 +512,7 @@ function EstCard({ c }: { c: Card }) {
                     <div className="text-ink-2">{x.surfaces.map((y) => `${y.name}${y.sf ? ` ${y.sf} SF` : ''}`).join(' · ')}</div>
                   </div>
                 ))}
-                {!r.rooms.length && <div className="py-1.5 text-[0.8125rem] text-muted">No rooms found on it — they can be added on the project.</div>}
+                {!r.rooms.length && <div className="py-1.5 text-[0.8125rem] text-muted">No rooms found on it. They can be added on the project.</div>}
               </div>
             )}
           </div>
@@ -520,7 +520,7 @@ function EstCard({ c }: { c: Card }) {
             /* the project's already in (from Asana): the rooms go there */
             <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[#eef6f1] px-3 py-2.5 text-[0.84375rem]" data-est-goes-into>
               <Check className="h-4 w-4 shrink-0 text-[#2c8a5b]" />
-              <span className="min-w-0 flex-1 text-ink-2">For <b className="font-semibold text-ink">{had.name}</b> — already in Tile OS. {(s.rooms[had.id] || []).length ? 'It has rooms already — they stay; the estimate is kept with it.' : 'The rooms go there.'}</span>
+              <span className="min-w-0 flex-1 text-ink-2">For <b className="font-semibold text-ink">{had.name}</b> · already in Tile OS. {(s.rooms[had.id] || []).length ? 'It has rooms already · they stay; the estimate is kept with it.' : 'The rooms go there.'}</span>
               <button type="button" onClick={() => set({ into: '' })} className="text-[0.8125rem] font-semibold text-muted hover:text-ink" data-est-new-instead>A new project instead</button>
             </div>
           ) : (
@@ -548,7 +548,7 @@ function EstCard({ c }: { c: Card }) {
                 {c.where === 'installing' && (
                   <label className="w-36 max-sm:w-full">
                     <span className="mb-1 block text-[0.75rem] font-semibold text-muted">How far</span>
-                    <span className="relative block"><TextInput inputMode="numeric" value={c.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="0" aria-label="How far — percent installed" className="pr-14" data-est-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">% in</span></span>
+                    <span className="relative block"><TextInput inputMode="numeric" value={c.pct} onChange={(e) => set({ pct: e.target.value.replace(/[^\d]/g, '').slice(0, 3) })} placeholder="0" aria-label="How far · percent installed" className="pr-14" data-est-pct /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-muted">% in</span></span>
                   </label>
                 )}
               </div>
@@ -561,7 +561,7 @@ function EstCard({ c }: { c: Card }) {
               )}
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => set({ hold: !c.hold })} aria-pressed={c.hold} data-est-hold className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition', c.hold ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-line bg-white text-ink-2 hover:bg-wash')}><PauseCircle className="h-4 w-4" />On hold</button>
-                {c.hold && <span className="min-w-[12rem] flex-1"><TextInput value={c.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why — waiting on the GC, the tile…" aria-label="Why it’s on hold" data-est-why /></span>}
+                {c.hold && <span className="min-w-[12rem] flex-1"><TextInput value={c.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why. Waiting on the GC, the tile…" aria-label="Why it’s on hold" data-est-why /></span>}
               </div>
             </>
           )}
@@ -570,8 +570,8 @@ function EstCard({ c }: { c: Card }) {
             <input ref={paperIn} type="file" multiple accept="application/pdf,image/*" className="hidden" aria-label="Tile paperwork" data-est-paper-files onChange={(e) => { const f = Array.from(e.target.files || []).filter(READABLE); e.target.value = ''; if (f.length) set({ paper: [...c.paper, ...f] }) }} />
             <Button size="sm" icon={c.paper.length ? <Sparkles /> : <Plus />} onClick={() => paperIn.current?.click()} data-est-paper>{c.paper.length ? 'More tile paperwork' : 'Its tile paperwork'}</Button>
             {c.paper.length > 0
-              ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{c.paper.map((f) => f.name).join(', ')} <span className="text-muted">— AI reads it once it’s in</span><button type="button" onClick={() => set({ paper: [] })} className="ml-2 font-semibold text-muted hover:text-ink">Remove</button></span>
-              : <span className="text-[0.8125rem] text-muted">If you have it — the tiles, grout, edges and pictures fill in by themselves.</span>}
+              ? <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{c.paper.map((f) => f.name).join(', ')} <span className="text-muted">· AI reads it once it’s in</span><button type="button" onClick={() => set({ paper: [] })} className="ml-2 font-semibold text-muted hover:text-ink">Remove</button></span>
+              : <span className="text-[0.8125rem] text-muted">If you have it. The tiles, grout, edges and pictures fill in by themselves.</span>}
           </div>
         </div>
       )}

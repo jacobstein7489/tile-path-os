@@ -199,7 +199,7 @@ export function InboxPage() {
               <>
                 {updates.length > 0 && updN > 0 && <div className="flex justify-end border-b border-line-2 px-3 py-1.5"><button onClick={() => readUpdate()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><CheckCheck className="h-3.5 w-3.5" />Mark all as seen</button></div>}
                 {updates.map((n) => <UpdateRow key={n.id} n={n} />)}
-                {!updates.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">No updates yet — deliveries, approvals and requests land here.</div>}
+                {!updates.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">No updates yet. Deliveries, approvals and requests land here.</div>}
               </>
             )}
             {view !== 'updates' && shown.map((c) => {
@@ -252,7 +252,7 @@ export function InboxPage() {
                 {oldUpdates.map((n) => <UpdateRow key={n.id} n={n} archived />)}
               </>
             )}
-            {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? (oldUpdates.length ? 'No archived conversations.' : 'Nothing archived.') : 'No conversations yet — tap the blue button to write on a project.'}</div>}
+            {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? (oldUpdates.length ? 'No archived conversations.' : 'Nothing archived.') : 'No conversations yet. Tap the blue button to write on a project.'}</div>}
           </div>
         </div>
         {/* the conversation */}
@@ -268,7 +268,7 @@ export function InboxPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
               <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600"><MessageSquarePlus className="h-7 w-7" /></span>
               <div className="text-[1.0625rem] font-semibold text-ink">Pick a conversation</div>
-              <div className="max-w-xs text-[0.875rem] text-muted">One per project — the team, the crew and the GC. Updates from the app are under the bell.</div>
+              <div className="max-w-xs text-[0.875rem] text-muted">One per project. The team, the crew and the GC. Updates from the app are under the bell.</div>
             </div>
           )}
         </div>

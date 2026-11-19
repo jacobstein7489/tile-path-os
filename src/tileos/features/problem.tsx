@@ -57,19 +57,19 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
   const choose = (k: Kind | '') => setKind(k)
   const tile = tiles.find((t) => t.tag === tag)
   const boxes = `${n} ${n === 1 ? 'box' : 'boxes'}`
-  const title = !kind ? '' : kind === 'broken' ? `${tag}: ${boxes} came broken` : kind === 'wrong' ? `${tag}: ${boxes} came wrong` : kind === 'short' ? `${tag}: ${boxes} missing` : kind === 'site' ? `${what} — not ready yet` : (note.trim().split(/[.\n]/)[0] || '').slice(0, 80)
+  const title = !kind ? '' : kind === 'broken' ? `${tag}: ${boxes} came broken` : kind === 'wrong' ? `${tag}: ${boxes} came wrong` : kind === 'short' ? `${tag}: ${boxes} missing` : kind === 'site' ? `${what}, not ready yet` : (note.trim().split(/[.\n]/)[0] || '').slice(0, 80)
   const ok = !!job && !!kind && (!isTile(kind) || !!tag) && (kind !== 'other' || !!note.trim())
   const save = () => {
     if (!ok || !kind || !job) return
     const role = s.team.find((m) => m.key === owner)?.role as Role | undefined
     const where = isTile(kind) && tile ? `${tile.tag} · ${tile.name}` : kind === 'site' ? what : undefined
-    const detail = note.trim() || (kind === 'broken' ? 'Get replacements from the store' : kind === 'wrong' ? 'Send it back — get the right tile' : kind === 'short' ? 'Find out when the rest comes' : kind === 'site' ? 'Find out when it will be ready' : undefined)
+    const detail = note.trim() || (kind === 'broken' ? 'Get replacements from the store' : kind === 'wrong' ? 'Send it back. Get the right tile' : kind === 'short' ? 'Find out when the rest comes' : kind === 'site' ? 'Find out when it will be ready' : undefined)
     s.commit((st) => {
       newTask(st, { jobId, title, detail, where, type: isTile(kind) ? 'Materials' : 'Field', owner, for: role ? [role] : [s.role], watch: owner === me ? [] : [s.role], state: 'now', due, tone: 'bad', log: [{ date: NOW, who: me, text: 'Logged as a problem' }],
         /* tile broken, wrong or missing: one tap orders it — a PO to the store with that tile and those boxes, then their yes, then it coming in */
         ...(isTile(kind) && tag ? { action: { label: 'Order more tile', kind: `moretile:${tag}:${n}:boxes` } } : {}) })
       addHist(st, jobId, { who: me, kind: isTile(kind) ? 'material' : 'question', title: `Problem: ${title}`, detail: [note.trim(), photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || undefined })
-    }, 'Problem logged', { sub: `${owner === me ? 'On your desk' : `On ${PEOPLE[owner]?.short}’s desk`} — it stays red on ${job.name} until it’s sorted.` })
+    }, 'Problem logged', { sub: `${owner === me ? 'On your desk' : `On ${PEOPLE[owner]?.short}’s desk`}. It stays red on ${job.name} until it’s sorted.` })
     if (photos.length) void keepFiles(jobId, photos, 'photo', { quiet: true })
     s.close()
   }
@@ -163,7 +163,7 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
           )}
           {(!small || !!kind) && (
             <FormRow label={kind === 'other' ? 'What’s wrong' : small ? 'A few words (if you like)' : 'What happened'}>
-              <TextArea aria-label="What happened" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="min-h-[3.75rem] max-sm:text-[1rem]" placeholder={kind === 'site' ? 'e.g. The GC says the water is on Friday' : kind === 'other' ? 'Say it in a few words' : small ? 'e.g. 3 boxes cracked in the corner' : 'e.g. 3 boxes cracked in the corner — the driver saw it (optional)'} />
+              <TextArea aria-label="What happened" value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="min-h-[3.75rem] max-sm:text-[1rem]" placeholder={kind === 'site' ? 'e.g. The GC says the water is on Friday' : kind === 'other' ? 'Say it in a few words' : small ? 'e.g. 3 boxes cracked in the corner' : 'e.g. 3 boxes cracked in the corner. The driver saw it (optional)'} />
             </FormRow>
           )}
         </>

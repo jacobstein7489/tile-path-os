@@ -71,7 +71,7 @@ async function runRead(job: Job, list: File[], already?: boolean) {
     setRead(job.id, { k: 'entered', res, file: name, problem: kept.problem, before, tags })
   } catch (e: any) {
     if (c.signal.aborted || e?.code === 'cancelled') { endReading('paperwork', job.id); setRead(job.id, { k: 'idle' }); return }
-    failReading('paperwork', job.id, e instanceof ReadError ? e.message : 'Couldn’t read it just now — try again.')
+    failReading('paperwork', job.id, e instanceof ReadError ? e.message : 'Couldn’t read it just now · try again.')
     setRead(job.id, { k: 'idle' })
   } finally { if (ctls[job.id] === c) delete ctls[job.id] }
 }
@@ -126,7 +126,7 @@ export function PaperRead({ job }: { job: Job }) {
     const name = recs.length === 1 ? recs[0].name : `${recs.length} files`
     startReading('paperwork', job.id, name)
     const files = (await Promise.all(recs.map(fileBlob))).filter(Boolean) as File[]
-    if (!files.length) { failReading('paperwork', job.id, `Couldn’t open ${recs.length === 1 ? recs[0].name : 'the paperwork'} — upload it here instead.`); return }
+    if (!files.length) { failReading('paperwork', job.id, `Couldn’t open ${recs.length === 1 ? recs[0].name : 'the paperwork'}. Upload it here instead.`); return }
     void runRead(job, files, true)
   }
   const go = (l: File[]) => { void runRead(job, l) }
@@ -154,7 +154,7 @@ export function PaperRead({ job }: { job: Job }) {
           ) : (
             <>
               <span className="block text-[0.90625rem] font-semibold text-ink">Upload the tile paperwork</span>
-              <span className="block text-[0.8125rem] text-muted">PDF or photos — it’s read by itself and matched to the scope of work</span>
+              <span className="block text-[0.8125rem] text-muted">PDF or photos. It’s read by itself and matched to the scope of work</span>
             </>
           )}
         </span>
@@ -214,7 +214,7 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
       st.tiles[job.id] = before.tiles
       st.rooms[job.id] = before.rooms
       addHist(st, job.id, { who: meOf(st.role), kind: 'setup', title: `Took back what was read from ${file}` })
-    }, 'Taken back — as it was before the paperwork', { undo: false })
+    }, 'Taken back. As it was before the paperwork', { undo: false })
     onDone()
   }
   return (
@@ -233,13 +233,13 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
       {byHand.length > 0 && (
         <div data-paper-loose>
           {loose.length > 0
-            ? <div className="border-t border-warn-100 bg-warn-50/60 px-4 py-2 text-[0.8125rem] font-semibold text-warn-800">Not placed yet <span className="font-normal">— pick where each one goes</span></div>
+            ? <div className="border-t border-warn-100 bg-warn-50/60 px-4 py-2 text-[0.8125rem] font-semibold text-warn-800">Not placed yet <span className="font-normal">· pick where each one goes</span></div>
             : <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">Placed by hand</div>}
           {byHand.map((t) => <MatchRow key={t.tag} job={job} t={t} />)}
         </div>
       )}
       <div data-paper-areas>
-        <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">By area <span className="font-normal text-muted">— tap a tile to change it</span></div>
+        <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">By area <span className="font-normal text-muted">· tap a tile to change it</span></div>
         {groups.map((g) => (
           <div key={g.floor}>
             {several && <div className="px-4 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-white" style={{ background: DOC_GREEN }}>{g.floor}</div>}
@@ -284,7 +284,7 @@ function AreaLine({ job, room, x }: { job: Job; room: Room; x: Surface }) {
   const clear = () => tags.forEach((tag) => setTileOn(job.id, tag, flat.filter((f) => hasTile(f.x, tag) && !(f.room === room.name && f.x.name === x.name)).map((f) => ({ room: f.room, surface: f.x.name }))))
   return (
     <div className="grid min-h-12 grid-cols-[minmax(0,0.75fr)_minmax(0,2fr)_minmax(0,0.9fr)] items-center gap-3 border-t border-line-2 px-4 py-1.5 max-sm:grid-cols-[minmax(0,0.8fr)_minmax(0,2fr)]" data-paper-line={`${room.name} · ${x.name}`} data-empty={!tags.length || undefined}>
-      <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}{x.height ? <span className="text-muted"> · {x.height.split(' — ')[0]}</span> : null}</span>
+      <span className="min-w-0 truncate text-[0.875rem] text-ink">{x.name}{x.height ? <span className="text-muted"> · {x.height.split(/\s+[—·]\s+|\.\s+(?=[A-Z])|,\s+(?=to\b)/i)[0]}</span> : null}</span>
       <Menu align="start" width={340} trigger={
         tags.length ? (
           <button type="button" className="flex min-w-0 items-center gap-2 rounded-lg py-1 pl-1 pr-2 text-left transition hover:bg-wash" aria-label={`${room.name} · ${x.name}: change its tile`} data-paper-change>

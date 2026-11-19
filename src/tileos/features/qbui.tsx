@@ -54,12 +54,12 @@ export function QbBillRow({ m }: { m: MoneyItem }) {
     return box(
       <>
         <div className={cn('text-[0.8125rem] leading-snug', failed ? 'text-bad-700' : 'text-ink-2')}>
-          {link?.gone ? 'Deleted in QuickBooks.' : failed ? <>Not in QuickBooks yet — {link!.error}</> : 'Not in QuickBooks — it was invoiced before QuickBooks was connected.'}
+          {link?.gone ? 'Deleted in QuickBooks.' : failed ? <>Not in QuickBooks yet · {link!.error}</> : 'Not in QuickBooks. It was invoiced before QuickBooks was connected.'}
         </div>
         <Button size="sm" variant={failed ? 'primary' : 'secondary'} icon={<RefreshCw className={cn('h-3.5 w-3.5', busy === 'push' && 'animate-spin')} />} disabled={!!busy} onClick={() => run('push', () => pushBill(m.id, { findFirst: !failed && !link?.gone }))} data-qb-push>
           {busy === 'push' ? 'Putting it in…' : failed ? 'Try again' : link?.gone ? 'Put it back in QuickBooks' : 'Put it in QuickBooks'}
         </Button>
-        {!failed && !link?.gone && <div className="text-[0.75rem] leading-snug text-faint">If accounting made it there already, it’s linked by its number ({m.ref || 'none'}) — never made twice.</div>}
+        {!failed && !link?.gone && <div className="text-[0.75rem] leading-snug text-faint">If accounting made it there already, it’s linked by its number ({m.ref || 'none'}). Never made twice.</div>}
       </>,
     )
   }
@@ -74,7 +74,7 @@ export function QbBillRow({ m }: { m: MoneyItem }) {
       </div>
       {differs && (
         <div className="flex flex-col gap-1.5 rounded-lg bg-warn-50 px-3 py-2 text-[0.78125rem] leading-snug text-warn-800">
-          <span>QuickBooks has {fmtMoney(link.total!, { cents: link.total! % 1 !== 0 })} on it — Tile OS has {fmtMoney(m.amount || 0)}.</span>
+          <span>QuickBooks has {fmtMoney(link.total!, { cents: link.total! % 1 !== 0 })} on it · Tile OS has {fmtMoney(m.amount || 0)}.</span>
           <button className="self-start font-semibold text-brand-700 hover:underline" disabled={!!busy} onClick={() => run('push', () => pushBill(m.id))}>{busy === 'push' ? 'Sending…' : 'Send Tile OS’s amount to QuickBooks'}</button>
         </div>
       )}
@@ -90,7 +90,7 @@ export function QbBillRow({ m }: { m: MoneyItem }) {
             {busy === 'mail' ? 'Sending…' : link.emailed ? 'Email it again' : `Email it to ${to.emails[0]}`}
           </Button>
         ) : (
-          <div className="text-[0.78125rem] leading-snug text-muted">{to.name} has no email for invoices — add it on their page to email it from here.</div>
+          <div className="text-[0.78125rem] leading-snug text-muted">{to.name} has no email for invoices. Add it on their page to email it from here.</div>
         )
       )}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[0.75rem] text-faint">
@@ -197,7 +197,7 @@ export function QbConnectCard() {
       <>
         <p className="text-[0.84375rem] leading-relaxed text-ink-2">
           {qb.company ? <b className="font-semibold text-ink">{qb.company}</b> : 'Your company'}{qb.since ? ` · since ${new Date(qb.since).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}{qb.env === 'sandbox' ? ' · test company' : ''}.
-          {' '}Every invoice made here goes to QuickBooks — and every change to it, and every payment recorded here. Payments made in QuickBooks come back here every 10 minutes.
+          {' '}Every invoice made here goes to QuickBooks, and every change to it, and every payment recorded here. Payments made in QuickBooks come back here every 10 minutes.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" icon={<RefreshCw className={cn('h-3.5 w-3.5', busy === 'sync' && 'animate-spin')} />} disabled={!!busy} onClick={() => run('sync', () => syncQb({ say: true }))}>{busy === 'sync' ? 'Checking…' : 'Check QuickBooks now'}</Button>
@@ -255,8 +255,8 @@ export function EmailCard({ compact }: { /** one line: is it sending, from where
     setBusy(true)
     try {
       const from = s.rules.email?.other || REAL.email
-      const r = await REAL.mail.send({ from: `Cobblestone Tile <${from}>`, to: [REAL.email], subject: 'Tile OS can send email', html: '<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif">It works — purchase orders, invoices and invites go out from Tile OS now.</p>' })
-      if (r.ok) showPop({ title: `Test email sent to ${REAL.email}`, sub: `From ${r.from}. Check the inbox — and spam, the first time.` })
+      const r = await REAL.mail.send({ from: `Cobblestone Tile <${from}>`, to: [REAL.email], subject: 'Tile OS can send email', html: '<p style="font:16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif">It works. Purchase orders, invoices and invites go out from Tile OS now.</p>' })
+      if (r.ok) showPop({ title: `Test email sent to ${REAL.email}`, sub: `From ${r.from}. Check the inbox, and spam, the first time.` })
       else showPop({ title: 'The test email didn’t go out', sub: r.why === 'nokey' ? 'The Resend key isn’t in Lovable yet.' : r.why, tone: 'warn' })
     } finally { setBusy(false) }
   }
@@ -270,10 +270,10 @@ export function EmailCard({ compact }: { /** one line: is it sending, from where
     body = (
       <>
         <p className="text-[0.84375rem] leading-relaxed text-ink-2">
-          {verified.length ? <>Sends from <b className="font-semibold text-ink">@{verified.join(', @')}</b> — POs to suppliers and installers, invoices to clients, invites to the team. Who each kind comes from and who’s copied: Settings → Email.</>
-            : waiting.length ? <>Resend hasn’t verified <b className="font-semibold text-ink">{waiting.join(', ')}</b> yet — finish the DNS records there (Resend → Domains), then it sends.</>
-            : st.domains ? <>No domain in Resend yet — add cobblestonenj.com there (Resend → Domains).</>
-            : <>The key works. (It can’t list the domains — that’s fine.)</>}
+          {verified.length ? <>Sends from <b className="font-semibold text-ink">@{verified.join(', @')}</b> · POs to suppliers and installers, invoices to clients, invites to the team. Who each kind comes from and who’s copied: Settings → Email.</>
+            : waiting.length ? <>Resend hasn’t verified <b className="font-semibold text-ink">{waiting.join(', ')}</b> yet. Finish the DNS records there (Resend → Domains), then it sends.</>
+            : st.domains ? <>No domain in Resend yet · add cobblestonenj.com there (Resend → Domains).</>
+            : <>The key works. (It can’t list the domains · that’s fine.)</>}
         </p>
         {REAL.email && <Button size="sm" className="self-start" icon={<Send className="h-3.5 w-3.5" />} disabled={busy} onClick={test} data-mail-test>{busy ? 'Sending…' : 'Send a test email to me'}</Button>}
       </>
@@ -281,7 +281,7 @@ export function EmailCard({ compact }: { /** one line: is it sending, from where
   }
   if (compact) {
     const line = !st ? 'Checking the email…'
-      : !st.configured ? 'Email isn’t set up yet — POs aren’t emailed, invoices go from QuickBooks'
+      : !st.configured ? 'Email isn’t set up yet · POs aren’t emailed, invoices go from QuickBooks'
         : verified.length ? `Sending from @${verified.join(', @')}`
           : waiting.length ? `${waiting.join(', ')} isn’t verified in Resend yet` : 'Sending'
     return (
@@ -316,7 +316,7 @@ export function LaterList() {
       ].map((c) => (
         <div key={c.t} className="flex items-center gap-3 border-t border-line-2 px-5 py-2.5 max-sm:px-4">
           <c.i className="h-4 w-4 shrink-0 text-faint" />
-          <span className="min-w-0 flex-1"><span className="text-[0.84375rem] font-medium text-ink-2">{c.t}</span><span className="text-[0.8125rem] text-muted"> — {c.d}</span></span>
+          <span className="min-w-0 flex-1"><span className="text-[0.84375rem] font-medium text-ink-2">{c.t}</span><span className="text-[0.8125rem] text-muted"> · {c.d}</span></span>
           <span className="shrink-0 text-[0.75rem] font-medium text-faint">Not yet</span>
         </div>
       ))}

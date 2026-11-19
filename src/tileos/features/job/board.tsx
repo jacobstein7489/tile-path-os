@@ -74,7 +74,7 @@ export function RoomBody({ job, name, tab: tab0, surface }: { job: Job; name: st
                   <span className="min-w-0 flex-1">
                     {/* its name and its tile; under it where it is, its square feet and its grout */}
                     <span className="block truncate text-[0.90625rem] font-semibold text-ink">{x.name}<span className="font-normal text-muted"> · {tile ? `${x.tile} ${tile.name}` : x.tile || 'no tile yet'}</span></span>
-                    <span className="block truncate text-[0.8125rem] text-muted"><span className={cn(waiting ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-brand-700' : x.state === 'done' ? 'text-[#2c8a5b]' : '')}>{x.state === 'working' ? `In progress · ${surfacePct(x)}%` : SURF_LABEL[x.state]}{x.reason ? ` — ${x.reason}` : ''}</span>{x.sf ? ` · ${x.sf} SF` : ''}{g ? <> · <GroutDot grout={g} size={10} className="mr-1 align-[-0.0625rem]" />{GROUTS[g]?.name || g}</> : ''}</span>
+                    <span className="block truncate text-[0.8125rem] text-muted"><span className={cn(waiting ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-brand-700' : x.state === 'done' ? 'text-[#2c8a5b]' : '')}>{x.state === 'working' ? `In progress · ${surfacePct(x)}%` : SURF_LABEL[x.state]}{x.reason ? ` · ${x.reason}` : ''}</span>{x.sf ? ` · ${x.sf} SF` : ''}{g ? <> · <GroutDot grout={g} size={10} className="mr-1 align-[-0.0625rem]" />{GROUTS[g]?.name || g}</> : ''}</span>
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
                 </button>
@@ -124,10 +124,10 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
     case 'file': return <DocPanel jobId={job.id} fileId={view.id} onBack={back} back={backLabel} />
     case 'doc': return <DocPanel jobId={job.id} doc={view.doc} onBack={back} back={backLabel} />
     case 'files': return page('Files and photos', <FilesTab job={job} />)
-    case 'scope': return page('Scope of work', <ScopeTab job={job} />, 'every wall and floor — its tile, grout and layout')
+    case 'scope': return page('Scope of work', <ScopeTab job={job} />, 'every wall and floor. Its tile, grout and layout')
     case 'log': return page('What happened', <HistoryTab job={job} />)
     case 'orders': return page('Tile & materials', <MaterialsTab job={job} onScope={() => setView({ t: 'scope' })} />)
-    case 'money': return page('Billing', <MoneyTab job={job} />, 'alongside the job the whole time — billed, paid, the changes')
+    case 'money': return page('Billing', <MoneyTab job={job} />, 'alongside the job the whole time. Billed, paid, the changes')
     /* on a phone the layouts open from the scope of work, with Back on top — no extra tab to slide to */
     case 'layouts': return page('Layouts', <LayoutsBoard job={job} />, 'every wall and floor, drawn to scale')
   }

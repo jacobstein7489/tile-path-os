@@ -29,17 +29,20 @@ export const canListen = () => { try { return !!SR() || recordable() } catch { r
 
 const onPhone = () => apple() || /Android/.test(typeof navigator !== 'undefined' ? navigator.userAgent : '')
 /** what's wrong with the microphone, and what to do — the words for each */
+/** inside another page (the Lovable editor's preview): the browser keeps the microphone off there */
+export const inFrame = () => { try { return typeof window !== 'undefined' && window.self !== window.top } catch { return true } }
 function micProblem(e: any): string {
   const n = String(e?.name || '')
+  if (inFrame() && (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError' || n === 'NotFoundError' || !n)) return 'The mic is off inside the Lovable editor. Open the app on its own (your published link) and it works there.'
   if (n === 'NotAllowedError' || n === 'SecurityError' || n === 'PermissionDeniedError')
     return apple()
       ? 'The microphone is off for Tile OS. On the iPhone: Settings → Apps → Safari → Microphone → Allow. Then tap the mic again.'
       : onPhone()
         ? 'The microphone is off for Tile OS. Tap the icon left of the web address → Permissions → Microphone → Allow. Then tap the mic again.'
         : 'The microphone is off for Tile OS. Click the icon left of the web address → turn Microphone on → reload the page, then tap the mic again.'
-  if (n === 'NotFoundError' || n === 'OverconstrainedError' || n === 'DevicesNotFoundError') return 'No microphone found — plug one in, or type it.'
-  if (n === 'NotReadableError' || n === 'TrackStartError') return 'Another app is using the microphone — close it there, then tap the mic again.'
-  return 'The microphone didn’t start — type it, or try again.'
+  if (n === 'NotFoundError' || n === 'OverconstrainedError' || n === 'DevicesNotFoundError') return 'No microphone found. Plug one in, or type it.'
+  if (n === 'NotReadableError' || n === 'TrackStartError') return 'Another app is using the microphone. Close it there, then tap the mic again.'
+  return 'The microphone didn’t start. Type it, or try again.'
 }
 
 /** a recording as it was made, in base64 */
@@ -269,7 +272,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
   }
   /* write the recording down when you stop: carefully, the whole of it — as it was made, a WAV if that fails */
   const writeDown = async (blob: Blob) => {
-    if (!hearer) { setErr('This browser can’t listen here — type it instead.'); return }
+    if (!hearer) { setErr('This browser can’t listen here. Type it instead.'); return }
     setBusy(true)
     const t0 = performance.now()
     try {
@@ -278,9 +281,9 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
       if (!alive.current) return
       noteHeard(performance.now() - t0)
       if (text) said.current(text)
-      else setErr('I didn’t catch any words — try again, a little closer to the phone.')
+      else setErr('I didn’t catch any words. Try again, a little closer to the phone.')
     } catch (e: any) {
-      if (alive.current) setErr(`Couldn’t write it down${e?.message ? ` — ${String(e.message).replace(/\.$/, '')}` : ''}. Type it instead.`)
+      if (alive.current) setErr(`Couldn’t write it down${e?.message ? ` · ${String(e.message).replace(/\.$/, '')}` : ''}. Type it instead.`)
     } finally {
       if (alive.current) { setBusy(false); setHearing('') }
     }
@@ -315,7 +318,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
   const start = async () => {
     if (on || busy || starting.current) return
     const R = SR()
-    if (!R && !recordable()) { setErr('This browser can’t listen — type it instead.'); return }
+    if (!R && !recordable()) { setErr('This browser can’t listen. Type it instead.'); return }
     /* the meter's sound, started right here in the tap — an iPhone won't start it later */
     const made = soundContext()
     starting.current = true
@@ -333,7 +336,8 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     const open = stream.current?.getAudioTracks().some((t) => t.readyState === 'live') ? stream.current : null
     if (open) s = open
     else if (navigator.mediaDevices?.getUserMedia) {
-      try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }) } catch (e) { starting.current = false; try { made?.close?.() } catch { /* closed */ } if (alive.current) setErr(micProblem(e)); return }
+      const slow = setTimeout(() => { if (starting.current && alive.current) setErr(inFrame() ? 'The mic is off inside the Lovable editor. Open the app on its own (your published link) and it works there.' : 'Allow the microphone. Your browser is asking at the top of the window.') }, 3500)
+      try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } as any }); clearTimeout(slow); if (alive.current) setErr('') } catch (e) { clearTimeout(slow); starting.current = false; try { made?.close?.() } catch { /* closed */ } if (alive.current) setErr(micProblem(e)); return }
     }
     starting.current = false
     if (!alive.current) { s?.getTracks().forEach((t) => t.stop()); try { made?.close?.() } catch { /* closed */ } return }
@@ -361,7 +365,7 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
         }, 1500)
       } catch { mr.current = null }
     }
-    if (!live && !mr.current) { liveOff(); meterOff(); streamOff(); setErr('This browser can’t listen here — type it instead.'); return }
+    if (!live && !mr.current) { liveOff(); meterOff(); streamOff(); setErr('This browser can’t listen here. Type it instead.'); return }
     want.current = true
     setOn(true)
     /* three minutes at a time */
@@ -383,17 +387,17 @@ export function useVoice(onText: (t: string) => void, hint = '', opts?: { onDone
     r.onerror = (e: any) => {
       const code = String(e?.error || '')
       if (code === 'no-speech' || code === 'aborted') return
-      if (code === 'audio-capture') { setErr('No microphone found — plug one in, or type it.'); stop(); return }
+      if (code === 'audio-capture') { setErr('No microphone found. Plug one in, or type it.'); stop(); return }
       /* the browser's listening is off or out of reach: keep recording — the AI writes it down when you stop */
       srDown.current = true
-      if (!mr.current) { setErr(code === 'network' ? 'The browser can’t reach its listening service — type it instead.' : 'This browser won’t listen here — type it instead.'); stop() }
+      if (!mr.current) { setErr(code === 'network' ? 'The browser can’t reach its listening service. Type it instead.' : 'This browser won’t listen here. Type it instead.'); stop() }
     }
     /* a browser stops listening after a pause — keep going until you tap stop */
     r.onend = () => {
       if (alive.current) setHearing('')
       if (want.current && !srDown.current) { try { r.start() } catch { srDown.current = true } }
     }
-    try { r.start(); rec.current = r } catch { srDown.current = true; if (!mr.current) { setErr('This browser won’t listen here — type it instead.'); stop() } }
+    try { r.start(); rec.current = r } catch { srDown.current = true; if (!mr.current) { setErr('This browser won’t listen here. Type it instead.'); stop() } }
     /* a computer's own listening can go quiet without a word of why (its speech service off, or out of reach): you've
        been talking a few seconds and nothing came — the recording takes over, and the AI writes it as you go */
     clearInterval(watch.current)

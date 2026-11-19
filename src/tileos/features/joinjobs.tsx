@@ -53,14 +53,14 @@ export function foldInto(st: Data, keepId: string, dropId: string, who: PersonKe
       e.approvedOn = NOW
       const r = [...e.revs].reverse().find((x) => x.status === 'sent') || e.revs[e.revs.length - 1]
       if (r) { e.revs.forEach((x) => { if (x !== r && x.status === 'sent') x.status = 'superseded' }); r.status = 'approved' }
-      e.log.push({ date: NOW, who, text: `Approved — it’s ${k.name}` })
+      e.log.push({ date: NOW, who, text: `Approved · it’s ${k.name}` })
     }
   }
-  if (won) st.tasks.forEach((t) => { if (t.jobId === keepId && t.type === 'Pricing' && t.state !== 'done' && !t.step) { t.state = 'done'; t.doneAt = 'Just now'; t.log.push({ date: NOW, who, text: `Done — ${k.name} is the project` }) } })
+  if (won) st.tasks.forEach((t) => { if (t.jobId === keepId && t.type === 'Pricing' && t.state !== 'done' && !t.step) { t.state = 'done'; t.doneAt = 'Just now'; t.log.push({ date: NOW, who, text: `Done · ${k.name} is the project` }) } })
   delete st.jobs[dropId]
   delete st.rooms[dropId]; delete st.tiles[dropId]; delete st.prep[dropId]; delete st.pricing[dropId]; delete st.stepRecs[dropId]; delete (st.jobSteps as any)[dropId]
   delete (st.hist as any)[dropId]; delete (st.messages as any)[dropId]; delete (st.notes as any)[dropId]; delete (st.diary as any)[dropId]
-  addHist(st, keepId, { who, kind: 'setup', title: `${drop.name} is part of this project`, detail: 'Asana had this job twice — its estimate and the job. One project now: the estimate, its files, tasks and history are here.' })
+  addHist(st, keepId, { who, kind: 'setup', title: `${drop.name} is part of this project`, detail: 'Asana had this job twice. Its estimate and the job. One project now: the estimate, its files, tasks and history are here.' })
 }
 
 /** the data with each double put together — null when there's none */

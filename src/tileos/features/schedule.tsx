@@ -127,7 +127,7 @@ export function SchedulePage() {
                             style={{ left: `calc(${(si / cols) * 100}% + 5px)`, width: `calc(${(span / cols) * 100}% - 10px)` }}
                           >
                             <div className="flex min-w-0 items-center gap-1.5 leading-tight">
-                              {blocked && <span className="h-2 w-2 shrink-0 rounded-full bg-bad-500" title="One surface blocked — the crew works elsewhere" />}
+                              {blocked && <span className="h-2 w-2 shrink-0 rounded-full bg-bad-500" title="One surface blocked. The crew works elsewhere" />}
                               <span className="truncate text-[0.84375rem] font-semibold text-ink">{job?.name}</span>
                               {cont && <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-faint" />}
                             </div>
@@ -231,7 +231,7 @@ function ReadyPop() {
         <div className="flex items-center justify-between gap-3 border-b border-line-2 px-5 py-3.5">
           <div>
             <div className="text-[0.96875rem] font-semibold text-ink">Ready for a crew</div>
-            <div className="text-[0.78125rem] text-muted">Can start, or needs a return visit — the best fit first.</div>
+            <div className="text-[0.78125rem] text-muted">Can start, or needs a return visit. The best fit first.</div>
           </div>
           <button onClick={() => act(() => s.go({ page: 'upcoming' }))} className="shrink-0 text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Coming up</button>
         </div>
@@ -244,7 +244,7 @@ function ReadyPop() {
                 <button onClick={() => act(() => s.open({ t: 'job', id: j.id }))} className="min-w-0 flex-1 text-left">
                   <span className="block truncate text-[0.875rem] font-semibold text-ink hover:text-brand-700">{j.name}</span>
                   <span className={cn('block truncate text-[0.78125rem]', r.kind === 'hold' ? 'font-semibold text-bad-700' : r.warn ? 'text-warn-700' : 'text-ok-700')}>
-                    {STATUS[r.kind]}{r.warn ? ` — ${r.warn}` : ''}
+                    {STATUS[r.kind]}{r.warn ? ` · ${r.warn}` : ''}
                   </span>
                 </button>
                 <span className="w-[7.875rem] shrink-0 whitespace-nowrap text-right text-[0.78125rem] text-muted max-sm:hidden">{r.days} {r.days === 1 ? 'day' : 'days'} · {r.workers} {r.workers === 1 ? 'worker' : 'workers'}</span>
@@ -299,7 +299,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
   const toOrder = job ? s.mats.filter((m) => m.jobId === jobId && m.status === 'to-order') : []
   const warns = [
     ...(r?.warn ? [r.warn] : []),
-    ...(dep ? [`Deposit ${dep.step === 0 ? 'not invoiced' : 'invoiced ' + (dep.ref || '') + ', not paid'} — company rule: warning only`] : []),
+    ...(dep ? [`Deposit ${dep.step === 0 ? 'not invoiced' : 'invoiced ' + (dep.ref || '') + ', not paid'} · company rule: warning only`] : []),
     ...(toOrder.length ? [`${toOrder.map((m) => m.name).join(' and ')} not ordered yet`] : []),
     ...(crew && busyUntil(crew as PersonKey) && busyUntil(crew as PersonKey)!.start <= end ? [`${PEOPLE[crew as PersonKey].name} is booked on ${s.jobs[busyUntil(crew as PersonKey)!.jobId]?.name} until ${isoLabel(busyUntil(crew as PersonKey)!.end)}`] : []),
   ]
@@ -368,7 +368,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
           </div>
         </Field>
         <div className="grid grid-cols-[1fr_auto_auto] items-end gap-5 max-sm:grid-cols-1 max-sm:items-start max-sm:gap-4">
-          <Field label="Start" hint={start < TODAY ? 'Already going — it goes on as started that day' : undefined}>
+          <Field label="Start" hint={start < TODAY ? 'Already going. It goes on as started that day' : undefined}>
             <div className="flex flex-wrap gap-2">
               {START_OPTS.map((o) => (
                 <Chip key={o.iso} on={start === o.iso} onClick={() => setStart(o.iso)} className="h-10 px-3 text-[0.84375rem]">{o.label}</Chip>
@@ -377,7 +377,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
               <label className={cn('relative inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', START_OPTS.some((o) => o.iso === start) ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700')} data-start-other>
                 <CalendarDays className="h-4 w-4" />
                 {START_OPTS.some((o) => o.iso === start) ? 'Another day' : `${start < TODAY ? 'Started ' : ''}${isoLabel(start)}`}
-                <input type="date" value={start} onChange={(e) => { if (e.target.value) setStart(e.target.value) }} aria-label="The day it starts — any day, one that passed too" data-start-date className="absolute inset-0 cursor-pointer opacity-0" />
+                <input type="date" value={start} onChange={(e) => { if (e.target.value) setStart(e.target.value) }} aria-label="The day it starts. Any day, one that passed too" data-start-date className="absolute inset-0 cursor-pointer opacity-0" />
               </label>
             </div>
           </Field>
@@ -465,7 +465,7 @@ export function BookingModal({ id, level }: { id: string; level: number }) {
             <Bar pct={job.pct} className="mt-1.5" h={7} />
           </div>
         )}
-        <div className="flex items-start gap-2 text-[0.8125rem] text-muted"><Info className="mt-0.5 h-4 w-4 shrink-0" />If another trade needs the site, record it on the project — the booking moves without losing its history.</div>
+        <div className="flex items-start gap-2 text-[0.8125rem] text-muted"><Info className="mt-0.5 h-4 w-4 shrink-0" />If another trade needs the site, record it on the project. The booking moves without losing its history.</div>
       </div>
     </Modal>
   )

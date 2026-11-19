@@ -80,7 +80,7 @@ export function readQB(text: string, have: Item[]): QBRead {
   const cPrice = col('price', 'sales price', 'rate')
   const cCost = col('cost', 'purchase cost')
   const cAcct = col('income account')
-  if (cName < 0) return { rows: [], left: [], problem: 'This doesn’t look like the QuickBooks Products and Services export — there’s no “Product/Service Name” column.' }
+  if (cName < 0) return { rows: [], left: [], problem: 'This doesn’t look like the QuickBooks Products and Services export. There’s no “Product/Service Name” column.' }
   const rows: QBRow[] = []
   const left: { name: string; why: string }[] = []
   const seen = new Set<string>()

@@ -36,7 +36,7 @@ export function ClientsPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Clients"
-        actions={<Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => toast('Add a client — name, the people you deal with, and their billing terms')}>Add client</Button>}
+        actions={<Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => toast('Add a client. Name, the people you deal with, and their billing terms')}>Add client</Button>}
       />
       <Card className="overflow-hidden">
         <div className="flex items-center gap-3 px-6 py-4 max-sm:px-4">
@@ -68,8 +68,8 @@ export function ClientsPage() {
                   <span className="text-[0.875rem] text-faint">No projects running</span>
                 )}
               </span>
-              <span className="text-[0.875rem] tnum text-ink-2 max-md:hidden">{openItems || '—'}</span>
-              {seeMoney && <span className={cn('text-right text-[0.90625rem] font-semibold tnum max-md:hidden', owed ? 'text-ink' : 'text-faint')}>{owed ? fmtMoney(owed) : '—'}</span>}
+              <span className="text-[0.875rem] tnum text-ink-2 max-md:hidden">{openItems || ''}</span>
+              {seeMoney && <span className={cn('text-right text-[0.90625rem] font-semibold tnum max-md:hidden', owed ? 'text-ink' : 'text-faint')}>{owed ? fmtMoney(owed) : ''}</span>}
               <ChevronRight className="h-[1.125rem] w-[1.125rem] text-faint transition group-hover:translate-x-0.5 group-hover:text-ink-2 max-md:col-start-2 max-md:row-start-1" />
             </button>
           )

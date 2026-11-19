@@ -45,25 +45,25 @@ export function scopePrompt(s: Store, jobId: string, words: string): string {
   }))
   const tiles = Object.values(s.tiles[jobId] || {}).map((t) => ({ tag: t.tag, name: t.name, size: t.size }))
   return [
-    'You help Cobblestone, a tile installation company, change a project’s scope of work. Below is the scope as it is now — every room with its walls and floors — and the project’s tiles. Then what the person said changed. It was spoken, so it may be loose. Write it back as changes.',
+    'You help Cobblestone, a tile installation company, change a project’s scope of work. Below is the scope as it is now. Every room with its walls and floors · and the project’s tiles. Then what the person said changed. It was spoken, so it may be loose. Write it back as changes.',
     `Project: ${job?.name || ''}`,
     'The scope now (JSON):',
     JSON.stringify(rooms),
     'The project’s tiles (JSON):',
     JSON.stringify(tiles),
-    `How high a wall goes — one of these when it fits, else the words said: ${HEIGHTS.join(' | ')}`,
+    `How high a wall goes. One of these when it fits, else the words said: ${HEIGHTS.join(' | ')}`,
     `Which walls: ${WHICH_WALLS.join(' | ')}`,
     `Grout colors: ${Object.values(GROUTS).map((g) => g.name).join(' | ')}`,
     `Floors of a house: ${FLOORS.join(' | ')}`,
     'The changes you can write, as JSON:',
-    '- {"op":"set","room":"","surface":"","field":"tile|height|walls|layout|grout|sf|notes","value":""} — one thing on a wall or floor. tile: the tag from the tiles list. layout: the pattern and where it starts, in a few words ("Herringbone", "Offset ⅓ · centered on the vanity", "Checkerboard · cut to 12 x 12"). sf: a number. notes: a short note for the crew. value "" clears it.',
-    '- {"op":"addSurface","room":"","surface":"","tile":"","height":"","layout":""} — one more wall or floor in a room (fill in only what was said).',
-    '- {"op":"removeSurface","room":"","surface":""} — a wall or floor taken out ("no backsplash", "take out the niche").',
-    '- {"op":"addRoom","room":"","floor":"","note":"","surfaces":["Floor"]} — a new room, with its walls and floors.',
-    '- {"op":"removeRoom","room":""} — a room taken off the scope.',
-    '- {"op":"roomNote","room":"","value":""} — the short note next to the room’s name ("Floor only", "Not tiled").',
-    '- {"op":"note","room":"","value":""} — something for the room that isn’t a wall or floor ("1 niche", "Saddle — white quartz", "Cut the border on site").',
-    'Rules: for rooms and walls and floors that are there, use their names exactly as written above. "The shower walls go to the ceiling" is how high. "Herringbone floor in the master bath" is that floor’s layout. One change for each thing said. When something doesn’t match the scope or isn’t clear, don’t guess — say it in "unclear", in a few plain words.',
+    '- {"op":"set","room":"","surface":"","field":"tile|height|walls|layout|grout|sf|notes","value":""}. One thing on a wall or floor. tile: the tag from the tiles list. layout: the pattern and where it starts, in a few words ("Herringbone", "Offset ⅓ · centered on the vanity", "Checkerboard · cut to 12 x 12"). sf: a number. notes: a short note for the crew. value "" clears it.',
+    '- {"op":"addSurface","room":"","surface":"","tile":"","height":"","layout":""}. One more wall or floor in a room (fill in only what was said).',
+    '- {"op":"removeSurface","room":"","surface":""}. A wall or floor taken out ("no backsplash", "take out the niche").',
+    '- {"op":"addRoom","room":"","floor":"","note":"","surfaces":["Floor"]}. A new room, with its walls and floors.',
+    '- {"op":"removeRoom","room":""}. A room taken off the scope.',
+    '- {"op":"roomNote","room":"","value":""}. The short note next to the room’s name ("Floor only", "Not tiled").',
+    '- {"op":"note","room":"","value":""}. Something for the room that isn’t a wall or floor ("1 niche", "Saddle · white quartz", "Cut the border on site").',
+    'Rules: for rooms and walls and floors that are there, use their names exactly as written above. "The shower walls go to the ceiling" is how high. "Herringbone floor in the master bath" is that floor’s layout. One change for each thing said. When something doesn’t match the scope or isn’t clear, don’t guess. Say it in "unclear", in a few plain words.',
     'Answer with JSON only: {"changes":[...],"unclear":""}',
     `What was said: """${words.trim()}"""`,
   ].join('\n')
@@ -103,26 +103,26 @@ export function checkChanges(s: Store, jobId: string, list: ScopeChange[]): Chec
       const walls = c.surfaces?.length ? c.surfaces : ['Floor']
       /* its walls and floors said only when it's more than a floor */
       const more = walls.length > 1 || low(walls[0]) !== 'floor' ? ` · ${walls.join(', ')}` : ''
-      return { c, say: `Add a room: ${c.room}${c.floor ? ` on the ${c.floor}` : ''}${c.note ? ` — ${c.note}` : ''}${more}`, ok: true }
+      return { c, say: `Add a room: ${c.room}${c.floor ? ` on the ${c.floor}` : ''}${c.note ? ` · ${c.note}` : ''}${more}`, ok: true }
     }
     if (!r) return { c, say: `${c.room}`, ok: false, why: `There’s no ${c.room} on the scope` }
-    if (c.op === 'removeRoom') return roomStarted(r) ? { c, say: `Take ${r.name} off the scope`, ok: false, why: 'The crew started there — it stays' } : { c, say: `Take ${r.name} off the scope`, ok: true }
-    if (c.op === 'roomNote') return { c, say: `${r.name} — next to its name: ${c.value}`, ok: true }
-    if (c.op === 'note') return { c, say: `${r.name} — a note: ${c.value}`, ok: true }
+    if (c.op === 'removeRoom') return roomStarted(r) ? { c, say: `Take ${r.name} off the scope`, ok: false, why: 'The crew started there · it stays' } : { c, say: `Take ${r.name} off the scope`, ok: true }
+    if (c.op === 'roomNote') return { c, say: `${r.name}. Next to its name: ${c.value}`, ok: true }
+    if (c.op === 'note') return { c, say: `${r.name} · a note: ${c.value}`, ok: true }
     if (c.op === 'addSurface') {
-      if (surfIn(r, c.surface)) return { c, say: `${r.name} — add ${c.surface}`, ok: false, why: `${r.name} has ${c.surface} already` }
+      if (surfIn(r, c.surface)) return { c, say: `${r.name} · add ${c.surface}`, ok: false, why: `${r.name} has ${c.surface} already` }
       const t = c.tile ? tileIn(s, jobId, c.tile) : undefined
-      return { c, say: `${r.name} — add ${c.surface}${t ? ` · ${t.name}` : ''}${c.height ? ` · ${lowFirst(c.height)}` : ''}${c.layout ? ` · ${lowFirst(c.layout)}` : ''}`, ok: true }
+      return { c, say: `${r.name} · add ${c.surface}${t ? ` · ${t.name}` : ''}${c.height ? ` · ${lowFirst(c.height)}` : ''}${c.layout ? ` · ${lowFirst(c.layout)}` : ''}`, ok: true }
     }
     const x = surfIn(r, c.surface)
     if (!x) return { c, say: `${r.name} · ${c.surface}`, ok: false, why: `${r.name} has no ${c.surface}` }
-    if (c.op === 'removeSurface') return lineStarted(x) ? { c, say: `${at(x)} — take it off`, ok: false, why: 'The crew started it — it stays' } : { c, say: `${at(x)} — take it off`, ok: true }
+    if (c.op === 'removeSurface') return lineStarted(x) ? { c, say: `${at(x)}. Take it off`, ok: false, why: 'The crew started it · it stays' } : { c, say: `${at(x)}. Take it off`, ok: true }
     /* set one thing */
     const v = c.value
-    if (c.field === 'tile') { const t = v ? tileIn(s, jobId, v) : undefined; return v && !t ? { c, say: `${at(x)} — tile: ${v}`, ok: false, why: `No tile called ${v} on this project` } : { c, say: `${at(x)} — tile: ${t ? `${t.tag} ${t.name}` : 'none'}`, ok: true } }
-    if (c.field === 'grout') { const g = v ? groutIn(v) : ''; return v && !g ? { c, say: `${at(x)} — grout: ${v}`, ok: false, why: `No grout color called ${v}` } : { c, say: `${at(x)} — grout: ${g ? GROUTS[g].name : 'none'}`, ok: true } }
-    if (c.field === 'sf') { const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); return n > 0 ? { c, say: `${at(x)} — ${n.toLocaleString('en-US')} SF`, ok: true } : { c, say: `${at(x)} — square feet: ${v}`, ok: false, why: 'Not a number of square feet' } }
-    return { c, say: `${at(x)} — ${FIELD_WORD[c.field]}: ${v ? lowFirst(v) : 'none'}`, ok: true }
+    if (c.field === 'tile') { const t = v ? tileIn(s, jobId, v) : undefined; return v && !t ? { c, say: `${at(x)} · tile: ${v}`, ok: false, why: `No tile called ${v} on this project` } : { c, say: `${at(x)} · tile: ${t ? `${t.tag} ${t.name}` : 'none'}`, ok: true } }
+    if (c.field === 'grout') { const g = v ? groutIn(v) : ''; return v && !g ? { c, say: `${at(x)} · grout: ${v}`, ok: false, why: `No grout color called ${v}` } : { c, say: `${at(x)} · grout: ${g ? GROUTS[g].name : 'none'}`, ok: true } }
+    if (c.field === 'sf') { const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); return n > 0 ? { c, say: `${at(x)} · ${n.toLocaleString('en-US')} SF`, ok: true } : { c, say: `${at(x)} · square feet: ${v}`, ok: false, why: 'Not a number of square feet' } }
+    return { c, say: `${at(x)} · ${FIELD_WORD[c.field]}: ${v ? lowFirst(v) : 'none'}`, ok: true }
   })
 }
 
@@ -199,7 +199,7 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
   const look = async (text = words) => {
     if (v.on) { v.stop(); return }
     if (!text.trim()) return
-    if (!REAL.ai) { setStep({ k: 'fail', msg: 'The AI isn’t on in this copy — tap a line on the scope to change it.' }); return }
+    if (!REAL.ai) { setStep({ k: 'fail', msg: 'The AI isn’t on in this copy. Tap a line on the scope to change it.' }); return }
     setStep({ k: 'busy' })
     const ac = (abort.current = new AbortController())
     try {
@@ -211,7 +211,7 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
       setStep({ k: 'check', list: checkChanges(useStore.getState(), jobId, changes), unclear })
     } catch (e: any) {
       if (ac.signal.aborted) return
-      setStep({ k: 'fail', msg: e?.message || 'Couldn’t read it just now — try again.' })
+      setStep({ k: 'fail', msg: e?.message || 'Couldn’t read it just now · try again.' })
     }
   }
   const list = step.k === 'check' ? step.list : []
@@ -222,7 +222,7 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
       size="md"
       onClose={s.close}
       title="Change the scope"
-      sub={`${job.name} — say what changed. Nothing changes until you OK it.`}
+      sub={`${job.name}. Say what changed. Nothing changes until you OK it.`}
       footer={step.k === 'check' ? (
         <>
           <Button onClick={() => setStep({ k: 'say' })} data-talk-back>Change what I said</Button>
@@ -237,25 +237,25 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
           {/* the big mic: tap and talk, tap when you're done — what you said is written in the box and read right away */}
           {v.can && (
             <div className="mb-4 flex flex-col items-center gap-2 pt-1 text-center" data-talk-mic-box>
-              <button type="button" onClick={v.on ? v.stop : startMic} disabled={v.busy || step.k === 'busy'} aria-label={v.on ? 'Stop — I’m done' : 'Tap and talk'} aria-pressed={v.on}
+              <button type="button" onClick={v.on ? v.stop : startMic} disabled={v.busy || step.k === 'busy'} aria-label={v.on ? 'Stop · I’m done' : 'Tap and talk'} aria-pressed={v.on}
                 className={cn('inline-flex h-16 w-16 items-center justify-center rounded-full text-white shadow-sm transition disabled:opacity-60', v.on ? 'bg-bad-500' : v.busy ? 'animate-pulse bg-brand-500' : 'bg-brand-600 hover:bg-brand-700')}
                 style={v.on ? { boxShadow: `0 0 0 ${Math.round(4 + v.level * 12)}px rgba(239, 68, 68, ${0.14 + v.level * 0.26})` } : undefined}
                 data-talk-mic={v.on ? 'on' : v.busy ? 'busy' : 'off'}>
                 {v.on ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-7 w-7" />}
               </button>
-              <div className="text-[0.9375rem] font-medium text-ink" data-talk-mic-say>{v.busy ? 'Writing it down…' : v.on ? (v.quiet ? 'I don’t hear anything — is the mic on?' : 'Listening… tap when you’re done') : 'Tap and say what changed'}</div>
+              <div className="text-[0.9375rem] font-medium text-ink" data-talk-mic-say>{v.busy ? 'Writing it down…' : v.on ? (v.quiet ? 'I don’t hear anything. Is the mic on?' : 'Listening… tap when you’re done') : 'Tap and say what changed'}</div>
               {v.on && v.hearing && <div className="max-w-full text-[0.875rem] text-muted">{v.hearing}</div>}
               {v.err && <div className="max-w-full text-[0.8125rem] text-bad-700" data-talk-mic-err>{v.err}</div>}
             </div>
           )}
-          <TextArea mic={false} autoFocus={!v.can} value={words} onChange={(e) => setWords(e.target.value)} placeholder={v.can ? 'Or type it — e.g. The master bath floor is herringbone now. Take out the niche.' : 'e.g. The master bath floor is herringbone now. Take out the niche. The shower walls go to the ceiling.'} className="min-h-[7rem] text-[0.9375rem]" data-talk-words />
+          <TextArea mic={false} autoFocus={!v.can} value={words} onChange={(e) => setWords(e.target.value)} placeholder={v.can ? 'Or type it · e.g. The master bath floor is herringbone now. Take out the niche.' : 'e.g. The master bath floor is herringbone now. Take out the niche. The shower walls go to the ceiling.'} className="min-h-[7rem] text-[0.9375rem]" data-talk-words />
           {step.k === 'busy' && <div className="mt-3 flex items-center gap-2 text-[0.875rem] text-muted" data-talk-busy><Loader2 className="h-4 w-4 animate-spin text-brand-600" />Reading what you said against the scope…</div>}
           {step.k === 'fail' && <div className="mt-3 flex items-start gap-2 rounded-lg bg-warn-50 px-3 py-2.5 text-[0.875rem] text-warn-800" data-talk-fail><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />{step.msg}</div>}
         </div>
       )}
       {step.k === 'check' && (
         <div data-talk-check>
-          {list.length > 0 ? <div className="mb-2 text-[0.875rem] font-semibold text-ink">{list.length === 1 ? 'The change' : `${list.length} changes`} — untick one to leave it out</div> : <div className="text-[0.9375rem] text-muted">No change found in what you said.</div>}
+          {list.length > 0 ? <div className="mb-2 text-[0.875rem] font-semibold text-ink">{list.length === 1 ? 'The change' : `${list.length} changes`} · untick one to leave it out</div> : <div className="text-[0.9375rem] text-muted">No change found in what you said.</div>}
           <div className="overflow-hidden rounded-xl border border-line">
             {list.map((x, i) => {
               const on = x.ok && !off.includes(i)

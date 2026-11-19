@@ -101,10 +101,10 @@ export async function openFile(rec: FileRec) {
       return
     }
     tab?.close()
-    toast(REAL.cloud ? 'This file isn’t in storage — upload it again' : 'Files are only kept while the preview is open — in the real app they stay with the project')
+    toast(REAL.cloud ? 'This file isn’t in storage. Upload it again' : 'Files are only kept while the preview is open. In the real app they stay with the project')
   } catch {
     tab?.close()
-    toast('Couldn’t open the file — try again')
+    toast('Couldn’t open the file · try again')
   }
 }
 

@@ -132,7 +132,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
   const [memo, setMemo] = React.useState('')
   const byArea = !!more && order.length > 0
   const picked = byArea
-    ? order.map((tag) => lines.find((l) => l.tag === tag)).filter((l): l is Draft => !!l && perTag(l.tag) > 0 && fromHere(l.tag)).map((l) => { const rooms = forRooms(l.tag); return { ...l, n: perTag(l.tag), name: rooms.length ? `${l.name} — ${rooms.join(', ')}` : l.name } })
+    ? order.map((tag) => lines.find((l) => l.tag === tag)).filter((l): l is Draft => !!l && perTag(l.tag) > 0 && fromHere(l.tag)).map((l) => { const rooms = forRooms(l.tag); return { ...l, n: perTag(l.tag), name: rooms.length ? `${l.name} · ${rooms.join(', ')}` : l.name } })
     : order.map((tag) => lines.find((l) => l.tag === tag)).filter((l): l is Draft => !!l && l.on && l.n > 0 && fromHere(l.tag))
   /* prices on the window: a tile we buy, on a tile PO — more tile keeps it to what and how much */
   const priced = pays === 'us' && !more
@@ -193,7 +193,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       const id = peekPO(0)
       /* the words as reviewed — each PO with its own number in them */
       const mail = rev ? { subject: list.length === 1 ? rev.subject : undefined, message: rev.message.split(first0).join(id) } : undefined
-      createTilePO(job, { supplier: st, paidBy, storeRef: pays === 'client' && !each ? ref : undefined, neededBy: needed, memo: list.length === 1 ? memo : undefined, more, shortId, lines: ls.map(lineOf), mail, quiet: i < list.length - 1, says: list.length > 1 ? `${list.length} POs sent — ${list.map(([x]) => x).join(' and ')}` : undefined })
+      createTilePO(job, { supplier: st, paidBy, storeRef: pays === 'client' && !each ? ref : undefined, neededBy: needed, memo: list.length === 1 ? memo : undefined, more, shortId, lines: ls.map(lineOf), mail, quiet: i < list.length - 1, says: list.length > 1 ? `${list.length} POs sent · ${list.map(([x]) => x).join(' and ')}` : undefined })
     })
   }
   return (
@@ -213,7 +213,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
         </>
       ) : (
         <>
-          <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices — the client’s tile'}</span>
+          <span className="text-[0.84375rem] text-muted">{picked.length} {picked.length === 1 ? 'tile' : 'tiles'}{priced ? <> · <span className="font-medium text-ink">{fmtMoney(total)}</span></> : more ? ` · a PO number of its own` : ' · no prices. The client’s tile'}</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Eye />} disabled={!job || !picked.length || (!each && !store.trim())} onClick={review} data-review-tile-po>Review it</Button>
         </>
@@ -227,11 +227,11 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
           </FormRow>
         )}
         {!more && (
-          <FormRow label="Who pays the store" hint={pays === 'client' ? 'The client bought the tile — this PO is our call for the delivery. No prices on it.' : 'We buy the tile — it has prices, and the store’s bill comes to us.'}>
-            <Segmented value={pays} onChange={setPays} className="max-sm:w-full max-sm:[&>button]:flex-1" items={[{ key: 'client', label: 'The client’s tile — deliver it' }, { key: 'us', label: 'We buy it' }]} />
+          <FormRow label="Who pays the store" hint={pays === 'client' ? 'The client bought the tile. This PO is our call for the delivery. No prices on it.' : 'We buy the tile. It has prices, and the store’s bill comes to us.'}>
+            <Segmented value={pays} onChange={setPays} className="max-sm:w-full max-sm:[&>button]:flex-1" items={[{ key: 'client', label: 'The client’s tile · deliver it' }, { key: 'us', label: 'We buy it' }]} />
           </FormRow>
         )}
-        <FormRow label="Store" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />{jobStores.length === 1 ? `Where this project’s tile comes from · delivered to ${j.address}` : jobStores.length ? `This project’s tile comes from ${jobStores.join(' and ')} · delivered to ${j.address}` : `No store on this project’s tile yet — it’s kept with the tile from this PO on · delivered to ${j.address}`}</span> : undefined}>
+        <FormRow label="Store" hint={j ? <span className="inline-flex items-center gap-1.5"><Truck className="h-3.5 w-3.5" />{jobStores.length === 1 ? `Where this project’s tile comes from · delivered to ${j.address}` : jobStores.length ? `This project’s tile comes from ${jobStores.join(' and ')} · delivered to ${j.address}` : `No store on this project’s tile yet. It’s kept with the tile from this PO on · delivered to ${j.address}`}</span> : undefined}>
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-2 max-sm:grid-cols-1">
             {/* the store is the tile's own — nothing to change (a regular tile PO from a project with two stores picks one
                 of those two; with no store on the tile yet, one is picked once and kept) */}
@@ -242,11 +242,11 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
           </div>
         </FormRow>
         {pays === 'client' && !more && (
-          <FormRow label="Their order number" hint="The client’s order at the store — the store finds it by this. Optional.">
+          <FormRow label="Their order number" hint="The client’s order at the store. The store finds it by this. Optional.">
             <TextInput value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. #BT-22817" aria-label="The store’s order number" className="max-w-[16rem]" data-store-ref />
           </FormRow>
         )}
-        <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet — it comes in when the tile paperwork is entered.' : more ? 'By area, like the scope of work — how much more for each room, on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in — under each tile, where it goes.'}>
+        <FormRow label={more ? 'Which tile, how much more' : 'Which tile, how much'} hint={job && !all.length ? 'No tile on this project yet. It comes in when the tile paperwork is entered.' : more ? 'By area, like the scope of work. How much more for each room, on top of what was ordered. What’s known to be short is filled in.' : 'What’s still to come is filled in. Under each tile, where it goes.'}>
           {lines.length > 0 && (
             <div className={cn('grid items-center gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:hidden', priced ? 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem_6rem]' : 'grid-cols-[1.5rem_minmax(0,1fr)_5rem_6rem]')}>
               <span /><span>Tile</span><span className="text-right">Qty</span><span>Unit</span>{priced && <span className="text-right">Price / unit</span>}
@@ -296,11 +296,11 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
           })}
         </FormRow>
         {!more && (
-          <FormRow label="A line for the store" hint="On the PO and in its email — a gate code, call before, which door.">
+          <FormRow label="A line for the store" hint="On the PO and in its email. A gate code, call before, which door.">
             <TextArea rows={2} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Optional" aria-label="A line for the store" />
           </FormRow>
         )}
-        {mailLive() && <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted"><Mail className="h-3.5 w-3.5" />Next you see the email and the PO, the way {store} gets them — nothing goes out before you send it.</div>}
+        {mailLive() && <div className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-muted"><Mail className="h-3.5 w-3.5" />Next you see the email and the PO, the way {store} gets them. Nothing goes out before you send it.</div>}
       </div>
     </Modal>
   )
@@ -314,14 +314,14 @@ function POReview({ pos, rev, setRev }: { pos: PO[]; rev: { subject: string; mes
   return (
     <div className="flex flex-col gap-4" data-tile-po-review>
       {!live && (
-        <div className="flex items-start gap-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-[0.875rem] text-warn-700"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />Email isn’t set up in the app yet — the PO is saved, and you send it yourself (Print or Email it on the PO).</div>
+        <div className="flex items-start gap-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-[0.875rem] text-warn-700"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />Email isn’t set up in the app yet. The PO is saved, and you send it yourself (Print or Email it on the PO).</div>
       )}
       {pos.map((p) => {
         const to = supplierEmails(s, p.supplier)
         return (
           <FormRow key={p.id} label={pos.length > 1 ? `To ${p.supplier} · ${p.id}` : 'To'}>
             <div className={cn('flex min-h-10 items-center rounded-[0.625rem] border px-3 text-[0.9375rem]', to.length ? 'border-line bg-wash text-ink' : 'border-warn-100 bg-warn-50 text-warn-700')} data-review-to>
-              {to.length ? `${p.supplier} · ${to.join(', ')}` : `${p.supplier} has no email in Tile OS — add it (Suppliers → ${p.supplier}), or call them`}
+              {to.length ? `${p.supplier} · ${to.join(', ')}` : `${p.supplier} has no email in Tile OS. Add it (Suppliers → ${p.supplier}), or call them`}
             </div>
           </FormRow>
         )
@@ -331,7 +331,7 @@ function POReview({ pos, rev, setRev }: { pos: PO[]; rev: { subject: string; mes
           <TextInput value={rev.subject} onChange={(e) => setRev({ ...rev, subject: e.target.value })} aria-label="Subject" data-review-subject />
         </FormRow>
       )}
-      <FormRow label="Message" hint="Type over it — the PO's lines and the tile pictures go under it by themselves.">
+      <FormRow label="Message" hint="Type over it. The PO's lines and the tile pictures go under it by themselves.">
         <TextArea rows={8} value={rev.message} onChange={(e) => setRev({ ...rev, message: e.target.value })} aria-label="Message" data-review-message />
       </FormRow>
       {pos.map((p) => <MailPreview key={p.id} html={previewHtml(s, p, pos.length > 1 ? { message: rev.message.split(pos[0].id).join(p.id) } : rev)} label={pos.length > 1 ? `What ${p.supplier} gets` : `What ${p.supplier} gets`} />)}
@@ -380,7 +380,7 @@ export function PartCameModal({ id, level }: { id: string; level: number }) {
         </>
       }
     >
-      <p className="mb-3 text-[0.875rem] text-ink-2">How much of each came? Whatever didn’t stays open on {p.id} — it’s back on the list to follow up.</p>
+      <p className="mb-3 text-[0.875rem] text-ink-2">How much of each came? Whatever didn’t stays open on {p.id} · it’s back on the list to follow up.</p>
       <div className="overflow-hidden rounded-xl border border-line">
         {p.lines.map((l, i) => {
           const left = Math.max(0, (l.n ?? 0) - (l.got || 0))

@@ -79,7 +79,7 @@ const IDLE_MS = 7 * 24 * 60 * 60 * 1000
 const onPhone = () => { try { return matchMedia('(pointer: coarse)').matches || matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true } catch { return false } }
 const touch = () => { try { localStorage.setItem(IDLE_KEY, String(Date.now())) } catch { /* private window */ } }
 const awayTooLong = () => { if (onPhone()) return false; try { const t = Number(localStorage.getItem(IDLE_KEY) || 0); return t > 0 && Date.now() - t > IDLE_MS } catch { return false } }
-const AWAY_NOTE = 'Signed out after a week away — sign in again.'
+const AWAY_NOTE = 'Signed out after a week away. Sign in again.'
 
 /* came in from an invite, a texted link or a password link: the link signs them in, and the app asks for a password.
  * Read before anything touches the URL (the auth client clears it once it has the session). */

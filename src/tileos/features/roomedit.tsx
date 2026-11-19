@@ -28,7 +28,7 @@ export function SFChip({ jobId, room, x }: { jobId: string; room: string; x: Sur
   const canEdit = useStore((s) => scopeLock(s, jobId).canEdit)
   React.useEffect(() => { if (open) setV(x.sf ? String(x.sf) : '') }, [open, x.sf])
   const save = () => { const n = Math.round(Number(v)); if (n > 0 && n !== x.sf) setSurfaceSF(jobId, room, x.name, n); setOpen(false) }
-  if (!canEdit) return <span className="inline-flex h-7 items-center gap-1 rounded-full border border-line-2 bg-wash px-2.5 text-[0.78125rem] font-medium text-ink-2">{x.name.toLowerCase()}<span className="tnum font-semibold">{x.sf ? x.sf.toLocaleString('en-US') : '—'}</span></span>
+  if (!canEdit) return <span className="inline-flex h-7 items-center gap-1 rounded-full border border-line-2 bg-wash px-2.5 text-[0.78125rem] font-medium text-ink-2">{x.name.toLowerCase()}<span className="tnum font-semibold">{x.sf ? x.sf.toLocaleString('en-US') : ''}</span></span>
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={240} trigger={
       <button className={cn('inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[0.78125rem] font-medium transition', x.sf ? 'border-line bg-white text-ink-2 hover:border-brand-200 hover:text-brand-700' : 'border-dashed border-warn-300 bg-warn-50/50 text-warn-800 hover:border-warn-400')} aria-label={`${room} ${x.name} square feet`}>
@@ -91,10 +91,10 @@ export function AreaPicker({ jobId, onAdded }: { jobId: string; onAdded?: (room:
         placeholder="Pick or type a room…"
         options={presets.map((p) => ({ key: p.name, label: p.name, hint: `Comes with: ${p.surfaces.filter((k) => isWallOrFloor(surfaceOf(s, k))).map((k) => scopeNameOf(s, k).toLowerCase()).join(', ')}` }))}
         search
-        searchPlaceholder="Type a room — Kitchen, Mikvah…"
+        searchPlaceholder="Type a room · Kitchen, Mikvah…"
         width={400}
         onCreate={(n) => { const keys = guessSurfaces(n, presets); addCompanyArea(n, keys); go(n, keys) }}
-        createLabel={(t) => `Add “${t}” — kept for next time`}
+        createLabel={(t) => `Add “${t}”. Kept for next time`}
       />
     </div>
   )
@@ -106,7 +106,7 @@ export function ScopeAreaAdder({ jobId, onAdded }: { jobId: string; onAdded?: (r
   if (!canEdit) return null
   return (
     <div className="rounded-[0.875rem] border border-dashed border-[#d6cfc3] bg-white/70 px-4 py-3" data-area-adder>
-      <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add a room<span className="font-normal text-muted">— it comes with its usual walls and floors</span></div>
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 text-[0.8125rem] font-semibold text-ink"><Layers className="h-4 w-4 text-muted" />Add a room<span className="font-normal text-muted">· it comes with its usual walls and floors</span></div>
       <AreaPicker jobId={jobId} onAdded={onAdded} />
     </div>
   )
@@ -119,7 +119,7 @@ export function AddRoomButton({ jobId, label = 'Add a room', className, size = '
   if (!canEdit) return null
   return (
     <Pop open={open} onOpenChange={setOpen} align="end" width={420} trigger={<Button size={size} icon={<Plus />} className={className} data-add-room>{label}</Button>}>
-      <div className="mb-2 text-[0.84375rem] font-semibold text-ink">A room — it comes with its usual walls and floors</div>
+      <div className="mb-2 text-[0.84375rem] font-semibold text-ink">A room. It comes with its usual walls and floors</div>
       <AreaPicker jobId={jobId} onAdded={() => setOpen(false)} />
     </Pop>
   )
@@ -132,7 +132,7 @@ export function RoomMenu({ jobId, room, onLines, onDetail }: { jobId: string; ro
   React.useEffect(() => { if (open) setNote(room.note || '') }, [open])
   const started = roomStarted(room)
   return (
-    <Pop open={open} onOpenChange={setOpen} align="end" width={320} trigger={<button type="button" aria-label={`${room.name} — floor and details`} data-room-menu={room.name} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+    <Pop open={open} onOpenChange={setOpen} align="end" width={320} trigger={<button type="button" aria-label={`${room.name}. Floor and details`} data-room-menu={room.name} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
       {onDetail && <button type="button" onClick={() => { setOpen(false); onDetail() }} data-room-detail-menu className="-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[0.875rem] font-semibold text-ink hover:bg-wash"><Plus className="h-4 w-4 text-muted" />A detail<span className="ml-auto text-[0.75rem] font-normal text-muted">1 niche, a saddle…</span></button>}
       {onLines && <button type="button" onClick={() => { setOpen(false); onLines() }} data-room-lines-menu className="-mx-1 mb-3 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-lg px-1 py-1.5 text-left text-[0.875rem] font-semibold text-ink hover:bg-wash"><Plus className="h-4 w-4 text-muted" />Walls and floors<span className="ml-auto text-[0.75rem] font-normal text-muted">{room.surfaces.length}</span></button>}
       <div className="text-[0.78125rem] font-semibold text-muted">Floor</div>
@@ -145,7 +145,7 @@ export function RoomMenu({ jobId, room, onLines, onDetail }: { jobId: string; ro
         <Button size="sm" type="submit">Save</Button>
       </form>
       {started
-        ? <div className="mt-3 text-[0.78125rem] text-muted">The crew started here — it stays on the scope.</div>
+        ? <div className="mt-3 text-[0.78125rem] text-muted">The crew started here. It stays on the scope.</div>
         : <button type="button" onClick={() => { setOpen(false); removeRoom(jobId, room.name) }} data-room-remove className="mt-3 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-bad-600 hover:text-bad-700"><Trash2 className="h-3.5 w-3.5" />Take {room.name} off</button>}
     </Pop>
   )
@@ -169,7 +169,7 @@ export function RoomLines({ jobId, room, open, onOpenChange, bare }: { jobId: st
       onRemove={(k) => {
         const x = room.surfaces.find((y) => (keyOfLine(s, y.name) || y.name) === k)
         if (!x) return
-        if (lineStarted(x)) { toast(`${room.name} · ${x.name} was started — it stays`); return }
+        if (lineStarted(x)) { toast(`${room.name} · ${x.name} was started · it stays`); return }
         removeLine(jobId, room.name, x.name)
       }}
     />

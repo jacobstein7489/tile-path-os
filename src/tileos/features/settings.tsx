@@ -54,8 +54,8 @@ const SECTIONS: { group: string; items: { key: Section; label: string; about: st
     { key: 'autos', label: 'Automations', about: 'What lands on someone’s Today by itself.', icon: CornerDownRight },
   ] },
   { group: 'Company', items: [
-    { key: 'rules', label: 'Company rules', about: 'Change a rule once — every project follows it.', icon: ShieldCheck },
-    { key: 'numbers', label: 'Material numbers', about: 'What each material covers — every material list is worked out from these.', icon: Calculator },
+    { key: 'rules', label: 'Company rules', about: 'Change a rule once. Every project follows it.', icon: ShieldCheck },
+    { key: 'numbers', label: 'Material numbers', about: 'What each material covers. Every material list is worked out from these.', icon: Calculator },
     { key: 'commission', label: 'Commission', about: 'The rate and the salespeople. Only the owner sees this.', icon: Percent },
     { key: 'email', label: 'Email', about: 'Who each kind of email comes from, and who gets a copy.', icon: Mail },
     { key: 'connections', label: 'QuickBooks', about: 'Invoices, estimates and payments go to QuickBooks by themselves.', icon: Plug },
@@ -159,7 +159,7 @@ function CommissionTab() {
       <div className={row} data-commission-rate>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-medium text-ink">Rate</div>
-          <div className="text-[0.8125rem] text-muted">Of what’s invoiced on a project — a client’s two salespeople split it.</div>
+          <div className="text-[0.8125rem] text-muted">Of what’s invoiced on a project. A client’s two salespeople split it.</div>
         </div>
         <span className="text-[1rem] font-semibold tnum text-ink">{pct(rateOf(s))}</span>
         <Button size="sm" onClick={() => s.open({ t: 'commrate' })}>Change</Button>
@@ -183,7 +183,7 @@ function SampleCard() {
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><FlaskConical className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-semibold text-ink">Sample projects</div>
-          <div className="mt-0.5 max-w-[44rem] text-[0.84375rem] leading-snug text-muted">A whole made-up company — every kind of project and estimate, at every point — to try anything. Nothing there is saved, nothing goes out, and your own projects aren’t touched. “Back to my projects” on top brings you back.</div>
+          <div className="mt-0.5 max-w-[44rem] text-[0.84375rem] leading-snug text-muted">A whole made-up company. Every kind of project and estimate, at every point · to try anything. Nothing there is saved, nothing goes out, and your own projects aren’t touched. “Back to my projects” on top brings you back.</div>
           <Button className="mt-4" variant="primary" icon={<FlaskConical />} onClick={lookAtSample}>Open the sample projects</Button>
         </div>
       </div>
@@ -216,7 +216,7 @@ function TeamTab() {
         </div>
       </Card>
       <button onClick={() => s.go({ page: 'subs' })} className="flex items-center gap-3 rounded-[0.875rem] border border-line bg-white px-5 py-3 text-left text-[0.84375rem] text-muted transition hover:border-[#d1cbc0] hover:text-ink">
-        <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page — <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+        <HardHat className="h-4 w-4 shrink-0 text-faint" /><span className="min-w-0 flex-1">The installers and their crews are on their own page · <b className="font-semibold text-ink-2">Installers</b></span><ChevronRight className="h-4 w-4 shrink-0 text-faint" />
       </button>
     </div>
     </Standings.Provider>
@@ -230,7 +230,7 @@ function EmailCheck() {
     setBusy(true); setSaid('')
     try {
       const to = await REAL.testEmail!()
-      setSaid(`Sent to ${to} — a password link you can ignore. Not there in a minute? Check spam. Never comes? Emails aren’t set up yet: in Lovable, More → Cloud → Emails.`)
+      setSaid(`Sent to ${to}. A password link you can ignore. Not there in a minute? Check spam. Never comes? Emails aren’t set up yet: in Lovable, More → Cloud → Emails.`)
     } catch (e: any) { setSaid(e?.message || 'Couldn’t send it') } finally { setBusy(false) }
   }
   return (
@@ -261,9 +261,9 @@ function WaitingToJoin() {
       const same = s.team.find((m) => m.uid === p.uid) || s.team.find((m) => !!m.email && m.email.toLowerCase() === p.email.toLowerCase()) || s.team.find((m) => !m.uid && !m.email && m.role === role && m.status !== 'off')
       await REAL.people!.letIn(p, role, same?.key)
       setList((xs) => (xs || []).filter((x) => x.uid !== p.uid))
-      toast(`${p.name} can sign in now`, { description: `As ${short(role)} — they see what that login sees.` })
+      toast(`${p.name} can sign in now`, { description: `As ${short(role)}. They see what that login sees.` })
     } catch (e: any) {
-      setProblem(e?.message || 'That didn’t work — try again')
+      setProblem(e?.message || 'That didn’t work · try again')
     } finally {
       setBusy('')
     }
@@ -285,13 +285,13 @@ function WaitingToJoin() {
                 <>
                   <Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid} onClick={() => void letIn(p, inv.role)}>{busy === p.uid ? 'Letting in…' : `Let in as ${short(inv.role)}`}</Button>
                   <Menu align="end" width={300} trigger={<Button size="sm" variant="ghost" aria-label="Let in as something else">Other</Button>}>
-                    <MenuLabel>Login type — decides what they see</MenuLabel>
+                    <MenuLabel>Login type. Decides what they see</MenuLabel>
                     {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
                   </Menu>
                 </>
               ) : (
                 <Menu align="end" width={300} trigger={<Button size="sm" variant="primary" icon={<Check className="h-4 w-4" />} disabled={busy === p.uid}>{busy === p.uid ? 'Letting in…' : 'Let in as…'}</Button>}>
-                  <MenuLabel>Login type — decides what they see</MenuLabel>
+                  <MenuLabel>Login type. Decides what they see</MenuLabel>
                   {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} hint={r.sees} onSelect={() => void letIn(p, r.key)}>{short(r.key)}</MenuItem>)}
                 </Menu>
               )
@@ -319,7 +319,7 @@ function MemberRow({ k }: { k: PersonKey }) {
       <Avatar who={k} size={34} />
       <button onClick={edit} className="group min-w-0 flex-1 text-left">
         <span className="flex min-w-0 items-center gap-2 truncate text-[0.875rem] font-semibold text-ink"><span className="truncate">{PEOPLE[k].name}</span><Pencil className="h-3.5 w-3.5 text-faint opacity-0 transition group-hover:opacity-100" /></span>
-        <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet — click to add'}{extra ? ` · +${extra} ${extra === 1 ? 'phone or email' : 'phones and emails'}` : ''}{sentNotIn ? <span className="text-warn-700"> · invite went out {dayOf(st!.invited || st!.made) || m.invited} — not opened yet</span> : inAt ? ` · last signed in ${dayOf(inAt)}` : m.uid ? '' : m.invited && standings && !st ? <span className="text-warn-700"> · invited {m.invited} — no account yet, send it again</span> : ''}</span>
+        <span className="block truncate text-[0.78125rem] text-muted">{m.email || 'No email yet. Click to add'}{extra ? ` · +${extra} ${extra === 1 ? 'phone or email' : 'phones and emails'}` : ''}{sentNotIn ? <span className="text-warn-700"> · invite went out {dayOf(st!.invited || st!.made) || m.invited} · not opened yet</span> : inAt ? ` · last signed in ${dayOf(inAt)}` : m.uid ? '' : m.invited && standings && !st ? <span className="text-warn-700"> · invited {m.invited} · no account yet, send it again</span> : ''}</span>
       </button>
       {(
         <>
@@ -327,7 +327,7 @@ function MemberRow({ k }: { k: PersonKey }) {
             <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 text-[0.8125rem] font-semibold text-brand-700"><ShieldCheck className="h-4 w-4" />Admin</span>
           ) : (
             <Menu align="end" width={300} trigger={<button className="inline-flex h-8 max-w-[9.375rem] shrink-0 items-center gap-1.5 truncate rounded-lg border border-line px-2.5 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash max-sm:max-w-[6.5rem] max-sm:px-2 max-sm:text-[0.75rem]">{short(m.role)}</button>}>
-              <MenuLabel>Login type — decides what they see</MenuLabel>
+              <MenuLabel>Login type. Decides what they see</MenuLabel>
               {LOGINS.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} checked={m.role === r.key} hint={r.sees} onSelect={() => updateMember(k, { role: r.key }, `${PEOPLE[k].name} is now ${short(r.key)}`)}>{short(r.key)}</MenuItem>)}
             </Menu>
           )}
@@ -356,7 +356,7 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
   const [email, setEmail] = React.useState(m?.email || '')
   const [role, setRole] = React.useState<Role>(m?.role || 'office')
   const me = PEOPLE[REAL.me || 'ys']?.short || 'Yaakov'
-  const msg0 = (e: string) => [`Hi ${m?.first || ''},`, '', 'You’re invited to Cobblestone Tile OS — it’s where we run our projects.', '', `1. Open ${APP_LINK()}`, `2. Sign up with this email: ${e || 'your email'}`, '3. Make your own password', '', 'I’ll let you in right away.', '', `— ${me}`].join('\n')
+  const msg0 = (e: string) => [`Hi ${m?.first || ''},`, '', 'You’re invited to Cobblestone Tile OS. It’s where we run our projects.', '', `1. Open ${APP_LINK()}`, `2. Sign up with this email: ${e || 'your email'}`, '3. Make your own password', '', 'I’ll let you in right away.', '', `· ${me}`].join('\n')
   const [msg, setMsg] = React.useState(() => msg0(m?.email || ''))
   const [touched, setTouched] = React.useState(false)
   const [sending, setSending] = React.useState(false)
@@ -376,14 +376,14 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
     } catch (e: any) { setFailed(e?.message || 'Couldn’t send it') } finally { setSending(false) }
   }
   const subject = 'You’re invited to Cobblestone Tile OS'
-  const copy = async () => { try { await navigator.clipboard.writeText(msg) } catch { /* no clipboard */ } mark(); toast('Copied — paste it in a text or an email', { description: `When ${m.first} signs up, let them in from Settings → Team.` }) }
+  const copy = async () => { try { await navigator.clipboard.writeText(msg) } catch { /* no clipboard */ } mark(); toast('Copied. Paste it in a text or an email', { description: `When ${m.first} signs up, let them in from Settings → Team.` }) }
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
       title={`Invite ${PEOPLE[k]?.name || m.first}`}
-      sub={REAL.invite ? 'They get an invite email from Cobblestone — they tap it, pick a password, and they’re in.' : 'They make their own password when they sign up — you let them in with one tap.'}
+      sub={REAL.invite ? 'They get an invite email from Cobblestone. They tap it, pick a password, and they’re in.' : 'They make their own password when they sign up. You let them in with one tap.'}
       footer={REAL.invite ? (
         <>
           {failed && <span className="text-[0.8125rem] font-medium text-bad-600">{failed}</span>}
@@ -398,10 +398,10 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
       )}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_13rem] gap-3 max-sm:grid-cols-1">
-        <Field label="Their email — they sign up with it"><TextInput data-autofocus aria-label="Their email" value={email} onChange={(e) => { setEmail(e.target.value); if (!touched) setMsg(msg0(e.target.value.trim())) }} placeholder="name@cobblestonenj.com" className="h-10" /></Field>
+        <Field label="Their email. They sign up with it"><TextInput data-autofocus aria-label="Their email" value={email} onChange={(e) => { setEmail(e.target.value); if (!touched) setMsg(msg0(e.target.value.trim())) }} placeholder="name@cobblestonenj.com" className="h-10" /></Field>
         <Field label="What they’ll see">
           <Menu align="end" width={300} trigger={<button className="flex h-10 w-full items-center justify-between rounded-[0.625rem] border border-line bg-white px-3 text-[0.875rem] text-ink hover:border-[#cdc7bc]">{short(role)}<ChevronRight className="h-4 w-4 rotate-90 text-faint" /></button>}>
-            <MenuLabel>Login type — decides what they see</MenuLabel>
+            <MenuLabel>Login type. Decides what they see</MenuLabel>
             {INSIDE.filter((r) => r.key !== 'owner').map((r) => <MenuItem key={r.key} checked={role === r.key} hint={r.sees} onSelect={() => setRole(r.key)}>{short(r.key)}</MenuItem>)}
           </Menu>
         </Field>
@@ -417,11 +417,11 @@ export function InviteModal({ k, level }: { k: PersonKey; level: number }) {
 type SentResult = { what: 'sent' | 'resent' | 'already'; at?: string }
 const clock = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '')
 function SentPane({ r, email, first, role }: { r: SentResult; email: string; first: string; role: Role }) {
-  if (r.what === 'already') return <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] text-ink"><b className="font-semibold">{first} already signs in</b> — they’re in as {short(role)}. Nothing to send.</div>
+  if (r.what === 'already') return <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] text-ink"><b className="font-semibold">{first} already signs in</b> · they’re in as {short(role)}. Nothing to send.</div>
   return (
     <div className="mt-4 rounded-xl border border-ok-100 bg-ok-50 px-4 py-3 text-[0.875rem] leading-snug text-ink">
       <div className="font-semibold">Sent{r.at ? ` at ${clock(r.at)}` : ''} to {email}</div>
-      <div className="mt-1 text-ink-2">{r.what === 'resent' ? `${first} was on the team before — the old login is closed and a fresh invite went out. ` : ''}{first} gets “You’re invited to Tile OS”, taps the link, picks a password, and is in as {short(role)}. Not there in a minute? Check Spam — or text the link below.</div>
+      <div className="mt-1 text-ink-2">{r.what === 'resent' ? `${first} was on the team before. The old login is closed and a fresh invite went out. ` : ''}{first} gets “You’re invited to Tile OS”, taps the link, picks a password, and is in as {short(role)}. Not there in a minute? Check Spam, or text the link below.</div>
     </div>
   )
 }
@@ -437,8 +437,8 @@ function InviteLinkBox({ email, name, role, phone, first, ok, onGot }: { email: 
     setBusy(true); setErr('')
     try { setLink(await REAL.inviteLink!({ email: email.trim(), name, role })); onGot?.() } catch (e: any) { setErr(e?.message || 'Couldn’t make the link') } finally { setBusy(false) }
   }
-  const text = `Hi ${first}, here’s your link to Cobblestone Tile OS — open it, pick a password, and you’re in: ${link}`
-  const copy = async () => { try { await navigator.clipboard.writeText(link) } catch { /* no clipboard */ } toast('Link copied — paste it in a text', { description: 'It works once. They open it, pick a password, and they’re in.' }) }
+  const text = `Hi ${first}, here’s your link to Cobblestone Tile OS. Open it, pick a password, and you’re in: ${link}`
+  const copy = async () => { try { await navigator.clipboard.writeText(link) } catch { /* no clipboard */ } toast('Link copied. Paste it in a text', { description: 'It works once. They open it, pick a password, and they’re in.' }) }
   return (
     <div className="mt-3 rounded-xl border border-line bg-wash px-4 py-3">
       {!link ? (
@@ -448,7 +448,7 @@ function InviteLinkBox({ email, name, role, phone, first, ok, onGot }: { email: 
         </div>
       ) : (
         <>
-          <div className="text-[0.8125rem] font-semibold text-ink">Their link — it works once, asks for a password, and replaces the one in the email</div>
+          <div className="text-[0.8125rem] font-semibold text-ink">Their link. It works once, asks for a password, and replaces the one in the email</div>
           <input readOnly aria-label="Invite link" value={link} onFocus={(e) => e.target.select()} className="mt-1.5 h-9 w-full rounded-lg border border-line bg-white px-2.5 text-[0.8125rem] text-ink-2 outline-none" />
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" icon={<Copy />} onClick={copy}>Copy</Button>
@@ -481,7 +481,7 @@ export function AddPersonModal({ level }: { level: number }) {
     if (!ok || busy) return
     /* someone on the team already has this email: not a second place for them */
     const there = s.team.find((m) => (m.email || '').trim().toLowerCase() === email.trim().toLowerCase())
-    if (there) { setTaken(`${PEOPLE[there.key]?.name || 'Someone'} already has this email — they’re on the team.`); return }
+    if (there) { setTaken(`${PEOPLE[there.key]?.name || 'Someone'} already has this email. They’re on the team.`); return }
     setBusy(true); setFailed(''); setTaken('')
     try {
       const r = REAL.invite && role !== 'client' ? await REAL.invite({ email: email.trim(), name: `${first.trim()} ${last.trim()}`.trim(), role }) : null
@@ -508,7 +508,7 @@ export function AddPersonModal({ level }: { level: number }) {
       <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
         <Field label="First name"><TextInput data-autofocus value={first} onChange={(e) => setFirst(e.target.value)} /></Field>
         <Field label="Last name"><TextInput value={last} onChange={(e) => setLast(e.target.value)} /></Field>
-        <Field label="Email — they sign in with it"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" /></Field>
+        <Field label="Email. They sign in with it"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" /></Field>
         <Field label="Phone (optional)"><TextInput value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
       </div>
       <Field label="Login type" className="mt-5">
@@ -595,7 +595,7 @@ function PeoplePick({ value, onChange, label }: { value: PersonKey[]; onChange: 
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
       </button>
     }>
-      <MenuLabel>Who does “{label}” — tick one or more</MenuLabel>
+      <MenuLabel>Who does “{label}”. Tick one or more</MenuLabel>
       {people.map((p) => (
         <MenuCheck key={p} checked={value.includes(p)} onChange={(on) => { const next = on ? [...value, p] : value.filter((x) => x !== p); if (next.length) onChange(next) }}>
           <span className="flex min-w-0 items-center gap-2"><Avatar who={p} size={20} /><span className="truncate">{PEOPLE[p]?.name}</span></span>
@@ -628,7 +628,7 @@ function EstimateSteps() {
         {all.map((d, i) => {
           const prev = i > 0 ? all[i - 1] : undefined
           const starts = d.key === 'takeoff' ? 'when the plans come in' : d.key === 'follow' ? 'once it’s sent to the client' : `after ${prev?.label.toLowerCase()}`
-          const then = d.key === 'final' ? 'it goes to the client' : d.key === 'follow' ? 'the client answers — a yes makes it a project' : `${all[i + 1]?.label.toLowerCase()}`
+          const then = d.key === 'final' ? 'it goes to the client' : d.key === 'follow' ? 'the client answers. A yes makes it a project' : `${all[i + 1]?.label.toLowerCase()}`
           /* real people — a login spot nobody took ("Estimator") shows as whoever has that login */
           const people = peopleOn(s, null, d.key)
           const own = (s.rules.estSteps || []).find((x) => x.key === d.key)
@@ -661,7 +661,7 @@ function EstimateSteps() {
         })}
         {adding ? (
           <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-est-step>
-            <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen — e.g. Check the supplier’s prices" className="min-w-[14rem] flex-1" />
+            <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen · e.g. Check the supplier’s prices" className="min-w-[14rem] flex-1" />
             <Menu align="start" width={240} trigger={<Button type="button" iconRight={<ChevronDown />}>After {steps.find((x) => x.key === after)?.label.toLowerCase() || 'office review'}</Button>}>
               <MenuLabel>It comes after</MenuLabel>
               {steps.filter((x) => x.key !== 'final').map((x) => <MenuItem key={x.key} checked={after === x.key} onSelect={() => setAfter(x.key)}>{x.label}</MenuItem>)}
@@ -694,7 +694,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
       {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} />)}
       {part !== 'other' && (adding ? (
         <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
-          <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen — e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
+          <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen · e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
           <OwnerPick value={owner} onChange={(p) => setOwner(p as PersonKey)} label={name || 'the new step'} />
           <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>
           <Button type="button" variant="ghost" onClick={() => { setAdding(false); setName('') }}>Cancel</Button>
@@ -743,7 +743,7 @@ function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[
   return (
     <FlowRow n={n} last={last} off={d.off} data-step-setting={d.key} data-off={d.off || undefined}
       name={<>{shown}{d.off && <span className="ml-2 text-[0.71875rem] font-medium text-muted">off</span>}</>}
-      what={d.off ? 'Not on any project — turn it back on from ···' : firstLine(STEP_WHAT[d.key])}
+      what={d.off ? 'Not on any project. Turn it back on from ···' : firstLine(STEP_WHAT[d.key])}
       starts={after.length ? `after ${after.join(' and ')}` : 'the day it’s won'}
       then={next.length ? next.join(', ') : 'counts toward booking the crew'}
       who={!d.off ? <OwnerPick value={d.owner} onChange={(p) => setCompanyStepOwner(d.key, p)} label={shown} matRule={d.key === 'materials'} /> : undefined}
@@ -752,7 +752,7 @@ function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[
           <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setName(shown); setEditing(true) }}>Rename</MenuItem>
           {d.off
             ? <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setCompanyStepOff(d.key, false)}>Turn back on</MenuItem>
-            : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project — the steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
+            : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project. The steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
           {!BUILT_IN.has(d.key) && d.custom && !STEP_SHORT[d.key] && <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeCompanyStep(d.key)}>Remove</MenuItem>}
         </Menu>
       }
@@ -771,7 +771,7 @@ function EstimateDefaults() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_21.25rem] items-start gap-4 max-xl:grid-cols-1">
       <Card pad={false} className="overflow-hidden">
-        <CardHeader icon={<IconCircle tone="vio" size={34}><Layers className="h-4 w-4" /></IconCircle>} title="Estimates — the areas a new one offers" sub="Tap an area on a new estimate and it comes with these surfaces. Take one off, add your own, or add a whole new area." />
+        <CardHeader icon={<IconCircle tone="vio" size={34}><Layers className="h-4 w-4" /></IconCircle>} title="Estimates. The areas a new one offers" sub="Tap an area on a new estimate and it comes with these surfaces. Take one off, add your own, or add a whole new area." />
         <div className="border-t border-line-2">
           {areas.map((a) => (
             <div key={a.name} className="flex items-start gap-3 border-b border-line-2 px-5 py-2 last:border-0 max-sm:flex-col max-sm:gap-1.5 max-sm:px-4">
@@ -790,13 +790,13 @@ function EstimateDefaults() {
           ))}
         </div>
         <form className="flex gap-2 border-t border-line-2 px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; addCompanyArea(name.trim(), ['floor']); setName('') }}>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="New area — e.g. Girls bathroom" className="max-w-[20rem]" />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="New area · e.g. Girls bathroom" className="max-w-[20rem]" />
           <Button type="submit" icon={<Plus />} disabled={!name.trim()}>Add area</Button>
         </form>
       </Card>
       <div className="flex flex-col gap-4">
         <Card pad={false}>
-          <CardHeader title="Your own surfaces" sub="On the surface list everywhere — priced like the closest item, or at $0 for the estimator to price." />
+          <CardHeader title="Your own surfaces" sub="On the surface list everywhere. Priced like the closest item, or at $0 for the estimator to price." />
           <div className="flex flex-wrap gap-1.5 border-t border-line-2 px-5 py-3">
             {own.map((x) => (
               <span key={x.key} className="inline-flex h-7 items-center gap-1 rounded-full bg-wash-2 pl-2.5 pr-1 text-[0.78125rem] font-medium text-ink-2">
@@ -804,7 +804,7 @@ function EstimateDefaults() {
                 <button aria-label={`Remove ${x.label}`} onClick={() => removeCompanySurface(x.key)} className="inline-flex h-5 w-5 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3 w-3" /></button>
               </span>
             ))}
-            {!own.length && <span className="text-[0.8125rem] text-muted">None yet — the standard list covers floors, walls, niches, saddles, metals, waterproofing and more.</span>}
+            {!own.length && <span className="text-[0.8125rem] text-muted">None yet. The standard list covers floors, walls, niches, saddles, metals, waterproofing and more.</span>}
           </div>
           <form className="flex gap-2 border-t border-line-2 px-5 py-3" onSubmit={(e) => { e.preventDefault(); if (!surf.trim()) return; addCompanySurface(surf.trim()); setSurf('') }}>
             <TextInput value={surf} onChange={(e) => setSurf(e.target.value)} placeholder="e.g. Fireplace surround" />
@@ -985,7 +985,7 @@ function ConnectionsTab() {
     <Card pad={false} data-connections>
       <div className="flex items-center gap-3 px-5 py-4 max-sm:px-4">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><BookOpen className="h-5 w-5" /></span>
-        <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">QuickBooks Online</span><span className="block text-[0.8125rem] text-muted">Invoices, estimates and payments — it connects in the real app.</span></span>
+        <span className="min-w-0 flex-1"><span className="block text-[0.9375rem] font-semibold text-ink">QuickBooks Online</span><span className="block text-[0.8125rem] text-muted">Invoices, estimates and payments. It connects in the real app.</span></span>
         <span className="inline-flex shrink-0 items-center gap-1.5 text-[0.84375rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Connected</span>
       </div>
     </Card>
@@ -1036,7 +1036,7 @@ function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEst
   const savedList = (s.rules.email?.[field] || [])
   return (
     <span className="flex w-full flex-col gap-1">
-      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody — or several, with commas" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
+      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody, or several, with commas" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
       {bad && <span className="text-[0.75rem] font-medium text-bad-600">One of these isn’t an email address</span>}
       {/* each one copied, on its own — take one off with its × */}
       {savedList.length > 1 && !bad && (
@@ -1091,7 +1091,7 @@ function EmailTab() {
         )}
       </Card>
       <p className="px-1 text-[0.8125rem] leading-snug text-muted" data-invite-mail>
-        Empty: it comes from whoever sends it. Replies go back to the address it comes from — and that address gets its own copy.
+        Empty: it comes from whoever sends it. Replies go back to the address it comes from, and that address gets its own copy.
       </p>
     </div>
   )
@@ -1148,9 +1148,9 @@ function BringInTab() {
   )
   return (
     <div className="flex flex-col gap-4">
-      {row(<Upload />, 'Bring in projects', 'The ones already going — from their estimates, a stack at once. Each comes in with its rooms; you set the rest when you go through them.',
+      {row(<Upload />, 'Bring in projects', 'The ones already going. From their estimates, a stack at once. Each comes in with its rooms; you set the rest when you go through them.',
         <Button variant="primary" icon={<Upload />} onClick={() => s.open({ t: 'bringin' })} data-open-bringin>Bring in projects</Button>, 'bringin')}
-      {row(<ListChecks />, 'Go through projects', waiting ? `${waiting} ${waiting === 1 ? 'project came' : 'projects came'} in without where ${waiting === 1 ? 'it’s' : 'they’re'} up to — one at a time: the client, where it stands, what’s done already, who’s on it.` : `Every open project (${open}), one at a time: the client, where it stands, what’s done already, who’s on it. The ones nobody went through come first.`,
+      {row(<ListChecks />, 'Go through projects', waiting ? `${waiting} ${waiting === 1 ? 'project came' : 'projects came'} in without where ${waiting === 1 ? 'it’s' : 'they’re'} up to. One at a time: the client, where it stands, what’s done already, who’s on it.` : `Every open project (${open}), one at a time: the client, where it stands, what’s done already, who’s on it. The ones nobody went through come first.`,
         /* every open project — the ones nobody went through yet on top */
         <Button variant={waiting ? 'primary' : undefined} icon={<ListChecks />} onClick={() => s.open({ t: 'catchup', all: true })} data-open-goall>Go through projects</Button>, 'goall')}
     </div>
@@ -1170,7 +1170,7 @@ function StartOverCard() {
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-wash-2 text-ink-2"><Trash2 className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[0.9375rem] font-semibold text-ink">Start over</div>
-          <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">Delete every project, estimate, client and task — {n ? `${n} in all right now` : 'nothing here yet'}. Your team, logins, items, checklists and settings stay. One project, estimate or client at a time: open it and use its ··· menu.</div>
+          <div className="mt-0.5 text-[0.84375rem] leading-snug text-muted">Delete every project, estimate, client and task · {n ? `${n} in all right now` : 'nothing here yet'}. Your team, logins, items, checklists and settings stay. One project, estimate or client at a time: open it and use its ··· menu.</div>
           <Button className="mt-4" variant="danger" icon={<Trash2 />} disabled={!n} onClick={() => s.open({ t: 'delete', kind: 'all' })}>Start over…</Button>
         </div>
       </div>

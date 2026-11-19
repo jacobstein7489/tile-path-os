@@ -47,7 +47,7 @@ const bucketOfPO = (r: { kind: 'material'; po: PO } | { kind: 'installer'; po: I
   return r.po.step >= 3 ? 'done' : r.po.step === 1 ? 'waiting' : r.po.step === 2 ? 'coming' : 'draft'
 }
 const ipoStatus = (p: IPO): { tone: Tone; label: string; open: boolean } =>
-  p.status === 'Draft' ? { tone: 'warn', label: 'Draft — approve and send', open: true }
+  p.status === 'Draft' ? { tone: 'warn', label: 'Draft. Approve and send', open: true }
   : p.status === 'Sent' ? { tone: 'warn', label: `Waiting for ${PEOPLE[p.crew].short}`, open: true }
   : p.status === 'Rejected' ? { tone: 'bad', label: 'Turned down', open: false }
   : { tone: 'ok', label: 'Accepted', open: false }
@@ -194,9 +194,9 @@ function changePO(id: string, lines: POLine[]) {
     p.late = false
     p.note = `Changed ${NOW} · waiting for ${p.supplier} to confirm`
     const me = meOf(st.role)
-    p.log.push({ date: NOW, who: me, text: `Changed — ${fmtMoney(before)} → ${fmtMoney(p.amount)} · sent to ${p.supplier}` })
-    addHist(st, p.jobId, { who: me, kind: 'material', title: `${p.id} changed — sent to ${p.supplier}`, detail: p.lines.map((l) => `${l.item} ${l.qty}`).join(' · '), ref: { t: 'po', id: p.id } })
-  }, 'PO changed', { sub: 'The change went to the supplier — it waits for them to confirm again.' })
+    p.log.push({ date: NOW, who: me, text: `Changed · ${fmtMoney(before)} → ${fmtMoney(p.amount)} · sent to ${p.supplier}` })
+    addHist(st, p.jobId, { who: me, kind: 'material', title: `${p.id} changed · sent to ${p.supplier}`, detail: p.lines.map((l) => `${l.item} ${l.qty}`).join(' · '), ref: { t: 'po', id: p.id } })
+  }, 'PO changed', { sub: 'The change went to the supplier. It waits for them to confirm again.' })
   if (mailLive()) void emailPO(id, { changed: true })
 }
 
@@ -232,7 +232,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       place={job?.name || 'Company'}
       onPlace={job ? () => s.open({ t: 'job', id: p.jobId, tab: 'materials' }) : undefined}
       title={`${p.id} · ${p.supplier}`}
-      sub={tile ? `${p.what} · ${p.more ? (bills ? 'more tile — we buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile — delivery'}` : p.what}
+      sub={tile ? `${p.what} · ${p.more ? (bills ? 'more tile. We buy it' : 'more of the client’s tile') : bills ? 'tile we buy' : 'the client’s tile · delivery'}` : p.what}
       attrs={{ 'data-po-win': p.id }}
       /* one rare thing under ···: call it off (before it's here) */
       more={!cancelled && p.step < 3 && allowedFor(s.role, 'po') ? (
@@ -243,7 +243,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       lines={<>
         <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem] leading-snug', toneCls(ms.tone === 'bad' ? 'late' : ms.tone === 'warn' ? 'warn' : ms.tone === 'ok' ? 'ok' : undefined))} data-po-status>{ms.label}</span></WinLine>
         {p.eta && !cancelled && p.step < 3 && <WinLine k="when" label="Coming"><span className={cn('text-[0.9375rem]', p.late ? 'font-medium text-bad-600' : 'text-ink')}>{p.eta}</span></WinLine>}
-        <WinLine k="money" label="Total">{bills ? <b className="text-[0.9375rem] font-semibold tnum text-ink" data-po-total>{fmtMoney(p.amount)}</b> : <span className="text-[0.9375rem] text-muted">No prices — the client’s tile</span>}</WinLine>
+        <WinLine k="money" label="Total">{bills ? <b className="text-[0.9375rem] font-semibold tnum text-ink" data-po-total>{fmtMoney(p.amount)}</b> : <span className="text-[0.9375rem] text-muted">No prices. The client’s tile</span>}</WinLine>
         {p.storeRef && <WinLine k="ref" label="Their order"><span className="text-[0.9375rem] font-medium text-ink">{p.storeRef}</span></WinLine>}
         {p.step >= 1 && !cancelled && (
           <WinLine k="mail" label="Email">
@@ -264,7 +264,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
     s.closeLevel(level)
   }
   const followable = !cancelled && (p.step === 1 || (p.step === 2 && p.late)) && mailLive() && allowedFor(s.role, 'po')
-  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Cancelled — kept for the record.</span> : cxl ? (
+  const footer = cancelled ? <span className="text-[0.84375rem] text-muted">Cancelled. Kept for the record.</span> : cxl ? (
     <>
       <Button variant="ghost" icon={<ArrowLeft />} onClick={() => setCxl(null)}>Back</Button>
       <div className="ml-auto" aria-hidden />
@@ -283,7 +283,7 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
       {followable && <POFollowUp po={p} onSent={() => s.closeLevel(level)} />}
       {p.step === 1 && (
         <>
-          <span className="text-[0.84375rem] text-muted">They confirmed — arriving</span>
+          <span className="text-[0.84375rem] text-muted">They confirmed · arriving</span>
           <DatePresets value={eta} onPick={setEta} presets={['Tomorrow', 'Thu', 'Fri']} />
           <Button className="ml-auto" variant="primary" icon={<Check />} onClick={() => confirmPO(p.id, eta)}>Mark confirmed</Button>
         </>
@@ -295,15 +295,15 @@ export function MaterialPOModal({ id, level }: { id: string; level: number }) {
               <div className="text-[0.875rem] font-medium text-ink">What did {p.supplier} say?</div>
               <TextInput className="mt-2" value={said} onChange={(e) => setSaid(e.target.value)} placeholder="e.g. Ships Thursday" />
               <div className="mt-2.5"><DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Thu', 'Fri']} /></div>
-              <div className="mt-3 flex justify-end"><Button size="sm" variant="primary" disabled={!said.trim()} onClick={() => { followUpPO(p.id, said.trim(), back); setSaid(''); setFu(false) }}>Save — back {back}</Button></div>
+              <div className="mt-3 flex justify-end"><Button size="sm" variant="primary" disabled={!said.trim()} onClick={() => { followUpPO(p.id, said.trim(), back); setSaid(''); setFu(false) }}>Save · back {back}</Button></div>
             </Pop>
           )}
           {/* it came: all of it — or part, how much of each, and the rest stays open on this PO */}
           <Button className="ml-auto" icon={<PackageCheck />} onClick={() => s.open({ t: 'popart', id: p.id })} data-part-came>Part came</Button>
-          <Button variant="primary" icon={<Truck />} onClick={() => receivePO(p.id)}>{part ? 'The rest came' : 'Received — all here'}</Button>
+          <Button variant="primary" icon={<Truck />} onClick={() => receivePO(p.id)}>{part ? 'The rest came' : 'Received, all here'}</Button>
         </>
       )}
-      {p.step === 3 && (bills ? <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Supplier bill received</Button> : <span className="ml-auto text-[0.84375rem] font-medium text-ok-700">All here — nothing to pay, it’s the client’s tile.</span>)}
+      {p.step === 3 && (bills ? <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Supplier bill received</Button> : <span className="ml-auto text-[0.84375rem] font-medium text-ok-700">All here. Nothing to pay, it’s the client’s tile.</span>)}
       {p.step === 4 && <Button className="ml-auto" variant="primary" onClick={() => poNext(p.id)}>Mark paid</Button>}
       {p.step >= 5 && <span className="text-[0.84375rem] text-ok-700">Paid.</span>}
     </>
@@ -341,7 +341,7 @@ function POLinesEdit({ lines, onChange }: { lines: POLine[]; onChange: (ls: POLi
   const num = (v: string) => Math.max(0, Number(v.replace(/[^0-9.]/g, '')) || 0)
   return (
     <div>
-      <div className="mb-2 text-[0.8125rem] text-muted">Change how many, the price, take a line off or add one — the change goes to the supplier.</div>
+      <div className="mb-2 text-[0.8125rem] text-muted">Change how many, the price, take a line off or add one. The change goes to the supplier.</div>
       <div className="grid grid-cols-[minmax(0,1fr)_6rem_6.5rem_6.5rem_2rem] gap-2 border-b border-line pb-2 text-[0.78125rem] font-medium text-muted max-sm:grid-cols-[minmax(0,1fr)_5rem_2rem]">
         <span>Item</span><span className="text-right">How many</span><span className="text-right max-sm:hidden">Price</span><span className="text-right max-sm:hidden">Amount</span><span />
       </div>
@@ -386,8 +386,8 @@ function POLines({ lines, total, priced = true }: { lines: POLine[]; total: numb
             <span className="text-right tnum text-ink-2">{l.qty}</span>
             {priced ? (
               <>
-                <span className="text-right tnum text-ink-2 max-sm:hidden">{l.price ? fmtMoney(l.price, { cents: l.price % 1 !== 0 }) : '—'}</span>
-                <span className="text-right tnum text-ink max-sm:hidden">{l.price && l.n ? fmtMoney(l.price * l.n) : '—'}</span>
+                <span className="text-right tnum text-ink-2 max-sm:hidden">{l.price ? fmtMoney(l.price, { cents: l.price % 1 !== 0 }) : ''}</span>
+                <span className="text-right tnum text-ink max-sm:hidden">{l.price && l.n ? fmtMoney(l.price * l.n) : ''}</span>
               </>
             ) : <span className={cn('text-right tnum max-sm:hidden', all ? 'font-medium text-ok-700' : got ? 'font-medium text-warn-700' : 'text-muted')}>{all ? 'All here' : got ? `${got} of ${l.n}` : 'Not yet'}</span>}
           </div>
@@ -434,7 +434,7 @@ export function BookInstallerModal({ jobId, crew: first, level }: { jobId: strin
     </div>
   )
   const footer = step === 1 ? (
-    <span className="text-[0.84375rem] text-muted">His PO is made from the project’s rooms and square feet — you’ll see it before it goes.</span>
+    <span className="text-[0.84375rem] text-muted">His PO is made from the project’s rooms and square feet. You’ll see it before it goes.</span>
   ) : (
     <>
       <Button variant="ghost" icon={<ArrowLeft />} onClick={() => setStep(1)}>Back</Button>
@@ -477,7 +477,7 @@ export function BookInstallerModal({ jobId, crew: first, level }: { jobId: strin
             return (
               <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-warn-100 bg-warn-50 px-4 py-3 text-[0.84375rem] text-ink-2">
                 <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-warn-700" />
-                <span><b className="font-semibold text-warn-700">{PEOPLE[crew].short} is busy until {d(busy?.end || f.iso)}</b>{busy ? ` on ${s.jobs[busy.jobId]?.name}` : ''} — {job.name} wants to start {d(want)}. It shows as a clash on the Schedule until one of them moves.</span>
+                <span><b className="font-semibold text-warn-700">{PEOPLE[crew].short} is busy until {d(busy?.end || f.iso)}</b>{busy ? ` on ${s.jobs[busy.jobId]?.name}` : ''} · {job.name} wants to start {d(want)}. It shows as a clash on the Schedule until one of them moves.</span>
               </div>
             )
           })()}
@@ -546,7 +546,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
       attrs={{ 'data-ipo-win': p.id }}
       lines={<>
         <WinLine k="crew" label="Installer"><span className="inline-flex min-w-0 items-center gap-2 text-[0.9375rem] font-medium text-ink"><Avatar who={p.crew} size={24} />{name}</span></WinLine>
-        <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem]', toneCls(p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'late' : p.status === 'Sent' ? 'warn' : 'quiet'))} data-ipo-status>{p.status === 'Accepted' ? `Accepted ${p.date || ''}`.trim() : p.status === 'Sent' ? `Sent — waiting for ${PEOPLE[p.crew].short}’s yes` : p.status === 'Rejected' ? `Turned down${p.reason ? ` — ${p.reason.toLowerCase()}` : ''}` : 'Draft — not sent yet'}</span></WinLine>
+        <WinLine k="status" label="Status"><span className={cn('min-w-0 text-[0.9375rem]', toneCls(p.status === 'Accepted' ? 'ok' : p.status === 'Rejected' ? 'late' : p.status === 'Sent' ? 'warn' : 'quiet'))} data-ipo-status>{p.status === 'Accepted' ? `Accepted ${p.date || ''}`.trim() : p.status === 'Sent' ? `Sent · waiting for ${PEOPLE[p.crew].short}’s yes` : p.status === 'Rejected' ? `Turned down${p.reason ? ` · ${p.reason.toLowerCase()}` : ''}` : 'Draft, not sent yet'}</span></WinLine>
         <WinLine k="money" label="What we pay"><span className="text-[0.9375rem]"><b className="font-semibold tnum text-ink" data-ipo-total>{fmtMoney(total)}</b>{smp(' · sample amounts') ? <span className="text-muted">{smp(' · sample amounts')}</span> : null}</span></WinLine>
         {p.status !== 'Draft' && mailLive() && <WinLine k="mail" label="Email"><MailedLine mailed={p.mailed} who={PEOPLE[p.crew].short} onSend={() => emailIPO(p.id)} /></WinLine>}
       </>}
@@ -580,13 +580,13 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
       )}
       {!draft && p.status === 'Accepted' && (
         <>
-          <span className="text-[0.84375rem] text-ok-700">Accepted {p.date} — the installer is confirmed.</span>
+          <span className="text-[0.84375rem] text-ok-700">Accepted {p.date} · the installer is confirmed.</span>
           <Button className="ml-auto" icon={<FilePen />} onClick={() => setDraft(p.lines.map((l) => ({ ...l })))}>Revise the PO</Button>
         </>
       )}
       {p.status === 'Rejected' && (
         <>
-          <span className="text-[0.84375rem] text-bad-700">Turned down{p.reason ? ` — ${p.reason.toLowerCase()}` : ''}.</span>
+          <span className="text-[0.84375rem] text-bad-700">Turned down{p.reason ? ` · ${p.reason.toLowerCase()}` : ''}.</span>
           <Button className="ml-auto" variant="primary" onClick={() => s.swap({ t: 'book', jobId: p.jobId })}>Pick another installer</Button>
         </>
       )}
@@ -624,8 +624,8 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
     })
     onChange(next)
   }
-  const share = (pct?: number, extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', pct == null ? 'text-faint' : pct > ratio.line ? 'font-semibold text-bad-600' : 'text-ink-2', extra)}>{pct != null ? `${pct}%` : '—'}</span>
-  const money = (n?: number | null, cls = 'text-ink-2', extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', n ? cls : 'text-faint', extra)}>{n ? fmtMoney(n) : '—'}</span>
+  const share = (pct?: number, extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', pct == null ? 'text-faint' : pct > ratio.line ? 'font-semibold text-bad-600' : 'text-ink-2', extra)}>{pct != null ? `${pct}%` : ''}</span>
+  const money = (n?: number | null, cls = 'text-ink-2', extra?: string) => <span className={cn('block text-right text-[0.875rem] tnum', n ? cls : 'text-faint', extra)}>{n ? fmtMoney(n) : ''}</span>
   const lineSold = ratio.lines.reduce((n, l) => n + (l.sold || 0), 0)
   const rest = ratio.estimate ? Math.max(0, ratio.estimate - lineSold) : 0
   const cos = p.changes.map((c) => {
@@ -665,13 +665,13 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
             {editing ? (
               <>
                 {l.n != null ? <NumField value={l.n} onSave={(v) => set(i, { n: Number(v) || 0 })} label="Quantity" className="max-sm:row-start-2" /> : <span className="text-right text-[0.8125rem] text-muted max-sm:row-start-2 max-sm:text-left">{l.qty}</span>}
-                {l.rate != null ? <NumField value={l.rate} money onSave={(v) => set(i, { rate: Number(v) || 0 })} label="Rate" className="max-sm:row-start-2" /> : <span className="text-right text-[0.8125rem] text-faint max-sm:row-start-2">—</span>}
+                {l.rate != null ? <NumField value={l.rate} money onSave={(v) => set(i, { rate: Number(v) || 0 })} label="Rate" className="max-sm:row-start-2" /> : <span className="text-right text-[0.8125rem] text-faint max-sm:row-start-2"></span>}
                 {l.n != null && l.rate != null ? <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:row-start-2">{fmtMoney(l.amount)}</span> : <NumField value={l.amount} money onSave={(v) => set(i, { amount: Math.round(Number(v) || 0) })} label="Amount" className="max-sm:row-start-2" />}
               </>
             ) : (
               <>
                 <span className="text-right text-[0.875rem] tnum text-ink-2 max-sm:row-start-2 max-sm:text-left">{l.qty}</span>
-                <span className={cn('text-right text-[0.875rem] tnum max-sm:row-start-2', l.rate ? 'text-ink-2' : 'text-faint')}>{l.rate ? fmtMoney(l.rate, { cents: l.rate % 1 !== 0 }) : '—'}</span>
+                <span className={cn('text-right text-[0.875rem] tnum max-sm:row-start-2', l.rate ? 'text-ink-2' : 'text-faint')}>{l.rate ? fmtMoney(l.rate, { cents: l.rate % 1 !== 0 }) : ''}</span>
                 <span className="text-right text-[0.875rem] font-semibold tnum text-ink max-sm:row-start-2">{fmtMoney(l.amount)}</span>
               </>
             )}
@@ -687,7 +687,7 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
       {editing && <button onClick={() => onChange([...lines, { item: 'Extra work', qty: 'Lump sum', amount: 0 }])} className="mt-2 inline-flex items-center gap-1.5 rounded-md px-1 py-1.5 text-[0.8125rem] font-semibold text-brand-600 hover:underline"><Plus className="h-4 w-4" />Add a line</button>}
       {cos.map(({ c, sold, pct }) => (
         <div key={c.co} className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2 max-sm:gap-y-1')} data-ipo-co={c.co}>
-          <span className="min-w-0 max-sm:col-span-4"><span className="block truncate text-[0.875rem] text-ink">{c.co} · {c.text}</span>{c.status === 'pending' && <span className="block text-[0.75rem] text-muted">Waiting for the client’s yes — not counted yet</span>}</span>
+          <span className="min-w-0 max-sm:col-span-4"><span className="block truncate text-[0.875rem] text-ink">{c.co} · {c.text}</span>{c.status === 'pending' && <span className="block text-[0.75rem] text-muted">Waiting for the client’s yes, not counted yet</span>}</span>
           <span className="text-right text-[0.875rem] tnum text-ink-2 max-sm:text-left">{c.qty}</span>
           <span />
           <span className={cn('text-right text-[0.875rem] tnum', c.status === 'pending' ? 'text-muted' : 'font-semibold text-ink')}>{fmtMoney(c.amount)}</span>
@@ -699,7 +699,7 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
       ))}
       {rest > 0 && (
         <div className={cn(IPO_GRID, 'min-h-[3rem] border-b border-line-2 py-2')} data-ipo-rest>
-          <span className="min-w-0 max-sm:col-span-3"><span className="block truncate text-[0.875rem] text-muted">The rest of the estimate</span><span className="block truncate text-[0.75rem] text-faint">Materials and the general lines — not his work</span></span>
+          <span className="min-w-0 max-sm:col-span-3"><span className="block truncate text-[0.875rem] text-muted">The rest of the estimate</span><span className="block truncate text-[0.75rem] text-faint">Materials and the general lines, not his work</span></span>
           <span className="max-sm:hidden" /><span className="max-sm:hidden" /><span className="max-sm:hidden" />
           {money(rest, 'text-muted', 'max-sm:col-start-4 max-sm:row-start-1')}
           <span className="max-sm:hidden" /><span className="max-sm:hidden" />
@@ -709,8 +709,8 @@ function IPOSheet({ p, lines, editing, ratio, onChange }: { p: IPO; lines: IPOLi
         <span className="text-ink max-sm:col-span-2">Total</span>
         <span className="max-sm:hidden" /><span className="max-sm:hidden" />
         <span className="text-right tnum text-ink max-sm:col-span-2">{fmtMoney(ratio.total)}</span>
-        <span className="text-right tnum text-ink-2 max-sm:hidden">{ratio.sold ? fmtMoney(ratio.sold) : '—'}</span>
-        <span className={cn('text-right tnum max-sm:hidden', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{ratio.sold ? `${ratio.pct}%` : '—'}</span>
+        <span className="text-right tnum text-ink-2 max-sm:hidden">{ratio.sold ? fmtMoney(ratio.sold) : ''}</span>
+        <span className={cn('text-right tnum max-sm:hidden', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{ratio.sold ? `${ratio.pct}%` : ''}</span>
         <span className="max-sm:hidden" />
         {ratio.sold ? <span className="col-span-4 text-[0.75rem] font-normal text-muted sm:hidden">We sell it for {fmtMoney(ratio.sold)} · <span className={tone === 'bad' ? 'font-semibold text-bad-600' : ''}>{ratio.pct}%</span></span> : null}
       </div>
@@ -857,7 +857,7 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
           <SearchSelect label="Needed on site by" value={needed} onChange={setNeeded} search={false} width={260} options={days.map((d) => ({ key: d.key, label: byDay(d.label, 'Needed by') }))} plain />
         </div>
       </FormRow>
-      <FormRow label="What to order" hint={useTake && j ? <SetupLine jobId={j.id} /> : 'Priced from QuickBooks — what you last paid is filled in.'}>
+      <FormRow label="What to order" hint={useTake && j ? <SetupLine jobId={j.id} /> : 'Priced from QuickBooks. What you last paid is filled in.'}>
         <div className="grid grid-cols-[minmax(0,1fr)_5.625rem_6.25rem_6.25rem_2rem] border-b border-line pb-2 pt-2.5 text-[0.78125rem] font-medium text-muted max-sm:hidden">
           <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Amount</span><span />
         </div>
@@ -896,7 +896,7 @@ function SetupLine({ jobId }: { jobId: string }) {
   const guessed = rows.filter((r) => r.m.auto).length
   return (
     <span data-setup-line>
-      Worked out from the setup and the square feet — only what’s still missing.{' '}
+      Worked out from the setup and the square feet. Only what’s still missing.{' '}
       {guessed > 0 && <span className="font-medium text-warn-700">{guessed} {guessed === 1 ? 'wall or floor’s' : 'walls or floors’'} setup is a guess.{' '}</span>}
       <button type="button" onClick={() => s.open({ t: 'setting', jobId })} className="font-semibold text-brand-700 hover:underline">Change the setup</button>
     </span>
@@ -912,7 +912,7 @@ export function SetupPanel({ jobId }: { jobId: string }) {
   return (
     <div className="overflow-hidden rounded-[0.75rem] border border-line">
       <div className="flex flex-wrap items-center gap-2 border-b border-line-2 bg-wash px-4 py-2.5">
-        <span className="text-[0.84375rem] font-semibold text-ink">The setup — what goes under the tile</span>
+        <span className="text-[0.84375rem] font-semibold text-ink">The setup. What goes under the tile</span>
         {guessed > 0 && <span className="text-[0.78125rem] text-warn-700">{guessed} suggested, not confirmed</span>}
         <Button size="xs" className="ml-auto" onClick={() => s.open({ t: 'setting', jobId })}>Change the setup</Button>
       </div>

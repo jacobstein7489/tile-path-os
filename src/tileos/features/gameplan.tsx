@@ -44,7 +44,7 @@ export function itemsOf(s: Store): Item[] {
     const start = r.p.targetISO < TODAY ? TODAY : r.p.targetISO
     const days = s.ready.find((x) => x.jobId === r.j.id)?.days || 5
     const crew = r.p.installer && r.p.installer !== 'tbd' ? (r.p.installer as PersonKey) : undefined
-    rest.push({ id: (crew ? 'plan-' : 'tb-') + r.j.id, crew, jobId: r.j.id, start, end: addBusinessDays(start, days), kind: crew ? 'planned' : 'tobook', label: crew ? 'Planned — not booked yet' : 'Ready to book', hold: hold(r.j.id) })
+    rest.push({ id: (crew ? 'plan-' : 'tb-') + r.j.id, crew, jobId: r.j.id, start, end: addBusinessDays(start, days), kind: crew ? 'planned' : 'tobook', label: crew ? 'Planned, not booked yet' : 'Ready to book', hold: hold(r.j.id) })
   })
   return [...booked, ...rest]
 }
@@ -98,7 +98,7 @@ function CrewKey({ crews }: { crews: string[] }) {
     </div>
   )
 }
-const sub = (it: Item) => (it.hold ? `On hold · ${it.hold}` : it.kind === 'tobook' ? 'Ready to book — pick an installer' : it.kind === 'planned' ? `${PEOPLE[it.crew!].short} · planned, not booked` : it.kind === 'pending' ? `Waiting for ${PEOPLE[it.crew!].short} to confirm` : `${PEOPLE[it.crew!].short} · ${it.label}`)
+const sub = (it: Item) => (it.hold ? `On hold · ${it.hold}` : it.kind === 'tobook' ? 'Ready to book. Pick an installer' : it.kind === 'planned' ? `${PEOPLE[it.crew!].short} · planned, not booked` : it.kind === 'pending' ? `Waiting for ${PEOPLE[it.crew!].short} to confirm` : `${PEOPLE[it.crew!].short} · ${it.label}`)
 
 type Focus = 'all' | 'working' | 'free' | 'tobook' | 'hold'
 export function GamePlanPage() {
@@ -176,7 +176,7 @@ function ReadyList() {
       {rows.map((x) => {
         const j = s.jobs[x.id]
         return (
-          <button key={x.id} onClick={() => s.open({ t: 'book', jobId: x.id })} data-ready-row={x.id} title={`${j.client} — pick the installer`} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition row-hover">
+          <button key={x.id} onClick={() => s.open({ t: 'book', jobId: x.id })} data-ready-row={x.id} title={`${j.client}. Pick the installer`} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition row-hover">
             <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
             <span className="shrink-0 text-[0.8125rem] text-muted">{x.when ? fmt(x.when, { month: 'short', day: 'numeric' }) : 'No date'}</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
@@ -371,7 +371,7 @@ export function ReadyToBookModal({ level }: { level: number }) {
   const busyThisWeek = new Set(s.bookings.filter((b) => b.start <= addDaysT(MONDAY, 4) && b.end >= TODAY).map((b) => b.crew))
   const free = CREWS.filter((c) => !busyThisWeek.has(c))
   return (
-    <Modal level={level} size="lg" onClose={s.close} title="Ready to book" sub="Won and ready, no installer yet — pick one and it lands on the calendar.">
+    <Modal level={level} size="lg" onClose={s.close} title="Ready to book" sub="Won and ready, no installer yet. Pick one and it lands on the calendar.">
       {free.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-ok-50/70 px-3.5 py-2.5 text-[0.84375rem] text-ink-2">
           <span className="font-semibold text-ok-700">Free this week:</span>

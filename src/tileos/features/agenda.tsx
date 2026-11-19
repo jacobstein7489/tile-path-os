@@ -1,7 +1,7 @@
 /* The agenda — meetings, walkthroughs, deliveries and what comes back, with their times.
  * For me, for anyone in the company, or for everyone at once. One click adds a meeting; clashes are caught there. */
 import * as React from 'react'
-import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, ChevronDown, Trash2, Building2, Clock3, Users, MapPin, History } from 'lucide-react'
+import { CalendarDays, Repeat, Truck, BellRing, Flag, Play, Footprints, Plus, ChevronRight, ChevronDown, Trash2, Building2, Clock3, Users, MapPin, History, Check, ArrowRight } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Segmented, Button, IconButton } from '@/tileos/components/ui/core'
 import { Modal, Tip, Menu, MenuItem, DatePresets } from '@/tileos/components/ui/overlay'
@@ -9,7 +9,8 @@ import { Card, AvatarStack } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import { CAL_TODAY, addDaysIso, dayLabel, dayLong, isoOfDay, rangeLabel, timeLabel, workDays } from '@/tileos/data/calendar'
-import { busyFor, removeEvent, moveEvent, setEventPeople, renameEvent, noteEvent } from './calendar'
+import { busyFor, removeEvent, moveEvent, setEventPeople, renameEvent, noteEvent, addEventNote, doneEvent } from './calendar'
+import { Notes } from './notes'
 import { WinHead, WinLine, WatchPop, WhenPop, CHIP } from './winhead'
 import { insidePeople } from './steps-ui'
 import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
@@ -152,8 +153,8 @@ export function EventModal({ id, level }: { id: string; level: number }) {
     <>
       <WinLine k="people" label="Who’s in it" top={people.length > 1}>
         <span className="flex min-w-0 flex-wrap items-center gap-x-2" data-event-people={e.people.join(',')}>
-          <WatchPop title="Who’s in it" sub="From us — it’s on each one’s Today and calendar." pick={{ people: ours, me, current: e.people, onToggle: toggle, anyone: true }} trigger={
-            <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s in it — add or take off" data-event-who>
+          <WatchPop title="Who’s in it" sub="From us. It’s on each one’s Today and calendar." pick={{ people: ours, me, current: e.people, onToggle: toggle, anyone: true }} trigger={
+            <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s in it. Add or take off" data-event-who>
               {people.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink"><Avatar who={p} size={24} />{p === me ? 'You' : PEOPLE[p]?.short || p}</span>)}
               <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
             </button>
@@ -164,10 +165,10 @@ export function EventModal({ id, level }: { id: string; level: number }) {
       <WinLine k="when" label="When">
         <span className="flex min-w-0 flex-wrap items-center gap-x-1">
           <WhenPop pick={{ title: 'Move it to', value: labelFromIso(e.date), presets: ['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => moveEvent(e.id, { date: isoFromLabel(d) || e.date, start: e.start }) }} trigger={
-            <button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The day — move it" data-event-day><span>{dayLabel(e.date)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>
+            <button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The day · move it" data-event-day><span>{dayLabel(e.date)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>
           } />
           <span className="text-faint" aria-hidden>·</span>
-          <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The time — change it" data-event-time><span className="tnum">{rangeLabel(e.start, e.dur)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
+          <Menu align="start" width={200} trigger={<button type="button" className={cn(CHIP, 'text-[0.9375rem] text-ink')} aria-label="The time · change it" data-event-time><span className="tnum">{rangeLabel(e.start, e.dur)}</span><ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>}>
             {EV_TIMES.map((m) => <MenuItem key={m} checked={m === e.start} onSelect={() => moveEvent(e.id, { date: e.date, start: m })}>{timeLabel(m)}</MenuItem>)}
           </Menu>
         </span>
@@ -192,11 +193,22 @@ export function EventModal({ id, level }: { id: string; level: number }) {
           <Button onClick={() => setCanceling(false)}>Keep it</Button>
           <Button variant="danger" icon={<Trash2 />} onClick={() => { removeEvent(e.id); s.close() }} data-event-cancel>Yes, cancel it</Button>
         </>
-      ) : undefined}
-      bodyClass="px-6 pb-5 pt-1 max-sm:px-4"
+      ) : e.done ? (
+        <span className="text-[0.875rem] font-medium text-[#2c8a5b]" data-event-done-on>Done {e.done}</span>
+      ) : (
+        /* the same buttons as a to-do's: the main one on the right */
+        <>
+          <div className="ml-auto" aria-hidden />
+          {job && <Button icon={<ArrowRight />} onClick={() => s.swap({ t: 'job', id: job.id })} data-event-project>Open the project</Button>}
+          <Button variant="primary" className="max-sm:flex-1" icon={<Check />} onClick={() => { doneEvent(e.id); s.close() }} data-event-done>Done</Button>
+        </>
+      )}
+      bodyClass="px-6 pb-4 pt-3 max-sm:px-4"
     >
-      {/* who set it, and when it was set — one quiet line, like every to-do's */}
-      {e.by && <div className="flex items-center gap-1.5 text-[0.8125rem] text-faint" data-event-by><History className="h-3.5 w-3.5" />Set by {e.by === me ? 'you' : PEOPLE[e.by]?.short || 'someone'}</div>}
+      {/* what people wrote on it — the same box as every to-do's */}
+      <Notes kind="event" me={me} notes={e.notes || []} onAdd={e.done ? undefined : (x) => addEventNote(e.id, x)} />
+      {/* when it was set, and by whom — one quiet line, like every to-do's */}
+      {e.by && <div className="mt-4 flex items-center gap-1.5 text-[0.8125rem] text-faint" data-event-by><History className="h-3.5 w-3.5" />Set {e.made ? `${e.made.date}${e.made.time ? `, ${e.made.time}` : ''} ` : ''}by {e.by === me ? 'you' : PEOPLE[e.by]?.short || 'someone'}</div>}
     </Modal>
   )
 }

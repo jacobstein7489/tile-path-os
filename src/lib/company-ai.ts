@@ -105,7 +105,7 @@ export const hearCompanyAI = createServerFn({ method: "POST" })
     /* Gemini hears too: the recording with the question (a WAV, when it isn't the quick look while you talk) */
     if (data.live || !wav) return { ok: false, why: "error", detail: tried.join(" · ").slice(0, 500) };
     try {
-      const ask = `Write down exactly what is said in this recording — only the words, in the language spoken. No quotes, no notes, no timestamps. If nothing is said, answer with nothing.${data.hint ? ` Names and words that may come up: ${data.hint}` : ""}`;
+      const ask = `Write down exactly what is said in this recording. Only the words, in the language spoken. No quotes, no notes, no timestamps. If nothing is said, answer with nothing.${data.hint ? ` Names and words that may come up: ${data.hint}` : ""}`;
       const r = await fetch(GATEWAY, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },

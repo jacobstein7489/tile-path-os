@@ -59,7 +59,7 @@ export function TasksPage() {
     <div className="animate-fade-up">
       <PageHeader
         title="Tasks"
-        sub="One item per thing that has to happen — who has it, who we’re waiting on, and when it comes back."
+        sub="One item per thing that has to happen. Who has it, who we’re waiting on, and when it comes back."
         actions={<Button variant="primary" icon={<Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />} onClick={() => open({ t: 'newtask' })}>New task</Button>}
       />
       <Card>

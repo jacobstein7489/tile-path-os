@@ -26,7 +26,7 @@ const S119: Record<string, Story> = shiftDeep({
   setup: {
     title: 'Back office setup', dates: 'Sep 1 – Sep 3', owner: 'Back office',
     lines: [
-      '9 rooms and 31 surfaces — only what actually applies to this project.',
+      '9 rooms and 31 surfaces. Only what actually applies to this project.',
       '7 finish records assigned to exact surfaces. T-03 Toscana Ivory goes on the master shower and tub walls.',
       'Finish tile supplied and ordered by the GC from Best Tile. Installation materials by Cobblestone.',
       'Tile quantities checked against our takeoff: every tile covered our need plus waste.',
@@ -41,7 +41,7 @@ const S119: Record<string, Story> = shiftDeep({
       'Rooms and surfaces matched the site on the September 4 walkthrough.',
       'Metal confirmed: Schluter JOLLY, satin brass, 10 mm, six 8 ft pieces. Cobblestone supplies it, so it became a material requirement.',
       'Doorway transitions: finished wood elevation verified before the prep decision.',
-      'The design meeting on September 8 settled 12 open details — not the whole bathroom.',
+      'The design meeting on September 8 settled 12 open details, not the whole bathroom.',
       'One question stayed open: the master shower drain sequence.',
     ],
     factsTitle: 'Decisions saved', facts: [['Shower walls', 'Full tile at the doorway, vertical stack'], ['Outside corners', '10 mm satin brass'], ['Niche', 'Field tile, mitered'], ['Tub walls', '84″ with a metal edge']],
@@ -53,7 +53,7 @@ const S119: Record<string, Story> = shiftDeep({
       'Scope and documents: plans A4, Revision 2 approved.',
       'Design decisions: all settled except the master shower drain.',
       'Site: access, water and power confirmed September 4.',
-      'Finish tile: 14 of 20 boxes of T-03 — enough to start, not to finish.',
+      'Finish tile: 14 of 20 boxes of T-03. Enough to start, not to finish.',
       'Money: deposit received September 4, so the start rule was satisfied.',
     ],
     factsTitle: 'Result', facts: [['Result', 'Can start with restrictions'], ['Start with', 'Guest bath, powder, master floor'], ['Hold', 'Master shower floor'], ['Crew', '4 workers, about 4 weeks']],
@@ -79,7 +79,7 @@ const GENERIC: Record<string, string[]> = {
   verification: ['Site walkthrough done', 'Field measurements confirmed', 'Open design details decided', 'Remaining questions tracked on their surface'],
   ready: ['Scope and documents current', 'Critical decisions made', 'Enough tile and materials to start', 'Site access, water and power', 'Deposit received (or warned)'],
   scheduled: ['Crew and dates booked', 'Starting areas set', 'Each role’s pre-start check', 'Installer package sent to the crew'],
-  installation: ['Daily updates from the site', 'Blocked surfaces tracked — the rest keeps moving', 'Changes held until approved', 'Progress by room rolls up'],
+  installation: ['Daily updates from the site', 'Blocked surfaces tracked. The rest keeps moving', 'Changes held until approved', 'Progress by room rolls up'],
   punch: ['Punch items: open, working, ready to verify, verified', 'Returns scheduled', 'Before and after photos'],
   closeout: ['Required punch verified', 'Approved changes billed', 'GC sign-off', 'Final billing sent to accounting'],
   complete: ['Final payment recorded', 'Whole history kept and searchable'],
@@ -145,7 +145,7 @@ export function StageModal({ jobId, k, level }: { jobId: string; k: string; leve
         </div>
       ) : k === 'installation' && rooms.length ? (
         <div>
-          <div className="mb-3 text-[0.84375rem] font-semibold text-muted">Progress by room — from the daily updates</div>
+          <div className="mb-3 text-[0.84375rem] font-semibold text-muted">Progress by room. From the daily updates</div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-sm:grid-cols-1">
             {rooms.map((r) => (
               <div key={r.name}>

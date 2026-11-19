@@ -50,7 +50,7 @@ export function MetalPicker({ value, onChange, pieces }: { value: MetalSpec; onC
         </div>
       </div>
       <div>
-        <div className={LBL}>Size — fits the tile’s thickness</div>
+        <div className={LBL}>Size. Fits the tile’s thickness</div>
         <div className="flex flex-wrap gap-1.5">
           {sizes.map((mm) => <button key={mm} type="button" data-metal-size={mm} onClick={() => onChange({ ...value, size: mm })} className={cn(CHIP, value.size === mm ? ON : OFF)}>{sizeLabel(mm)}</button>)}
         </div>

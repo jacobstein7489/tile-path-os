@@ -84,7 +84,7 @@ export function PdfPages({ url, name }: { url: string; name: string }) {
   return (
     <div className="scroll-soft absolute inset-0 overflow-y-auto overscroll-contain px-4 py-4 max-sm:px-2 max-sm:py-2" data-pdf-pages={pages.length}>
       <div className="mx-auto flex max-w-[64rem] flex-col items-stretch gap-3">
-        {pages.map((p, i) => <img key={p.src} src={p.src} alt={`${name} — page ${i + 1}`} className="block h-auto w-full rounded-[0.1875rem] bg-white shadow-[0_0.0625rem_0.25rem_rgba(17,19,24,.18)]" style={{ aspectRatio: `${p.w} / ${p.h}` }} data-pdf-page={i + 1} />)}
+        {pages.map((p, i) => <img key={p.src} src={p.src} alt={`${name} · page ${i + 1}`} className="block h-auto w-full rounded-[0.1875rem] bg-white shadow-[0_0.0625rem_0.25rem_rgba(17,19,24,.18)]" style={{ aspectRatio: `${p.w} / ${p.h}` }} data-pdf-page={i + 1} />)}
         {(!total || pages.length < total) && (
           <div className="flex items-center justify-center gap-2 py-6 text-[0.875rem] text-muted"><Loader2 className="h-5 w-5 animate-spin" />{total > 1 ? `Page ${pages.length + 1} of ${total}…` : `Opening ${name}…`}</div>
         )}
@@ -142,7 +142,7 @@ export function DocPanel({ jobId, doc, fileId, onBack, back, rename }: { jobId: 
         title={naming && rec ? (
           <input autoFocus value={nm} onChange={(e) => setNm(e.target.value)} onBlur={() => { renameFile(rec.id, nm); setNaming(false) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); renameFile(rec.id, nm); setNaming(false) } else if (e.key === 'Escape') { e.preventDefault(); setNaming(false) } }} aria-label="Its name" className="h-9 w-full max-w-[28rem] rounded-lg border border-brand-300 bg-white px-2.5 text-[0.9375rem] font-semibold text-ink outline-none ring-[0.1875rem] ring-brand-50" data-editing data-file-name-box />
         ) : doc || rec?.name || 'File'}
-        sub={rec ? (doc ? `${rec.name} · ${sizeLabel(rec.size)}` : [sizeLabel(rec.size), rec.at].filter(Boolean).join(' · ')) : meta?.status === 'in' ? 'came in — no file kept here yet' : meta ? 'missing' : undefined}
+        sub={rec ? (doc ? `${rec.name} · ${sizeLabel(rec.size)}` : [sizeLabel(rec.size), rec.at].filter(Boolean).join(' · ')) : meta?.status === 'in' ? 'came in. No file kept here yet' : meta ? 'missing' : undefined}
         onBack={onBack}
         back={back}
         right={
@@ -165,7 +165,7 @@ export function DocPanel({ jobId, doc, fileId, onBack, back, rename }: { jobId: 
             <button onClick={() => input.current?.click()} disabled={busy} className={cn('flex w-full max-w-[26rem] flex-col items-center gap-3 rounded-2xl border-2 border-dashed bg-white px-6 py-10 text-center transition', over ? 'border-brand-500 bg-brand-50' : 'border-[#d6cfc3] hover:border-brand-300')}>
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">{busy ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileText className="h-6 w-6" />}</span>
               <span className="text-[1rem] font-semibold text-ink">{busy ? 'Adding it…' : meta?.status === 'missing' ? `The ${word} isn’t in yet` : `No file for the ${word} yet`}</span>
-              <span className="text-[0.84375rem] text-muted">{meta?.status === 'in' && meta.note ? `Marked as in (${meta.note}). ` : ''}Drop the PDF here, or tap to pick it — it opens right here after.</span>
+              <span className="text-[0.84375rem] text-muted">{meta?.status === 'in' && meta.note ? `Marked as in (${meta.note}). ` : ''}Drop the PDF here, or tap to pick it. It opens right here after.</span>
               <span className="mt-1 inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-[0.875rem] font-semibold text-white"><Upload className="h-4 w-4" />Upload the {word}</span>
             </button>
           </div>
@@ -188,7 +188,7 @@ export function DocPanel({ jobId, doc, fileId, onBack, back, rename }: { jobId: 
             <a href={url} download={rec.name} className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-[0.875rem] font-semibold text-white">Download it</a>
           </div>
         )}
-        {over && rec && <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-brand-50/90 text-[1rem] font-semibold text-brand-700">Drop it — it becomes the newest {word}</div>}
+        {over && rec && <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-brand-50/90 text-[1rem] font-semibold text-brand-700">Drop it. It becomes the newest {word}</div>}
       </div>
     </div>
   )

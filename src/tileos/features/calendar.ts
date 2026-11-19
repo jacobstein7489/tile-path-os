@@ -1,5 +1,5 @@
 /* The calendar: add a meeting or walkthrough, see who's busy, and catch a clash before it happens. */
-import { useStore, addHist, meOf, type Store } from '@/tileos/store'
+import { useStore, addHist, meOf, NOW, clockNow, type Store } from '@/tileos/store'
 import { CAL_TODAY, dayLabel, timeLabel, overlaps, parseTime, type CalEvent } from '@/tileos/data/calendar'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
@@ -19,7 +19,7 @@ export function busyFor(s: Pick<Store, 'events' | 'tasks' | 'jobs'>, date: strin
       .filter((t) => t.repeat && t.repeatAt && t.state !== 'done' && hit([t.owner]))
       .forEach((t) => {
         const m = parseTime(t.repeatAt)
-        if (m != null) out.push({ id: t.id, title: t.title.split(' — ')[0], start: m, dur: 30, people: [t.owner], kind: 'report' })
+        if (m != null) out.push({ id: t.id, title: t.title.split(/ — | · |\. (?=[A-Z])/)[0], start: m, dur: 30, people: [t.owner], kind: 'report' })
       })
   return out.sort((a, b) => a.start - b.start)
 }
@@ -40,7 +40,7 @@ const upcomingFor = (events: CalEvent[], jobId: string) =>
 export function addEvent(e: Omit<CalEvent, 'id'>) {
   const id = 'ev' + Date.now().toString(36)
   S().commit((s) => {
-    s.events.push({ ...e, id, by: e.by || meOf(s.role) })
+    s.events.push({ ...e, id, by: e.by || meOf(s.role), made: { date: NOW, time: clockNow() } })
     if (e.jobId) {
       /* the project's next meeting on the Game plan follows the calendar */
       const next = upcomingFor(s.events, e.jobId)[0]
@@ -52,7 +52,7 @@ export function addEvent(e: Omit<CalEvent, 'id'>) {
         detail: [e.title, e.people.map((p) => PEOPLE[p].short).join(', '), e.with ? `with ${e.with}` : ''].filter(Boolean).join(' · '),
       })
     }
-  }, `${e.title} · ${dayLabel(e.date)} at ${timeLabel(e.start)} — on the agenda`)
+  }, `${e.title} · ${dayLabel(e.date)} at ${timeLabel(e.start)}. On the agenda`)
   return id
 }
 
@@ -66,7 +66,7 @@ export function removeEvent(id: string) {
       s.prep[e.jobId] = { ...(s.prep[e.jobId] || {}), meeting: next ? { text: next.title, day: dayLabel(next.date), time: timeLabel(next.start) } : { text: 'TBD' } }
       addHist(s, e.jobId, { who: meOf(s.role), kind: 'schedule', title: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} canceled · ${e.title}`, detail: `Was ${dayLabel(e.date)} ${timeLabel(e.start)}` })
     }
-  }, `${e0?.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} canceled`, { sub: e0 && /design/i.test(e0.title) ? 'It’s off everyone’s calendar — the design meeting step is back to “set the meeting”.' : 'It’s off everyone’s calendar.' })
+  }, `${e0?.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} canceled`, { sub: e0 && /design/i.test(e0.title) ? 'It’s off everyone’s calendar. The design meeting step is back to “set the meeting”.' : 'It’s off everyone’s calendar.' })
 }
 /** a new day or time (and who's in it) — everyone in it is told again */
 export function moveEvent(id: string, p: { date: string; start: number; people?: PersonKey[]; with?: string }) {
@@ -102,6 +102,23 @@ export function renameEvent(id: string, title: string) {
   const t = title.trim()
   if (!t) return
   S().commit((s) => { const e = s.events.find((x) => x.id === id); if (e) e.title = t }, undefined, { undo: false })
+}
+/** a note on it — the same as on a to-do */
+export function addEventNote(id: string, text: string) {
+  const t = text.trim()
+  if (!t) return
+  S().commit((s) => { const e = s.events.find((x) => x.id === id); if (e) (e.notes ||= []).push({ date: NOW, time: clockNow(), who: meOf(s.role), text: t }) }, undefined, { undo: false })
+}
+/** it happened: done — off Today, in the project's history */
+export function doneEvent(id: string) {
+  const e0 = S().events.find((x) => x.id === id)
+  if (!e0) return
+  S().commit((s) => {
+    const e = s.events.find((x) => x.id === id)
+    if (!e) return
+    e.done = NOW
+    if (e.jobId) addHist(s, e.jobId, { who: meOf(s.role), kind: 'schedule', title: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} done · ${e.title}` })
+  }, `${e0.title} · done`, { tone: 'done' })
 }
 /** what it's about — the note under its name (empty: none) */
 export function noteEvent(id: string, note: string) {

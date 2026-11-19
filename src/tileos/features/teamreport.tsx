@@ -68,9 +68,9 @@ export function originOf(x: PlateItem): string {
   if (!t) return ''
   const first = (t.log || [])[0]
   const said = first?.text ? first.text.charAt(0).toLowerCase() + first.text.slice(1) : ''
-  if (first && first.who === 'system') return `made by Tile OS${said ? ` — ${said}` : ''}`
+  if (first && first.who === 'system') return `made by Tile OS${said ? ` · ${said}` : ''}`
   if (t.by && PEOPLE[t.by]) return `asked by ${PEOPLE[t.by].short}`
-  if (first && PEOPLE[first.who as PersonKey]) return `from ${PEOPLE[first.who as PersonKey].short}${said && !/^created$/i.test(said) ? ` — ${said}` : ''}`
+  if (first && PEOPLE[first.who as PersonKey]) return `from ${PEOPLE[first.who as PersonKey].short}${said && !/^created$/i.test(said) ? ` · ${said}` : ''}`
   return 'made by Tile OS'
 }
 const recOf = (s: Store, x: PlateItem) => (x.kind === 'step' && x.job && x.v ? s.stepRecs[x.job.id]?.[x.v.key] : undefined)
@@ -136,7 +136,7 @@ export function recordCheckIn(who: PersonKey, items: CheckItem[], note?: string)
         const t = st.tasks.find((y) => y.id === c.x.t!.id)
         if (!t) return
         t.checkIn = ci
-        ;(t.log ||= []).push({ date: NOW, who: me, text: `Checked in with ${PEOPLE[who]?.short || ''} — ${workDays(c.late)} late${note ? ` · ${note}` : ''}` })
+        ;(t.log ||= []).push({ date: NOW, who: me, text: `Checked in with ${PEOPLE[who]?.short || ''} · ${workDays(c.late)} late${note ? ` · ${note}` : ''}` })
       } else if (c.x.job && c.x.v) {
         const r = ((st.stepRecs[c.x.job.id] ||= {})[c.x.v.key] ||= {})
         r.checkIn = ci
@@ -160,7 +160,11 @@ const goOf = (x: PlateItem) => (x.kind === 'step' ? { kind: 'step' as const, job
 export function CheckInModal({ who, level }: { who: PersonKey; level: number }) {
   const s = useStore()
   const [note, setNote] = React.useState('')
-  const [items] = React.useState(() => checkIns(s).find((g) => g.who === who)?.items || [])
+  /* what's late, as it was when it opened — and anything done or deleted since (from here, or opened from here) drops
+     off right away */
+  const [first] = React.useState(() => checkIns(s).find((g) => g.who === who)?.items || [])
+  const live = new Set((checkIns(s).find((g) => g.who === who)?.items || []).map((c) => c.key))
+  const items = first.filter((c) => live.has(c.key))
   const n = checkInDays(s)
   const p = PEOPLE[who]
   const done = (how: 'remind' | 'checked') => {
@@ -305,7 +309,7 @@ export function TeamReportPage({ todayOf, after }: {
           <ViewSwitch label="How far back" value={days} onChange={pick} items={[{ key: '7', label: 'Last 7 days' }, { key: '30', label: 'Last 30 days' }]} />
           <span className="flex-1" />
           <span className="text-[0.84375rem] text-muted tnum" data-report-team>
-            Team <b className={cn('font-semibold', PCT_FG[verdict(teamPct, goal).tone])}>{teamPct != null ? `${teamPct}%` : '—'}</b> on time{lateNowN ? <> · <span className="font-medium text-bad-600">{lateNowN} late now</span></> : ''}{ci.length ? ` · ${ci.length} to check in on` : ''}
+            Team <b className={cn('font-semibold', PCT_FG[verdict(teamPct, goal).tone])}>{teamPct != null ? `${teamPct}%` : ''}</b> on time{lateNowN ? <> · <span className="font-medium text-bad-600">{lateNowN} late now</span></> : ''}{ci.length ? ` · ${ci.length} to check in on` : ''}
           </span>
         </div>
       }
@@ -338,8 +342,8 @@ function ReportRow({ r, goal, days, today }: { r: PersonStats; goal: number; day
       <span className="min-w-0 truncate text-[0.9375rem] text-ink max-lg:flex-1"><span>{PEOPLE[r.who]?.name}</span><span className="text-muted max-sm:hidden"> · {PEOPLE[r.who]?.roleLabel}</span></span>
       <span className="shrink-0 text-[0.875rem] tnum" data-report-today={today ?? ''}>{today != null ? <><b className="font-semibold text-ink">{today}</b><span className="text-muted lg:hidden"> today</span></> : null}</span>
       <span className="truncate tnum max-lg:shrink-0">{r.pct == null ? <span className="text-[0.8125rem] text-faint" data-report-few>Not enough yet</span> : <><b className={cn('text-[0.9375rem] font-semibold', PCT_FG[v.tone])}>{r.pct}%</b><span className="text-[0.8125rem] text-muted"> · {r.onTime} of {r.set}</span></>}</span>
-      <span className="text-[0.875rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint">—</span>}</span>
-      <span className="text-[0.875rem] tnum max-lg:hidden">{r.lateNow ? <span className="font-medium text-bad-600">{r.lateNow} late</span> : <span className="text-faint">—</span>}</span>
+      <span className="text-[0.875rem] text-ink-2 tnum max-lg:hidden">{r.late ? `${one(r.avgLate)} work day${r.avgLate === 1 ? '' : 's'}` : <span className="text-faint"></span>}</span>
+      <span className="text-[0.875rem] tnum max-lg:hidden">{r.lateNow ? <span className="font-medium text-bad-600">{r.lateNow} late</span> : <span className="text-faint"></span>}</span>
       <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
     </button>
   )

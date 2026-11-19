@@ -49,15 +49,15 @@ export function RowStar({ star }: { star: StarPick }) {
       onClick={(e) => { e.stopPropagation(); star.toggle() }}
       onKeyDown={(e) => e.stopPropagation()}
       aria-pressed={star.on}
-      aria-label={star.on ? 'Starred — take the star off' : 'Star it — it goes on top'}
-      title={star.on ? 'Starred — tap to take it off' : 'Star it — it goes on top'}
+      aria-label={star.on ? 'Starred. Take the star off' : 'Star it. It goes on top'}
+      title={star.on ? 'Starred. Tap to take it off' : 'Star it. It goes on top'}
       data-row-star={star.on ? '1' : '0'}
       className={cn(
         'absolute left-0 top-1/2 z-[1] inline-flex h-8 w-4 -translate-y-1/2 items-center justify-center transition md:w-5',
         star.on ? STAR_GOLD : 'text-[#c4bcae] opacity-0 hover:text-[#8f8679] focus-visible:opacity-100 max-md:pointer-events-none md:group-hover/row:opacity-100',
       )}
     >
-      <Star className="h-3.5 w-3.5" fill={star.on ? 'currentColor' : 'none'} strokeWidth={star.on ? 1.5 : 2} />
+      <Star className="h-4 w-4 md:h-3.5 md:w-3.5" fill={star.on ? 'currentColor' : 'none'} strokeWidth={star.on ? 1.5 : 2} />
     </button>
   )
 }
@@ -69,8 +69,8 @@ export function WinStar({ star }: { star: StarPick }) {
       type="button"
       onClick={star.toggle}
       aria-pressed={star.on}
-      aria-label={star.on ? 'Starred — take the star off' : 'Star it — it goes on top of your list'}
-      title={star.on ? 'Starred — on top of your list. Tap to take it off' : 'Star it — it goes on top of your list'}
+      aria-label={star.on ? 'Starred. Take the star off' : 'Star it. It goes on top of your list'}
+      title={star.on ? 'Starred. On top of your list. Tap to take it off' : 'Star it. It goes on top of your list'}
       data-win-star={star.on ? '1' : '0'}
       className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-medium transition hover:bg-wash-2', star.on ? cn(STAR_GOLD, 'bg-[#fdf5e3]') : 'text-muted hover:text-ink-2')}
     >

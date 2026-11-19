@@ -152,7 +152,7 @@ export function StepsList({ job }: { job: Job }) {
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-5 py-3.5 max-sm:px-4">
         <div className="min-w-0">
           <h3 className="text-[0.9375rem] font-semibold text-ink">Getting ready</h3>
-          <div className="text-[0.78125rem] text-muted">Each step opens when the one before it is done — then it’s on that person’s Today.</div>
+          <div className="text-[0.78125rem] text-muted">Each step opens when the one before it is done, then it’s on that person’s Today.</div>
         </div>
         <div className="ml-auto flex items-center gap-3">
           <span className="flex items-center gap-2 text-[0.8125rem] font-semibold tnum text-ink-2">
@@ -232,7 +232,7 @@ export function AddStep({ job, steps, onDone, compact }: { job: Job; steps: Step
       onSubmit={(e) => { e.preventDefault(); if (!label.trim()) return; addJobStep(job.id, label.trim(), owner, after || undefined); onDone() }}
       className={cn('flex flex-wrap items-center gap-2 bg-wash', compact ? 'border-t border-line-2 px-4 py-3' : 'border-b border-line px-5 py-3 max-sm:px-4')}
     >
-      <TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder={compact ? 'What has to be checked' : 'What has to be checked — e.g. Drain locations with the plumber'} className={cn('h-9 flex-1 bg-white', compact ? 'w-full min-w-0 basis-full' : 'min-w-[16.25rem]')} />
+      <TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder={compact ? 'What has to be checked' : 'What has to be checked · e.g. Drain locations with the plumber'} className={cn('h-9 flex-1 bg-white', compact ? 'w-full min-w-0 basis-full' : 'min-w-[16.25rem]')} />
       <Menu align="end" width={260} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-[0.625rem] border border-line bg-white pl-1.5 pr-2.5 text-[0.84375rem] font-medium text-ink-2 hover:bg-wash"><Avatar who={owner} size={22} />{PEOPLE[owner].short}<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
         <MenuLabel>Who does it</MenuLabel>
         {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={owner === p} hint={PEOPLE[p].roleLabel} onSelect={() => setOwner(p)}>{PEOPLE[p].name}</MenuItem>)}
@@ -254,7 +254,7 @@ export function StepBar({ steps, w = 140 }: { steps: StepView[]; w?: number }) {
   const shown = steps.filter((x) => x.state !== 'na')
   return (
     <span className="inline-flex shrink-0 gap-[0.1875rem]" style={{ width: w }}>
-      {shown.map((x) => <Tip key={x.key} label={`${x.short} — ${STATE_WORD[x.state]}${x.state !== 'done' ? ` · ${PEOPLE[x.owner]?.short}` : ''}`}><span className={cn('h-[0.375rem] flex-1 rounded-full', SEG[x.state])} /></Tip>)}
+      {shown.map((x) => <Tip key={x.key} label={`${x.short} · ${STATE_WORD[x.state]}${x.state !== 'done' ? ` · ${PEOPLE[x.owner]?.short}` : ''}`}><span className={cn('h-[0.375rem] flex-1 rounded-full', SEG[x.state])} /></Tip>)}
     </span>
   )
 }
@@ -268,7 +268,7 @@ export function OpenSteps({ steps, max = 3 }: { steps: StepView[]; max?: number 
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       {sorted.slice(0, max).map((x) => (
-        <Tip key={x.key} label={`${x.label} — ${PEOPLE[x.owner]?.name}${x.note ? ` · ${x.note}` : ''}`}>
+        <Tip key={x.key} label={`${x.label} · ${PEOPLE[x.owner]?.name}${x.note ? ` · ${x.note}` : ''}`}>
           <span className={cn('inline-flex h-7 min-w-0 shrink items-center gap-1.5 rounded-full border bg-white py-0.5 pl-0.5 pr-2.5 text-[0.78125rem] font-medium', x.state === 'bad' ? 'border-bad-100 text-bad-700' : x.state === 'wait' ? 'border-warn-100 text-warn-700' : 'border-line text-ink-2')}>
             <Avatar who={x.owner} size={22} />
             <span className="truncate">{x.short}</span>

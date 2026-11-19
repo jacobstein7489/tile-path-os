@@ -155,7 +155,7 @@ export const PAY_STATE: Record<PayState, { label: string; tone: 'bad' | 'info' |
   check: { label: 'Bill doesn’t match', tone: 'bad' },
   ready: { label: 'Matches his bill', tone: 'info' },
   nobill: { label: 'No bill yet', tone: 'neutral' },
-  asked: { label: 'Asked him — on hold', tone: 'warn' },
+  asked: { label: 'Asked him · on hold', tone: 'warn' },
   approved: { label: 'Approved', tone: 'ok' },
   paid: { label: 'Paid', tone: 'ok' },
 }
@@ -223,7 +223,7 @@ export function mismatchWhy(row: PayRow) {
   const more = row.diff > 0
   const rooms = payGrid(row).filter((g) => g.bill != null && Math.abs(g.bill - g.amount) > 5)
   const name = PEOPLE[row.crew].short
-  if (!rooms.length) return { more, text: more ? `${name}’s bill is ${fmtMoney(row.diff)} more than the daily updates show.` : `${name} billed ${fmtMoney(-row.diff)} less than the daily updates show — maybe something was left off.`, rooms: [] }
+  if (!rooms.length) return { more, text: more ? `${name}’s bill is ${fmtMoney(row.diff)} more than the daily updates show.` : `${name} billed ${fmtMoney(-row.diff)} less than the daily updates show. Maybe something was left off.`, rooms: [] }
   return {
     more,
     text: more ? `${name}’s bill is ${fmtMoney(row.diff)} more than the daily updates show.` : `${name} billed ${fmtMoney(-row.diff)} less than the updates show.`,
@@ -256,7 +256,7 @@ export function approvePay(crew: PersonKey, weekKey: string) {
         }
       })
     },
-    `${PEOPLE[crew].short}’s week approved — ${fmtMoney(amount)}`,
+    `${PEOPLE[crew].short}’s week approved · ${fmtMoney(amount)}`,
     { close: true, sub: 'It’s a bill in QuickBooks, ready for Friday’s payments.', flow: [{ who: 'yakov', label: 'Daily updates', state: 'done' }, { who: meOf(S().role), label: 'Approved', state: 'done' }, { who: 'accounting', label: 'Pays it', state: 'now' }, { who: crew, label: 'Paid', state: 'next' }] },
   )
 }
@@ -287,7 +287,7 @@ export function askAboutPay(crew: PersonKey, weekKey: string) {
       })
     },
     `Asked ${PEOPLE[crew].short} about his bill`,
-    { close: true, sub: 'His week is on hold until he answers — it comes back to you tomorrow either way.', flow: [{ who: meOf(S().role), label: 'Asked', state: 'done' }, { who: crew, label: 'Answers', state: 'now' }, { who: meOf(S().role), label: 'Approve', state: 'next' }] },
+    { close: true, sub: 'His week is on hold until he answers. It comes back to you tomorrow either way.', flow: [{ who: meOf(S().role), label: 'Asked', state: 'done' }, { who: crew, label: 'Answers', state: 'now' }, { who: meOf(S().role), label: 'Approve', state: 'next' }] },
   )
 }
 

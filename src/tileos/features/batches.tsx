@@ -151,7 +151,7 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
                   <span className="min-w-0 flex-1">
                     <span className={cn('block truncate text-[0.9375rem] leading-snug', on ? 'font-semibold text-brand-800' : 'font-medium text-ink')}>{x.job.name}</span>
                     {/* where it's at on that project, in a few words ("4 to order", "Not yet") */}
-                    {w.text && <span className={cn('block truncate text-[0.8125rem] leading-snug', x.v.state === 'now' ? 'text-muted' : w.tone)}>{x.v.state === 'now' && x.v.note ? x.v.note.split(' — ')[0] : w.text}</span>}
+                    {w.text && <span className={cn('block truncate text-[0.8125rem] leading-snug', x.v.state === 'now' ? 'text-muted' : w.tone)}>{x.v.state === 'now' && x.v.note ? x.v.note.split(/ — | · |\. (?=[A-Z])/)[0] : w.text}</span>}
                   </span>
                   {(x.v.state === 'done' || x.v.state === 'na') && <Check className="h-4 w-4 shrink-0 text-[#2c8a5b]" strokeWidth={2.5} />}
                 </button>
@@ -170,7 +170,7 @@ export function StepBatchModal({ k, jobs, level }: { k: string; jobs: string[]; 
             {/* whose it is and where it stands, in a line — never an empty side */}
             <div className="mb-4 flex min-w-0 items-center gap-2 text-[0.875rem] text-muted" data-batch-status>
               <Avatar who={cur.v.owner} size={22} />
-              <span className="min-w-0"><b className="font-semibold text-ink-2">{cur.v.owner === me ? 'You' : PEOPLE[cur.v.owner]?.short || 'Someone'}</b> · {cur.v.state === 'later' ? (cur.v.waitsFor ? `Not yet — after “${cur.v.waitsFor}”` : 'Not yet') : cur.v.note || stepWords(s, cur.job, cur.v, me).text}</span>
+              <span className="min-w-0"><b className="font-semibold text-ink-2">{cur.v.owner === me ? 'You' : PEOPLE[cur.v.owner]?.short || 'Someone'}</b> · {cur.v.state === 'later' ? (cur.v.waitsFor ? `Not yet · after “${cur.v.waitsFor}”` : 'Not yet') : cur.v.note || stepWords(s, cur.job, cur.v, me).text}</span>
             </div>
             <StepInline key={cur.job.id + ':' + k} job={cur.job} v={cur.v} onClose={STAY} bare />
           </div>

@@ -98,8 +98,8 @@ export async function pagesOf(files: File[], max = MAX_PAGES, onStep?: (s: ReadS
 const SAMPLE_WORDS: Record<string, string> = {
   not_granted: 'Claude wasn’t allowed to read it. Try again and allow it when it asks.',
   sampling_disabled: 'Claude isn’t available on this account.',
-  rate_limited: 'Too many at once — try again in a minute.',
-  image_rejected: 'One of the pages couldn’t be read — try a clearer photo or the PDF.',
+  rate_limited: 'Too many at once. Try again in a minute.',
+  image_rejected: 'One of the pages couldn’t be read. Try a clearer photo or the PDF.',
   images_unavailable: 'Reading pictures isn’t available here.',
   cancelled: 'Stopped.',
 }
@@ -108,14 +108,14 @@ export async function askAI(prompt: string, pages: Blob[], signal?: AbortSignal)
   if (REAL.ai) return REAL.ai(prompt, pages, signal)
   const c = (globalThis as any).claude
   const sample = c?.use ? await c.use('sample').catch(() => null) : null
-  if (!sample) throw new ReadError('noai', 'Reading paperwork works in the real app — here it needs Claude, which isn’t available on this page.')
+  if (!sample) throw new ReadError('noai', 'Reading paperwork works in the real app. Here it needs Claude, which isn’t available on this page.')
   const lim = await sample.limits?.().catch(() => null)
   const n = lim?.images?.maxCount || 5
   try {
     const r = await sample(prompt, { images: pages.slice(0, n), modelTier: 'default', signal, cache: false })
     return r.text
   } catch (e: any) {
-    throw new ReadError(e?.code || 'error', SAMPLE_WORDS[e?.code] || 'Couldn’t read it just now — try again.')
+    throw new ReadError(e?.code || 'error', SAMPLE_WORDS[e?.code] || 'Couldn’t read it just now · try again.')
   }
 }
 
@@ -127,7 +127,7 @@ export function jsonIn(text: string): any {
   if (fence) { try { return JSON.parse(fence[1]) } catch { /* keep looking */ } }
   const a = t.indexOf('{'), b = t.lastIndexOf('}')
   if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)) } catch { /* no */ } }
-  throw new ReadError('json', 'The answer didn’t come back in a form we can use — try again.')
+  throw new ReadError('json', 'The answer didn’t come back in a form we can use · try again.')
 }
 
 /* ---------------- the tile paperwork ---------------- */
@@ -142,30 +142,30 @@ export function paperworkPrompt(job: Job, rooms: Room[], tiles: Tile[]): string 
     ...(surfaces.length ? surfaces : ['- (none entered yet)']),
     ...(have.length ? ['', 'Tiles we already have on the project (keep the same tag when it is the same tile):', ...have] : []),
     '',
-    'Our room names and the paperwork’s often differ — match them by what the room is, not the exact words: "Foyer" on the paperwork is our room with Foyer in its name (like "Foyer / Hallway / Closet"), "Powder Room 1" is our "Powder Room #1", "Main Floor Guest Bathroom" is our "Guest Bath · 1st floor". When a paperwork room clearly isn’t one of ours, leave goesOn empty and name the room in note.',
+    'Our room names and the paperwork’s often differ. Match them by what the room is, not the exact words: "Foyer" on the paperwork is our room with Foyer in its name (like "Foyer / Hallway / Closet"), "Powder Room 1" is our "Powder Room #1", "Main Floor Guest Bathroom" is our "Guest Bath · 1st floor". When a paperwork room clearly isn’t one of ours, leave goesOn empty and name the room in note.',
     '',
-    'Room sheets: each page is one room, its name big on top. Each tile on it has a small label above its name saying where it goes in that room — FLOOR, WALLS, WALLS TO 4 FT, FLOOR + WALLS TO 3 FT, FLOOR + FIRST 24 INCHES OF WALLS, ACCENT WALL, SHOWER FLOOR, SHOWER WALLS, TOP 4 FT OF SHOWER WALLS, REMAINING WALLS, BACKSPLASH, WALL CAP, CHECKERBOARD… Go by that label: FLOOR is that room’s floor; WALLS (to any height) its walls — or its wainscot, if that’s what we have; FLOOR + WALLS both; SHOWER FLOOR its shower floor; ACCENT WALL its accent wall if we list one, else its walls; CHECKERBOARD its floor. Two tiles can share one wall or floor (a checkerboard, a mix of two colors): give each of them that wall or floor. "Also used in" only says the same tile is on another room’s sheet too — where it goes there is on that room’s own sheet. The same tile on several sheets is ONE tile: give it once, with every wall and floor it goes on.',
+    'Room sheets: each page is one room, its name big on top. Each tile on it has a small label above its name saying where it goes in that room · FLOOR, WALLS, WALLS TO 4 FT, FLOOR + WALLS TO 3 FT, FLOOR + FIRST 24 INCHES OF WALLS, ACCENT WALL, SHOWER FLOOR, SHOWER WALLS, TOP 4 FT OF SHOWER WALLS, REMAINING WALLS, BACKSPLASH, WALL CAP, CHECKERBOARD… Go by that label: FLOOR is that room’s floor; WALLS (to any height) its walls, or its wainscot, if that’s what we have; FLOOR + WALLS both; SHOWER FLOOR its shower floor; ACCENT WALL its accent wall if we list one, else its walls; CHECKERBOARD its floor. Two tiles can share one wall or floor (a checkerboard, a mix of two colors): give each of them that wall or floor. "Also used in" only says the same tile is on another room’s sheet too. Where it goes there is on that room’s own sheet. The same tile on several sheets is ONE tile: give it once, with every wall and floor it goes on.',
     '',
     'For each different tile on the paperwork give:',
     '- tag: the tag or code the paperwork uses (T-1, FT-2, WT-3…), or "" if it has none',
     '- name: the tile’s name or color, e.g. "Calacatta Gold"',
     '- maker, size as bought (like "24 x 48"), finish (Matte, Polished, Honed, Gloss…)',
-    '- grout: the grout color if the paperwork says it ("Not specified" means it doesn’t — leave it ""); joint: the grout joint if given (like 1/16")',
+    '- grout: the grout color if the paperwork says it ("Not specified" means it doesn’t. Leave it ""); joint: the grout joint if given (like 1/16")',
     '- qty and unit: how much the paperwork has of it, unit "SF" or "boxes" (cartons count as boxes); boxSF: square feet in a box, if shown',
-    '- supplier: the store or showroom the tile comes from — the company whose name or logo is on the paperwork (its header, footer, quote or order — for example "Infinity Tile"). When the paperwork is one store’s, every tile on it gets that store',
-    '- goesOn: which of OUR walls and floors listed above it goes on — copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, the label over the tile, floor, shower walls, backsplash…). If it doesn’t say, leave it empty — don’t guess.',
-    '- layout: the pattern if the paperwork gives it — Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave, Checkerboard… — and if the tile is cut down on the job ("Cut to 12 × 12"), add that, like "Checkerboard · cut to 12 x 12"',
-    '- edge: how its open edges and outside corners are finished, if the paperwork says — "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',
-    '- height: on walls, how high it goes if the paperwork says and it’s the same everywhere the tile goes — "Fully tiled — to the ceiling", "Half tiled — to 4 ft", "Wet walls only — to the ceiling", or a height like 84″. When it differs by room, say it for each room in "rooms" instead.',
-    '- trim: true when it’s a trim piece, not a field tile — a wall cap, a jolly, a pencil liner, a bullnose, a chair rail, a base. Give it goesOn like any tile (the walls it finishes): it goes on them together with their tile. A metal edge (Schluter and the like) isn’t a tile — say it in edge on the tiles it finishes instead.',
+    '- supplier: the store or showroom the tile comes from. The company whose name or logo is on the paperwork (its header, footer, quote or order · for example "Infinity Tile"). When the paperwork is one store’s, every tile on it gets that store',
+    '- goesOn: which of OUR walls and floors listed above it goes on. Copy the labels exactly as written above (for example "Master Bath · Floor"). Go by where the paperwork says it goes (room names, the label over the tile, floor, shower walls, backsplash…). If it doesn’t say, leave it empty · don’t guess.',
+    '- layout: the pattern if the paperwork gives it · Straight lay, Offset ½, Offset ⅓, Vertical stack, Herringbone, Diagonal, Basketweave, Checkerboard…, and if the tile is cut down on the job ("Cut to 12 × 12"), add that, like "Checkerboard · cut to 12 x 12"',
+    '- edge: how its open edges and outside corners are finished, if the paperwork says · "Mitered", "Bullnose", or the metal with its profile, finish (color) and size, like "Schluter JOLLY · Brushed nickel · 10 mm"',
+    '- height: on walls, how high it goes if the paperwork says and it’s the same everywhere the tile goes · "Fully tiled, to the ceiling", "Half tiled, to 4 ft", "Wet walls only · to the ceiling", or a height like 84″. When it differs by room, say it for each room in "rooms" instead.',
+    '- trim: true when it’s a trim piece, not a field tile. A wall cap, a jolly, a pencil liner, a bullnose, a chair rail, a base. Give it goesOn like any tile (the walls it finishes): it goes on them together with their tile. A metal edge (Schluter and the like) isn’t a tile. Say it in edge on the tiles it finishes instead.',
     '- note: where the paperwork puts it in its own words (like "Accent wall" or "Top 4 ft of shower walls"), and anything unclear about this tile, in a few words',
-    '- photo: if the pages show a picture of this tile (a sample photo or swatch), where it is: {"page": the picture number (1 for the first picture you were sent), "box": [ymin, xmin, ymax, xmax]} — each from 0 to 1000 across that picture, top-left is 0,0. Box just the tile’s picture, not text and not the whole page (two small pictures side by side for one tile: box both). Leave photo out if there is no picture of it.',
+    '- photo: if the pages show a picture of this tile (a sample photo or swatch), where it is: {"page": the picture number (1 for the first picture you were sent), "box": [ymin, xmin, ymax, xmax]}. Each from 0 to 1000 across that picture, top-left is 0,0. Box just the tile’s picture, not text and not the whole page (two small pictures side by side for one tile: box both). Leave photo out if there is no picture of it.',
     '',
-    'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms" — for example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"} or {"room":"Powder Room #1","note":"Walls to 4 ft"}. Use our room names exactly as written above.',
+    'Also, for each of OUR rooms where the paperwork says the ceiling height or how the walls are tiled, give a short note in "rooms". For example {"room":"Master Bath","note":"9 ft ceiling; wet walls full, other walls to 4 ft"} or {"room":"Powder Room #1","note":"Walls to 4 ft"}. Use our room names exactly as written above.',
     '',
     'Answer with JSON only, no other text, in exactly this shape:',
     '{"tiles":[{"tag":"","name":"","maker":"","size":"","finish":"","grout":"","joint":"","qty":0,"unit":"SF","boxSF":0,"supplier":"","goesOn":[],"layout":"","edge":"","height":"","trim":false,"note":"","photo":{"page":1,"box":[0,0,0,0]}}],"rooms":[{"room":"","note":""}],"notes":""}',
-    'In "notes" put anything on the paperwork that matters for the job but isn’t a tile — a revision date, a missing page, a question. Leave a field "" (or 0) when the paperwork doesn’t give it.',
+    'In "notes" put anything on the paperwork that matters for the job but isn’t a tile. A revision date, a missing page, a question. Leave a field "" (or 0) when the paperwork doesn’t give it.',
   ].join('\n')
 }
 

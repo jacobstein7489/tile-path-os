@@ -32,7 +32,7 @@ export function RatioBlock({ ipo, className }: { ipo: IPO; className?: string })
   const s = useStore()
   const r = poRatio(s, ipo)
   const who = PEOPLE[ipo.crew]?.short || 'His'
-  if (!r.total) return <div className={cn('text-[0.875rem] font-semibold text-ink-2', className)}>{who}’s PO has no prices on it yet — open it and put his prices in, then it’s compared with our estimate.</div>
+  if (!r.total) return <div className={cn('text-[0.875rem] font-semibold text-ink-2', className)}>{who}’s PO has no prices on it yet. Open it and put his prices in, then it’s compared with our estimate.</div>
   if (!r.sold) return <div className={cn('text-[0.875rem] text-muted', className)}>{who}’s PO comes to <b className="font-semibold text-ink">{fmtMoney(r.total)}</b>. There’s no estimate to compare it with yet.</div>
   const tone = toneOf(r)
   const left = Math.round((r.sold * r.line) / 100) - r.total
@@ -47,7 +47,7 @@ export function RatioBlock({ ipo, className }: { ipo: IPO; className?: string })
         <Tip label={`The line: ${r.line}% of our estimate`}><span className="absolute -bottom-1 -top-1 w-[0.1875rem] rounded-full bg-ink" style={{ left: `calc(${r.line}% - 0.09375rem)` }} /></Tip>
       </div>
       <div className={cn('mt-1.5 text-[0.78125rem]', r.over ? 'font-semibold text-bad-700' : 'text-muted')}>
-        {r.over ? `Over the ${r.line}% line by ${fmtMoney(-left)}` : `Under the ${r.line}% line — ${fmtMoney(left)} of room left`}
+        {r.over ? `Over the ${r.line}% line by ${fmtMoney(-left)}` : `Under the ${r.line}% line · ${fmtMoney(left)} of room left`}
       </div>
     </div>
   )
@@ -61,7 +61,7 @@ export function InstallerVsEstimate({ job }: { job: Job }) {
   if (!ipo)
     return (
       <Section title="Installer vs our estimate" sub={b.sold ? `Our estimate ${fmtMoney(b.sold)} · his PO should stay under ${b.line}%` : 'No estimate to compare with yet'} action={<Button size="sm" icon={<HardHat />} onClick={() => s.open({ t: 'book', jobId: job.id })}>Book the installer</Button>}>
-        <Empty>{b.sold ? <>No installer PO yet. Keep it under <b className="font-semibold text-ink">{fmtMoney(b.cap)}</b> — {b.line}% of our {fmtMoney(b.sold)}.</> : 'No installer PO yet.'}</Empty>
+        <Empty>{b.sold ? <>No installer PO yet. Keep it under <b className="font-semibold text-ink">{fmtMoney(b.cap)}</b> · {b.line}% of our {fmtMoney(b.sold)}.</> : 'No installer PO yet.'}</Empty>
       </Section>
     )
   const r = poRatio(s, ipo)
@@ -80,25 +80,25 @@ export function InstallerVsEstimate({ job }: { job: Job }) {
             return (
               <div key={i} className="grid min-h-[2.75rem] grid-cols-[minmax(0,1fr)_8rem_8rem_5.5rem] items-center gap-3 border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:px-4">
                 <span className="min-w-0"><span className="block truncate text-[0.875rem] font-medium text-ink">{l.item}</span><span className="block truncate text-[0.75rem] text-muted">{l.qty}{l.rate ? ` · $${l.rate}/SF` : ''}</span></span>
-                <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{x?.sold ? fmtMoney(x.sold) : '—'}</span>
+                <span className="text-right text-[0.84375rem] tnum text-ink-2 max-sm:hidden">{x?.sold ? fmtMoney(x.sold) : ''}</span>
                 <span className="text-right text-[0.875rem] font-semibold tnum text-ink">{fmtMoney(l.amount)}</span>
-                <span className={cn('text-right text-[0.84375rem] font-semibold tnum', over ? 'text-bad-600' : x?.pct != null ? 'text-ink-2' : 'text-faint')}>{x?.pct != null ? `${x.pct}%` : '—'}</span>
+                <span className={cn('text-right text-[0.84375rem] font-semibold tnum', over ? 'text-bad-600' : x?.pct != null ? 'text-ink-2' : 'text-faint')}>{x?.pct != null ? `${x.pct}%` : ''}</span>
               </div>
             )
           })}
           {ipo.changes.filter((c) => c.status !== 'pending').map((c) => (
             <div key={c.co} className="grid min-h-[2.75rem] grid-cols-[minmax(0,1fr)_8rem_8rem_5.5rem] items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:px-4">
               <span className="min-w-0 truncate text-[0.875rem] text-ink">{c.co} · {c.text}</span>
-              <span className="text-right text-[0.84375rem] text-faint max-sm:hidden">—</span>
+              <span className="text-right text-[0.84375rem] text-faint max-sm:hidden"></span>
               <span className="text-right text-[0.875rem] font-semibold tnum text-ink">+{fmtMoney(c.amount)}</span>
-              <span className="text-right text-faint">—</span>
+              <span className="text-right text-faint"></span>
             </div>
           ))}
           <div className="grid grid-cols-[minmax(0,1fr)_8rem_8rem_5.5rem] items-center gap-3 border-t border-line bg-[#faf8f5] px-5 py-2.5 max-sm:grid-cols-[minmax(0,1fr)_6rem_4rem] max-sm:px-4">
             <span className="text-[0.875rem] font-semibold text-ink">Total</span>
-            <span className="text-right text-[0.875rem] font-semibold tnum text-ink-2 max-sm:hidden">{r.sold ? fmtMoney(r.sold) : '—'}</span>
+            <span className="text-right text-[0.875rem] font-semibold tnum text-ink-2 max-sm:hidden">{r.sold ? fmtMoney(r.sold) : ''}</span>
             <span className="text-right text-[0.9375rem] font-bold tnum text-ink">{fmtMoney(r.total)}</span>
-            <span className={cn('text-right text-[0.9375rem] font-bold tnum', r.sold ? TEXT[toneOf(r)] : 'text-faint')}>{r.sold ? `${r.pct}%` : '—'}</span>
+            <span className={cn('text-right text-[0.9375rem] font-bold tnum', r.sold ? TEXT[toneOf(r)] : 'text-faint')}>{r.sold ? `${r.pct}%` : ''}</span>
           </div>
         </div>
       )}

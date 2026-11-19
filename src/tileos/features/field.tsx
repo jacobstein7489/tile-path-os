@@ -78,7 +78,7 @@ export function MediaModal({ items, index: start, level }: { items: MediaX[]; in
             <Swatch kind={m.sw || 'bianco'} size={400} radius={0} className="!h-full !w-full" />
             <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_28%_18%,rgba(255,255,255,.28),transparent_55%),linear-gradient(to_top,rgba(13,22,40,.3),transparent_45%)]" />
             {m.kind === 'video' && (
-              <button onClick={() => toast('Sample video — real videos play right here')} className="absolute inset-0 m-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-ink shadow-pop" aria-label="Play">
+              <button onClick={() => toast('Sample video. Real videos play right here')} className="absolute inset-0 m-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-ink shadow-pop" aria-label="Play">
                 <Play className="ml-1 h-7 w-7 fill-ink" />
               </button>
             )}
@@ -165,7 +165,7 @@ export function RoomDiary({ job, room }: { job: Job; room: Room }) {
                     {c.t === 'Not started' && ['blocked', 'hold', 'waitmat', 'unknown'].includes(x.state) && <span className="truncate text-[0.75rem] font-medium text-warn-700">{x.pending ? x.pending.co : SURF_LABEL[x.state]}</span>}
                   </div>
                 ))}
-                {!c.list.length && <div className="text-[0.8125rem] text-faint">—</div>}
+                {!c.list.length && <div className="text-[0.8125rem] text-faint"></div>}
               </div>
             </div>
           ))}
@@ -215,7 +215,7 @@ export function RoomDiary({ job, room }: { job: Job; room: Room }) {
           ))}
         </div>
       ) : (
-        <Empty icon={<Images className="h-6 w-6" />} title="No updates for this room yet" sub="The crew’s daily update fills this in — what was tiled each day, with photos and videos." className="py-8" />
+        <Empty icon={<Images className="h-6 w-6" />} title="No updates for this room yet" sub="The crew’s daily update fills this in. What was tiled each day, with photos and videos." className="py-8" />
       )}
     </div>
   )
@@ -228,7 +228,7 @@ export function RoomPhotos({ job, room }: { job: Job; room: Room }) {
   const samples = all.some((m) => !m.url)
   return (
     <div className="px-6 py-5 max-sm:px-4">
-    {samples && <div className="mb-4 flex items-center gap-2 rounded-xl bg-wash px-3.5 py-2.5 text-[0.8125rem] text-muted"><Images className="h-4 w-4 shrink-0" />Sample pictures for the demo — in the real app the crew’s photos and videos land here from their phones.</div>}
+    {samples && <div className="mb-4 flex items-center gap-2 rounded-xl bg-wash px-3.5 py-2.5 text-[0.8125rem] text-muted"><Images className="h-4 w-4 shrink-0" />Sample pictures for the demo. In the real app the crew’s photos and videos land here from their phones.</div>}
     <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-2">
       {all.map((m, i) => (
         <div key={m.id} className="min-w-0">
@@ -296,7 +296,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
     const cnt = (media[room] || []).length
     const sf = r?.surfaces.find((x) => targets[keyOf(room, x.name)] !== undefined) || r?.surfaces.find((x) => x.state === 'working') || r?.surfaces[0]
     const sw = (sf && tileOf(jobId, sf.tile)?.swatch) || SAMPLE_SW[cnt % SAMPLE_SW.length]
-    setMedia((p) => ({ ...p, [room]: [...(p[room] || []), { id: 's' + Date.now(), kind: cnt % 3 === 2 ? 'video' : 'photo', sw, dur: '0:16', cap: `${room} — ${sf?.name.toLowerCase() || 'today'}`, surface: sf?.name }] }))
+    setMedia((p) => ({ ...p, [room]: [...(p[room] || []), { id: 's' + Date.now(), kind: cnt % 3 === 2 ? 'video' : 'photo', sw, dur: '0:16', cap: `${room} · ${sf?.name.toLowerCase() || 'today'}`, surface: sf?.name }] }))
   }
   const send = () => {
     const names = Array.from(new Set([...Object.keys(targets).map((k) => k.split('::')[0]), ...Object.keys(media).filter((k) => media[k].length), ...Object.keys(notes).filter((k) => notes[k]?.trim())]))
@@ -360,7 +360,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
         <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-3 px-7 py-6 max-sm:px-4" data-daily-norooms>
           <div>
             <div className="text-[1rem] font-semibold text-ink">What got done today?</div>
-            <div className="mt-0.5 text-[0.84375rem] text-muted">No rooms on this project yet — say it in a few words. Photos help.</div>
+            <div className="mt-0.5 text-[0.84375rem] text-muted">No rooms on this project yet. Say it in a few words. Photos help.</div>
           </div>
           <TextArea value={notes[room] || ''} onChange={(e) => setNotes((p) => ({ ...p, [room]: e.target.value }))} placeholder="e.g. Prepped the master bath walls, set the shower pan" aria-label="What got done today" />
           <div className="flex flex-wrap items-center gap-2">
@@ -526,7 +526,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                 </div>
               ))
             ) : (
-              <div className="border-t border-line-2 px-5 py-4 text-[0.875rem] text-muted" data-daily-nothing>{noRooms && notes[room]?.trim() ? <span className="text-ink">{notes[room].trim()}</span> : 'Nothing marked today — it goes as the crew being there.'}</div>
+              <div className="border-t border-line-2 px-5 py-4 text-[0.875rem] text-muted" data-daily-nothing>{noRooms && notes[room]?.trim() ? <span className="text-ink">{notes[room].trim()}</span> : 'Nothing marked today. It goes as the crew being there.'}</div>
             )}
             {(mediaCount > 0 || blocked || shortage || change || tomorrow.length > 0) && (
               <div className="flex flex-wrap gap-2 border-t border-line-2 px-5 py-3">
@@ -559,7 +559,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                     <span className="text-[0.84375rem] font-semibold tnum text-ink">{projected}% installed</span>
                   </div>
                   <div className="mt-3 flex flex-col gap-1 text-[0.84375rem] text-ink-2">
-                    {lines.map((l) => <div key={l.k}>{l.room} — {l.surface.toLowerCase()} {l.to >= 100 ? 'finished' : `now ${l.to}%`}</div>)}
+                    {lines.map((l) => <div key={l.k}>{l.room} · {l.surface.toLowerCase()} {l.to >= 100 ? 'finished' : `now ${l.to}%`}</div>)}
                   </div>
                   {mediaCount > 0 && (
                     <div className="mt-3 grid grid-cols-6 gap-2 max-sm:grid-cols-4">
@@ -763,7 +763,7 @@ function useSiteChange({ jobId, room: r0, surface: s0, by: by0 = 'Homeowner', me
             onToggle={() => setDoIPO((v) => !v)}
             icon={<HardHat className="h-4 w-4" />}
             title={crew ? `${PEOPLE[crew].name}’s installer PO` : 'Installer PO'}
-            sub={!crew ? 'No installer yet — his PO is made from the new scope.' : ipoAmount === 0 ? 'No change to the installer’s work.' : s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}. You’ll get it once it’s approved.` : `${ipo?.id || 'New PO'} gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}). Sent to ${PEOPLE[crew].name} when approved.`}
+            sub={!crew ? 'No installer yet. His PO is made from the new scope.' : ipoAmount === 0 ? 'No change to the installer’s work.' : s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}. You’ll get it once it’s approved.` : `${ipo?.id || 'New PO'} gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}). Sent to ${PEOPLE[crew].name} when approved.`}
           />
           <Effect
             on={tileOn}
@@ -771,7 +771,7 @@ function useSiteChange({ jobId, room: r0, surface: s0, by: by0 = 'Homeowner', me
             onToggle={() => setDoTile((v) => !v)}
             icon={<Package className="h-4 w-4" />}
             title="Tile"
-            sub={tileSF <= 0 ? 'No extra tile needed.' : `About ${tileNeed} SF of ${tileTag} ${tileOf(jobId, tileTag)?.name || ''} with ${waste}% waste. ${supplier === 'GC' ? 'The GC supplies it — they’re asked to order it once approved.' : 'We order it once approved.'}`}
+            sub={tileSF <= 0 ? 'No extra tile needed.' : `About ${tileNeed} SF of ${tileTag} ${tileOf(jobId, tileTag)?.name || ''} with ${waste}% waste. ${supplier === 'GC' ? 'The GC supplies it. They’re asked to order it once approved.' : 'We order it once approved.'}`}
           />
           <Effect on icon={<PauseCircle className="h-4 w-4" />} title={meeting ? 'That surface waits' : 'The crew holds'} sub={sf ? `${crew ? PEOPLE[crew].name + '’s' : 'The crew’s'} phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()} until it’s approved. Everything else keeps moving.` : 'Only that surface waits.'} />
         </div>
@@ -804,7 +804,7 @@ export function SiteChangeModal({ jobId, room, surface, level }: { jobId: string
       title="Change on site"
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{f.ready ? `One click starts ${f.count} things — nobody has to remember the rest.` : 'Pick what they want now.'}</span>
+          <span className="text-[0.84375rem] text-muted">{f.ready ? `One click starts ${f.count} things. Nobody has to remember the rest.` : 'Pick what they want now.'}</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
         </>
@@ -894,7 +894,7 @@ export function ChangeApproveModal({ id, level }: { id: string; level: number })
               { i: <Receipt className="h-4 w-4" />, t: 'Billing', d: `${co} becomes billable · ${fmtMoney(m.amount || x.estimate || 0)}` },
               { i: <HardHat className="h-4 w-4" />, t: 'Crew', d: `The do-not-start lifts; the crew’s instruction becomes “${x.to}”` },
               ...(x.doIPO && ipo ? [{ i: <FileText className="h-4 w-4" />, t: 'Installer PO', d: `${ipo.id} change sent to ${PEOPLE[ipo.crew].name}: ${x.ipoQty}` }] : []),
-              ...(x.doTile && x.tileSF > 0 ? [{ i: <Package className="h-4 w-4" />, t: 'Tile', d: `About ${x.tileSF} SF more ${x.tileTag} plus waste — ${tileOf(m.jobId, x.tileTag)?.suppliedBy === 'GC' ? 'the GC is asked to order it' : 'we order it'}` }] : []),
+              ...(x.doTile && x.tileSF > 0 ? [{ i: <Package className="h-4 w-4" />, t: 'Tile', d: `About ${x.tileSF} SF more ${x.tileTag} plus waste · ${tileOf(m.jobId, x.tileTag)?.suppliedBy === 'GC' ? 'the GC is asked to order it' : 'we order it'}` }] : []),
             ].map((r) => (
               <div key={r.t} className="flex items-start gap-3 px-4 py-3">
                 <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">{r.i}</span>
@@ -924,7 +924,7 @@ export function ChangeApproveModal({ id, level }: { id: string; level: number })
             <div className="flex items-center gap-2 text-[0.90625rem] font-semibold text-ok-600"><CheckCircle2 className="h-5 w-5" />Approved · billable</div>
           ) : !x.sent ? (
             <>
-              <Field label="Price for the GC" hint={`Estimate: ${fmtMoney(x.estimate || 0)} — labor, tile handling and setting materials`}>
+              <Field label="Price for the GC" hint={`Estimate: ${fmtMoney(x.estimate || 0)}. Labor, tile handling and setting materials`}>
                 <TextInput value={amt} onChange={(e) => setAmt(e.target.value)} placeholder="$0" />
               </Field>
               <Button full variant="primary" icon={<Send className="h-[1.125rem] w-[1.125rem]" />} disabled={!Number(amt.replace(/[^0-9]/g, ''))} onClick={() => sendCO(id, Number(amt.replace(/[^0-9]/g, '')))}>Send {co} to the GC</Button>
@@ -974,7 +974,7 @@ export function MeetingModal({ taskId, jobId: jid, kind, level }: { taskId?: str
       size="md"
       onClose={s.close}
       title={walk ? `Walkthrough · ${job.name}` : `Meeting · ${job.name}`}
-      sub={walk ? `Walk the rooms with ${crewName} before the start — heights, layouts, and what not to start.` : t?.where ? `${t.where} — the answers get saved to the surfaces, not to a comment` : undefined}
+      sub={walk ? `Walk the rooms with ${crewName} before the start. Heights, layouts, and what not to start.` : t?.where ? `${t.where}. The answers get saved to the surfaces, not to a comment` : undefined}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted">It leaves your list and comes back on the day.</span>
@@ -1060,7 +1060,7 @@ export function InstallerPOCard({ job }: { job: Job }) {
       <Card>
         <CardHeader title="Installer PO" sub="What we pay the crew for this project." />
         <div className="px-6 pb-6 max-sm:px-4">
-          <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-[0.875rem] text-muted">No crew yet — the installer PO goes out when a crew is booked.</div>
+          <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-[0.875rem] text-muted">No crew yet. The installer PO goes out when a crew is booked.</div>
         </div>
       </Card>
     )

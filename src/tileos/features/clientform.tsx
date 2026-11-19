@@ -54,7 +54,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       }
       if (card && !c.card) c.card = { status: 'link-sent', sent: NOW }
       Object.values(st.jobs).forEach((j) => { if (j.clientId === editId) j.client = name })
-    }, `${name} — saved`, { close: true, sub: card && !was?.card ? `A secure QuickBooks link went to ${email.trim()} to put a card on file.` : 'Its projects show the new details too.' })
+    }, `${name} · saved`, { close: true, sub: card && !was?.card ? `A secure QuickBooks link went to ${email.trim()} to put a card on file.` : 'Its projects show the new details too.' })
   }
   const save = () => {
     if (editId) return update()
@@ -82,7 +82,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
     >
       <FormRow label="Who they are">
-        <Segmented value={kind} onChange={setKind} items={[{ key: 'company', label: 'A company — GC, developer' }, { key: 'person', label: 'A person — homeowner' }]} />
+        <Segmented value={kind} onChange={setKind} items={[{ key: 'company', label: 'A company · GC, developer' }, { key: 'person', label: 'A person · homeowner' }]} />
       </FormRow>
       {kind === 'company' && (
         <FormRow label="Company">
@@ -97,8 +97,8 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       </FormRow>
       <FormRow label="Reach them">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <TextInput type="email" aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email — name@company.com" />
-          <TextInput aria-label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone — (718) 555-0100" />
+          <TextInput type="email" aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email · name@company.com" />
+          <TextInput aria-label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone · (718) 555-0100" />
         </div>
         <MoreReach className="mt-2" value={more} onChange={setMore} />
       </FormRow>
@@ -114,12 +114,12 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
         <TextArea aria-label="Comment" rows={1} className="min-h-[2.75rem]" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="How they like to work, who approves changes, payment terms…" />
       </FormRow>
       <FormRow label="Card on file">
-        {was?.card ? <div className="flex min-h-10 items-center gap-2 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 text-ok-600" />{was.card.status === 'on-file' ? `${was.card.brand || 'Card'} ···· ${was.card.last4 || ''}` : `Link sent ${was.card.sent || ''} — waiting for them to add it`}</div> :
+        {was?.card ? <div className="flex min-h-10 items-center gap-2 text-[0.84375rem] text-ink-2"><Lock className="h-4 w-4 text-ok-600" />{was.card.status === 'on-file' ? `${was.card.brand || 'Card'} ···· ${was.card.last4 || ''}` : `Link sent ${was.card.sent || ''}. Waiting for them to add it`}</div> :
         <button type="button" role="checkbox" aria-checked={card} onClick={() => setCard(!card)} className="flex w-full items-start gap-3 rounded-[0.625rem] px-1 py-2 text-left">
           <span className={cn('mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', card ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{card && <Check className="h-3 w-3" strokeWidth={3.4} />}</span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5 text-[0.875rem] font-semibold text-ink"><Lock className="h-4 w-4 text-ok-600" />Send them a secure link to add a card</span>
-            <span className="mt-0.5 block text-[0.78125rem] leading-snug text-muted">On QuickBooks Payments’ own page — nobody here sees the number; we keep only “Visa ···· 4242”.</span>
+            <span className="mt-0.5 block text-[0.78125rem] leading-snug text-muted">On QuickBooks Payments’ own page. Nobody here sees the number; we keep only “Visa ···· 4242”.</span>
           </span>
         </button>}
       </FormRow>

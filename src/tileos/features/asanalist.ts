@@ -237,7 +237,7 @@ export function bringList(jobs: ListJob[], board: string) {
         const day = j.due ? labelFromIso(j.due) : ''
         st.jobs[id] = {
           id, name: j.name, client: c.name, clientId: c.id, address: j.address || 'Address to confirm', stage, status: 'info',
-          headline: j.place === 'request' ? 'New submission' : j.place === 'estimating' ? 'Estimating' : j.priceOut ? 'Price-out — following the project' : 'Waiting for the client’s OK',
+          headline: j.place === 'request' ? 'New submission' : j.place === 'estimating' ? 'Estimating' : j.priceOut ? 'Price-out. Following the project' : 'Waiting for the client’s OK',
           issues: [], next: { text: j.place === 'pending' ? 'Follow up with the client' : 'Price it', owner: est || 'office', due: day || undefined },
           keyDate: { label: j.place === 'pending' ? 'Follow up' : 'Bid due', value: day || 'TBD' }, swatch: 'blueprint', building: 'midrise', estimator: est,
           ...(j.total ? { contract: j.total } : {}),
@@ -250,7 +250,7 @@ export function bringList(jobs: ListJob[], board: string) {
           revs: [{ n: 1, date: NOW, status: j.place === 'pending' ? 'sent' : 'draft', ...(j.place === 'pending' ? { sentOn: NOW } : {}), what: 'Original scope', lines: [] }],
           log: [{ date: NOW, who: me, text: `Brought in from Asana${board ? ` (${board})` : ''}` }],
         })
-        addHist(st, id, { who: me, kind: 'pricing', title: `Brought in from Asana · ${estId}`, detail: [asanaWords, link].filter(Boolean).join(' — ') || undefined, ref: { t: 'estimate', id: estId } })
+        addHist(st, id, { who: me, kind: 'pricing', title: `Brought in from Asana · ${estId}`, detail: [asanaWords, link].filter(Boolean).join(' · ') || undefined, ref: { t: 'estimate', id: estId } })
         if (j.notes) addHist(st, id, { who: me, kind: 'pricing', title: 'Notes from Asana', detail: j.notes.replace(/\s+/g, ' ').slice(0, 600) })
         return
       }
@@ -279,7 +279,7 @@ export function bringList(jobs: ListJob[], board: string) {
           recs[d.key] = d.key === 'sheets' && j.place === 'ready' ? { na: true } : { done: NOW, by: me, note: 'Done before Tile OS' }
         })
       }
-      addHist(st, id, { who: me, kind: 'setup', title: 'Brought in from Asana', detail: [asanaWords, j.total ? `Total ${fmtMoney(j.total)}` : '', link].filter(Boolean).join(' — ') || undefined })
+      addHist(st, id, { who: me, kind: 'setup', title: 'Brought in from Asana', detail: [asanaWords, j.total ? `Total ${fmtMoney(j.total)}` : '', link].filter(Boolean).join(' · ') || undefined })
       if (j.notes) addHist(st, id, { who: me, kind: 'setup', title: 'Notes from Asana', detail: j.notes.replace(/\s+/g, ' ').slice(0, 600) })
     })
   }, `${jobs.length} ${jobs.length === 1 ? 'job' : 'jobs'} brought in from Asana`, { sub: `${won.length} on Projects · ${jobs.length - won.length} on Estimates. Add each one’s estimate and tile paperwork when you get to it.` })

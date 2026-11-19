@@ -9,7 +9,7 @@ export const METHODS: Record<MethodKey, { label: string; short: string; kinds: S
   slab: { label: 'Thinset on the slab', short: 'On the slab', kinds: ['floor'], layers: 'Thinset straight on the concrete' },
   mud: { label: 'Mud bed with wire mesh', short: 'Mud bed + mesh', kinds: ['floor'], layers: 'Wire mesh, sand and Portland, then thinset' },
   slu: { label: 'Self-leveler', short: 'Self-leveler', kinds: ['floor'], layers: 'Primer and self-leveler, then thinset' },
-  membrane: { label: 'Uncoupling mat — Strata_Mat or Ditra', short: 'Uncoupling mat', kinds: ['floor'], layers: 'Mat set in thinset, then thinset' },
+  membrane: { label: 'Uncoupling mat · Strata_Mat or Ditra', short: 'Uncoupling mat', kinds: ['floor'], layers: 'Mat set in thinset, then thinset' },
   mudpan: { label: 'Mud pan and liner', short: 'Mud pan', kinds: ['shower-floor'], layers: 'Liner, then sloped sand and Portland' },
   cbuwp: { label: 'Cement board and waterproofing', short: 'Board + waterproofing', kinds: ['wall'], layers: 'Cement board, taped, liquid waterproofing' },
   cbu: { label: 'Cement board', short: 'Cement board', kinds: ['wall'], layers: 'Cement board, taped' },
@@ -60,7 +60,7 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
   {
     group: 'Thinset · 50 lb bag',
     rows: [
-      { key: 'thinSmall', label: 'Small tile — subway, mosaic', unit: 'SF a bag', step: 5, min: 30, max: 200 },
+      { key: 'thinSmall', label: 'Small tile · subway, mosaic', unit: 'SF a bag', step: 5, min: 30, max: 200 },
       { key: 'thinMed', label: 'Tile up to 15″', unit: 'SF a bag', step: 5, min: 30, max: 150 },
       { key: 'thinLarge', label: 'Large format, back-buttered', unit: 'SF a bag', step: 5, min: 20, max: 120 },
       { key: 'thinBond', label: 'Setting a membrane', unit: 'SF a bag', step: 5, min: 20, max: 150 },
@@ -69,11 +69,11 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
   {
     group: 'Grout',
     rows: [
-      { key: 'groutBag', label: 'Grout bag', unit: 'lb a bag — worked out from each tile’s size and joint', step: 1, min: 5, max: 50 },
+      { key: 'groutBag', label: 'Grout bag', unit: 'lb a bag. Worked out from each tile’s size and joint', step: 1, min: 5, max: 50 },
     ],
   },
   {
-    group: 'Mud — sand and Portland',
+    group: 'Mud. Sand and Portland',
     rows: [
       { key: 'mudIn', label: 'Floor mud bed', unit: 'inches', step: 0.25, min: 0.75, max: 4 },
       { key: 'panIn', label: 'Shower pan, average', unit: 'inches', step: 0.25, min: 1, max: 4 },
@@ -92,7 +92,7 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
     ],
   },
   {
-    group: 'Walls — board and skim',
+    group: 'Walls. Board and skim',
     rows: [
       { key: 'board', label: 'Cement board 3×5', unit: 'SF a sheet', step: 1, min: 8, max: 32 },
       { key: 'screwsBox', label: 'Board screws', unit: 'sheets a box', step: 1, min: 4, max: 40 },
@@ -102,7 +102,7 @@ export const MAT_RULE_ROWS: { group: string; rows: { key: keyof MatRules; label:
     ],
   },
   {
-    group: 'Leveling clips — tile 24″ and up',
+    group: 'Leveling clips. Tile 24″ and up',
     rows: [
       { key: 'clipsTile', label: 'Clips a tile', unit: 'clips', step: 1, min: 1, max: 8 },
       { key: 'clipsBag', label: 'Clips a bag', unit: 'clips', step: 50, min: 50, max: 1000 },

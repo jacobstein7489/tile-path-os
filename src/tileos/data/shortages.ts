@@ -25,13 +25,13 @@ export interface Shortage {
 export const SHORTAGES0: Shortage[] = [
   {
     id: 'SH-1', jobId: '24c', tag: 'T-06', qty: 12, unit: 'boxes', surfaces: [{ room: 'Basement bath', surface: 'Walls' }],
-    found: { who: 'materials', date: 'Sep 2', how: 'Delivery came short — 18 of 30 boxes' },
+    found: { who: 'materials', date: 'Sep 2', how: 'Delivery came short · 18 of 30 boxes' },
     step: 'reordered', orderedBy: 'GC', orderedFrom: 'Best Tile', orderedOn: 'Sep 2', eta: 'Fri, Oct 2', stops: true,
     log: [
-      { date: 'Sep 2', who: 'materials', text: 'Delivery came short — 18 of 30 boxes of T-06' },
+      { date: 'Sep 2', who: 'materials', text: 'Delivery came short · 18 of 30 boxes of T-06' },
       { date: 'Sep 2', who: 'materials', text: 'The GC put the rest on order with Best Tile' },
       { date: 'Sep 24', who: 'materials', text: 'Best Tile: “next Friday”' },
-      { date: 'Sep 26', who: 'walter', text: 'Walls are prepped — waiting on the tile' },
+      { date: 'Sep 26', who: 'walter', text: 'Walls are prepped. Waiting on the tile' },
     ],
   },
 ]

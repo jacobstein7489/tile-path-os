@@ -27,6 +27,12 @@ export interface CalEvent {
   plan?: boolean
   /** who set it (or moved it last) — everyone else in it is told */
   by?: PersonKey
+  /** when it was set ("Nov 18", "8:22 PM") */
+  made?: { date: string; time?: string }
+  /** what people wrote on it, oldest first — the same notes as a to-do's */
+  notes?: { date: string; who: string; text: string; time?: string }[]
+  /** the day it was marked done — off Today from then */
+  done?: string
 }
 
 export const EVENTS0: CalEvent[] = [

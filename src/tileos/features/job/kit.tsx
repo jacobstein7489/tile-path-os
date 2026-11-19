@@ -116,7 +116,7 @@ export const ROW = 'grid grid-cols-[1.75rem_minmax(0,1fr)_8.75rem_7.25rem_5.75re
 export function Who({ who, className, size = 24 }: { who?: PersonKey; className?: string; size?: number }) {
   const role = useStore((s) => s.role)
   const me = meOf(role)
-  if (!who || !PEOPLE[who]) return <span className={cn('flex min-w-0 items-center gap-2 text-[0.84375rem] text-faint', className)}>—</span>
+  if (!who || !PEOPLE[who]) return <span className={cn('flex min-w-0 items-center gap-2 text-[0.84375rem] text-faint', className)}></span>
   return (
     <span className={cn('flex min-w-0 items-center gap-2', className)}>
       <Avatar who={who} size={size} plain />

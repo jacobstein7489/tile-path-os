@@ -160,8 +160,8 @@ export function RoundsModal({ level }: { level: number }) {
     const ext = f.name.match(/\.\w+$/)?.[0] || (/quicktime/i.test(f.type) ? '.mov' : '.mp4')
     const file = new File([f], `${j.name.replace(/[^\w]+/g, '-').replace(/^-+|-+$/g, '')}-${TODAY}${ext}`, { type: f.type || 'video/mp4' })
     if (canShare(file)) {
-      try { await navigator.share({ files: [file], title: j.name, text: `${j.name} — ${dayShort(TODAY)}` }) } catch (e: any) {
-        if (e?.name !== 'AbortError') toast('Couldn’t open sharing — tap Send again')
+      try { await navigator.share({ files: [file], title: j.name, text: `${j.name} · ${dayShort(TODAY)}` }) } catch (e: any) {
+        if (e?.name !== 'AbortError') toast('Couldn’t open sharing. Tap Send again')
         return
       }
     }
@@ -196,7 +196,7 @@ export function RoundsModal({ level }: { level: number }) {
           return (
             <React.Fragment key={j.id}>
             {/* Google Maps takes ten stops at a time: where the first trip ends, and that the rest come after */}
-            {i === 10 && <div className="border-b border-line-2 bg-[#f6f6f4] px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time — these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
+            {i === 10 && <div className="border-b border-line-2 bg-[#f6f6f4] px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time · these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
             <div className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-stop={j.id}>
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[0.8125rem] font-bold text-brand-700 tnum">{i + 1}</span>
               <div className="min-w-0 flex-1">

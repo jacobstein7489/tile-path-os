@@ -214,7 +214,7 @@ function readMarkup(text: string): string[][] {
     })
   }
   const table = new DOMParser().parseFromString(text, 'text/html').querySelector('table')
-  if (!table) throw new ImportError('We couldn’t read that file — try saving it again as .xlsx or CSV.')
+  if (!table) throw new ImportError('We couldn’t read that file. Try saving it again as .xlsx or CSV.')
   return Array.from(table.querySelectorAll('tr')).map((tr) => Array.from(tr.querySelectorAll('th,td')).map((td) => (td.textContent || '').trim()))
 }
 
@@ -300,7 +300,7 @@ export function planImport(rows: string[][], existing: Known[], o: { jobs?: bool
   const head = rows[at].map((h) => cleanText(h).toLowerCase())
   const col = (k: string) => { const names = HEAD[k]; const i = head.findIndex((h) => names.includes(h)); return i >= 0 ? i : head.findIndex((h) => names.some((n) => h.startsWith(n))) }
   const c = Object.fromEntries(Object.keys(HEAD).map((k) => [k, col(k)])) as Record<keyof typeof HEAD, number>
-  if (c.name < 0 && c.company < 0) throw new ImportError('We couldn’t find a Name column. The first row should have the column names — Name, Email, Phone…')
+  if (c.name < 0 && c.company < 0) throw new ImportError('We couldn’t find a Name column. The first row should have the column names · Name, Email, Phone…')
   const get = (r: string[], k: keyof typeof HEAD) => (c[k] >= 0 ? r[c[k]] ?? '' : '')
   const byKey = new Map<string, ImportRow>()
   let read = 0, jobs = 0, ours = 0
@@ -392,10 +392,10 @@ function installerOf(row: ImportRow, key: PersonKey): Member {
 /* ---------------- the window ---------------- */
 export type ImportKind = 'client' | 'designer' | 'installer' | 'supplier'
 const WORDS: Record<ImportKind, { one: string; many: string; page: string; sub: string; drop: string; how: string; tips: string[] }> = {
-  client: { one: 'client', many: 'clients', page: 'Clients', sub: 'Your customer list from QuickBooks — or any spreadsheet', drop: 'Drop the customer list here', how: 'From QuickBooks: Customers → Export to Excel, then drop that file here as it is.', tips: ['A QuickBooks job (“Customer:Job”) goes on its client — it isn’t a client of its own.', 'Our own emails (@cobblestonenj.com) are left off. A client with several emails gets the rest as contacts.', 'Anyone already on Clients stays as it is.'] },
-  designer: { one: 'designer', many: 'designers', page: 'Designers', sub: 'Your designers from any spreadsheet', drop: 'Drop the designer list here', how: 'Excel or CSV — the firm (or the designer’s name), email and phone. Any more emails and phones go with them.', tips: ['Uncheck anyone who isn’t a designer before you add them.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Designers stays as it is.'] },
-  installer: { one: 'installer', many: 'installers', page: 'Installers', sub: 'Your installers from QuickBooks — or any spreadsheet', drop: 'Drop the list here', how: 'From QuickBooks: Vendors → Export to Excel. Then uncheck anyone who isn’t an installer (the suppliers on that list).', tips: ['Each one shows on the schedule, in Installer pay, and when you pick who installs a job.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Installers stays as it is.'] },
-  supplier: { one: 'supplier', many: 'suppliers', page: 'Suppliers', sub: 'Your vendor list from QuickBooks — or any spreadsheet', drop: 'Drop the vendor list here', how: 'From QuickBooks: Vendors → Export to Excel. Then uncheck anyone who isn’t a supplier (the installers on that list).', tips: ['The name shows on every PO — what you buy from each one can be added after.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Suppliers stays as it is.'] },
+  client: { one: 'client', many: 'clients', page: 'Clients', sub: 'Your customer list from QuickBooks, or any spreadsheet', drop: 'Drop the customer list here', how: 'From QuickBooks: Customers → Export to Excel, then drop that file here as it is.', tips: ['A QuickBooks job (“Customer:Job”) goes on its client. It isn’t a client of its own.', 'Our own emails (@cobblestonenj.com) are left off. A client with several emails gets the rest as contacts.', 'Anyone already on Clients stays as it is.'] },
+  designer: { one: 'designer', many: 'designers', page: 'Designers', sub: 'Your designers from any spreadsheet', drop: 'Drop the designer list here', how: 'Excel or CSV. The firm (or the designer’s name), email and phone. Any more emails and phones go with them.', tips: ['Uncheck anyone who isn’t a designer before you add them.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Designers stays as it is.'] },
+  installer: { one: 'installer', many: 'installers', page: 'Installers', sub: 'Your installers from QuickBooks, or any spreadsheet', drop: 'Drop the list here', how: 'From QuickBooks: Vendors → Export to Excel. Then uncheck anyone who isn’t an installer (the suppliers on that list).', tips: ['Each one shows on the schedule, in Installer pay, and when you pick who installs a job.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Installers stays as it is.'] },
+  supplier: { one: 'supplier', many: 'suppliers', page: 'Suppliers', sub: 'Your vendor list from QuickBooks, or any spreadsheet', drop: 'Drop the vendor list here', how: 'From QuickBooks: Vendors → Export to Excel. Then uncheck anyone who isn’t a supplier (the installers on that list).', tips: ['The name shows on every PO. What you buy from each one can be added after.', 'Our own emails (@cobblestonenj.com) are left off.', 'Anyone already on Suppliers stays as it is.'] },
 }
 const PAGE_OF: Record<ImportKind, string> = { client: 'clients', designer: 'designers', installer: 'subs', supplier: 'suppliers' }
 const ICON_OF: Record<Exclude<ImportKind, 'client'>, React.ElementType> = { designer: PenTool, installer: HardHat, supplier: Truck }
@@ -429,7 +429,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
       setOff(new Set(p.rows.filter((r) => r.here).map((r) => r.key)))
     } catch (e: any) {
       setPlan(null)
-      setErr(e instanceof ImportError ? e.message : 'We couldn’t read that file — try saving it again as .xlsx or CSV.')
+      setErr(e instanceof ImportError ? e.message : 'We couldn’t read that file. Try saving it again as .xlsx or CSV.')
     }
   }
   const picked = plan ? plan.rows.filter((r) => !off.has(r.key)) : []
@@ -446,7 +446,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
         else st.team.push(installerOf(r, id as PersonKey))
       })
       st.notices.unshift({ id: 'ni' + stamp, text: `${n} imported from ${file}`, when: 'Just now', kind: 'pricing', unread: false })
-    }, `${n} added`, { close: true, undo: true, sub: `They’re on ${w.page} now — open one to add or fix anything.` })
+    }, `${n} added`, { close: true, undo: true, sub: `They’re on ${w.page} now. Open one to add or fix anything.` })
     /* show them (Clients: all of them — the usual view is the ones with open projects) */
     s.go(kind === 'client' ? { page: 'clients', tab: 'all' } : { page: PAGE_OF[kind] as any })
   }
@@ -466,7 +466,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
           >
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><FileSpreadsheet className="h-6 w-6" /></span>
             <div className="text-[0.96875rem] font-semibold text-ink">{w.drop}</div>
-            <div className="max-w-[28rem] text-[0.84375rem] leading-snug text-muted">Excel or CSV, with the column names in the first row — Name, Email, Phone, Address… {w.how}</div>
+            <div className="max-w-[28rem] text-[0.84375rem] leading-snug text-muted">Excel or CSV, with the column names in the first row · Name, Email, Phone, Address… {w.how}</div>
             <Button variant="primary" icon={<Upload />} onClick={() => input.current?.click()}>Pick the file</Button>
             <input ref={input} type="file" accept=".xlsx,.csv,.xls,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void read(f) }} data-import-file />
           </div>
@@ -499,7 +499,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
                   <span className="min-w-0 flex-1 leading-snug">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{kind === 'client' ? r.name : firmOf(r).firm}{kind !== 'client' && firmOf(r).person ? <span className="font-medium text-muted"> · {firmOf(r).person}</span> : null}{r.here ? <span className="ml-2 text-[0.75rem] font-medium text-muted">already on {w.page}</span> : null}</span>
                     <span className="block truncate text-[0.78125rem] text-muted">{[r.email, r.phone, place].filter(Boolean).join(' · ') || 'No email or phone'}</span>
-                    {(r.more.length > 0 || r.phones.length > 0 || r.jobs.length > 0) && <span className="block truncate text-[0.75rem] text-faint">{[r.more.length ? `+${r.more.length} more ${r.more.length === 1 ? 'email' : 'emails'}${kind === 'client' ? ' — as contacts' : ''}` : '', r.phones.length ? `+${r.phones.length} more ${r.phones.length === 1 ? 'phone' : 'phones'}` : '', r.jobs.length ? `${r.jobs.length === 1 ? 'Job' : 'Jobs'}: ${r.jobs.join(' · ')}` : ''].filter(Boolean).join(' · ')}</span>}
+                    {(r.more.length > 0 || r.phones.length > 0 || r.jobs.length > 0) && <span className="block truncate text-[0.75rem] text-faint">{[r.more.length ? `+${r.more.length} more ${r.more.length === 1 ? 'email' : 'emails'}${kind === 'client' ? ' · as contacts' : ''}` : '', r.phones.length ? `+${r.phones.length} more ${r.phones.length === 1 ? 'phone' : 'phones'}` : '', r.jobs.length ? `${r.jobs.length === 1 ? 'Job' : 'Jobs'}: ${r.jobs.join(' · ')}` : ''].filter(Boolean).join(' · ')}</span>}
                   </span>
                   {!on && <X className="mt-1 h-4 w-4 shrink-0 text-faint" />}
                 </label>

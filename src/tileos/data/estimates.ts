@@ -106,12 +106,12 @@ export const PRICING_ESTIMATES: Estimate[] = [
   {
     id: 'E-1046', jobId: 'b1', status: 'request', estimator: null, due: 'Oct 7',
     revs: [{ n: 1, date: 'Sep 25', status: 'draft', what: 'Original scope', lines: [] }],
-    log: [L('Sep 25', 'office', 'Price request received — plans in, spec book and finish schedule missing')],
+    log: [L('Sep 25', 'office', 'Price request received. Plans in, spec book and finish schedule missing')],
   },
   {
     id: 'E-1047', jobId: 'b2', status: 'request', estimator: null, due: 'Oct 9',
     revs: [{ n: 1, date: 'Sep 28', status: 'draft', what: 'Original scope', lines: [] }],
-    log: [L('Sep 28', 'office', 'Price request received — all documents in')],
+    log: [L('Sep 28', 'office', 'Price request received, all documents in')],
   },
   {
     id: 'E-1044', jobId: 'b3', status: 'estimating', estimator: 'takeoff', due: 'Thu Oct 1', step: 'takeoff', since: 'Sep 16',
@@ -121,7 +121,7 @@ export const PRICING_ESTIMATES: Estimate[] = [
   {
     id: 'E-1045', jobId: 'b4', status: 'estimating', estimator: 'takeoff', due: 'Oct 5', step: 'takeoff', since: 'Sep 24',
     revs: [{ n: 1, date: 'Sep 24', status: 'draft', what: 'Original scope', lines: [] }],
-    log: [L('Sep 21', 'office', 'Price request received — finish schedule missing'), L('Sep 24', 'office', 'Takeoff started · Takeoff estimator')],
+    log: [L('Sep 21', 'office', 'Price request received. Finish schedule missing'), L('Sep 24', 'office', 'Takeoff started · Takeoff estimator')],
   },
   {
     id: 'E-1042', jobId: 'b5', status: 'sent', estimator: 'takeoff', followUp: 'Today',
@@ -129,12 +129,12 @@ export const PRICING_ESTIMATES: Estimate[] = [
       { n: 1, date: 'Aug 20', sentOn: 'Aug 21', status: 'superseded', what: 'Original scope', by: 'takeoff', lines: CLYDE_R1 },
       { n: 2, date: 'Aug 28', sentOn: 'Aug 31', status: 'superseded', what: 'Dropped the storefront entry and the restroom waterproofing', asked: 'The GC, by email', by: 'takeoff', lines: CLYDE_R2 },
       { n: 3, date: 'Sep 8', sentOn: 'Sep 9', status: 'superseded', what: 'Storefront entry back in; sales floor switched to 24×48', asked: 'The GC, on a call', by: 'takeoff', lines: CLYDE_R3 },
-      { n: 4, date: 'Sep 17', sentOn: 'Sep 18', status: 'sent', what: 'Sharpened the number — one trip to mobilize instead of two', asked: 'The GC asked for a better price', by: 'ys', lines: CLYDE_R4 },
+      { n: 4, date: 'Sep 17', sentOn: 'Sep 18', status: 'sent', what: 'Sharpened the number. One trip to mobilize instead of two', asked: 'The GC asked for a better price', by: 'ys', lines: CLYDE_R4 },
     ],
     log: [
-      L('Aug 14', 'office', 'Price request received'), L('Aug 21', 'office', 'Revision 1 sent — $96,000'), L('Aug 27', 'office', 'GC: drop the storefront entry and the waterproofing'), L('Aug 31', 'office', 'Revision 2 sent — $90,120'),
-      L('Sep 5', 'office', 'GC: entry back in, 24×48 on the sales floor'), L('Sep 9', 'office', 'Revision 3 sent — $87,640'), L('Sep 16', 'ys', 'GC asked for a better number'), L('Sep 18', 'office', 'Revision 4 sent — $86,400'),
-      L('Sep 21', 'office', 'Called — still reviewing'), L('Sep 25', 'office', 'Emailed — no answer'),
+      L('Aug 14', 'office', 'Price request received'), L('Aug 21', 'office', 'Revision 1 sent · $96,000'), L('Aug 27', 'office', 'GC: drop the storefront entry and the waterproofing'), L('Aug 31', 'office', 'Revision 2 sent · $90,120'),
+      L('Sep 5', 'office', 'GC: entry back in, 24×48 on the sales floor'), L('Sep 9', 'office', 'Revision 3 sent · $87,640'), L('Sep 16', 'ys', 'GC asked for a better number'), L('Sep 18', 'office', 'Revision 4 sent · $86,400'),
+      L('Sep 21', 'office', 'Called, still reviewing'), L('Sep 25', 'office', 'Emailed · no answer'),
     ],
   },
   {
@@ -143,16 +143,16 @@ export const PRICING_ESTIMATES: Estimate[] = [
       { n: 1, date: 'Sep 13', sentOn: 'Sep 14', status: 'superseded', what: 'Original scope', by: 'takeoff', lines: MARK_R1 },
       { n: 2, date: 'Sep 22', status: 'draft', what: 'Remove the basement bath', asked: 'The client, on a call with Yaakov', by: 'takeoff', lines: MARK_R2 },
     ],
-    notes: [{ id: 'nt-b6-1', rev: 2, by: 'estimator', step: 'review', area: 'All floors', text: 'Floor prep still counts the basement — should be 420 SF', done: true, date: 'Sep 25' }],
+    notes: [{ id: 'nt-b6-1', rev: 2, by: 'estimator', step: 'review', area: 'All floors', text: 'Floor prep still counts the basement. Should be 420 SF', done: true, date: 'Sep 25' }],
     log: [
-      L('Sep 5', 'office', 'Price request received'), L('Sep 14', 'office', 'Revision 1 sent — $72,900'), L('Sep 22', 'ys', 'Client asked for a revision: remove the basement bath'),
-      L('Sep 24', 'takeoff', 'Revision 2 ready for review'), L('Sep 25', 'estimator', 'Sent back to Takeoff · 1 note'), L('Sep 25', 'takeoff', 'Fixed 1 note — ready for review'), L('Sep 28', 'estimator', 'Office review done — to Yaakov'),
+      L('Sep 5', 'office', 'Price request received'), L('Sep 14', 'office', 'Revision 1 sent · $72,900'), L('Sep 22', 'ys', 'Client asked for a revision: remove the basement bath'),
+      L('Sep 24', 'takeoff', 'Revision 2 ready for review'), L('Sep 25', 'estimator', 'Sent back to Takeoff · 1 note'), L('Sep 25', 'takeoff', 'Fixed 1 note. Ready for review'), L('Sep 28', 'estimator', 'Office review done · to Yaakov'),
     ],
   },
   {
     id: 'E-1039', jobId: 'b7', status: 'sent', estimator: 'takeoff', followUp: 'Fri Oct 2',
     revs: [{ n: 1, date: 'Sep 10', sentOn: 'Sep 11', status: 'sent', what: 'Original scope', lines: [ln('Two baths', 'i-floor', 240, 24), ln('Two baths', 'i-wall', 450, 28), ln('Two baths', 'i-mosaic', 60, 45), ln('Two baths', 'i-wp', 180, 6), ln('Pool deck', 'i-border', 240, 65), ln('General', 'o-mob', 1, 3460)] }],
-    log: [L('Sep 1', 'office', 'Price request received'), L('Sep 11', 'ys', 'Revision 1 sent — $41,200'), L('Sep 16', 'ys', 'Emailed — no answer'), L('Sep 23', 'ys', 'Called — still reviewing')],
+    log: [L('Sep 1', 'office', 'Price request received'), L('Sep 11', 'ys', 'Revision 1 sent · $41,200'), L('Sep 16', 'ys', 'Emailed · no answer'), L('Sep 23', 'ys', 'Called, still reviewing')],
   },
 ]
 
@@ -170,7 +170,7 @@ PRICING_ESTIMATES.push({
       ln('General', 'o-mob', 1, 1500),
     ],
   }],
-  log: [L('Sep 22', 'office', 'Price request received — all documents in'), L('Sep 23', 'office', 'Takeoff started · Takeoff estimator'), L('Sep 28', 'takeoff', 'Ready for review — to the Estimator')],
+  log: [L('Sep 22', 'office', 'Price request received, all documents in'), L('Sep 23', 'office', 'Takeoff started · Takeoff estimator'), L('Sep 28', 'takeoff', 'Ready for review. To the Estimator')],
 })
 
 /* approved estimates behind the projects we already won: one line per room, sample amounts */
@@ -190,12 +190,12 @@ export function approvedEstimates(contracts: Record<string, number>, rooms: Reco
     const lines = (rs.length ? rs.map((r) => r.name) : ['All areas']).map((area, i, arr) => {
       const amt = i === arr.length - 1 ? left : Math.round(((total * weights[i]) / sum) / 50) * 50
       left -= amt
-      return ln(area, 'o-room', 1, amt, `${area} — tile installation per plans`)
+      return ln(area, 'o-room', 1, amt, `${area}. Tile installation per plans`)
     })
     return {
       id: a.id, jobId, status: 'approved' as EstStatus, estimator: 'estimator' as PersonKey, approvedOn: a.on,
       revs: [{ n: 1, date: a.on, sentOn: a.on, status: 'approved' as const, what: 'Original scope', lines }],
-      log: [L(a.on, 'ys', 'Approved — became a project')],
+      log: [L(a.on, 'ys', 'Approved. Became a project')],
     }
   })
 }

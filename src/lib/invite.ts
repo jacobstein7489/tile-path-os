@@ -25,7 +25,7 @@ const already = (e: any) => /already|registered|exists/i.test(e?.message || "");
 /** the plain reason, for the admin's screen */
 const why = (e: any) => {
   const m = String(e?.message || "");
-  if (/rate limit|too many/i.test(m)) return "The mail service is rate-limited right now — send a link instead, or try again in an hour";
+  if (/rate limit|too many/i.test(m)) return "The mail service is rate-limited right now. Send a link instead, or try again in an hour";
   if (/SUPABASE_SERVICE_ROLE_KEY|service role/i.test(m)) return "The app’s server key isn’t set up in Lovable Cloud yet";
   return m || "Couldn’t send it";
 };
@@ -77,7 +77,7 @@ async function inviteByOwnMail(admin: any, data: { email: string; name: string; 
   const base = String(data.redirectTo || "https://cobblestone.lovable.app").replace(/[#?].*$/, "").replace(/\/$/, "");
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light only"></head>
 <body style="margin:0;padding:0;background:#f4f1eb;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Pick a password and you’re in — Cobblestone runs its projects on Tile OS.</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Pick a password and you’re in · Cobblestone runs its projects on Tile OS.</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1c1a16;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;">
@@ -87,9 +87,9 @@ async function inviteByOwnMail(admin: any, data: { email: string; name: string; 
 <tr><td align="center" style="padding:34px 40px 0;"><img src="${esc(base)}/logo-email.png" width="190" alt="Cobblestone Tile Installation" style="display:block;width:190px;max-width:70%;height:auto;border:0;"></td></tr>
 <tr><td style="padding:22px 40px 0;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b7a70;text-align:center;">Tile OS</td></tr>
 <tr><td style="padding:10px 40px 0;font-size:26px;font-weight:700;line-height:1.25;color:#1c1a16;text-align:center;">You’re invited, ${esc(first)}</td></tr>
-<tr><td style="padding:14px 40px 0;font-size:16px;line-height:1.6;color:#4a4740;text-align:center;">Cobblestone runs its projects on Tile OS — what’s next on every job, who has it, and what came in. Pick a password and you’re in.</td></tr>
+<tr><td style="padding:14px 40px 0;font-size:16px;line-height:1.6;color:#4a4740;text-align:center;">Cobblestone runs its projects on Tile OS. What’s next on every job, who has it, and what came in. Pick a password and you’re in.</td></tr>
 <tr><td align="center" style="padding:30px 40px 8px;"><a href="${esc(link)}" style="display:inline-block;background:#22372b;color:#ffffff;text-decoration:none;font-weight:700;font-size:16px;line-height:1;padding:17px 34px;border-radius:12px;">Pick my password</a></td></tr>
-<tr><td style="padding:14px 40px 0;font-size:13px;line-height:1.55;color:#8a857b;text-align:center;">The link works once. On a phone, open it in Safari or Chrome — then “Add to Home Screen” and it works like an app.</td></tr>
+<tr><td style="padding:14px 40px 0;font-size:13px;line-height:1.55;color:#8a857b;text-align:center;">The link works once. On a phone, open it in Safari or Chrome, then “Add to Home Screen” and it works like an app.</td></tr>
 <tr><td style="padding:30px 40px 34px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #f0ebe3;"><tr><td style="padding-top:18px;font-size:12px;line-height:1.6;color:#a5a095;text-align:center;">If the button doesn’t open, copy this into your browser:<br><span style="word-break:break-all;">${esc(link)}</span></td></tr></table></td></tr>
 </table>
 </td></tr>
@@ -141,7 +141,7 @@ export const sendInvite = createServerFn({ method: "POST" })
           if (data.name) await admin.from("profiles").update({ full_name: data.name }).eq("user_id", u.id);
           return { ok: true, resent: !!old, sentAt: new Date().toISOString() };
         } catch (e) {
-          console.warn("Own invite email failed — the sign-in service sends it instead", e);
+          console.warn("Own invite email failed. The sign-in service sends it instead", e);
           const again = await findUser(admin, data.email);
           if (again && !again.last_sign_in_at) {
             await admin.from("user_roles").delete().eq("user_id", again.id);
@@ -153,7 +153,7 @@ export const sendInvite = createServerFn({ method: "POST" })
       const { data: inv, error } = await admin.auth.admin.inviteUserByEmail(data.email, { redirectTo: data.redirectTo, data: data.name ? { full_name: data.name } : {} });
       if (error) return { ok: false, why: why(error) };
       const id = inv?.user?.id || (await findUser(admin, data.email))?.id;
-      if (!id) return { ok: false, why: "The invite went out, but the account wasn’t made — try once more" };
+      if (!id) return { ok: false, why: "The invite went out, but the account wasn’t made. Try once more" };
       await admin.from("user_roles").upsert({ user_id: id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
       await admin.from("profiles").update({ is_active: true, ...(data.name ? { full_name: data.name } : {}) }).eq("user_id", id);
       return { ok: true, resent: !!old, sentAt: new Date().toISOString() };
@@ -233,7 +233,7 @@ export const grantRole = createServerFn({ method: "POST" })
         u = await findUser(admin, data.email);
         if (!u) await new Promise((r) => setTimeout(r, 700));
       }
-      if (!u) return { ok: false, why: "The account wasn’t made — the sign-in link may not have gone out. Try again in a minute." };
+      if (!u) return { ok: false, why: "The account wasn’t made. The sign-in link may not have gone out. Try again in a minute." };
       await admin.from("user_roles").upsert({ user_id: u.id, role: data.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
       await admin.from("profiles").update({ is_active: true }).eq("user_id", u.id);
       if (data.name) {
@@ -297,7 +297,7 @@ export const removeAccess = createServerFn({ method: "POST" })
       let id = /^[0-9a-f-]{36}$/i.test(data.uid) ? data.uid : "";
       if (!id && /^\S+@\S+\.\S+$/.test(data.email)) id = (await findUser(admin, data.email))?.id || "";
       if (!id) return { ok: true, removed: false };
-      if (id === context.userId) return { ok: false, why: "That’s your own login — it stays" };
+      if (id === context.userId) return { ok: false, why: "That’s your own login · it stays" };
       const { error } = await admin.from("user_roles").delete().eq("user_id", id);
       if (error) return { ok: false, why: why(error) };
       await admin.from("profiles").delete().eq("user_id", id);

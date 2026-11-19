@@ -65,7 +65,7 @@ export function TodayPage() {
             {greeting()}, {def.greetName === 'team' ? PEOPLE[me].short : def.greetName}
           </h1>
           <p className="mt-1.5 text-[0.96875rem] text-muted max-md:text-[0.90625rem]">
-            {TODAY_LABEL} — <span className="font-semibold text-ink-2">{todayCount} {todayCount === 1 ? 'thing' : 'things'} to do today</span>
+            {TODAY_LABEL} · <span className="font-semibold text-ink-2">{todayCount} {todayCount === 1 ? 'thing' : 'things'} to do today</span>
             {waiting.length ? `, ${waiting.length} waiting on others` : ''}
           </p>
         </div>

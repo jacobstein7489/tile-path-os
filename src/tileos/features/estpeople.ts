@@ -10,11 +10,11 @@ import { realOwner } from './steps'
 
 export interface EstStepDef { key: string; label: string; what: string; custom?: boolean; after?: string }
 export const EST_BUILT: EstStepDef[] = [
-  { key: 'takeoff', label: 'Takeoff', what: 'From the plans — every room, wall and floor, measured and priced' },
-  { key: 'review', label: 'Office review', what: 'Checks the takeoff — fixes it, or sends it back with notes' },
-  { key: 'final', label: 'Final review', what: 'The last look — approve it and it goes to the client' },
+  { key: 'takeoff', label: 'Takeoff', what: 'From the plans. Every room, wall and floor, measured and priced' },
+  { key: 'review', label: 'Office review', what: 'Checks the takeoff. Fixes it, or sends it back with notes' },
+  { key: 'final', label: 'Final review', what: 'The last look. Approve it and it goes to the client' },
 ]
-export const EST_FOLLOW: EstStepDef = { key: 'follow', label: 'Follows up', what: 'After it goes out — calls or emails the client until they answer' }
+export const EST_FOLLOW: EstStepDef = { key: 'follow', label: 'Follows up', what: 'After it goes out. Calls or emails the client until they answer' }
 const BUILT_KEYS = ['takeoff', 'review', 'final', 'follow']
 export const isBuiltStep = (k: string) => BUILT_KEYS.includes(k)
 

@@ -117,16 +117,16 @@ export interface RoleDef {
 }
 
 export const ROLES: RoleDef[] = [
-  { key: 'owner', label: 'Admin · Owner', person: 'ys', greetName: 'Yanky', sees: 'Everything — and controls who sees what', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'pay', 'money', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
+  { key: 'owner', label: 'Admin · Owner', person: 'ys', greetName: 'Yanky', sees: 'Everything, and controls who sees what', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'pay', 'money', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
   { key: 'pm', label: 'Project manager', person: 'ys', greetName: 'Yanky', sees: 'Projects, readiness, changes, schedule', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
   { key: 'office', label: 'Office', person: 'office', greetName: 'team', sees: 'Requests, follow-ups, project setup, documents, materials and deliveries', nav: ['today', 'estimates', 'projects', 'upcoming', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers'] },
-  { key: 'takeoff', label: 'Takeoff estimator', person: 'takeoff', greetName: 'team', sees: 'The first pass on every estimate — quantities from the plans', nav: ['today', 'estimates', 'items'] },
+  { key: 'takeoff', label: 'Takeoff estimator', person: 'takeoff', greetName: 'team', sees: 'The first pass on every estimate. Quantities from the plans', nav: ['today', 'estimates', 'items'] },
   { key: 'estimator', label: 'Estimator', person: 'estimator', greetName: 'team', sees: 'Takeoffs from the plans, reviews, revisions and changes', nav: ['today', 'estimates', 'projects', 'items', 'clients', 'designers'] },
   { key: 'site', label: 'Site manager', person: 'yakov', greetName: 'Yakov', sees: 'Walkthroughs, field issues, daily updates, the daily crew report', nav: ['today', 'projects', 'upcoming', 'subs'] },
   { key: 'materials', label: 'Materials', person: 'materials', greetName: 'team', sees: 'Tile quantities, deliveries, our POs', nav: ['today', 'projects', 'upcoming', 'pos', 'items', 'suppliers'] },
   { key: 'accounting', label: 'Accounting', person: 'accounting', greetName: 'team', sees: 'Billing, purchase orders and installer pay', nav: ['money', 'today', 'pos', 'pay'] },
-  { key: 'client', label: 'GC · Client', person: 'gcpp', greetName: 'there', sees: 'Only their own projects — progress, photos, approvals, invoices and messages', nav: ['portal'] },
-  { key: 'crew', label: 'Crew · foreman', person: 'philip', greetName: 'Philip', sees: 'Where to work and what not to start — on his phone', nav: [] },
+  { key: 'client', label: 'GC · Client', person: 'gcpp', greetName: 'there', sees: 'Only their own projects. Progress, photos, approvals, invoices and messages', nav: ['portal'] },
+  { key: 'crew', label: 'Crew · foreman', person: 'philip', greetName: 'Philip', sees: 'Where to work and what not to start. On his phone', nav: [] },
 ]
 /** the login types people get: five inside, plus the installers' phones and the GC's portal.
  *  Project manager folds into Admin, Takeoff into Estimator, Materials into Office — their work follows. */
