@@ -35,7 +35,7 @@ export const TRACKS: { key: TrackKey; label: string; /** where room is tight (th
   /* the installer: pick him and send his PO (made from the estimate), walk him through the job, he accepts */
   { key: 'installer', label: 'Installer', steps: ['installer', 'walk', 'confirmed'] },
   /* our setting materials: what goes under the tile decides what we order — then order it, then it comes */
-  { key: 'materials', label: 'Setting materials', short: 'Materials', steps: ['setup', 'materials', 'matin'] },
+  { key: 'materials', label: 'Materials', short: 'Materials', steps: ['setup', 'materials', 'matin'] },
   /* the tile delivery: when the store brings it — then it's received: counted, so we know what we got */
   { key: 'delivery', label: 'Tile delivery', short: 'Delivery', steps: ['order', 'delivered'] },
 ]
@@ -325,15 +325,14 @@ export function roomsOf(s: Store, job: Job, steps: StepView[] = stepsFor(s, job)
     const toCome: string[] = []
     const add = (tone: ChipTone, text: string) => { if (!chips.some((c) => c.text === text)) chips.push({ tone, text }) }
     const named = (text: string) => text.toLowerCase().includes(r.name.toLowerCase())
-    const cut = (t: string) => (t.length > 34 ? t.slice(0, 32).trimEnd() + '…' : t)
     if (pct < 100) {
       /* stopped or held up on site */
       const blocked = r.surfaces.find((x) => x.state === 'blocked')
-      if (blocked) add('bad', cut(`Stopped · ${low(blocked.reason || 'blocked')}`))
+      if (blocked) add('bad', `Stopped · ${low(blocked.reason || 'blocked')}`)
       const held = r.surfaces.find((x) => x.state === 'waitmat' || x.state === 'hold')
-      if (held) add('warn', cut(held.pending ? `Change pending · ${held.pending.co}` : held.reason ? `Waiting · ${low(held.reason)}` : held.state === 'hold' ? 'On hold · a change' : 'Waiting on material'))
+      if (held) add('warn', held.pending ? `Change pending · ${held.pending.co}` : held.reason ? `Waiting · ${low(held.reason)}` : held.state === 'hold' ? 'On hold · a change' : 'Waiting on material')
       /* a problem logged on this room or on its tile (when nothing above already says it) */
-      if (!blocked && !held) problems.filter((t) => named(`${t.where || ''} ${t.title}`) || tags.some((tag) => t.title.startsWith(tag) || (t.where || '').startsWith(tag))).slice(0, 1).forEach((t) => add('bad', cut(t.title.replace(/^(T-\d+):\s*\d+\s+boxes?\s+/, '$1 '))))
+      if (!blocked && !held) problems.filter((t) => named(`${t.where || ''} ${t.title}`) || tags.some((tag) => t.title.startsWith(tag) || (t.where || '').startsWith(tag))).slice(0, 1).forEach((t) => add('bad', t.title.replace(/^(T-\d+):\s*\d+\s+boxes?\s+/, '$1 ')))
       /* the site check: looked at room by room, only the rooms that miss it; the rest, every room it's asked in */
       siteBad.forEach(([k, c]) => {
         const def = SITE_CHECKS.find((x) => x.k === k)

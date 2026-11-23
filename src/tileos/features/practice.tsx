@@ -214,7 +214,7 @@ export function PracticeTab() {
   const early = !!job && ['awarded', 'setup', 'verification', 'ready', 'scheduled'].includes(job.stage)
   const startSteps: { icon: React.ElementType; title: string; sub: string; btn: string; run: () => void }[] = [
     { icon: HardHat, title: '1 · The installer’s PO', sub: 'Pick who installs it. His PO is made from the square feet × his rates. Send it, then mark that he said yes.', btn: 'Pick the installer', run: open('installer') },
-    { icon: Package, title: '2 · Order the setting materials', sub: 'Decide what every wall and floor is set on. The materials work themselves out from the square feet. Then send the PO.', btn: 'Decide the setup', run: open('setup') },
+    { icon: Package, title: '2 · Order the materials', sub: 'Decide what every wall and floor is set on. The materials work themselves out from the square feet. Then send the PO.', btn: 'Decide the setup', run: open('setup') },
     { icon: Truck, title: '3 · The tile comes in', sub: 'Get the delivery date from the store, then check it in. Anything broken, wrong or missing: + Add → A problem.', btn: 'Tile delivery date', run: open('order') },
     { icon: ClipboardList, title: '4 · Start the job, then the daily update', sub: 'When it’s ready, Start the job. Then the daily update, installer pay and billing follow from it.', btn: 'Open the project', run: open() },
   ]

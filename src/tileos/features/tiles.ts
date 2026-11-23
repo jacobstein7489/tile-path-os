@@ -245,7 +245,7 @@ export function removeTile(jobId: string, tag: string) {
 }
 
 export type SurfaceEdit = Partial<Pick<Surface, 'tile' | 'grout' | 'joint' | 'layout' | 'method' | 'edge' | 'height' | 'walls' | 'sf' | 'notes'>>
-const LABEL: Record<keyof SurfaceEdit, string> = { tile: 'Tile', grout: 'Grout', joint: 'Joint', layout: 'Layout', method: 'Under it', edge: 'Edge', height: 'Height', walls: 'Which walls', sf: 'SF', notes: 'Note' }
+const LABEL: Record<keyof SurfaceEdit, string> = { tile: 'Tile', grout: 'Grout', joint: 'Joint', layout: 'Layout', method: 'Under it', edge: 'Edge', height: 'How high', walls: 'Which walls', sf: 'SF', notes: 'Note' }
 const shown = (k: keyof SurfaceEdit, v: any) => (v === undefined || v === '' || v === null ? '' : k === 'grout' ? GROUTS[v]?.name || v : k === 'method' ? METHODS[v as MethodKey]?.short || v : k === 'sf' ? `${v} SF` : String(v))
 
 /** save what changed on one wall or floor, in one go */

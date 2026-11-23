@@ -36,7 +36,7 @@ import { printNode } from '@/tileos/lib/print'
 import { useSmall } from '@/tileos/lib/phone'
 import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
-import { edgeWords, parseMetal, finishOf } from '@/tileos/data/catalog'
+import { edgeWords, parseMetal, finishOf, profileOf, edgeKind } from '@/tileos/data/catalog'
 import { isWall } from '../heights'
 import { detailsOf, setRoomDetails, surfaceDetailLines, edgeShort } from '../roomdetails'
 import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
@@ -213,7 +213,6 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
       {!rooms.length && <ScopeStart job={job} onAdded={(room) => setLines(room)} />}
       {rooms.length > 0 && !checking && (
         <div data-paper className={PAPER}>
-          <ScopeHead inField={inField} />
           {groups.map((g) => (
             <section key={g.floor} data-floor={g.floor} className="[&+&]:border-t [&+&]:border-line">
               {/* each floor in a dark green band, as on Cobblestone's scope of work — a heading, nothing to open */}
@@ -244,85 +243,66 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
   )
 }
 
-/* A computer: the scope is a table — one column for each thing, its name on top (staying there as you scroll):
-   Area · Tile · Grout · Height · edge · Notes · SF (and, once the crew is on it, how far). A phone: each wall and floor
-   on two short lines. How each is laid isn't said in words here — the layouts come as pictures, from the plans. */
-const SCOPE_GRID = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_3.5rem] lg:items-center lg:gap-x-4'
-const SCOPE_GRID_FIELD = 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,0.85fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_3.5rem_4.5rem] lg:items-center lg:gap-x-4'
-function ScopeHead({ inField }: { inField: boolean }) {
-  return (
-    <div className={cn(HEAD_ROW, 'sticky top-0 z-[6] hidden px-5', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)} data-scope-cols>
-      <span>Area</span><span>Tile</span><span>Grout</span><span title="How high the tile goes">Height</span><span title="The metal trim at the tile's edge">Trim</span><span>Notes</span><span className="text-right">SF</span>{inField && <span className="text-right">Done</span>}
-    </div>
-  )
-}
-/** how high a wall goes, just the height: "84″, metal edge on top" → "84″" (the metal is its trim) */
+/* Each wall and floor in plain words, the way Cobblestone's own paper says it — no columns to decode:
+ *   on the left what it is (and which walls), and under it what we're doing there: how high in the paper's words
+ *   (Fully tiled, Half tiled, Tiled to 48″), the metal edge, its note — how it's laid comes as a picture (the layouts)
+ *   on the right its tile (the picture, its number, name and size) and the grout
+ *   its square feet (once the crew is on it: how far) at the end
+ * A phone: the same, the tile under the words. */
+/** how high a wall goes, just the height: "84″, metal edge on top" → "84″" (the metal is its edge) */
 const heightOnly = (h?: string) => heightShort((h || '').replace(/\s*(?:,|·|—)?\s*metal edge on top\s*$/i, '').trim())
-/** a wall's trim: the metal and its finish ("JOLLY · Satin brass"), mitered, or "Metal edge" when only the height says so */
-function trimOf(x: Surface): { text: string; color?: string } {
-  if (!isWall(x.name)) return { text: '' }
-  const t = edgeShort(x.edge)
-  const m = parseMetal(x.edge)
-  const f = finishOf(m?.finish)
-  if (t) return { text: t.replace(/ · ([a-z])/, (_, c: string) => ` · ${c.toUpperCase()}`), color: f?.color }
-  return /metal edge/i.test(x.height || '') ? { text: 'Metal edge' } : { text: '' }
+/** how high, in the words Cobblestone's own paper uses: "Fully tiled, to the ceiling", "Half tiled, to 4 ft", "Wet walls
+ *  only, to the ceiling", "Tiled to 84″", "Tiled to the mantel", "18″ backsplash" */
+export function heightWordsOf(h?: string): string {
+  if (!h) return ''
+  /* a change asked for and not approved yet: what's approved, and what's asked */
+  const ap = h.match(/^approved:\s*(.+?)\s*·\s*requested:\s*(.+)$/i)
+  if (ap) return `${heightWordsOf(ap[1])} (asked for ${ap[2].replace(/\s*\((CO-\d+)\)\s*$/i, ', $1')})`
+  /* the paper's own: "Half tiled" or "Wet walls only", and how high it says after it */
+  const said = h.match(/^(half tiled|wet walls only)\s*(?:,|·|—)?\s*(.*)$/i)
+  if (said) {
+    const rest = said[2].replace(/\s*(?:,|·|—)?\s*metal edge on top\s*$/i, '').trim()
+    return `${said[1].charAt(0).toUpperCase()}${said[1].slice(1).toLowerCase()}${rest ? `, ${/^\d/.test(rest) ? 'to ' : ''}${rest.charAt(0).toLowerCase()}${rest.slice(1)}` : ''}`
+  }
+  if (/fully tiled|full height|^to the ceiling$/i.test(h.trim())) return 'Fully tiled, to the ceiling'
+  const t = heightOnly(h)
+  /* just how high: "84″" → "Tiled to 84″" (and what's said with it: "4″, bullnose top" → "Tiled to 4″, bullnose top") */
+  const n = t.match(/^(\d+(?:\.\d+)?\s*(?:″|"|in|ft|feet|′|'))(?:,\s*(.+))?$/i)
+  if (n) return `Tiled to ${n[1]}${n[2] ? `, ${n[2]}` : ''}`
+  if (/^to\s/i.test(t)) return `Tiled ${t.charAt(0).toLowerCase()}${t.slice(1)}`
+  return t.charAt(0).toUpperCase() + t.slice(1)
 }
-/** the trim's finish, as a little bar of its metal */
-const TrimBar = ({ color }: { color?: string }) => <span className="h-3.5 w-1.5 shrink-0 rounded-[2px] ring-1 ring-inset ring-black/10" style={{ background: color ? `linear-gradient(180deg, #fff6 0%, ${color} 45%, ${color} 70%, #0002 100%)` : '#c9ccd0' }} aria-hidden />
-const dash = <span className="text-faint"></span>
-
-const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCase())
-/** a wall or floor in words, the way the paper says it: on its line where it goes (which walls, how high); under it its
- *  tile and size, the grout, a wall's edge and its note (how it's laid comes as a picture, not words) */
-function wordsOf(jobId: string, x: Surface): { where: string; under: string; tile?: Tile } {
+/** a wall's edge, in words: "Metal edge on top: JOLLY, satin brass", "Mitered edges" */
+export function edgeWordsOf(x: Surface): string {
+  if (!isWall(x.name)) return ''
+  const top = /metal edge on top/i.test(x.height || '')
+  const k = edgeKind(x.edge)
+  if (k === 'metal') {
+    const m = parseMetal(x.edge)
+    const what = [profileOf(m?.profile)?.short, finishOf(m?.finish)?.name.toLowerCase()].filter(Boolean).join(', ')
+    return `Metal edge${top ? ' on top' : ''}${what ? `: ${what}` : ''}`
+  }
+  if (k === 'mitered') return 'Mitered edges'
+  if (x.edge) return `Edge: ${x.edge}`
+  return top ? 'Metal edge on top' : ''
+}
+/** what we're doing on a wall or floor, in a line of plain words: how high, its edge, its note. How it's laid isn't
+ *  said here: the layouts are their own thing (pictures, from the plans) */
+const doingOf = (x: Surface) => [isWall(x.name) ? heightWordsOf(x.height) : '', edgeWordsOf(x), x.notes || ''].filter(Boolean).join(' · ')
+/** a wall or floor's tile in words: its number, name and size — two tiles on one wall: both */
+function tileWordsOf(jobId: string, x: Surface): { words: React.ReactNode; tile?: Tile; grout?: string } {
   const tiles = tilesOn(x).map((t) => tileOf(jobId, t)).filter(Boolean) as Tile[]
-  const wall = isWall(x.name)
-  /* which walls — how high and the trim are a line of their own (a phone) or columns of their own (a computer) */
-  const where = wall && x.walls ? x.walls.replace(/^The /, '').toLowerCase() : ''
-  /* one size for all its tiles (a checkerboard) — said once */
-  const sizes = Array.from(new Set(tiles.map((t) => t.size).filter(Boolean)))
-  /* the tile by its name — its size is on the tile (Tile & materials, its picture); two sizes on one wall: each said */
-  const tileWords = tiles.length ? (sizes.length <= 1 ? tiles.map((t) => t.name).join(' + ') : tiles.map((t) => `${t.name}${t.size ? ` ${t.size}` : ''}`).join(' + ')) : x.tile || ''
   const g = x.grout || tiles[0]?.grout
-  const under = [tileWords, g ? `${GROUTS[g]?.name || g} grout` : '', x.notes || ''].filter(Boolean).join(' · ')
-  return { where, under, tile: tiles[0] }
+  const words = tiles.length
+    ? tiles.map((t, i) => <React.Fragment key={t.tag}>{i > 0 && ' + '}<b className="font-semibold tnum text-ink">{t.tag}</b> {t.name}{t.size ? <span className="whitespace-nowrap text-muted"> · {t.size}</span> : null}</React.Fragment>)
+    : x.tile || ''
+  return { words, tile: tiles[0], grout: g }
 }
+/** a computer: what it is and what we're doing | its tile and grout | its square feet. A phone: one under the other */
+const LINE_GRID = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_4.5rem] lg:items-center lg:gap-x-5'
 
-/** a wall or floor's cells in the scope's table: what it is (which walls), its tile, the grout, how high and its edge (a
- *  wall), its note, its square feet — and, once the crew is on it, how far */
-function ScopeCells({ jobId, x, inField, canEdit, right }: { jobId: string; x: Surface; inField: boolean; canEdit: boolean; right: { text: string; cls: string } }) {
-  const tiles = tilesOn(x).map((t) => tileOf(jobId, t)).filter(Boolean) as Tile[]
-  const wall = isWall(x.name)
-  const takes = takesTile(x.name)
-  const g = x.grout || tiles[0]?.grout
-  const walls = wall && x.walls ? x.walls.replace(/^The /, '') : ''
-  const he = wall ? heightOnly(x.height) : ''
-  const trim = trimOf(x)
-  /* a long one goes on to a second line — never cut short */
-  const cell = 'min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug max-lg:hidden'
-  return (
-    <>
-      <span className={cn(cell, 'text-[0.9375rem] text-ink')} data-cell="area">{x.name}{walls && <span className="text-muted"> · {walls}</span>}</span>
-      <span className="flex min-w-0 items-center gap-2.5 max-lg:hidden" data-cell="tile">
-        {tiles.length ? <TileImg tile={tiles[0]} size={PIC_LG} radius={4} /> : takes ? <span className="h-6 w-6 shrink-0 rounded-[4px] border border-dashed border-[#cfc8bc] bg-[#faf9f6]" /> : null}
-        <span className="min-w-0 line-clamp-2 break-words text-[0.875rem] leading-snug text-ink">
-          {tiles.length ? tiles.map((t, i) => <React.Fragment key={t.tag}>{i > 0 && ' + '}<b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="whitespace-nowrap text-muted"> {t.size}</span> : null}</React.Fragment>)
-            : x.tile ? x.tile : takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>}
-        </span>
-      </span>
-      <span className="flex min-w-0 items-center gap-1.5 text-[0.875rem] text-ink-2 max-lg:hidden" data-cell="grout">{g ? <><GroutDot grout={g} /><span className="min-w-0 line-clamp-2 leading-snug">{GROUTS[g]?.name || g}</span></> : dash}</span>
-      <span className={cn(cell, 'text-ink-2')} data-cell="height">{he || dash}</span>
-      <span className="flex min-w-0 items-center gap-2 text-[0.875rem] text-ink-2 max-lg:hidden" data-cell="trim">{trim.text ? <>{trim.text !== 'Mitered' && <TrimBar color={trim.color} />}<span className="min-w-0 line-clamp-2 leading-snug">{trim.text}</span></> : dash}</span>
-      <span className={cn(cell, 'text-ink-2')} title={x.notes || undefined} data-cell="notes">{x.notes || dash}</span>
-      <span className={cn(cell, 'text-right tnum text-ink-2')} data-cell="sf">{x.sf ? x.sf.toLocaleString('en-US') : dash}</span>
-      {inField && <span className={cn(cell, 'text-right text-[0.8125rem] tnum', right.cls)} data-cell="done">{takes ? right.text : ''}</span>}
-    </>
-  )
-}
-
-/** one room, always open: its band (tap it for the room — its daily log and photos), then each wall and floor on its
- *  own line, with its tile's picture — the same two lines as everywhere (what, and under it the rest). Its notes (a
- *  niche, a saddle — what isn't a wall or floor) under them. */
+/** one room, always open: its band (tap it for the room — its daily log and photos), then each wall and floor in plain
+ *  words, with its tile's picture. Its notes (a niche, a saddle — what isn't a wall or floor) under them. */
 function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTicking, adding, onAdding }: {
   job: Job; room: Room; view: RoomView; inField: boolean; canEdit: boolean; first: boolean
   /** its walls and floors being ticked (from its ···) */ ticking: boolean; onTicking: (o: boolean) => void
@@ -333,52 +313,57 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
   return (
     <div data-room={room.name} data-room-state={view.state} className={cn(!first && 'border-t border-line')}>
       {/* the band: its name in capitals and its short note — then where it stands and its square feet. Tap it for the room */}
-      <div className="sticky top-0 z-[5] flex min-h-9 min-w-0 items-center pr-2 max-sm:pr-1 lg:top-10" style={{ background: DOC_GRAY }} data-room-band>
-        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1 pl-5 pr-2 text-left max-sm:gap-2 max-sm:pl-3')}>
+      <div className="sticky top-0 z-[5] flex min-h-10 min-w-0 items-center pr-2 max-sm:pr-1" style={{ background: DOC_GRAY }} data-room-band>
+        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1 pl-5 pr-2 text-left max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-1.5 max-sm:pl-3')}>
           {/* a phone: the name and its note wrap rather than end in "…" */}
           <span className="min-w-0 flex-1 truncate max-sm:whitespace-normal max-sm:leading-snug"><b className={cn(ROOM_NAME, 'group-hover:text-brand-700')}>{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
           {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
-          {w.text && <span data-room-why className={cn('min-w-0 max-w-[45%] truncate text-right text-[0.8125rem] max-sm:max-w-[40%] max-sm:whitespace-normal max-sm:leading-snug', w.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{w.text}</span>}
+          {/* where it stands, whole (never cut short): a phone, on its own line under the name */}
+          {w.text && <span data-room-why className={cn('min-w-0 max-w-[45%] text-right text-[0.8125rem] leading-snug max-sm:order-last max-sm:w-full max-sm:max-w-none max-sm:text-left', w.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{w.text}</span>}
           <span className="w-[4.25rem] shrink-0 text-right text-[0.8125rem] tnum text-[#555] max-sm:hidden">{view.sf > 0 ? `${view.sf.toLocaleString('en-US')} SF` : ''}</span>
           <ChevronRight className="h-4 w-4 shrink-0 text-[#8a8f98] group-hover:text-brand-700" />
         </button>
         {canEdit && <RoomMenu jobId={job.id} room={room} onLines={() => onTicking(true)} onDetail={() => onAdding(true)} />}
       </div>
-      {/* each wall and floor: its tile's picture, what it is (which walls, how high), and under it the tile, the grout —
-          tap it to change it */}
+      {/* each wall and floor in plain words — tap it to change it */}
       <div data-room-body>
         {room.surfaces.map((x) => {
-          const { where, under, tile } = wordsOf(job.id, x)
           const takes = takesTile(x.name)
+          const walls = isWall(x.name) && x.walls ? x.walls.replace(/^The /, '') : ''
+          const doing = doingOf(x)
+          const { words, tile, grout } = tileWordsOf(job.id, x)
           const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
-          const right = inField && takes
-            ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : x.state === 'working' ? 'text-ink-2' : 'text-muted' }
-            : { text: x.sf ? `${x.sf.toLocaleString('en-US')} SF` : '', cls: 'text-muted' }
+          const status = inField && takes ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : 'text-ink-2' } : null
+          const sf = x.sf ? `${x.sf.toLocaleString('en-US')} SF` : ''
           return (
-            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name} className={cn(PAPER_ROW, 'flex w-full items-start gap-3 text-left transition row-hover first:border-t-0', inField ? SCOPE_GRID_FIELD : SCOPE_GRID)}>
-              {/* a phone (and a small screen): its picture, what it is, and under it the rest */}
-              <span className="flex min-w-0 flex-1 items-start gap-3 lg:hidden">
-                {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} />
-                  : takes ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-[#cfc8bc] bg-[#faf9f6] text-[0.625rem] font-semibold leading-tight text-muted" data-surface-notile>No tile</span>
-                    : <span className="h-11 w-11 shrink-0 rounded-md bg-[#f3f1ec]" />}
-                <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-baseline gap-3">
-                    <span className="min-w-0 flex-1 text-[0.9375rem] leading-[1.375rem] text-ink" data-surface-name>{x.name}{where && <span className="text-muted" data-surface-where> · {where}</span>}</span>
-                    {right.text && <span className={cn('shrink-0 text-[0.8125rem] tnum', right.cls)} data-surface-right>{right.text}</span>}
-                  </span>
-                  <span className="block text-[0.8125rem] leading-5 text-muted" data-surface-under>{under || (takes ? (canEdit ? 'Pick its tile' : 'Its tile isn’t picked yet') : 'Not tiled')}</span>
-                  {/* a wall: how high, and its trim — each with its mark */}
-                  {(heightOnly(x.height) || trimOf(x).text) && isWall(x.name) && (
-                    <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.8125rem] leading-5 text-ink-2" data-surface-fit>
-                      {heightOnly(x.height) && <span className="inline-flex items-center gap-1" data-surface-height><MoveVertical className="h-3.5 w-3.5 text-faint" />{heightOnly(x.height)}</span>}
-                      {trimOf(x).text && <span className="inline-flex items-center gap-1.5" data-surface-trim>{trimOf(x).text !== 'Mitered' && <TrimBar color={trimOf(x).color} />}{trimOf(x).text}</span>}
-                    </span>
-                  )}
+            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name}
+              className={cn('flex w-full min-w-0 items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3', LINE_GRID)}>
+              {/* its tile's picture */}
+              {tile ? <TileImg tile={tile} size={36} radius={5} className="max-lg:hidden" /> : <span className={cn('h-9 w-9 shrink-0 rounded-[5px] max-lg:hidden', takes ? 'border border-dashed border-[#cfc8bc] bg-[#faf9f6]' : 'bg-[#f3f1ec]')} />}
+              {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} className="lg:hidden" />
+                : takes ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-[#cfc8bc] bg-[#faf9f6] text-[0.625rem] font-semibold leading-tight text-muted lg:hidden" data-surface-notile>No tile</span>
+                  : <span className="h-11 w-11 shrink-0 rounded-md bg-[#f3f1ec] lg:hidden" />}
+              {/* what it is, and what we're doing on it — in words */}
+              <span className="min-w-0 flex-1 lg:flex-none">
+                <span className="flex min-w-0 items-baseline gap-3">
+                  <span className="min-w-0 flex-1 text-[0.9375rem] font-semibold leading-[1.375rem] text-ink" data-surface-name>{x.name}{walls && <span className="font-normal text-muted" data-surface-where> · {walls}</span>}</span>
+                  {/* a phone: how far (or its square feet) at the end of its name */}
+                  <span className={cn('shrink-0 text-[0.8125rem] tnum lg:hidden', status?.text ? status.cls : 'text-muted')} data-surface-right>{status?.text || sf}</span>
                 </span>
+                <span className="block text-[0.875rem] leading-snug text-ink-2" data-surface-under>{doing || (!takes ? 'Not tiled' : isWall(x.name) && x.state !== 'done' ? <span className="text-muted">Its height isn’t set</span> : '')}</span>
+                {/* a phone: its tile and grout under the words */}
+                <span className="mt-0.5 block text-[0.8125rem] leading-snug text-muted lg:hidden" data-surface-tile-phone>{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : '')}{grout ? ` · ${GROUTS[grout]?.name || grout} grout` : ''}</span>
               </span>
-              {/* a computer: one column for each thing */}
-              <ScopeCells jobId={job.id} x={x} inField={inField} canEdit={canEdit} right={right} />
+              {/* a computer: its tile, and the grout under it */}
+              <span className="min-w-0 max-lg:hidden" data-surface-tile>
+                <span className="block text-[0.875rem] leading-snug text-ink-2">{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>)}</span>
+                {grout && <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted" data-surface-grout><GroutDot grout={grout} size={10} /><span className="min-w-0 truncate">{GROUTS[grout]?.name || grout} grout</span></span>}
+              </span>
+              <span className="text-right max-lg:hidden">
+                <span className="block text-[0.875rem] tnum text-ink-2" data-surface-sf>{sf}</span>
+                {status?.text && <span className={cn('block text-[0.8125rem] tnum', status.cls)} data-surface-status>{status.text}</span>}
+              </span>
             </button>
           )
         })}

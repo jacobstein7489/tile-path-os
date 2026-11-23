@@ -809,7 +809,7 @@ export function NewPOModal({ jobId, prefill, fromEstimate, fromTakeoff, level }:
       return { item: it.name, qty: `${l.n} ${it.unit}${l.n === 1 || it.unit === 'LS' ? '' : 's'}`, itemId: it.id, n: l.n, price: l.price }
     })
     const ids = lines.map((l) => l.itemId)
-    const what = prefill?.what || (ids.some((i) => i === 'm-sand' || i === 'm-portland') ? 'Floor prep' : ids.some((i) => i === 'm-board' || i === 'm-wp') ? 'Board and waterproofing' : ids.every((i) => /jolly|trim|edge/.test(i)) ? 'Metal edges' : 'Setting materials')
+    const what = prefill?.what || (ids.some((i) => i === 'm-sand' || i === 'm-portland') ? 'Floor prep' : ids.some((i) => i === 'm-board' || i === 'm-wp') ? 'Board and waterproofing' : ids.every((i) => /jolly|trim|edge/.test(i)) ? 'Metal edges' : 'Materials')
     createPO(job, { supplier: vendor, lines: ls, amount: Math.round(total), what, neededBy: needed, replaces: prefill?.replaces, tag: prefill?.tag, addQty: prefill?.addQty })
   }
   /* the supplier: one dropdown, with what each one has for this project */

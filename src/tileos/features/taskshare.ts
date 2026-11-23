@@ -75,6 +75,20 @@ export function setTaskTime(id: string, at?: string) {
   }, undefined, { undo: false })
 }
 
+/** its day and its time taken off — it waits on Today under "No day set" until it gets one (Undo puts them back) */
+export function clearTaskWhen(id: string) {
+  const t0 = S().tasks.find((x) => x.id === id)
+  if (!t0 || (!t0.due && !t0.at)) return
+  S().commit((s) => {
+    const t = s.tasks.find((x) => x.id === id)
+    if (!t) return
+    delete t.due
+    delete t.at
+    t.dueTone = 'neutral'
+    t.log.push({ date: NOW, time: clockNow(), who: meOf(s.role), text: 'No day set' })
+  }, 'No day set', { sub: 'It stays on Today, under No day set, until it gets one.' })
+}
+
 /** a task someone added by hand, taken off the list altogether (Undo puts it back) */
 export function removeTask(id: string) {
   const t = S().tasks.find((x) => x.id === id)
@@ -83,7 +97,11 @@ export function removeTask(id: string) {
     s.tasks = s.tasks.filter((x) => x.id !== id)
     /* never gone without a trace: on a project it's written in What happened, like a done one */
     if (t.jobId && s.jobs[t.jobId]) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Deleted · ${t.title}` })
-  }, 'Deleted', { sub: t.title })
+    /* someone else's: they're told — it doesn't just vanish from their list */
+    const me = meOf(s.role)
+    const told = Array.from(new Set([t.owner, ...(t.also || [])].filter((p): p is PersonKey => !!p && p !== me && !!PEOPLE[p])))
+    if (told.length) s.notices.unshift({ id: 'nx' + Date.now(), jobId: t.jobId || undefined, text: `Deleted · ${t.title} · by ${PEOPLE[me]?.short || 'the office'}`, when: 'Just now', kind: 'field', unread: true, open: t.jobId && s.jobs[t.jobId] ? { t: 'job', id: t.jobId } : undefined, for: told })
+  }, 'Deleted', { sub: t.owner && t.owner !== meOf(S().role) ? `${t.title} · ${PEOPLE[t.owner]?.short || 'They'} will see it was deleted` : t.title })
 }
 
 /** its words changed right in its window — what to do, and what it's about (empty: nothing under it) */

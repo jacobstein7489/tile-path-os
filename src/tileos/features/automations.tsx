@@ -141,7 +141,7 @@ export function AutomationsTab() {
 const COMMON_REMINDERS: { t: string; repeat: NonNullable<Task['repeat']>; at: string }[] = [
   { t: 'Send me how many people are on each job', repeat: 'weekdays', at: '4 PM' },
   { t: 'Check next week’s starts. Tile, materials and installer all set?', repeat: 'weekly', at: '8 AM' },
-  { t: 'Order the setting materials for next week’s starts', repeat: 'weekly', at: '8 AM' },
+  { t: 'Order the materials for next week’s starts', repeat: 'weekly', at: '8 AM' },
   { t: 'Walk every job with a crew on it', repeat: 'weekdays', at: '8 AM' },
   { t: 'Send the GC this week’s progress photos', repeat: 'weekly', at: '4 PM' },
   { t: 'Go over open invoices and call who’s late', repeat: 'weekly', at: 'Noon' },

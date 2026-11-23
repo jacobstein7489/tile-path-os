@@ -66,7 +66,7 @@ export function ItemsPage() {
   const shownOurs = ours.filter((i) => match(i) && (grp === 'all' || (i.group || 'Tile install') === grp) && (need === 'all' || (need === 'price' ? !i.price : i.type === 'labor' && !i.cost)))
   const groups = ITEM_GROUPS.filter((g) => ours.some((i) => (i.group || 'Tile install') === g))
   const cats = (Object.keys(MAT_CAT) as MatCat[]).filter((c) => mats.some((i) => i.cat === c))
-  const title = tab === 'ours' ? (need === 'price' ? 'No price yet' : need === 'rate' ? 'No installer rate yet' : grp === 'all' ? 'Your items' : grp) : tab === 'material' ? (cat === 'all' ? 'Setting materials' : MAT_CAT[cat].label) : 'Labor rates'
+  const title = tab === 'ours' ? (need === 'price' ? 'No price yet' : need === 'rate' ? 'No installer rate yet' : grp === 'all' ? 'Your items' : grp) : tab === 'material' ? (cat === 'all' ? 'Materials' : MAT_CAT[cat].label) : 'Labor rates'
   const count = tab === 'ours' ? shownOurs.length : tab === 'material' ? shownMats.length : shownLabor.length
   return (
     <Page
@@ -82,7 +82,7 @@ export function ItemsPage() {
             ...(ours.length ? [{ key: 'ours', label: 'Your items', count: ours.length, sub: 'from QuickBooks', icon: <FileSpreadsheet />, color: 'blue' as BubbleColor, on: tab === 'ours' && need === 'all', onClick: () => { setTab('ours'); setNeed('all') } }] : []),
             ...(ours.length ? [{ key: 'price', label: 'No price yet', count: noPrice.length, icon: <CircleDollarSign />, color: 'amber' as BubbleColor, on: tab === 'ours' && need === 'price', onClick: () => { setTab('ours'); setNeed(need === 'price' ? 'all' : 'price') } }] : []),
             ...(ours.length ? [{ key: 'rate', label: 'No installer rate', count: noRate.length, icon: <HardHat />, color: 'orange' as BubbleColor, on: tab === 'ours' && need === 'rate', onClick: () => { setTab('ours'); setNeed(need === 'rate' ? 'all' : 'rate') } }] : []),
-            { key: 'material', label: 'Setting materials', count: mats.length, icon: <Package />, color: ours.length ? 'slate' : 'blue', on: tab === 'material', onClick: () => { setTab('material'); setCat('all') }, gapBefore: ours.length > 0 },
+            { key: 'material', label: 'Materials', count: mats.length, icon: <Package />, color: ours.length ? 'slate' : 'blue', on: tab === 'material', onClick: () => { setTab('material'); setCat('all') }, gapBefore: ours.length > 0 },
             ...(!ours.length ? [{ key: 'labor', label: 'Labor rates', count: labor.length, icon: <Hammer />, color: 'blue' as BubbleColor, on: tab === 'labor', onClick: () => setTab('labor') }] : []),
           ]}
         />
@@ -525,7 +525,7 @@ export function ImportItemsModal({ level }: { level: number }) {
       {!from && (
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           <OptionCard icon={<RefreshCw />} tone="ok" title="Your QuickBooks items" sub="The Products and Services export (CSV). New items are added, changed prices are updated." onClick={() => setFrom('qb')} />
-          <OptionCard icon={<FileSpreadsheet />} title="A supplier’s price list" sub="Setting materials from Infinity, Metal Works or anyone. With their pictures. Sample list." onClick={() => setFrom('list')} />
+          <OptionCard icon={<FileSpreadsheet />} title="A supplier’s price list" sub="Materials from Infinity, Metal Works or anyone. With their pictures. Sample list." onClick={() => setFrom('list')} />
         </div>
       )}
       {from === 'qb' && !read && (

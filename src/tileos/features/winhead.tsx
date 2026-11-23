@@ -39,6 +39,8 @@ export type WhenPick = {
   times?: string[]
   /** a time is a must (a meeting): no "Any time" */
   needTime?: boolean
+  /** its day and time taken off altogether ("No day") — a to-do; a meeting always has its day */
+  onClear?: () => void
 }
 /** "9:00 AM" — minutes from midnight in the words a time is picked in */
 export const clock = (m: number) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`
@@ -63,7 +65,7 @@ const KIND_TONES: [RegExp, { background: string; color: string }][] = [
 ]
 const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(label))?.[1] || { background: '#ebf1fd', color: '#2c53c0' }
 
-export const CHIP = '-mx-2 inline-flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
+export const CHIP = 'inline-flex min-h-8 min-w-0 items-center gap-2 rounded-full border border-[#e9e5de] bg-white px-3 py-1 text-left shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3] hover:shadow-[0_2px_6px_-2px_rgba(20,26,36,.15)] focus-visible:border-brand-300 focus-visible:outline-none'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
 
 /** each line's small mark — the same on every window */
@@ -71,8 +73,8 @@ const LINE_ICON: Record<string, React.ReactNode> = { who: <UserRound />, people:
 /** one line of the box: its mark and name on the left, what it says on the right */
 export function WinLine({ k, label, top, children }: { k: string; label: string; top?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('grid min-h-[2.875rem] grid-cols-[8.5rem_minmax(0,1fr)] gap-x-3 border-t border-line-2 px-4 py-1.5 first:border-t-0 max-sm:grid-cols-[7.25rem_minmax(0,1fr)] max-sm:px-3', top ? 'items-start' : 'items-center')} data-win-line={k}>
-      <span className={cn('flex min-w-0 items-center gap-2.5 text-[0.875rem] text-muted [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-[#a39d93]', top && 'pt-[0.3125rem]')} data-win-label={k}>{LINE_ICON[k]}<span className="min-w-0">{label}</span></span>
+    <div className={cn('grid min-h-11 grid-cols-[8.5rem_minmax(0,1fr)] gap-x-3 rounded-xl px-3 py-1 transition-colors hover:bg-white/70 max-sm:grid-cols-[7.25rem_minmax(0,1fr)] max-sm:px-2', top ? 'items-start' : 'items-center')} data-win-line={k}>
+      <span className={cn('flex min-w-0 items-center gap-2.5 text-[0.875rem] text-muted [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-[#a39d93]', top && 'pt-[0.4375rem]')} data-win-label={k}>{LINE_ICON[k]}<span className="min-w-0">{label}</span></span>
       <div className="flex min-w-0 items-center">{children}</div>
     </div>
   )
@@ -188,10 +190,12 @@ export function WhenPop({ pick, trigger }: { pick: WhenPick; trigger: React.Reac
           </div>
         )}
       </div>
-      {timed && (
+      {(timed || pick.onClear) && (
         <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5">
+          {/* no day at all (and no time): it waits under No day set */}
+          {pick.onClear && <button type="button" onClick={() => { esc.current = true; close(); pick.onClear?.() }} className="shrink-0 rounded-full px-2 py-1 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-bad-600" data-when-clear>No day</button>}
           <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium text-ink" data-when-said>{said}</span>
-          <Button size="sm" variant="primary" onClick={() => { close(); finish() }} data-when-done>Done</Button>
+          {timed && <Button size="sm" variant="primary" onClick={() => { close(); finish() }} data-when-done>Done</Button>}
         </div>
       )}
     </Pop>
@@ -290,12 +294,14 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   )
   const stateCls = toneCls(tone)
   return (
-    <div className="px-6 pb-2 pt-5 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
+    <div className="relative isolate px-6 pb-2 pt-5 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
+      {/* a soft wash of what it is behind the top of the window — you know what you opened before you read a word */}
+      {kind && <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-40" style={{ background: `linear-gradient(180deg, ${kindTone(kind.label).background} 0%, rgba(255,255,255,0) 100%)` }} data-win-wash />}
       {/* what it is, and its project — clear of the window's ✕ (a phone too: the ✕ is on this line) */}
-      <div className="flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:items-center max-sm:pr-12 [[data-stacked]_&]:pr-0">
+      <div className="relative flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:items-center max-sm:pr-12 [[data-stacked]_&]:pr-0">
         {/* the project goes on to the next line when there isn't room — never cut short */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-semibold [&_svg]:h-3.5 [&_svg]:w-3.5" style={kindTone(kind.label)} data-win-kind>{kind.icon}{kind.label}</span>}
+          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-2.5 text-[0.8125rem] font-semibold shadow-[0_1px_2px_rgba(20,26,36,.06)] ring-1 ring-inset ring-black/[0.04] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: kindTone(kind.label).color }} data-win-kind>{kind.icon}{kind.label}</span>}
           {onPlace ? (
             <button type="button" onClick={onPlace} className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-0.5 text-left text-[0.875rem] font-medium text-muted transition hover:text-brand-700" data-win-place aria-label="Open the project"><span className="min-w-0">{place}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" /></button>
           ) : <span className="inline-flex min-h-7 min-w-0 items-center text-[0.875rem] font-medium text-muted" data-win-place>{place}</span>}
@@ -308,7 +314,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
           </span>
         )}
       </div>
-      <h2 className="font-display mt-2.5 text-[1.375rem] font-semibold leading-snug tracking-[-0.01em] text-ink max-sm:text-[1.25rem]" data-win-title>
+      <h2 className="font-display relative mt-3 text-[1.5rem] font-semibold leading-tight tracking-[-0.018em] text-ink max-sm:text-[1.3125rem]" data-win-title>
         {edit ? <EditText value={edit.title} onSave={edit.onTitle} label="What to do" attrs={{ 'data-win-title-edit': '' }} /> : title}
       </h2>
       {edit ? (
@@ -317,7 +323,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
         </div>
       ) : sub && <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
       {/* one box of short lines, each with its name on the left */}
-      <div className="mt-4 rounded-xl border border-line bg-white" data-win-who>
+      <div className="mt-4 rounded-2xl bg-[#f8f7f4] p-1.5 ring-1 ring-inset ring-[#efebe4]" data-win-who>
         {lines}
         {(whoText || whoPick) && (
           <WinLine k="who" label={whoLabel}>

@@ -25,7 +25,7 @@ import { payOpen, PAY_WEEKS } from './pay'
 import { billsToMake, billTotal, billingOn, LAST_WEEK } from './progressbill'
 import { LinkedPO, poOfTask } from './linkedpo'
 import { POFollowUp, canEmailFollow } from './pofollow'
-import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask, setTaskTime } from './taskshare'
+import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTask, canEditTask, canRemoveTask, setTaskTime, clearTaskWhen } from './taskshare'
 import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
@@ -451,7 +451,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* a computer: who's watching, its day and (the admin) who does it — tapped right on the row */
       watchPick={!done ? { people: team, me: me0, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       star={!done ? taskStarPick(s, t, me0) : undefined}
-      whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v) } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
+      whenPick={t.state === 'now' && !gcw && (!theirs || admin) ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v), onClear: t.due || t.at ? () => clearTaskWhen(t.id) : undefined } : t.state === 'waiting' && !gcw && (!theirs || admin) ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) } : undefined}
       whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       project={job ? job.name : 'Company'}
       when={w.text}
@@ -1777,7 +1777,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
       whoPick={admin && t.state !== 'done' ? { people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       whenPick={gcw && canMove ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) }
-        : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v) }
+        : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v), onClear: t.due || t.at ? () => clearTaskWhen(t.id) : undefined }
           : t.state === 'waiting' && canMove ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) }
             : t.state === 'later' && canMove ? { title: 'Back on', value: t.laterUntil, onPick: (d) => s.laterTask(t.id, d) } : undefined}
     />
@@ -1906,7 +1906,7 @@ const COMMON_TASKS: { t: string; for: Role[] }[] = [
   { t: 'Confirm the installer for the start date', for: ['owner', 'pm', 'office'] },
   { t: 'Ask the designer for the grout color', for: ['owner', 'pm', 'office', 'estimator'] },
   { t: 'Follow up on the change order with the GC', for: ['owner', 'pm', 'office', 'estimator'] },
-  { t: 'Order the setting materials', for: ['owner', 'pm', 'office', 'materials'] },
+  { t: 'Order the materials', for: ['owner', 'pm', 'office', 'materials'] },
   { t: 'Check the floor levels on site', for: ['owner', 'pm', 'office', 'site'] },
   { t: 'Walk the job with the installer', for: ['owner', 'pm', 'site'] },
   { t: 'Count the tile boxes when they come', for: ['owner', 'pm', 'site', 'materials'] },

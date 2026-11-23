@@ -222,7 +222,7 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }
   return (
     <>
       {/* the bar on top — the same as the tile's and the scope's: the switch on the left, its buttons on the right */}
-      <PaperBar lead={lead} mark="data-mat-bar">
+      <PaperBar lead={<span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">{lead}<span className="text-[0.8125rem] text-muted max-sm:hidden" data-mat-says>What we order: floor prep, waterproofing, thinset and grout, metal edges</span></span>} mark="data-mat-bar">
         {!simple && canEdit && <AddMaterial jobId={job.id} />}
         {!simple && (miss.length > 0 && !orderOnTop
           ? <Button variant="primary" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })} data-mat-order>Order what’s missing · {miss.length}</Button>

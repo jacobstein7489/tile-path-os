@@ -429,7 +429,7 @@ function Deliveries() {
     { job: '119', what: '2 brass JOLLY profiles', when: 'Tomorrow', from: 'Metal Works Inc.', task: 't-jolly' },
     { job: '119', what: '6 boxes of T-03 Toscana Ivory', when: shiftText('Fri Oct 2'), from: 'Best Tile · GC order', task: '' },
     { job: '24c', what: '12 boxes of T-06 Pearl', when: 'Fri', from: 'Best Tile · GC order', task: 't-tile24c' },
-    { job: '114', what: 'Setting materials · PO-1045', when: 'Not confirmed', from: 'Infinity', task: 't-po1045' },
+    { job: '114', what: 'Materials · PO-1045', when: 'Not confirmed', from: 'Infinity', task: 't-po1045' },
   ]
   return (
     <Card className="shrink-0 overflow-hidden">

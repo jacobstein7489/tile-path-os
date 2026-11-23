@@ -30,7 +30,7 @@ export interface SupplierInfo { name: string; supplies: string; /** what we buy 
 export type SupplyKind = 'tile' | 'setting' | 'waterproofing' | 'boards' | 'trim' | 'tools' | 'other'
 export const SUPPLY_KINDS: { key: SupplyKind; label: string }[] = [
   { key: 'tile', label: 'Tile' },
-  { key: 'setting', label: 'Setting materials' },
+  { key: 'setting', label: 'Thinset & grout' },
   { key: 'waterproofing', label: 'Waterproofing' },
   { key: 'boards', label: 'Underlayment & boards' },
   { key: 'trim', label: 'Edges & trim' },

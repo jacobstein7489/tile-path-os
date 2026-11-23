@@ -8,12 +8,12 @@ import { METHODS, MAT_RULES0, type MatRules, type MethodKey, type SurfKind } fro
 import { parseMetal, metalItem } from '@/tileos/data/catalog'
 import { isMetal } from './tiles'
 
-export type Group = 'Floor prep' | 'Walls and waterproofing' | 'Setting and grout' | 'Metal edges'
-export const GROUPS: Group[] = ['Floor prep', 'Walls and waterproofing', 'Setting and grout', 'Metal edges']
+export type Group = 'Floor prep' | 'Walls and waterproofing' | 'Thinset and grout' | 'Metal edges'
+export const GROUPS: Group[] = ['Floor prep', 'Walls and waterproofing', 'Thinset and grout', 'Metal edges']
 const GROUP_OF: Record<string, Group> = {
   'm-sand': 'Floor prep', 'm-portland': 'Floor prep', 'm-slu': 'Floor prep', 'm-primer': 'Floor prep', 'm-membrane': 'Floor prep', 'm-liner': 'Floor prep',
   'm-board': 'Walls and waterproofing', 'm-screws': 'Walls and waterproofing', 'm-tape': 'Walls and waterproofing', 'm-wp': 'Walls and waterproofing', 'm-foam': 'Walls and waterproofing', 'm-skim': 'Walls and waterproofing',
-  'm-thinset': 'Setting and grout', 'm-grout': 'Setting and grout', 'm-clips': 'Setting and grout',
+  'm-thinset': 'Thinset and grout', 'm-grout': 'Thinset and grout', 'm-clips': 'Thinset and grout',
   'm-jolly': 'Metal edges', 'm-trim': 'Metal edges', 'm-edge': 'Metal edges',
 }
 /** the same material under another name on an older PO */
@@ -232,7 +232,7 @@ export function takeoff(s: Pick<Store, 'rooms' | 'pos' | 'mats' | 'rules'> & Par
       if (a0.onSite) onSite = Math.max(onSite, need)
       if (!refs.includes(a0.ref)) refs.push(a0.ref)
     }
-    return { itemId, group: GROUP_OF[itemId] || 'Setting and grout', raw: a.raw, need, have, onSite: Math.min(onSite, have), toOrder: Math.max(0, need - have), uses: a.uses, refs, manual: manual.has(itemId) || undefined, edited: ed.qty?.[itemId] != null ? worked : undefined }
+    return { itemId, group: GROUP_OF[itemId] || 'Thinset and grout', raw: a.raw, need, have, onSite: Math.min(onSite, have), toOrder: Math.max(0, need - have), uses: a.uses, refs, manual: manual.has(itemId) || undefined, edited: ed.qty?.[itemId] != null ? worked : undefined }
   })
   const order = (id: string) => Object.keys(GROUP_OF).indexOf(id)
   lines.sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || order(a.itemId) - order(b.itemId))

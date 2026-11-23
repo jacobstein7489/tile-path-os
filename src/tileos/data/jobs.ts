@@ -675,7 +675,7 @@ export const HISTORY0: Record<string, HistEntry[]> = {
     { date: 'Aug 11', who: 'office', kind: 'pricing', title: 'Price request received from the GC' },
   ],
   '114': [
-    { date: 'Sep 26', who: 'materials', kind: 'material', title: 'PO-1045 sent to Infinity · setting materials', detail: 'Waiting for the supplier to confirm' },
+    { date: 'Sep 26', who: 'materials', kind: 'material', title: 'PO-1045 sent to Infinity · materials', detail: 'Waiting for the supplier to confirm' },
     { date: 'Sep 25', who: 'office', kind: 'material', title: 'Tile store paperwork entered', detail: 'Best Tile order · wall tile 500 SF, floor 200 SF' },
     { date: 'Sep 25', who: 'system', kind: 'material', title: 'Quantity check: wall tile 60 SF short', detail: 'Our takeoff with waste: 560 SF · ordered 500 SF', from: '560 SF needed', to: '500 SF ordered' },
     { date: 'Sep 23', who: 'office', kind: 'setup', title: 'Rooms built · 2 rooms, 4 surfaces' },

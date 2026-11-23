@@ -175,17 +175,18 @@ function StageBar({ job }: { job: Job }) {
                 {/* green when it's done, blue as far as it's got — a problem is said in red under it, not by the bar */}
                 <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
               </span>
-              <span className={cn('mt-1 flex min-w-0 items-baseline gap-1.5 text-[0.75rem] leading-tight max-sm:hidden', on ? 'text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-faint')}>
+              <span className={cn('mt-1 flex min-w-0 items-baseline gap-1.5 text-[0.75rem] leading-tight max-sm:hidden', on ? 'flex-wrap gap-y-0.5 text-ink' : x.state === 'done' ? 'text-ink-2' : 'text-faint')}>
                 <span className={cn('shrink-0', on && 'font-semibold')} data-stage-word={on ? '' : undefined}>{x.label}</span>
                 {/* its day — and, for the one going on, how far it's got */}
-                {on ? <span className="min-w-0 truncate text-muted">{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
+                {/* the one going on: said whole (it goes on to a second line rather than end in "…") */}
+                {on ? <span className="min-w-0 text-muted" data-stage-sub>{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
                   : x.date ? <span className="min-w-0 truncate tnum text-faint" data-stage-date>{x.date}</span> : null}
               </span>
             </li>
           )
         })}
       </ol>
-      {cur && <div className="mt-1 truncate text-[0.8125rem] text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
+      {cur && <div className="mt-1 text-[0.8125rem] leading-snug text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
     </div>
   )
 }

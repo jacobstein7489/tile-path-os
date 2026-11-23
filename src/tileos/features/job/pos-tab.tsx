@@ -44,8 +44,10 @@ function MatTabs({ job, part, setPart }: { job: Job; part: MatPart; setPart: (p:
   )
   return (
     <div role="tablist" className="flex h-9 w-full items-center gap-1 rounded-[0.625rem] border border-line bg-wash-2 p-[0.1875rem] max-md:h-11 sm:w-auto" data-mat-tabs>
-      {tab('tile', 'Tile selection', 'Tile', tileWords, tileShort > 0)}
-      {tab('ours', 'Setting materials', 'Materials', ourWords)}
+      {/* plain names: the tile (the client's, from the store), and what we order ourselves — floor prep, waterproofing,
+          thinset and grout, the metal edges */}
+      {tab('tile', 'Tile', 'Tile', tileWords, tileShort > 0)}
+      {tab('ours', 'Materials', 'Materials', ourWords)}
     </div>
   )
 }

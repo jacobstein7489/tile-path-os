@@ -115,7 +115,7 @@ export const WHAT: Record<string, string> = {
   installer: 'Pick who installs it and send him his PO. The meter shows it against the estimate.',
   walk: 'Walk the job with the installer before he starts. Not every job needs it.',
   confirmed: 'He accepts the PO and the dates. Until he does, it comes back on the list to call him.',
-  materials: 'Setting materials, worked out from the setup and the square feet.',
+  materials: 'What we order ourselves (floor prep, waterproofing, thinset and grout, metal edges), worked out from the setup and the square feet.',
   matin: 'On the day it’s due, it’s on the list of whoever ordered it: did it come?',
   order: 'Find out when the store delivers the tile, and who checks it in.',
   delivered: 'Count the boxes when it comes.',
@@ -1888,7 +1888,7 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
 const GROUP_EMPTY: Record<Group, string> = {
   'Floor prep': 'Nothing under the floors. They go on the slab',
   'Walls and waterproofing': 'Nothing on the walls before the tile',
-  'Setting and grout': 'After the tile is picked. Thinset and grout go by the tile',
+  'Thinset and grout': 'After the tile is picked. Thinset and grout go by the tile',
   'Metal edges': 'No metal edges on this job',
 }
 function Materials({ job, v }: { job: Job; v: StepView }) {
@@ -1908,7 +1908,7 @@ function Materials({ job, v }: { job: Job; v: StepView }) {
           return (
             <div key={g} className="border-t border-line-2 first:border-t-0" data-mat-group={g}>
               <div className="px-4 pb-1 pt-2.5 text-[0.75rem] font-semibold text-muted">{g}</div>
-              {!lines.length && <div className="px-4 pb-2.5 text-[0.8125rem] text-faint">{g === 'Setting and grout' && !noTile.length ? 'Nothing yet' : GROUP_EMPTY[g]}</div>}
+              {!lines.length && <div className="px-4 pb-2.5 text-[0.8125rem] text-faint">{g === 'Thinset and grout' && !noTile.length ? 'Nothing yet' : GROUP_EMPTY[g]}</div>}
               {lines.map((l) => {
                 const it = s.items.find((i) => i.id === l.itemId)
                 return (

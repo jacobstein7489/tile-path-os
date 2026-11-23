@@ -65,7 +65,7 @@ export type CellKey = 'picked' | 'onsite' | 'material' | 'po' | 'deposit'
 export const CELLS: { key: CellKey; head: [string, string]; full: string; w: number; short: string }[] = [
   { key: 'picked', head: ['Tile', 'picked'], full: 'Tile picked for every surface', w: 76, short: 'Tile picked' },
   { key: 'onsite', head: ['Tile', 'on site'], full: 'Finish tile delivered to site', w: 76, short: 'Tile on site' },
-  { key: 'material', head: ['Our', 'materials'], full: 'Our setting materials and trim', w: 76, short: 'Our materials' },
+  { key: 'material', head: ['Our', 'materials'], full: 'Our materials and metal edges', w: 76, short: 'Our materials' },
   { key: 'po', head: ['Installer', 'PO'], full: 'Installer PO sent and accepted', w: 76, short: 'Installer PO' },
   { key: 'deposit', head: ['Deposit', 'paid'], full: 'Deposit paid', w: 76, short: 'Deposit paid' },
 ]

@@ -8,11 +8,11 @@
  * against anyone; a missed follow-up does. Moving something after it's late doesn't reset it — it counts from the day
  * it was first set for. */
 import * as React from 'react'
-import { AlarmClock, BellRing, Check, ChevronDown, ChevronRight, SlidersHorizontal, UserRoundCheck } from 'lucide-react'
+import { AlarmClock, BellRing, CalendarDays, Check, ChevronDown, ChevronRight, SlidersHorizontal, UserRoundCheck } from 'lucide-react'
 import { useStore, meOf, NOW, DATA_KEYS, type Store } from '@/tileos/store'
 import { Avatar, Button, Field, TextInput } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { ListHead } from './winhead'
+import { ListHead, WhenPop, type WhenPick } from './winhead'
 import { Page, Status, PX, ProgressRing, ViewSwitch, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey, type Role, type Tone } from '@/tileos/data/model'
@@ -21,7 +21,7 @@ import { TODAY, addDays, dow, md, isoFromLabel, daysBetween } from '@/tileos/lib
 import { REAL, awayFromMe } from '@/tileos/lib/save'
 import { lateOf, remind } from './late'
 import { insidePeople } from './steps-ui'
-import { stepsFor } from './steps'
+import { stepsFor, setStepDue } from './steps'
 import { openStep, todoOf } from './stepwin'
 import type { PlateItem } from './mytasks'
 
@@ -157,6 +157,13 @@ const openItem = (go: { kind: 'task'; id: string } | { kind: 'step'; jobId: stri
   else s.open({ t: 'task', id: go.id })
 }
 const goOf = (x: PlateItem) => (x.kind === 'step' ? { kind: 'step' as const, jobId: x.job!.id, k: x.v!.key } : { kind: 'task' as const, id: x.t!.id })
+/** the day they agreed on, right on the check-in's line: a to-do's day, or a step's */
+function newDayOf(x: PlateItem): WhenPick {
+  const s = useStore.getState()
+  if (x.kind === 'step' && x.job && x.v) { const j = x.job.id, k = x.v.key; return { title: 'A new day', presets: ['Today', 'Tomorrow', 'Next Mon'], onPick: (d) => setStepDue(j, k, d) } }
+  const id = x.t?.id || ''
+  return { title: 'A new day', presets: ['Today', 'Tomorrow', 'Next Mon'], onPick: (d) => s.setTaskDue(id, d) }
+}
 
 export function CheckInModal({ who, level }: { who: PersonKey; level: number }) {
   const s = useStore()
@@ -192,14 +199,19 @@ export function CheckInModal({ who, level }: { who: PersonKey; level: number }) 
       {items.length > 0 && (
         <section className="-mx-2" data-checkin-items>
           {items.map((c) => (
-            <button key={c.key} onClick={() => openItem(goOf(c.x))} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-2 text-left transition row-hover" data-from={c.from || undefined}>
+            /* one line each, all right here: what, the project, how late — and a new day agreed on the spot (the
+               calendar, right on the line). Nothing opens another window */
+            <div key={c.key} className="flex w-full min-w-0 items-center gap-3 rounded-lg px-2 py-2" data-from={c.from || undefined} data-checkin-item={c.key}>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] text-ink">{cleanTitleOf(c.title, c.jobName)}</span>
-                <span className="block truncate text-[0.8125rem] text-muted">{c.jobName}</span>
+                <span className="block text-[0.9375rem] leading-snug text-ink">{cleanTitleOf(c.title, c.jobName)}</span>
+                <span className="block text-[0.8125rem] text-muted"><span className="font-medium tnum text-bad-600">{workDays(c.late)} late</span> · {c.jobName}</span>
               </span>
-              <span className="shrink-0 text-[0.8125rem] font-medium tnum text-bad-600">{workDays(c.late)} late</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-            </button>
+              <WhenPop pick={newDayOf(c.x)} trigger={
+                <button type="button" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.8125rem] font-semibold text-ink-2 shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3]" data-checkin-newday>
+                  <CalendarDays className="h-3.5 w-3.5 text-faint" />New day
+                </button>
+              } />
+            </div>
           ))}
         </section>
       )}

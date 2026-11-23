@@ -240,7 +240,7 @@ export function initialData(): Data {
         { date: 'Oct 1', who: 'office', kind: 'material', title: 'Best Tile: the missing T-04 comes Thursday', detail: '6 boxes' },
         { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Tile delivered · with problems', detail: 'T-05 3 boxes broken · T-07 4 boxes wrong (honed, not polished) · T-04 6 boxes missing' },
         { date: 'Sep 30', who: 'yakov', kind: 'question', title: 'Site check. The water isn’t on yet', detail: 'The GC says Friday. Heights, electrical and plumbing are fine.' },
-        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Setting materials ordered from Infinity', detail: 'Thinset, grout, membrane · delivery Monday' },
+        { date: 'Sep 30', who: 'yakov', kind: 'material', title: 'Materials ordered from Infinity', detail: 'Thinset, grout, membrane · delivery Monday' },
         { date: 'Sep 29', who: 'ys', kind: 'decision', title: 'Design walkthrough with the designer', detail: 'Grout warm gray · feature wall centered on the doors · niches move 6″ left' },
       ],
     },

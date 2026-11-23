@@ -236,7 +236,7 @@ export const TASKS0: Task[] = [
     log: [L('Sep 30', 'yakov', 'Logged as a problem'), L('Oct 1', 'office', 'Best Tile: the rest comes Thursday')],
   },
   {
-    id: 't-green-mat', jobId: 'green', title: 'Setting materials delivered', type: 'Materials', owner: 'yakov', for: ['site'], watch: ['owner'],
+    id: 't-green-mat', jobId: 'green', title: 'Materials delivered', type: 'Materials', owner: 'yakov', for: ['site'], watch: ['owner'],
     state: 'waiting', waitingOn: 'Infinity', followUp: 'Mon', tone: 'info', where: 'Thinset, grout, membrane',
     detail: 'Ordered Sep 30 · Infinity delivers Monday.',
     log: [L('Sep 30', 'yakov', 'Ordered from Infinity')],
@@ -284,7 +284,7 @@ export const TASKS0: Task[] = [
   },
   {
     id: 't-po1045', jobId: '114', step: '114:matin',  title: 'PO-1045 · waiting for Infinity to confirm', type: 'Materials', owner: 'materials', for: ['materials'],
-    state: 'waiting', waitingOn: 'Infinity', followUp: 'Tomorrow', tone: 'warn', where: 'Setting materials',
+    state: 'waiting', waitingOn: 'Infinity', followUp: 'Tomorrow', tone: 'warn', where: 'Materials',
     detail: 'Membrane, LFT thinset and grout for 114 Park Place. Sent Sep 26.',
     action: { label: 'Mark confirmed', kind: 'po-confirm' }, log: [L('Sep 26', 'materials', 'PO-1045 sent to Infinity')],
   },
@@ -387,7 +387,7 @@ export const OURMATS: OurMat[] = [
   { id: 'om5', jobId: '119', name: 'Schluter JOLLY · satin brass · 10 mm', qty: '6 × 8 ft', status: 'partial', po: 'PO-1041', eta: 'Tomorrow', where: 'Outside corners, edges', kind: 'metal' },
   { id: 'om19', jobId: '119', name: 'Floor prep and wall board', qty: 'Sand, Portland, leveler, liners, board', status: 'delivered', where: 'All rooms', kind: 'prep', items: ['m-sand', 'm-portland', 'm-slu', 'm-primer', 'm-liner', 'm-board', 'm-screws', 'm-tape', 'm-clips'], rooms: 'all' },
   { id: 'om20', jobId: '119', name: 'Schluter JOLLY · satin brass · 10 mm', qty: '8 × 8 ft', status: 'delivered', where: 'Shower, tub and powder edges', kind: 'metal', itemId: 'm-jolly', n: 8 },
-  { id: 'om6', jobId: '114', name: 'Setting materials · membrane, LFT thinset, grout', qty: '3 lines', status: 'sent', po: 'PO-1045', where: 'Both baths', kind: 'setting' },
+  { id: 'om6', jobId: '114', name: 'Materials · membrane, LFT thinset, grout', qty: '3 lines', status: 'sent', po: 'PO-1045', where: 'Both baths', kind: 'setting' },
   { id: 'om7', jobId: '530', name: 'Portland cement', qty: '12 bags', status: 'to-order', where: 'Floor prep', kind: 'prep' },
   { id: 'om8', jobId: '530', name: 'Sand', qty: '30 bags', status: 'to-order', where: 'Floor prep', kind: 'prep' },
   { id: 'om9', jobId: '530', name: 'LFT thinset', qty: '20 bags', status: 'delivered', where: 'Walls', kind: 'setting', itemId: 'm-thinset', n: 20 },
@@ -396,11 +396,11 @@ export const OURMATS: OurMat[] = [
   { id: 'om11', jobId: '118', name: 'Metal trim · satin nickel · 1/4″', qty: '40 pieces', status: 'late', po: 'PO-1042', eta: 'Was Sep 21', where: 'Edges in 3 rooms', kind: 'metal' },
   { id: 'om12', jobId: '118', name: 'LFT thinset', qty: '30 bags', status: 'delivered', where: 'All rooms', kind: 'setting', itemId: 'm-thinset', n: 30 },
   { id: 'om21', jobId: '118', name: 'Board, waterproofing and grout', qty: 'All rooms', status: 'delivered', where: 'All rooms', kind: 'prep', items: ['m-board', 'm-screws', 'm-tape', 'm-wp', 'm-grout', 'm-sand', 'm-portland', 'm-clips', 'm-liner', 'm-slu', 'm-primer'], rooms: 'all' },
-  { id: 'om13', jobId: 'green', name: 'Setting materials', qty: 'All lines', status: 'delivered', where: 'Whole project', kind: 'setting', rooms: 'all' },
+  { id: 'om13', jobId: 'green', name: 'Materials', qty: 'All lines', status: 'delivered', where: 'Whole project', kind: 'setting', rooms: 'all' },
   { id: 'om14', jobId: '2385', name: 'Epoxy grout', qty: '14 units', status: 'delivered', where: 'Ballroom', kind: 'grout', rooms: 'all' },
-  { id: 'om15', jobId: '24c', name: 'Setting materials', qty: 'All lines', status: 'delivered', where: 'Whole project', kind: 'setting', rooms: 'all' },
-  { id: 'om16', jobId: 'mdrive', name: 'Setting materials', qty: 'Floors', status: 'delivered', where: 'Main floor · primary bath', kind: 'setting', rooms: ['Main floor', 'Primary bath'] },
-  { id: 'om17', jobId: 'wilk', name: 'Setting materials', qty: 'Hall bath · laundry', status: 'delivered', where: 'Hall bath · laundry', kind: 'setting', rooms: ['Hall bath', 'Laundry'] },
+  { id: 'om15', jobId: '24c', name: 'Materials', qty: 'All lines', status: 'delivered', where: 'Whole project', kind: 'setting', rooms: 'all' },
+  { id: 'om16', jobId: 'mdrive', name: 'Materials', qty: 'Floors', status: 'delivered', where: 'Main floor · primary bath', kind: 'setting', rooms: ['Main floor', 'Primary bath'] },
+  { id: 'om17', jobId: 'wilk', name: 'Materials', qty: 'Hall bath · laundry', status: 'delivered', where: 'Hall bath · laundry', kind: 'setting', rooms: ['Hall bath', 'Laundry'] },
 ]
 
 /* ================= purchase orders (money out) ================= */
@@ -427,11 +427,11 @@ export interface PO { id: string; jobId: string; supplier: string; what: string;
   /** the shortage it reorders (reported on the project) — it closes when this PO is all here */
   shortId?: string }
 export const POS0: PO[] = [
-  { id: 'PO-1045', jobId: '114', supplier: 'Infinity', what: 'Setting materials', amount: 1374, step: 1, date: 'Sep 26', eta: 'Asked for Oct 5', note: 'Sent Sep 26 · waiting for Infinity to confirm', lines: [{ item: 'Uncoupling membrane', qty: '2 rolls', itemId: 'm-membrane', n: 2, price: 315 }, { item: 'LFT thinset', qty: '16 bags', itemId: 'm-thinset', n: 16, price: 38 }, { item: 'Grout · Silverado', qty: '4 bags', itemId: 'm-grout', n: 4, price: 34 }], log: [L('Sep 26', 'materials', 'Sent to Infinity')] },
+  { id: 'PO-1045', jobId: '114', supplier: 'Infinity', what: 'Materials', amount: 1374, step: 1, date: 'Sep 26', eta: 'Asked for Oct 5', note: 'Sent Sep 26 · waiting for Infinity to confirm', lines: [{ item: 'Uncoupling membrane', qty: '2 rolls', itemId: 'm-membrane', n: 2, price: 315 }, { item: 'LFT thinset', qty: '16 bags', itemId: 'm-thinset', n: 16, price: 38 }, { item: 'Grout · Silverado', qty: '4 bags', itemId: 'm-grout', n: 4, price: 34 }], log: [L('Sep 26', 'materials', 'Sent to Infinity')] },
   { id: 'PO-1041', jobId: '119', supplier: 'Metal Works Inc.', what: 'JOLLY satin brass 10 mm', amount: 684, step: 2, date: 'Sep 9', eta: 'Tomorrow', note: '4 of 6 received · 2 ship tomorrow', lines: [{ item: 'Schluter JOLLY · satin brass · 10 mm · 8 ft', qty: '6', itemId: 'm-jolly', n: 6, price: 114 }], log: [L('Sep 9', 'materials', 'Sent'), L('Sep 10', 'materials', 'Confirmed'), L('Sep 25', 'materials', 'Received 4 of 6')] },
   { id: 'PO-1042', jobId: '118', supplier: 'Metal Works Inc.', what: 'Satin nickel trim 1/4″', amount: 1560, step: 2, late: true, date: 'Sep 13', eta: 'Was Sep 21', note: 'Confirmed for Sep 21 · 7 days late', lines: [{ item: 'Metal trim · satin nickel · 1/4″ · 8 ft', qty: '40', itemId: 'm-trim', n: 40, price: 39 }], log: [L('Sep 13', 'materials', 'Sent'), L('Sep 14', 'materials', 'Confirmed · ETA Sep 21'), L('Sep 23', 'materials', 'Called. “End of the week”')] },
   { id: 'PO-1039', jobId: '828', supplier: 'Infinity', what: 'Versabond-LFT thinset', amount: 912, step: 2, late: true, date: 'Aug 25', eta: 'Was Sep 5', note: 'Confirmed for Sep 5 · 23 days late', lines: [{ item: 'Versabond-LFT · 50 lb', qty: '24 bags', itemId: 'm-versa', n: 24, price: 38 }], log: [L('Aug 25', 'materials', 'Sent'), L('Aug 26', 'materials', 'Confirmed · ETA Sep 5'), L('Sep 8', 'materials', 'Called · “next week”')] },
-  { id: 'PO-1036', jobId: '119', supplier: 'Infinity', what: 'Setting materials', amount: 4536, step: 4, date: 'Sep 5', note: 'Delivered Sep 12 · bill received Sep 20', lines: [{ item: 'LFT thinset', qty: '40 bags', itemId: 'm-thinset', n: 40, price: 37 }, { item: 'Uncoupling membrane', qty: '4 rolls', itemId: 'm-membrane', n: 4, price: 310 }, { item: 'Waterproofing', qty: '6 pails', itemId: 'm-wp', n: 6, price: 178 }, { item: 'Grout · 4 colors', qty: '22 bags', itemId: 'm-grout', n: 22, price: 34 }], log: [L('Sep 5', 'materials', 'Sent'), L('Sep 12', 'materials', 'Delivered'), L('Sep 20', 'accounting', 'Supplier bill received')] },
+  { id: 'PO-1036', jobId: '119', supplier: 'Infinity', what: 'Materials', amount: 4536, step: 4, date: 'Sep 5', note: 'Delivered Sep 12 · bill received Sep 20', lines: [{ item: 'LFT thinset', qty: '40 bags', itemId: 'm-thinset', n: 40, price: 37 }, { item: 'Uncoupling membrane', qty: '4 rolls', itemId: 'm-membrane', n: 4, price: 310 }, { item: 'Waterproofing', qty: '6 pails', itemId: 'm-wp', n: 6, price: 178 }, { item: 'Grout · 4 colors', qty: '22 bags', itemId: 'm-grout', n: 22, price: 34 }], log: [L('Sep 5', 'materials', 'Sent'), L('Sep 12', 'materials', 'Delivered'), L('Sep 20', 'accounting', 'Supplier bill received')] },
 ]
 
 /* ================= money in ================= */

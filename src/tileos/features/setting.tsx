@@ -31,7 +31,7 @@ export function confirmSetting(jobId: string, choice: Choice) {
     (s) => {
       ;(s.rooms[jobId] || []).forEach((r) => r.surfaces.forEach((x) => { const c = choice[keyOf(r.name, x.name)]; if (c) x.method = c }))
       addHist(s, jobId, { who: meOf(s.role), kind: 'setup', title: 'Underlayment set for every surface', detail: `${toOrder.length} materials worked out from the scope` })
-      closeTasks(s, s.tasks.filter((x) => x.jobId === jobId && /^Plan setting materials/.test(x.title)).map((x) => x.id), 'Replaced by the calculated order')
+      closeTasks(s, s.tasks.filter((x) => x.jobId === jobId && /^Plan (?:setting|the) materials/.test(x.title)).map((x) => x.id), 'Replaced by the calculated order')
       if (toOrder.length && !s.tasks.some((x) => x.jobId === jobId && x.action?.kind === 'order:' + jobId && x.state !== 'done'))
         newTask(s, { jobId, title: `Order the materials · ${job.name}`, detail: `${toOrder.length} materials worked out from the scope and the underlayment. Check the quantities and send the PO.`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'Today', tone: 'info', where: `${toOrder.length} items · about ${fmtMoney(total)}`, action: { label: 'Review the order', kind: 'order:' + jobId } })
     },

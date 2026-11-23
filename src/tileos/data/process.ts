@@ -56,7 +56,7 @@ export const PROCESS: ProcStep[] = [
     stage: 'awarded', title: 'Award. One click, every department',
     happens: 'The biggest trigger in the company. Awarding tells every person what they now owe the project.',
     who: [{ role: 'owner', buttons: ['Make it a project'], note: 'Approved revision, deposit %, client PO, start window, PM' }],
-    auto: ['Accounting: deposit invoice', 'Back office: setup package', 'Materials: tile order vs our takeoff, setting materials', 'Scheduling: heads-up with the start window', 'PM: review the setup'],
+    auto: ['Accounting: deposit invoice', 'Back office: setup package', 'Materials: tile order vs our takeoff, our materials', 'Scheduling: heads-up with the start window', 'PM: review the setup'],
     demo: { label: 'Award the pool house', modal: { t: 'award', jobId: 'b7' } },
   },
   {

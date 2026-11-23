@@ -278,9 +278,9 @@ function useSetupChecks(job: Job): Check[] {
       detail: short.length ? `${short.map((c) => `${c.tag} ${needWithWaste(c) - c.ordered} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers our takeoff + waste' : 'Runs when the paperwork is in',
       action: short.length ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short[0].tag }) } : undefined,
     },
-    { n: 5, title: 'Who supplies what', state: rooms.length ? 'ok' : 'todo', detail: 'Finish tile: GC via Best Tile · setting materials & metals: Cobblestone' },
+    { n: 5, title: 'Who supplies what', state: rooms.length ? 'ok' : 'todo', detail: 'Finish tile: GC via Best Tile · materials & metal edges: Cobblestone' },
     {
-      n: 6, title: 'Our setting materials', state: pos.some((p) => p.step >= 2) ? 'ok' : pos.length ? 'warn' : 'todo',
+      n: 6, title: 'Our materials', state: pos.some((p) => p.step >= 2) ? 'ok' : pos.length ? 'warn' : 'todo',
       detail: pos.length ? pos.map((p) => `${p.id} ${p.step >= 2 ? 'confirmed' : 'waiting for ' + p.supplier + ' to confirm'}`).join(' · ') : 'Planned after the walkthrough',
       action: pos.length && pos[0].step < 2 ? { label: 'Open PO', run: () => s.open({ t: 'po', id: pos[0].id }) } : undefined,
     },
@@ -391,7 +391,7 @@ function ReadyOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => void 
     { title: 'Finish tile', state: tileShort.length ? 'warn' : 'ok', detail: tileShort.length ? `${tileShort[0].tag}: ${tileShort[0].received} of ${tileShort[0].ordered} ${tileShort[0].unit}` : 'Starting tile on site' },
     {
       title: 'Our materials', state: toOrder.length ? 'bad' : sent.length ? 'warn' : 'ok',
-      detail: toOrder.length ? `${toOrder.map((m) => m.name).join(' and ')} not ordered` : sent.length ? `${sent[0].po} ${sent[0].status === 'confirmed' ? 'confirmed' : 'not confirmed yet'}` : 'Setting materials on site',
+      detail: toOrder.length ? `${toOrder.map((m) => m.name).join(' and ')} not ordered` : sent.length ? `${sent[0].po} ${sent[0].status === 'confirmed' ? 'confirmed' : 'not confirmed yet'}` : 'Our materials on site',
       action: toOrder.length ? { label: 'Create PO', run: () => s.open({ t: 'newpo', jobId: job.id }) } : undefined,
     },
     { title: 'Deposit', state: dep ? 'warn' : 'ok', detail: dep ? (dep.step === 0 ? 'Deposit not invoiced · warning only' : `Deposit invoiced ${dep.ref}, not paid · warning only`) : 'Deposit received', action: dep ? { label: 'View', run: () => s.open({ t: 'money', id: dep.id }) } : undefined },

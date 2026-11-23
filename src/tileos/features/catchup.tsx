@@ -96,7 +96,7 @@ const NEXT_UP: { part: TrackKey; text: string; owner: PersonKey }[] = [
   { part: 'scope', text: 'Set the design meeting', owner: 'office' },
   { part: 'site', text: 'Check the site', owner: 'yakov' },
   { part: 'installer', text: 'Send the installer his PO', owner: 'ys' },
-  { part: 'materials', text: 'Order the setting materials', owner: 'ys' },
+  { part: 'materials', text: 'Order the materials', owner: 'ys' },
   { part: 'delivery', text: 'Receive the tile', owner: 'yakov' },
 ]
 
