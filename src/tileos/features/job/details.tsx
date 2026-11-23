@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
 import { DOC_GRAY } from '../docpaper'
-import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Palette, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Palette, Trash2, ArrowUpRight, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -45,6 +45,7 @@ import { detailsOf, setRoomDetails, surfaceDetailLines, edgeShort } from '../roo
 import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
 import { ScopeStart } from './scope-tab'
 import { RoomMenu, RoomLines, ScopeAreaAdder } from '../roomedit'
+import { tickSurface, isTiled, isGrouted, partPct } from '../progress'
 
 /** a part of the job: its title (and what it is) on the left, its links on the right — then one white sheet */
 function Part({ title, sub, right, children, id }: { title: string; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; id: string }) {
@@ -165,6 +166,17 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
   const groups = floorsOf(rooms.map((r) => r.room))
   const floors = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
   const viewOf = (name: string) => rooms.find((r) => r.room.name === name)!
+  /* a short list of rooms: each one a line with where it's up to — open one to see (and tick) its walls and floors.
+     A few rooms: all open. Which are open is kept for next time (on this computer or phone) */
+  const openKey = `tileos-scope-open:${job.id}`
+  const [opened, setOpened] = React.useState<string[] | 'all'>(() => {
+    try { const v = localStorage.getItem(openKey); if (v) return v === 'all' ? 'all' : (JSON.parse(v) as string[]) } catch { /* none kept */ }
+    return rooms.length > 4 ? [] : 'all'
+  })
+  const keepOpen = (v: string[] | 'all') => { setOpened(v); try { localStorage.setItem(openKey, v === 'all' ? 'all' : JSON.stringify(v)) } catch { /* not kept */ } }
+  const isOpen = (name: string) => opened === 'all' || opened.includes(name)
+  const allOpen = rooms.every((r) => isOpen(r.room.name))
+  const toggleRoom = (name: string) => { const list = opened === 'all' ? rooms.map((r) => r.room.name) : opened; keepOpen(list.includes(name) ? list.filter((n) => n !== name) : [...list, name]) }
   /* the room whose walls and floors are being ticked, and the room a note is being added to (both from its ···) */
   const [lines, setLines] = React.useState<string | null>(null)
   const [adding, setAdding] = React.useState<string | null>(null)
@@ -189,6 +201,8 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
               {totalSf > 0 && <span className="tnum"> · {totalSf.toLocaleString('en-US')} SF</span>}
               {/* installing: when the last daily update came */}
               {inField && <span data-scope-last-update> · {last ? <>Last daily update <b className="font-semibold text-ink-2">{last.date}</b> · {last.who === meOf(s.role) ? 'you' : firstName(last.who)}</> : 'No daily update yet'}</span>}
+              {/* every room open, or just their lines */}
+              {rooms.length > 1 && <button type="button" onClick={() => keepOpen(allOpen ? [] : 'all')} className="ml-2 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50" data-scope-openall={allOpen ? 'open' : 'closed'}>{allOpen ? 'Close all' : 'Open all'}</button>}
             </span>
           }
         >
@@ -213,7 +227,7 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
       {canEdit && rooms.length > 0 && <PaperPanel job={job} className="mb-4" />}
       {/* building it by hand: the first room goes on, and it's built on from here (a room added by hand opens with its
           walls and floors to tick) */}
-      {!rooms.length && <ScopeStart job={job} onAdded={(room) => setLines(room)} />}
+      {!rooms.length && <ScopeStart job={job} onAdded={(room) => { setLines(room); if (opened !== 'all') keepOpen([...opened, room]) }} />}
       {rooms.length > 0 && !checking && (
         <div data-paper className={PAPER}>
           {groups.map((g) => (
@@ -230,7 +244,9 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
                   canEdit={canEdit}
                   first={i === 0 && !floors}
                   ticking={lines === room.name}
-                  onTicking={(o) => setLines(o ? room.name : null)}
+                  onTicking={(o) => { setLines(o ? room.name : null); if (o && !isOpen(room.name)) toggleRoom(room.name) }}
+                  open={isOpen(room.name) || lines === room.name || adding === room.name}
+                  onToggle={() => toggleRoom(room.name)}
                   adding={adding === room.name}
                   onAdding={(o) => setAdding(o ? room.name : null)}
                 />
@@ -240,7 +256,7 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
         </div>
       )}
       {/* one more room — the same box as on an estimate */}
-      {rooms.length > 0 && canEdit && !checking && <div className="mt-4"><ScopeAreaAdder jobId={job.id} onAdded={(room) => setLines(room)} /></div>}
+      {rooms.length > 0 && canEdit && !checking && <div className="mt-4"><ScopeAreaAdder jobId={job.id} onAdded={(room) => { setLines(room); if (opened !== 'all') keepOpen([...opened, room]) }} /></div>}
       <ChangeOrders job={job} />
     </section>
   )
@@ -303,33 +319,54 @@ function tileWordsOf(jobId: string, x: Surface): { words: React.ReactNode; tile?
 }
 /** a computer: what it is and what we're doing | its tile and grout | its square feet. A phone: one under the other */
 const LINE_GRID = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_4.5rem] lg:items-center lg:gap-x-5'
+/** the same, with the ticks (Tile · Grout · Later) before the square feet — the same width on every line, so the tiles
+ *  and the ticks line up down the room */
+const LINE_GRID_TICKS = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.5fr)_minmax(0,1fr)_17.5rem_4.5rem] lg:items-center lg:gap-x-5'
 
 /** one room, always open: its band (tap it for the room — its daily log and photos), then each wall and floor in plain
  *  words, with its tile's picture. Its notes (a niche, a saddle — what isn't a wall or floor) under them. */
-function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTicking, adding, onAdding }: {
+function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTicking, adding, onAdding, open, onToggle }: {
   job: Job; room: Room; view: RoomView; inField: boolean; canEdit: boolean; first: boolean
   /** its walls and floors being ticked (from its ···) */ ticking: boolean; onTicking: (o: boolean) => void
   /** a note being added (from its ···) */ adding: boolean; onAdding: (o: boolean) => void
+  /** its walls and floors shown — tap the room's line to open or close it */ open: boolean; onToggle: () => void
 }) {
   const s = useStore()
   const w = roomWord(view)
+  /* the crew on it: each wall and floor ticked right here — the tile in, then the grout (done); a niche can wait */
+  const ticks = inField && !['client', 'accounting'].includes(s.role)
+  /* where it's up to, from the ticks: "Tile 3 of 5 · Grout 1 of 5", "Done" — a problem says itself (red) instead; a room
+     not started says nothing */
+  const lines = room.surfaces.filter((x) => takesTile(x.name))
+  const later = lines.filter((x) => x.later && !isGrouted(x))
+  const counted = lines.filter((x) => !(x.later && !isGrouted(x)))
+  const nTiled = counted.filter(isTiled).length
+  const nGrout = counted.filter(isGrouted).length
+  const upTo = !inField || !counted.length ? null
+    : nGrout === counted.length ? { text: `Done${later.length ? ` · ${later.length} for later` : ''}`, cls: 'font-medium text-[#2c8a5b]' }
+      : !nTiled && !counted.some(partPct) ? { text: later.length ? `${later.length} for later` : '', cls: 'text-muted' }
+        : { text: `Tile ${nTiled} of ${counted.length} · Grout ${nGrout} of ${counted.length}${later.length ? ` · ${later.length} for later` : ''}`, cls: 'text-ink-2' }
+  const said = w.text && /bad-|warn-/.test(w.cls) ? w : upTo || w
   return (
-    <div data-room={room.name} data-room-state={view.state} className={cn(!first && 'border-t border-line')}>
-      {/* the band: its name in capitals and its short note — then where it stands and its square feet. Tap it for the room */}
-      <div className="sticky top-0 z-[5] flex min-h-10 min-w-0 items-center pr-2 max-sm:pr-1" style={{ background: DOC_GRAY }} data-room-band>
-        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1 pl-5 pr-2 text-left max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-1.5 max-sm:pl-3')}>
+    <div data-room={room.name} data-room-state={view.state} data-room-open={open ? '' : undefined} className={cn(!first && 'border-t border-line')}>
+      {/* the room's line: its name in capitals and its short note — then where it's up to and its square feet. Tap it to
+          open (or close) its walls and floors; ↗ opens the room itself */}
+      <div className={cn('flex min-h-11 min-w-0 items-center pr-2 max-sm:pr-1', open && 'sticky top-0 z-[5]')} style={{ background: DOC_GRAY }} data-room-band>
+        <button type="button" onClick={onToggle} aria-expanded={open} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1.5 pl-3 pr-2 text-left max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-2 max-sm:pl-2')}>
+          <ChevronRight className={cn('h-4 w-4 shrink-0 text-[#8a8f98] transition-transform group-hover:text-brand-700', open && 'rotate-90')} aria-hidden />
           {/* a phone: the name and its note wrap rather than end in "…" */}
           <span className="min-w-0 flex-1 truncate max-sm:whitespace-normal max-sm:leading-snug"><b className={cn(ROOM_NAME, 'group-hover:text-brand-700')}>{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
           {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
-          {/* where it stands, whole (never cut short): a phone, on its own line under the name */}
-          {w.text && <span data-room-why className={cn('min-w-0 max-w-[45%] text-right text-[0.8125rem] leading-snug max-sm:order-last max-sm:w-full max-sm:max-w-none max-sm:text-left', w.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{w.text}</span>}
+          {/* where it's up to, whole (never cut short): a phone, on its own line under the name */}
+          {said.text && <span data-room-why className={cn('min-w-0 max-w-[45%] text-right text-[0.8125rem] leading-snug max-sm:order-last max-sm:w-full max-sm:max-w-none max-sm:pl-6 max-sm:text-left', said.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{said.text}</span>}
           <span className="w-[4.25rem] shrink-0 text-right text-[0.8125rem] tnum text-[#555] max-sm:hidden">{view.sf > 0 ? `${view.sf.toLocaleString('en-US')} SF` : ''}</span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-[#8a8f98] group-hover:text-brand-700" />
         </button>
+        <button type="button" onClick={() => s.open({ t: 'room', jobId: job.id, room: room.name })} aria-label={`Open ${room.name}`} title="Open the room: its daily log and photos" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-faint transition hover:bg-white hover:text-ink" data-room-open-window><ArrowUpRight className="h-4 w-4" /></button>
         {canEdit && <RoomMenu jobId={job.id} room={room} onLines={() => onTicking(true)} onDetail={() => onAdding(true)} />}
       </div>
-      {/* each wall and floor in plain words — tap it to change it */}
+      {/* each wall and floor in plain words — tap it to change it; the crew on it: its ticks */}
+      {open && (
       <div data-room-body>
         {room.surfaces.map((x) => {
           const takes = takesTile(x.name)
@@ -337,11 +374,12 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
           const doing = doingOf(x)
           const { words, tile, grout } = tileWordsOf(job.id, x)
           const stopped = ['blocked', 'waitmat', 'hold'].includes(x.state)
-          const status = inField && takes ? { text: x.state === 'done' ? 'Done' : x.state === 'working' ? `${surfacePct(x)}%` : stopped ? 'Stopped' : '', cls: x.state === 'done' ? 'font-medium text-[#2c8a5b]' : stopped ? 'font-medium text-bad-600' : 'text-ink-2' } : null
           const sf = x.sf ? `${x.sf.toLocaleString('en-US')} SF` : ''
+          const tickable = ticks && takes
+          const openLine = () => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })
           return (
-            <button key={x.name} type="button" onClick={() => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })} data-surface-line={x.name}
-              className={cn('flex w-full min-w-0 items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3', LINE_GRID)}>
+            <div key={x.name} role="button" tabIndex={0} onClick={openLine} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openLine() }} data-surface-line={x.name}
+              className={cn('flex w-full min-w-0 cursor-pointer items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3', ticks ? LINE_GRID_TICKS : LINE_GRID)}>
               {/* its tile's picture */}
               {tile ? <TileImg tile={tile} size={36} radius={5} className="max-lg:hidden" /> : <span className={cn('h-9 w-9 shrink-0 rounded-[5px] max-lg:hidden', takes ? 'border border-dashed border-[#cfc8bc] bg-[#faf9f6]' : 'bg-[#f3f1ec]')} />}
               {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} className="lg:hidden" />
@@ -351,28 +389,33 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
               <span className="min-w-0 flex-1 lg:flex-none">
                 <span className="flex min-w-0 items-baseline gap-3">
                   <span className="min-w-0 flex-1 text-[0.9375rem] font-semibold leading-[1.375rem] text-ink" data-surface-name>{x.name}{walls && <span className="font-normal text-muted" data-surface-where> · {walls}</span>}</span>
-                  {/* a phone: how far (or its square feet) at the end of its name */}
-                  <span className={cn('shrink-0 text-[0.8125rem] tnum lg:hidden', status?.text ? status.cls : 'text-muted')} data-surface-right>{status?.text || sf}</span>
+                  {/* a phone: its square feet at the end of its name (stopped: said in red) */}
+                  <span className={cn('shrink-0 text-[0.8125rem] tnum lg:hidden', stopped && inField ? 'font-medium text-bad-600' : 'text-muted')} data-surface-right>{stopped && inField ? 'Stopped' : sf}</span>
                 </span>
-                <span className="block text-[0.875rem] leading-snug text-ink-2" data-surface-under>{doing || (!takes ? 'Not tiled' : isWall(x.name) && x.state !== 'done' ? <span className="text-muted">Its height isn’t set</span> : '')}</span>
+                <span className="block text-[0.875rem] leading-snug text-ink-2" data-surface-under>{doing || (!takes ? 'Not tiled' : isWall(x.name) && x.state !== 'done' ? <span className="text-muted">Its height isn’t set</span> : '')}{x.later && !isGrouted(x) && <span className="font-medium text-warn-700" data-surface-later>{doing ? ' · ' : ''}Left for later</span>}</span>
                 {/* a phone: its tile and grout under the words */}
                 <span className="mt-0.5 block text-[0.8125rem] leading-snug text-muted lg:hidden" data-surface-tile-phone>{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : '')}{grout ? ` · ${GROUTS[grout]?.name || grout} grout` : ''}</span>
+                {/* a phone: the ticks under it */}
+                {tickable && <span className="mt-2 flex flex-wrap gap-1.5 lg:hidden"><LineTicks job={job} room={room.name} x={x} /></span>}
               </span>
               {/* a computer: its tile, and the grout under it */}
               <span className="min-w-0 max-lg:hidden" data-surface-tile>
                 <span className="block text-[0.875rem] leading-snug text-ink-2">{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>)}</span>
                 {grout && <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-muted" data-surface-grout><GroutDot grout={grout} size={10} /><span className="min-w-0 truncate">{GROUTS[grout]?.name || grout} grout</span></span>}
               </span>
+              {/* a computer: the ticks */}
+              {ticks && (tickable ? <span className="flex items-center gap-1.5 max-lg:hidden" data-line-ticks><LineTicks job={job} room={room.name} x={x} /></span> : <span className="max-lg:hidden" aria-hidden />)}
               <span className="text-right max-lg:hidden">
                 <span className="block text-[0.875rem] tnum text-ink-2" data-surface-sf>{sf}</span>
-                {status?.text && <span className={cn('block text-[0.8125rem] tnum', status.cls)} data-surface-status>{status.text}</span>}
+                {stopped && inField && <span className="block text-[0.8125rem] font-medium text-bad-600" data-surface-status>Stopped</span>}
               </span>
-            </button>
+            </div>
           )
         })}
         {!room.surfaces.length && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted first:border-t-0 max-sm:px-3" data-room-empty>No tile installation</div>}
         <RoomNotes job={job} room={room} canEdit={canEdit} adding={adding} onAdding={onAdding} />
       </div>
+      )}
       {/* whoever builds the scope: tick the walls and floors this room has (from its ···) */}
       {canEdit && ticking && (
         <div className="flex flex-wrap items-center gap-1.5 border-t border-line-2 px-5 py-1.5 max-sm:px-3" data-add-row>
@@ -380,6 +423,33 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
         </div>
       )}
     </div>
+  )
+}
+
+/** a wall's or floor's ticks: the tile is in, the grout is done — and Later (a niche waiting on its shelf). One tap each,
+ *  nothing pops up; tap again to take it back */
+function LineTicks({ job, room, x }: { job: Job; room: string; x: Surface }) {
+  const tiled = isTiled(x)
+  const grouted = isGrouted(x)
+  const part = partPct(x)
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+  const tick = (on: boolean, label: string, part2: 'tile' | 'grout', extra?: string) => (
+    <button type="button" onClick={(e) => { stop(e); tickSurface(job.id, room, x.name, part2) }} onKeyDown={stop} aria-pressed={on} aria-label={`${label} · ${x.name}`}
+      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border pl-1.5 pr-3 text-[0.84375rem] font-semibold transition', on ? 'border-[#2c8a5b] bg-[#eef7f1] text-[#226b47]' : 'border-line bg-white text-ink-2 hover:border-[#c9c2b6] hover:bg-wash')}
+      data-tick={part2} data-tick-on={on ? '' : undefined}>
+      <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full', on ? 'bg-[#2c8a5b] text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+      {label}{extra && <span className="font-medium text-muted">{extra}</span>}
+    </button>
+  )
+  return (
+    <>
+      {tick(tiled, 'Tile', 'tile', part ? ` ${part}%` : undefined)}
+      {tick(grouted, 'Grout', 'grout')}
+      {!grouted && (
+        <button type="button" onClick={(e) => { stop(e); tickSurface(job.id, room, x.name, 'later') }} onKeyDown={stop} aria-pressed={!!x.later} title="Leave it for later. It doesn’t hold the room up"
+          className={cn('inline-flex h-9 items-center rounded-full px-3 text-[0.84375rem] font-semibold transition', x.later ? 'bg-warn-50 text-warn-700 ring-1 ring-inset ring-warn-200' : 'text-muted hover:bg-wash hover:text-ink')} data-tick="later" data-tick-on={x.later ? '' : undefined}>Later</button>
+      )}
+    </>
   )
 }
 

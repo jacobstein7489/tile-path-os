@@ -61,7 +61,7 @@ export function SearchSelect({
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {cur?.lead && <span className="inline-flex shrink-0">{cur.lead}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !cur && !(emptyLabel && value === '') && 'text-faint')}>
-            {cur ? <>{cur.label}{cur.hint && !plain && <span className="ml-2 text-[0.78125rem] text-muted">{cur.hint}</span>}</> : emptyLabel && value === '' ? emptyLabel : placeholder}
+            {cur ? <>{cur.label}{cur.hint && !plain && <span className="ml-2 text-[0.78125rem] text-muted max-sm:hidden">{cur.hint}</span>}</> : emptyLabel && value === '' ? emptyLabel : placeholder}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
         </button>}

@@ -6,7 +6,7 @@
  *   What can't start yet, and what's done, aren't on it — just what's left.
  * Tap a line: that one thing in its own window — done there, it closes by itself; it never jumps to another step. */
 import * as React from 'react'
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Filter } from '@/tileos/components/ui/page'
@@ -19,6 +19,7 @@ import { tracksFor, issuesOf, problemsOf, leadWords, phaseOf, bookingOf, type Tr
 import { readyForCrew, startProject } from '../flows'
 import { firstName } from './kit'
 import { installerOf } from '../upcoming'
+import { TouchupsList } from '../touchups'
 
 export type LeftRow = {
   key: string
@@ -146,19 +147,49 @@ export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
   const me = meOf(s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
-  /* the next big thing first (schedule the crew, start the job…), then what's left */
+  /* the next big thing first (schedule the crew, start the job…), then what's left. The touch-ups have their own part
+     of the list — booking the return visit is its first line, and the to-do that checks them is the list itself */
   const nx = nextRow(s, job)
-  const rows = nx ? [nx, ...leftRows(s, job)] : leftRows(s, job)
+  const punch = s.punch.filter((p) => p.jobId === job.id)
+  const punchOpen = punch.filter((p) => p.status !== 'verified')
+  const left = leftRows(s, job)
+  /* the return visit: a to-do of its own that books it (Schedule the return) is that line — not a second one */
+  const retTask = nx?.key === 'next:return' ? left.find((r) => s.tasks.find((t) => t.id === r.key)?.action?.kind === 'assign') : undefined
+  const ret = nx?.key === 'next:return' ? retTask || nx : null
+  const touchTask = (k: string) => punch.some((p) => p.taskId === k)
+  const rows = [...(nx && nx.key !== 'next:return' ? [nx] : []), ...left.filter((r) => !touchTask(r.key) && r !== retTask)]
+  const touchups = punchOpen.length > 0 || !!ret
   /* by person: you first, then whoever has the most urgent thing (the list is in order of urgency already) */
   const people = Array.from(new Set(rows.map((r) => r.who || ''))).sort((a, b) => Number(b === me) - Number(a === me))
   const canAdd = !['crew', 'client', 'accounting'].includes(s.role)
+  /* the touch-ups: their own part of the list — the return visit first, then each one with its tick */
+  const touchBlock = (
+    <div className="border-t border-line" data-left-touchups>
+      <div className="flex min-w-0 items-center gap-2 bg-[#fafaf9] px-5 py-2.5 max-sm:px-4">
+        <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full bg-[#fdeee4] text-[#b4541f]"><Sparkles className="h-3 w-3" /></span>
+        <span className="text-[0.875rem] font-semibold text-ink">Touch-ups</span>
+        <span className="text-[0.8125rem] tnum text-faint">{punchOpen.length}</span>
+        {canAdd && <button type="button" onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50" data-left-touchups-add><Plus className="h-3.5 w-3.5" />Add</button>}
+      </div>
+      {ret && (
+        <div role="button" tabIndex={0} onClick={ret.open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) ret.open() }} className={ROW} data-left-row={ret.key} data-tone={ret.tone} data-who={ret.who}>
+          <span className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-snug" data-left-what data-left-next={ret.key}>{ret.what}</span>
+          <span className="min-w-0 truncate text-right text-[0.875rem] text-muted max-sm:col-start-1 max-sm:row-start-2 max-sm:text-left max-sm:text-[0.8125rem]" data-left-when>{ret.when}</span>
+          <ChevronRight className="h-4 w-4 text-faint max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1" aria-hidden />
+        </div>
+      )}
+      <TouchupsList job={job} bare />
+    </div>
+  )
   return (
     <section data-whats-left className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex min-h-[3.25rem] min-w-0 items-center gap-3 px-5 py-2 max-sm:px-4">
         <h3 className="text-[1.0625rem] font-semibold text-ink">To do</h3>
-        <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length}</span>
+        <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length + punchOpen.length + (ret ? 1 : 0)}</span>
       </header>
       <div data-left-rows>
+        {/* at the touch-ups, they're the next big thing: first */}
+        {touchups && ret && touchBlock}
         {people.map((p) => {
           const mine = rows.filter((r) => (r.who || '') === p)
           const person = p ? PEOPLE[p as PersonKey] : undefined
@@ -182,7 +213,9 @@ export function WhatsLeft({ job }: { job: Job }) {
             </div>
           )
         })}
-        {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
+        {/* touch-ups logged while it's still being installed: after the rest */}
+        {touchups && !ret && touchBlock}
+        {!rows.length && !touchups && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
         {canAdd && (
           <button type="button" onClick={() => s.open({ t: 'new', jobId: job.id })} className="flex min-h-[3rem] w-full items-center gap-3.5 border-t border-line px-4 text-left text-[0.9375rem] font-medium text-brand-700 transition hover:bg-brand-50/50 max-sm:px-3.5" data-left-add>
             <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> · a to do, a meeting, a problem, something for the GC</span></span>

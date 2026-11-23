@@ -108,14 +108,14 @@ const memo = <T,>(f: (s: Store) => T) => {
     return v
   }
 }
-/** what the admin checks in on: late past the company's line — by person. Checked in on or reminded, it stays (it says
- *  so, quietly) until it's done: nothing you're keeping an eye on goes missing */
+/** what the admin checks in on: late past the company's line — by person. Checked in on or reminded: off the list
+ *  (and off Today) — if it's still not done that many more work days later, it's back */
 export const checkIns = memo((s: Store): { who: PersonKey; items: CheckItem[] }[] => {
   const n = checkInDays(s)
   const me = meOf(s.role)
   return insidePeople(s)
     .filter((p) => p !== me && PEOPLE[p])
-    .map((p) => ({ who: p, items: lateNow(s, p).filter((c) => c.late >= n) }))
+    .map((p) => ({ who: p, items: lateNow(s, p).filter((c) => c.late >= n && !handledOf(s, c)) }))
     .filter((g) => g.items.length)
 })
 /** checked in on or reminded lately: "Reminded Nov 9" — said quietly instead of how late it is, for a few work days */
@@ -144,7 +144,7 @@ export function recordCheckIn(who: PersonKey, items: CheckItem[], note?: string)
         ;(st.hist[c.x.job.id] ||= []).unshift({ date: NOW, who: me, kind: 'field', title: `${c.x.v.short}: checked in with ${PEOPLE[who]?.short || ''}`, detail: note || `${workDays(c.late)} late` } as any)
       }
     })
-  }, `Checked in with ${PEOPLE[who]?.short || 'them'}`, { tone: 'done', sub: 'It stays on your Today until it’s done.', undo: true })
+  }, `Checked in with ${PEOPLE[who]?.short || 'them'}`, { tone: 'done', sub: `Off your Today. If it’s still not done in ${n} work ${n === 1 ? 'day' : 'days'}, it’s back.`, undo: true })
 }
 
 /* ---------------- the check-in window ---------------- */

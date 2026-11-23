@@ -283,14 +283,14 @@ export function Pop({ trigger, children, align = 'start', side = 'bottom', width
 /* ---------------- a calendar and the times of a day ---------------- */
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const ym = (iso: string) => iso.slice(0, 7)
-/** a month to pick a day from, like any calendar: Monday first (like the schedule), today ringed, the day picked filled,
- *  days gone by faded and not picked */
+/** a month to pick a day from, like any calendar: Sunday first (like a wall calendar), today ringed, the day picked
+ *  filled, days gone by faded and not picked */
 export function MonthCal({ value, onPick, min = TODAY, className, big }: { value?: string; onPick: (iso: string) => void; min?: string; className?: string; /** roomy: big days to tap (a start or a finish) */ big?: boolean }) {
   const [at, setAt] = React.useState(ym(value || TODAY))
   React.useEffect(() => { if (value) setAt(ym(value)) }, [value])
   const y = +at.slice(0, 4)
   const m = +at.slice(5, 7)
-  const lead = (dow(`${at}-01`) + 6) % 7
+  const lead = dow(`${at}-01`)
   const n = new Date(Date.UTC(y, m, 0)).getUTCDate()
   const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: n }, (_, i) => `${at}-${String(i + 1).padStart(2, '0')}`)]
   while (cells.length % 7) cells.push(null)
@@ -306,7 +306,7 @@ export function MonthCal({ value, onPick, min = TODAY, className, big }: { value
         </span>
       </div>
       <div className={cn('grid grid-cols-7 text-center font-semibold uppercase tracking-[0.06em] text-faint', big ? 'text-[0.75rem]' : 'text-[0.6875rem]')} aria-hidden>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i} className={big ? 'py-1.5' : 'py-1'}>{d}</span>)}
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <span key={i} className={big ? 'py-1.5' : 'py-1'}>{d}</span>)}
       </div>
       <div className={cn('grid grid-cols-7', big ? 'gap-y-1' : 'gap-y-0.5')}>
         {cells.map((iso, i) => {
@@ -330,7 +330,7 @@ export function MonthCal({ value, onPick, min = TODAY, className, big }: { value
 }
 /** a day to pick (a start, a finish): the day in words on a field, and a big calendar under it — a phone: it comes up
  *  from the bottom. min: the first day it can be (none: any day, one gone by too, for a job that's already going) */
-export function DateField({ value, onChange, min, label, placeholder = 'Pick a day', className, ...rest }: { value?: string; onChange: (iso: string) => void; min?: string; label: string; placeholder?: string; className?: string } & { [k: `data-${string}`]: string | undefined }) {
+export function DateField({ value, onChange, onClear, min, label, placeholder = 'Pick a day', className, ...rest }: { value?: string; onChange: (iso: string) => void; /** no day at all — "No day" under the calendar */ onClear?: () => void; min?: string; label: string; placeholder?: string; className?: string } & { [k: `data-${string}`]: string | undefined }) {
   const [open, setOpen] = React.useState(false)
   /* "Mon, Nov 30" (and its year when it isn't this one) */
   const words = value ? `${dayShort(value)}${value.slice(0, 4) !== TODAY.slice(0, 4) ? `, ${value.slice(0, 4)}` : ''}` : ''
@@ -345,6 +345,7 @@ export function DateField({ value, onChange, min, label, placeholder = 'Pick a d
       <div className="p-1 max-sm:px-5 max-sm:pb-6 max-sm:pt-3" data-date-cal>
         <div className="mb-2 text-[0.9375rem] font-semibold text-muted">{label}</div>
         <MonthCal big value={value} min={min || '1900-01-01'} onPick={(iso) => { onChange(iso); setOpen(false) }} />
+        {onClear && value && <div className="mt-1 flex justify-end"><button type="button" onClick={() => { onClear(); setOpen(false) }} className="rounded-full px-3 py-1.5 text-[0.875rem] font-semibold text-muted transition hover:bg-wash hover:text-ink" data-date-clear>No day</button></div>}
       </div>
     </Pop>
   )

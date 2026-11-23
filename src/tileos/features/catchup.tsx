@@ -10,8 +10,8 @@
  * find him, however many there are). The same form, for one project, is the office's say on where it's up to — from
  * the project's ··· menu, without going through its steps one by one. */
 import * as React from 'react'
-import { Building2, CalendarCheck, Check, ChevronLeft, ChevronRight, CircleCheckBig, ClipboardList, ExternalLink, FileText, HardHat, Paperclip, Sparkles, UserRound } from 'lucide-react'
-import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
+import { Building2, CalendarCheck, Check, ChevronLeft, ChevronRight, CircleCheckBig, ClipboardList, ExternalLink, FileText, HardHat, Paperclip, Pause, Plus, Sparkles, UserRound } from 'lucide-react'
+import { useStore, addHist, meOf, NOW, newTask, closeTasks, type Store } from '@/tileos/store'
 import { Avatar, Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
 import { Modal, DateField } from '@/tileos/components/ui/overlay'
@@ -19,7 +19,7 @@ import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, type Customer, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { labelFromIso, isoFromLabel } from '@/tileos/lib/today'
+import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
 import { companySteps, FOLLOW_UPS, BEFORE_TILE_OS } from './steps'
 import { tracksFor, TRACKS, type TrackKey } from './tracks'
 import { isOff } from './active'
@@ -72,12 +72,14 @@ const WHERE_MARK: Record<Where, { icon: React.ReactNode; tint: string; solid: st
   done: { icon: <CircleCheckBig />, tint: '#f1efea', solid: '#646a74' },
 }
 const whereLead = (w: Where) => <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: WHERE_MARK[w].tint, color: WHERE_MARK[w].solid }}>{WHERE_MARK[w].icon}</span>
+/** on hold is one of where it stands — the same box (what it was at stays under it, for when it's taken off hold) */
+const HOLD_LEAD = <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: '#fdecea', color: '#c4320a' }}><Pause /></span>
 /** what's done already, one tap each — the same things, in the same words, as on the project. The estimate isn't one:
  *  it's in once it's uploaded on the project, so the rooms are really there */
 const PARTS: { key: TrackKey; label: string }[] = TRACKS.filter((t) => t.key !== 'estimate').map((t) => ({ key: t.key, label: t.label }))
 /** ready for the crew = every one of them is done */
 const READY_PARTS: TrackKey[] = PARTS.map((p) => p.key)
-type Draft = { clientId: string; where: Where; parts: TrackKey[]; crew: string; site: string; pct: string; start: string; finish: string; hold: boolean; why: string }
+type Draft = { clientId: string; where: Where; parts: TrackKey[]; crew: string; site: string; pct: string; start: string; finish: string; hold: boolean; why: string; /** on hold until this day (iso) */ until: string }
 function draftOf(s: Store, j: Job): Draft {
   const done = tracksFor(s, j).filter((t) => t.state === 'done').map((t) => t.key)
   const where: Where = j.stage === 'installation' ? 'installing' : j.stage === 'punch' ? 'touchups' : ['closeout', 'complete'].includes(j.stage) ? 'done' : READY_PARTS.every((k) => done.includes(k)) ? 'ready' : 'new'
@@ -86,7 +88,7 @@ function draftOf(s: Store, j: Job): Draft {
   /* a brought-in project's site manager only when Asana named one — otherwise it was a stand-in, so it's asked */
   const site = !broughtIn(s, j) || j.caughtUp || /Site manager:/.test(brought(s, j)?.detail || '') ? j.site || '' : ''
   const crew = j.crew || (prep?.installer && prep.installer !== 'tbd' ? String(prep.installer) : '')
-  return { clientId: clientSet(s, j) ? j.clientId : '', where, parts: done, crew, site, pct: j.pct ? String(j.pct) : '', start: startIso || '', finish: isoFromLabel(j.dates?.finish) || '', hold: !!j.hold, why: j.hold?.reason || '' }
+  return { clientId: clientSet(s, j) ? j.clientId : '', where, parts: done, crew, site, pct: j.pct ? String(j.pct) : '', start: startIso || '', finish: isoFromLabel(j.dates?.finish) || '', hold: !!j.hold, why: j.hold?.reason || '', until: isoFromLabel(j.hold?.until) || '' }
 }
 /** the link back to the job in Asana — from its history */
 const asanaOf = (s: Store, j: Job) => (s.hist[j.id] || []).map((h) => h.detail?.match(/https:\/\/app\.asana\.com\/[^\s—]+/)?.[0]).find(Boolean)
@@ -153,9 +155,17 @@ function save(jobId: string, d: Draft, msg?: string, opts?: { close?: boolean; s
       else delete dates.finish
       j.dates = dates as any
     }
-    /* on hold, and why */
-    if (d.hold && d.where !== 'done') j.hold = { reason: d.why.trim() || 'On hold', since: j.hold?.since || NOW, by: j.hold?.by || me }
+    /* on hold, why, and until when — that day a to-do on your Today to check in (taken off hold sooner: it's gone) */
+    if (d.hold && d.where !== 'done') j.hold = { reason: d.why.trim() || 'On hold', since: j.hold?.since || NOW, by: j.hold?.by || me, ...(d.until ? { until: labelFromIso(d.until) } : {}) }
     else delete j.hold
+    const check = st.tasks.filter((t) => t.jobId === jobId && t.state !== 'done' && t.action?.kind === 'catchup')
+    if (j.hold?.until) {
+      const title = `Check in on ${j.name}: on hold until ${j.hold.until}`
+      const t0 = check[0]
+      if (t0) { t0.title = title; t0.due = j.hold.until; t0.where = j.hold.reason }
+      else newTask(st, { jobId, title, type: 'Field', owner: me, for: ['owner', 'pm'], state: 'now', due: j.hold.until, tone: 'warn', where: j.hold.reason, action: { label: 'Where it’s up to', kind: 'catchup' } })
+      closeTasks(st, check.slice(1).map((t) => t.id), 'Off hold')
+    } else closeTasks(st, check.map((t) => t.id), j.hold ? 'No day to check in' : 'Off hold')
     j.status = j.hold ? 'bad' : 'info'
     j.headline = j.hold ? `On hold · ${j.hold.reason}` : whereWord(d.where)
     const site = (d.site || j.site || 'yakov') as PersonKey
@@ -324,14 +334,34 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
   )
 }
 
+/** the touch-ups still to fix, right in the setup: how many, what they are, and Add */
+function TouchupsLine({ job }: { job: Job }) {
+  const s = useStore()
+  const open = s.punch.filter((p) => p.jobId === job.id && p.status !== 'verified')
+  return (
+    <Line label="Touch-ups" hint="What’s still to fix">
+      <div className="flex min-w-0 flex-col gap-1.5" data-catchup-touchups={open.length}>
+        {open.length > 0 && (
+          <ul className="flex min-w-0 flex-col gap-0.5 text-[0.875rem] text-ink-2">
+            {open.slice(0, 6).map((p) => <li key={p.id} className="flex min-w-0 items-start gap-2"><span className="mt-[0.4375rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[#cfc9be]" /><span className="min-w-0 break-words">{p.text}</span></li>)}
+            {open.length > 6 && <li className="pl-3.5 text-muted">and {open.length - 6} more</li>}
+          </ul>
+        )}
+        <Button size="sm" className="self-start" icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId: job.id })} data-catchup-touchups-add>{open.length ? 'Add more' : 'Add the touch-ups'}</Button>
+      </div>
+    </Line>
+  )
+}
+
 /** the answers for one project, one line each — the question on the left, one box to tap on the right: whose it is,
- *  where it stands, what's done, who's on it, how far, the dates, on hold */
+ *  where it stands (on hold is one of them), what's done, who's on it, how far, the dates */
 function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Draft>) => void }) {
   const s = useStore()
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c) || c === d.crew)
   const sites = s.team.filter((m) => m.role === 'site' && m.status !== 'off').map((m) => m.key as PersonKey)
   const siteList = Array.from(new Set([...sites, ...(d.site ? [d.site as PersonKey] : [])]))
   const getting = d.where === 'new' || d.where === 'ready'
+  const hold = d.hold && d.where !== 'done'
   const clients = Object.values(s.clients).filter((c) => !TO_CONFIRM.test(c.name)).sort((a, b) => a.name.localeCompare(b.name))
   return (
     <div className="flex flex-col gap-3.5" data-catchup={job.id}>
@@ -350,9 +380,19 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
           className="w-full"
         />
       </Line>
-      <Line label="Where it stands">
-        <span data-catchup-where={d.where}>
-          <SearchSelect label="Where it stands" value={d.where} options={WHERE.map((w) => ({ key: w.key, label: w.label, lead: whereLead(w.key) }))} onChange={(w) => set({ where: w as Where, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts })} search={false} width={300} className="w-full" />
+      {/* where it stands — On hold is one of them (why, right under it); picking where it is takes it off hold */}
+      <Line label="Where it stands" hint={hold ? `It was: ${whereWord(d.where)}` : undefined} top={hold}>
+        <span className="flex min-w-0 flex-col gap-2" data-catchup-where={hold ? 'hold' : d.where}>
+          <SearchSelect label="Where it stands" value={hold ? 'hold' : d.where}
+            options={[...WHERE.map((w) => ({ key: w.key as string, label: w.label, lead: whereLead(w.key) })), ...(d.where !== 'done' ? [{ key: 'hold', label: 'On hold', lead: HOLD_LEAD }] : [])]}
+            onChange={(w) => (w === 'hold' ? set({ hold: true }) : set({ hold: false, where: w as Where, parts: w === 'ready' ? Array.from(new Set([...d.parts, ...READY_PARTS])) : d.parts }))} search={false} width={300} className="w-full" />
+          {hold && (
+            <span className="grid gap-2">
+              <TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why. Waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why />
+              {/* until when: that day it's on your Today, to check in */}
+              <DateBox value={d.until} min={TODAY} onChange={(v) => set({ until: v })} label="On hold until · that day it’s on your Today" data="until" placeholder="Until when?" clear />
+            </span>
+          )}
         </span>
       </Line>
       {getting && (
@@ -377,6 +417,8 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
           </span>
         </Line>
       )}
+      {/* at the touch-ups: what's still to fix goes in right here — no closing this to go to the project */}
+      {d.where === 'touchups' && <TouchupsLine job={job} />}
       <Line label="Site manager" warn={!d.site && d.where !== 'done'}>
         <span data-catchup-site={d.site || 'none'}>
           <SearchSelect label="Site manager" value={d.site} options={siteList.map((p) => ({ key: p as string, label: PEOPLE[p]?.name || p, lead: <Avatar who={p as PersonKey} size={22} /> }))} emptyLabel="Not set" onChange={(p) => set({ site: p })} icon={d.site ? undefined : <UserRound />} search={siteList.length > 8} width={300} className="w-full" />
@@ -392,18 +434,6 @@ function CatchUpForm({ job, d, set }: { job: Job; d: Draft; set: (p: Partial<Dra
           <div className={cn('grid gap-2', !getting && 'grid-cols-2')}>
             <DateBox value={d.start} onChange={(v) => set({ start: v })} label="Start" data="start" />
             {!getting && <DateBox value={d.finish} min={d.start} onChange={(v) => set({ finish: v })} label="Finish" data="finish" />}
-          </div>
-        </Line>
-      )}
-      {d.where !== 'done' && (
-        <Line label="On hold?">
-          {/* a question with its two answers side by side — the one that's true is filled in */}
-          <div className="flex flex-wrap items-center gap-2" data-catchup-hold={d.hold ? 'yes' : 'no'}>
-            {([['no', 'No'], ['yes', 'Yes']] as const).map(([k, l]) => {
-              const on = (k === 'yes') === d.hold
-              return <button key={k} type="button" aria-pressed={on} onClick={() => set({ hold: k === 'yes' })} data-catchup-hold-pick={k} className={cn('inline-flex h-10 min-w-[4.5rem] items-center justify-center gap-1.5 rounded-full border px-4 text-[0.875rem] font-semibold transition max-sm:h-11', on ? (k === 'yes' ? 'border-bad-300 bg-bad-50 text-bad-700' : 'border-brand-300 bg-brand-50 text-brand-800') : 'border-line bg-white text-ink-2 hover:bg-wash')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}{l}</button>
-            })}
-            {d.hold &&<span className="min-w-[12rem] flex-1"><TextInput value={d.why} onChange={(e) => set({ why: e.target.value })} placeholder="Why. Waiting on the GC, the tile…" aria-label="Why it’s on hold" data-catchup-why /></span>}
           </div>
         </Line>
       )}
@@ -445,10 +475,10 @@ function AttachPapers({ job }: { job: Job }) {
   )
 }
 /** one question: its name on the left, the answer on the right — stacked on a phone */
-function Line({ label, hint, warn, children }: { label: string; hint?: string; warn?: boolean; children: React.ReactNode }) {
+function Line({ label, hint, warn, top, children }: { label: string; hint?: string; warn?: boolean; /** its boxes go on down (on hold: why, until): the name level with the first */ top?: boolean; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[10rem_minmax(0,1fr)] items-center gap-4 max-sm:grid-cols-1 max-sm:gap-1.5" data-catchup-line={label}>
-      <span className="min-w-0">
+    <div className={cn('grid grid-cols-[10rem_minmax(0,1fr)] gap-4 max-sm:grid-cols-1 max-sm:gap-1.5', top ? 'items-start' : 'items-center')} data-catchup-line={label}>
+      <span className={cn('min-w-0', top && 'sm:pt-2.5')}>
         <span className={cn('block text-[0.875rem] font-semibold', warn ? 'text-[#8f5207]' : 'text-ink')}>{label}</span>
         {hint && <span className="block text-[0.75rem] text-muted">{hint}</span>}
       </span>
@@ -458,6 +488,6 @@ function Line({ label, hint, warn, children }: { label: string; hint?: string; w
 }
 
 /** a start or a finish: the day in words, and a big calendar to pick it from (any day, one gone by too) */
-function DateBox({ value, min, onChange, label, data }: { value: string; min?: string; onChange: (v: string) => void; label: string; data: string }) {
-  return <DateField value={value} min={min} onChange={onChange} label={label} data-catchup-date={data} />
+function DateBox({ value, min, onChange, label, data, placeholder, clear }: { value: string; min?: string; onChange: (v: string) => void; label: string; data: string; placeholder?: string; /** "No day" to take it off */ clear?: boolean }) {
+  return <DateField value={value} min={min} onChange={onChange} onClear={clear ? () => onChange('') : undefined} label={label} placeholder={placeholder} data-catchup-date={data} />
 }

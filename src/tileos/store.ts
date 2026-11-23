@@ -58,6 +58,8 @@ export interface Rules {
   whoV?: number
   /** automations the admin turned off (Settings → Automations) */
   autoOff?: string[]
+  /** an every-day to-do someone skipped for a day ("rounds:ys" → that day): off their Today until the next one */
+  skipped?: Record<string, string>
   /** who does each estimate step by default — new estimates start with these people */
   estTeam?: EstTeam
   /** who does each estimate step, one or more people (the first leads) — the standard steps and the company's own;
@@ -162,6 +164,8 @@ interface Actions {
   completeTask: (id: string, result?: string) => void
   waitTask: (id: string, on: string, back: string) => void
   laterTask: (id: string, until: string) => void
+  /** on hold: off Today — until the day it says (that day it's back on Today, to check in), or until it's taken off hold */
+  holdTask: (id: string, until?: string) => void
   reopenTask: (id: string) => void
   reassignTask: (id: string, owner: PersonKey) => void
   setTaskDue: (id: string, due: string) => void
@@ -489,8 +493,19 @@ export const useStore = create<Store>()(
         if (t.state === 'now' && was && was < TODAY_T) { t.rolls = (t.rolls || 0) + 1; t.lateFrom ||= was }
         t.state = 'later'
         t.laterUntil = until
+        delete t.hold
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: `Moved to later · back ${until}` })
       }, `Out of the way until ${until}`),
+    holdTask: (id, until) =>
+      get().commit((s) => {
+        const t = s.tasks.find((x) => x.id === id)
+        if (!t) return
+        t.state = 'later'
+        t.hold = true
+        if (until) t.laterUntil = until
+        else delete t.laterUntil
+        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: until ? `On hold until ${until}` : 'On hold' })
+      }, until ? `On hold until ${until === 'Tomorrow' ? 'tomorrow' : until}` : 'On hold', { sub: until ? 'That day it’s back on your Today, to check in.' : 'Off Today until it’s taken off hold.' }),
     reopenTask: (id) =>
       get().commit((s) => {
         const t = s.tasks.find((x) => x.id === id)
@@ -499,6 +514,7 @@ export const useStore = create<Store>()(
         t.waitingOn = undefined
         t.followUp = undefined
         t.laterUntil = undefined
+        delete t.hold
         t.doneOn = undefined
         ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: 'Back to needs action' })
       }, 'Back in needs action'),

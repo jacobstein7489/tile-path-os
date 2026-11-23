@@ -6,6 +6,7 @@ import { cn, TONE } from '@/tileos/lib/utils'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { Avatar, Pill } from '@/tileos/components/ui/core'
 import type { Tone } from '@/tileos/data/model'
+import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 
 export const TYPE_ICON: Record<TaskType, React.ElementType> = {
   Pricing: FileText, Setup: LayoutGrid, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt,
@@ -34,9 +35,15 @@ export function JobChip({ id, className, size = 20, noLink }: { id: string; clas
   )
 }
 
+/** on hold, in words: "On hold", "On hold until Nov 30", "On hold until today" */
+export function holdWords(until?: string): string {
+  const iso = isoFromLabel(until)
+  if (!until) return 'On hold'
+  return iso && iso <= TODAY ? (iso === TODAY ? 'On hold until today' : `On hold until ${labelFromIso(iso)}`) : `On hold until ${until}`
+}
 export function dueLabel(t: Task): { text: string; tone: Tone } {
   if (t.state === 'waiting') return { text: `${t.waitingOn} · ${t.followUp}`, tone: 'warn' }
-  if (t.state === 'later') return { text: `Back ${t.laterUntil}`, tone: 'neutral' }
+  if (t.state === 'later') return { text: t.hold ? holdWords(t.laterUntil) : `Back ${t.laterUntil}`, tone: 'neutral' }
   if (t.state === 'done') return { text: t.doneAt || 'Done', tone: 'ok' }
   return { text: t.due || '', tone: (t.dueTone as Tone) || 'neutral' }
 }

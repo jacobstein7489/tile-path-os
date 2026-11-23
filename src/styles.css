@@ -241,7 +241,7 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 1024px) { [data-even-list] { grid-template-columns: var(--list-lg, var(--list, repeat(var(--n-lg, var(--n, 3)), minmax(0, 1fr)))); } }
 @media (min-width: 1280px) { [data-even-list] { grid-template-columns: var(--list-xl, var(--list-lg, var(--list, repeat(var(--n-xl, var(--n-lg, var(--n, 3))), minmax(0, 1fr))))); } }
 /* phones: anything you type in is 16px, so iOS doesn't zoom the page when a box gets focus */
-@media (max-width: 767.98px) { input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select { font-size: 16px !important; } }
+@media (max-width: 767.98px) { input:not([type=checkbox]):not([type=radio]):not([type=file]):not([data-keep-size]), textarea:not([data-keep-size]), select { font-size: 16px !important; } }
 /* Page ground and type, outside the layers so they also win over the host page's own reset. */
 html { background: var(--color-canvas); }
 /* the app doesn't zoom: no pinching in or double-tapping — the screen stays put (a phone's browser ignores "no zoom" in

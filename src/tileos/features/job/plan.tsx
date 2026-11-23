@@ -9,7 +9,7 @@
 import * as React from 'react'
 import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight, Truck, Palette } from 'lucide-react'
 import { useStore, meOf, historyOf, addHist, type Store } from '@/tileos/store'
-import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
+import { designerOf, NO_DESIGNER, sellsTile } from '@/tileos/data/directory'
 import { Button, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Status, Path } from '@/tileos/components/ui/page'
@@ -32,6 +32,7 @@ import { CAT, catOf } from '../estimates'
 import { billingOf } from './money-tab'
 import { tileStatus } from './scope-tab'
 import { budgetOf } from './ratio'
+import { tileStoreOf } from '../tiles'
 import { todoLines, type NowState } from './todo'
 import { Section, Empty, Group, Who, ROW, firstName, Word, Strip } from './kit'
 import { ViewSwitch } from '@/tileos/components/ui/page'
@@ -543,7 +544,12 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
   const [contract, setContract] = React.useState(j?.contract ? String(j.contract) : '')
   /* the designer: one from Designers, none, or a new one typed in (added to Designers when this is saved) */
   const [designer, setDesigner] = React.useState(() => designerOf(s.designers, j)?.id || '')
+  /* where the tile comes from: every tile PO and "Order more tile" on the job goes there (the same as on Tile & materials) */
+  const store0 = tileStoreOf(s, id)
+  const [store, setStore] = React.useState(store0)
   if (!j) return null
+  const active = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name))
+  const stores = Array.from(new Set([...active.filter((x) => sellsTile(x)), ...active.filter((x) => !sellsTile(x))].map((x) => x.name).concat(store ? [store] : [])))
   const clients = Object.values(s.clients)
   const ok = !!name.trim() && !!clientId
   const fresh = designer.startsWith('new:') ? designer.slice(4) : ''
@@ -565,6 +571,11 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
         x.designerId = did || NO_DESIGNER
         const d = st.designers.find((y) => y.id === did)
         addHist(st, id, { who: meOf(st.role), kind: 'setup', title: d ? `Designer: ${d.name}` : 'No designer on it', detail: before ? `Was ${before.name}` : undefined })
+      }
+      /* the tile store: written (and said in What happened) only when it changes */
+      if (store.trim() && store.trim() !== store0) {
+        x.tileStore = store.trim()
+        addHist(st, id, { who: meOf(st.role), kind: 'material', title: `Tile from ${store.trim()}`, detail: store0 ? `Was ${store0}` : undefined })
       }
       const was = x.name
       x.name = name.trim()
@@ -597,6 +608,13 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
           <div data-edit-designer={designer || 'none'}>
             <SearchSelect label="Designer" value={designer} onChange={setDesigner} options={designers} emptyLabel="No designer" placeholder="Pick the designer" icon={<Palette />} width={380} search
               onCreate={(t) => t.trim() && setDesigner('new:' + t.trim())} createLabel={(t) => `Add “${t}” as a new designer`} />
+          </div>
+        </Field>
+        {/* the tile store: where the tile comes from */}
+        <Field label="Tile store">
+          <div data-edit-store={store || 'none'}>
+            <SearchSelect label="Tile store" value={store} onChange={setStore} options={stores.map((v) => ({ key: v, label: v }))} placeholder="Pick the store" icon={<Truck />} width={380} search
+              searchPlaceholder="Type a store · e.g. Infinity Tile" onCreate={(t) => t.trim() && setStore(t.trim())} createLabel={(t) => `Use “${t}”`} />
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">

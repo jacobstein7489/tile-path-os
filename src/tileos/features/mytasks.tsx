@@ -8,7 +8,7 @@ import { History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Re
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
-import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker } from '@/tileos/components/ui/overlay'
+import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
 import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
@@ -30,7 +30,7 @@ import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
-import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow, daysBetween } from '@/tileos/lib/today'
+import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow, daysBetween, pickedLabel } from '@/tileos/lib/today'
 import { REAL, awayFromMe } from '@/tileos/lib/save'
 import { checkIns, checkInDays, reportOn, handledOf, workdaysBetween, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
@@ -38,13 +38,15 @@ import { insidePeople } from './steps-ui'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
 import { namesOf } from './estpeople'
 import { useSmall } from '@/tileos/lib/phone'
-import { roundsToday, roundsOn } from './rounds'
+import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 /** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
  *  text) gives each switch its own line rather than cut a word */
 import { isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
+import { TouchupLine } from './touchups'
+import { holdWords } from './common'
 
 const TODAY_ISO = TODAY
 const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 'Schedule', 'Money']
@@ -73,7 +75,8 @@ export type DailyItem = { kind: 'daily'; jobId: string; crew: PersonKey; workers
  *  installing with its installer on it but no days on the calendar (brought in, or gone through by hand), every work
  *  day from its start date to its finish, when they're set */
 export function workingOn(s: Store, iso: string): { jobId: string; crew: string; start: string; workers?: number; booked: boolean }[] {
-  const booked = s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && ['installation', 'punch'].includes(s.jobs[b.jobId].stage)).map((b) => ({ jobId: b.jobId, crew: b.crew as string, start: b.start, workers: b.workers, booked: true }))
+  /* only the jobs in progress — being installed, not on hold (getting ready, the touch-ups: not asked about) */
+  const booked = s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && s.jobs[b.jobId].stage === 'installation' && !s.jobs[b.jobId].hold).map((b) => ({ jobId: b.jobId, crew: b.crew as string, start: b.start, workers: b.workers, booked: true }))
   const workDay = ![0, 6].includes(new Date(iso + 'T12:00:00').getDay())
   /* (no start date: no "yesterday's is late" — it isn't known when they started) */
   const installing = !workDay ? [] : Object.values(s.jobs).filter((j) => {
@@ -170,6 +173,8 @@ const BUCKETS: { key: Bucket; label: string; tone: 'bad' | 'info' | 'neutral'; h
 ]
 const bucketOfIso = (iso?: string): Bucket => (!iso ? 'later' : iso < TODAY ? 'overdue' : iso === TODAY ? 'today' : iso === TOMORROW ? 'tomorrow' : iso <= addDays(TODAY, 6) ? 'week' : 'later')
 const isNow = (b: Bucket) => b === 'overdue' || b === 'today'
+/** on hold until a day that's come: back on Today, to check in */
+export const holdUp = (t: Task) => t.state === 'later' && !!t.hold && !!t.laterUntil && (isoFromLabel(t.laterUntil) || '9999') <= TODAY
 export function taskIso(t: Task): string | undefined {
   if (t.state === 'waiting') return isoFromLabel(t.followUp)
   if (t.state === 'later') return isoFromLabel(t.laterUntil)
@@ -433,7 +438,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const me0 = meOf(s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
   const team = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
-  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? { text: askLabel(t), tone: 'warn' as const } : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? { text: `Back ${t.laterUntil}` } : { text: 'Anytime', tone: 'quiet' as const })
+  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? { text: askLabel(t), tone: 'warn' as const } : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? (t.hold ? { text: holdWords(t.laterUntil), tone: holdUp(t) ? 'warn' as const : undefined } : { text: `Back ${t.laterUntil}` }) : { text: 'Anytime', tone: 'quiet' as const })
   return (
     <TodoRow
       leaving={leaving}
@@ -633,7 +638,7 @@ function RoundsRow() {
       detail="Google Maps through all of them, a video from each"
       project={r.done ? `${r.done} of ${r.left + r.done} done` : `${r.left} job ${r.left === 1 ? 'site' : 'sites'}`}
       when="Anytime"
-      action={<Button size="sm" className={TBTN} onClick={go} data-rounds-row>{r.done ? 'Keep going' : 'Start'}</Button>}
+      action={<span className="flex items-center gap-1.5"><Button size="sm" variant="ghost" className={TBTN} onClick={() => skipRounds(meOf(s.role))} data-rounds-row-skip>Skip today</Button><Button size="sm" className={TBTN} onClick={go} data-rounds-row>{r.done ? 'Keep going' : 'Start'}</Button></span>}
     />
   )
 }
@@ -794,7 +799,7 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   /* the site manager's crew list, until it's sent: tomorrow's after 3 in the afternoon, today's first thing */
   if (role === 'site' && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : 15 * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
   /* the admin's rounds: the job sites with work going on, on a work day, until a video has gone out from each */
-  if (role === 'owner' && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
+  if (role === 'owner' && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && !roundsSkipped(s, me || meOf('owner')) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
   /* each project's daily update is its own site manager's — the real person, never the built-in "Yakov" spot */
   dailyDue(s, role).forEach((d) => { const who = siteOf(s, s.jobs[d.jobId]); out.push(d.missed ? { key: 'dm' + d.jobId, b: 'overdue', iso: d.missed, time: null, kind: 'daily', d, who } : { key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who }) })
   /* (whoever's list it is — the same line on the admin's Everyone as on their own phone) */
@@ -820,7 +825,7 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
     /* a login spot nobody took ("Estimator") is never shown as a person — it's whoever has that login */
     out.push({ key: t.id, b, iso: taskIso(t), time: taskTime(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) })
   })
-  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) }))
+  s.tasks.filter((t) => isMine(t, role, me) && t.state === 'later').forEach((t) => out.push({ key: t.id, b: holdUp(t) ? 'today' : 'aside', iso: taskIso(t), kind: 'task', t, who: realOwner(s, t.owner), starred: taskStarred(s, t, me) }))
   /* waiting on someone outside: locked to its follow-up day — that day it's back on the list (late after it) */
   s.tasks.filter((t) => isMine(t, role, me) && t.state === 'waiting' && !staleFollowUp(s, t) && !dupOfStep(s, t)).forEach((t) => {
     const iso = isoFromLabel(t.followUp)
@@ -1048,10 +1053,19 @@ const partsRaw = perData((s: Store, role: Role, person: PersonKey | null, view: 
     Array.from(by.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).forEach(([who, lines]) => out.push({ key: 'w:' + who, label: `Waiting on ${who}`, tone: 'neutral', lines }))
     return out
   }
-  /* done: newest first */
-  const done = s.tasks.filter((t) => t.state === 'done' && isMine(t, role, me) && inJob(t.jobId)).sort((a, b) => doneDay(b).localeCompare(doneDay(a)))
-  return done.length ? [{ key: 'done', label: '', tone: 'neutral', lines: done.map((t): Line => ({ k: 'task', key: t.id, t, as: 'done' })) }] : []
+  /* done: the last two weeks, newest first — by the day it was done (Today, Yesterday, Fri, Nov 20…); open one to
+     reopen it */
+  const from = addDays(TODAY, -14)
+  const done = s.tasks.filter((t) => t.state === 'done' && isMine(t, role, me) && inJob(t.jobId) && (!doneDay(t) || doneDay(t) >= from)).sort((a, b) => doneDay(b).localeCompare(doneDay(a)))
+  const byDay = new Map<string, Task[]>()
+  done.forEach((t) => { const d = doneDay(t) || 'earlier'; byDay.set(d, [...(byDay.get(d) || []), t]) })
+  return Array.from(byDay.entries()).map(([d, ts]): Part => ({ key: 'done:' + d, label: d === 'earlier' ? 'Earlier' : d === TODAY ? 'Today' : d === addDays(TODAY, -1) ? 'Yesterday' : dayShort(d), tone: 'neutral', lines: ts.slice(0, 40).map((t): Line => ({ k: 'task', key: t.id, t, as: 'done' })) }))
 })
+/** how many you got done today (the Done tab's number) */
+export const doneTodayN = (s: Store, role: Role, person: PersonKey | null, job: string) => {
+  const me = person || meOf(role)
+  return s.tasks.filter((t) => t.state === 'done' && doneDay(t) === TODAY && isMine(t, role, me) && (job === 'all' || t.jobId === job)).length
+}
 
 /** the admin's Everyone: each person's list as on their own phone (you first) — and anything that's on nobody's */
 export type Everyone = { people: { p: PersonKey; parts: Part[] }[]; nobody: Part[] }
@@ -1538,7 +1552,7 @@ export function MyTasksPage() {
   const s = useStore()
   const role = s.role
   const t0 = (s.route.tab as string) || 'today'
-  const [view, setView] = React.useState<'today' | 'coming' | 'waiting'>(t0 === 'tomorrow' || t0 === 'later' || t0 === 'coming' ? 'coming' : t0 === 'waiting' ? 'waiting' : 'today')
+  const [view, setView] = React.useState<'today' | 'coming' | 'waiting' | 'done'>(t0 === 'tomorrow' || t0 === 'later' || t0 === 'coming' ? 'coming' : t0 === 'waiting' ? 'waiting' : t0 === 'done' ? 'done' : 'today')
   const job0 = useTodayJob((x) => x.job)
   const setJob = useTodayJob((x) => x.set)
   const picked = job0 !== 'all' ? s.jobs[job0] : undefined
@@ -1556,10 +1570,13 @@ export function MyTasksPage() {
   const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(findIn(s, partsOf(s, l.role, l.person, v, job), q)), 0) : countOf(findIn(s, partsFor(s, lists, v, job), q)))
   const parts = findIn(s, partsFor(s, lists, view, job), q)
   const found = q ? n(view) : 0
-  const empty: Record<'today' | 'coming' | 'waiting', { title: string; sub: string }> = {
+  /* what you finished: its own tab — its number is today's */
+  const doneN = lists.reduce((k, l) => k + doneTodayN(s, l.role, l.person, job), 0)
+  const empty: Record<'today' | 'coming' | 'waiting' | 'done', { title: string; sub: string }> = {
     today: { title: picked ? `Nothing for ${picked.name} today` : 'Nothing due today', sub: n('coming') ? `${n('coming')} coming up. See Coming up.` : 'New work lands here the moment it’s yours.' },
     coming: { title: 'Nothing coming up', sub: 'Tomorrow’s things, and anything with a day after it, show here.' },
     waiting: { title: 'Nothing waiting', sub: 'What you asked someone for, what you follow, and what’s out with the GC or a supplier waits here until it’s done.' },
+    done: { title: 'Nothing done yet', sub: 'What’s finished goes here, by the day it was done. Open one to reopen it.' },
   }
 
   return (
@@ -1576,6 +1593,8 @@ export function MyTasksPage() {
             { key: 'coming', label: 'Coming up', count: n('coming'), icon: <CalendarDays />, color: 'violet', on: view === 'coming', onClick: () => setView('coming') },
             /* what someone else is doing that you're waiting for — you asked them, you're watching it, it's with the GC */
             { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting') },
+            /* what's finished: today's, then the days before */
+            { key: 'done', label: 'Done', count: doneN, icon: <CircleCheckBig />, color: 'teal', on: view === 'done', onClick: () => setView('done') },
           ]}
         />
       }
@@ -1591,7 +1610,7 @@ export function MyTasksPage() {
         {/* Waiting on others, in one line: only what you're waiting for */}
         {view === 'waiting' && n(view) > 0 && !q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch. By whom it’s with.</div>}
         {/* searching: how many match, on this list */}
-        {q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] text-muted', PX)} data-today-found={found}>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : 'waiting'} matches “${q}”`}</div>}
+        {q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] text-muted', PX)} data-today-found={found}>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</div>}
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who />}
         {/* one person's list — or Everyone: each person's under their own name, never mixed */}
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
@@ -1715,7 +1734,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const when =
     t.state === 'now' ? { text: b === 'overdue' ? (/late/i.test(t.due || '') ? t.due! : `Was due ${t.due}`) : b === 'today' ? 'Due today' : t.due ? `Due ${/^(Tomorrow|This week|Next week|Next Mon|In 2 weeks)$/.test(t.due) ? t.due.charAt(0).toLowerCase() + t.due.slice(1) : t.due}` : 'No date', cls: b === 'overdue' ? 'text-bad-700' : b === 'today' ? 'text-warn-700' : 'text-ink-2' }
       : t.state === 'waiting' ? { text: `Waiting on ${t.waitingOn || 'someone'} · back ${t.followUp}`, cls: 'text-warn-700' }
-        : t.state === 'later' ? { text: `Set aside · back ${t.laterUntil}`, cls: 'text-ink-2' }
+        : t.state === 'later' ? { text: t.hold ? holdWords(t.laterUntil) : `Set aside · back ${t.laterUntil}`, cls: holdUp(t) ? 'text-warn-700' : 'text-ink-2' }
           : { text: `Done${t.doneAt ? ` ${t.doneAt}` : ''}`, cls: 'text-[#2c8a5b]' }
   /* everything you can do is right there: who, when, watching on top; its words tapped to change them; the bin to
      delete it; the buttons at the bottom. ··· keeps only the two rare ones */
@@ -1735,20 +1754,24 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const editable = canEditTask(t, me, admin)
   const removable = canRemoveTask(t, me, admin)
 
+  const canMove = !theirs || admin
   /* waiting on the GC: the day it's needed by, tapped to change; what's wrong in red */
   const gcw = isGcWait(t) ? gcState(t) : undefined
   const start = gcw ? startOf(s, job) : undefined
   /* the same lines as every window: When (its day), Status (where it stands — waiting, set aside, done) */
   const followDay = t.state === 'waiting' ? (followDue(t) ? 'Follow up today' : `Follow up ${/^tomorrow$/i.test(t.followUp || '') ? 'tomorrow' : t.followUp || ''}`) : ''
-  const whenWords = gcw ? (t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by') : t.state === 'now' ? when.text : t.state === 'waiting' ? followDay : t.state === 'later' ? `Back ${t.laterUntil}` : ''
+  const whenWords = gcw ? (t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by') : t.state === 'now' ? when.text : t.state === 'waiting' ? followDay : t.state === 'later' ? (t.hold ? (t.laterUntil ? holdWords(t.laterUntil).replace(/^On hold until/, 'Until') : 'No day') : `Back ${t.laterUntil}`) : ''
   /* something to bring: who asked for it (and when) is where it stands — On the way once it is */
   const asked = isRequest(t) && t.state === 'now' ? (t.req?.trip === 'onway' ? 'On the way' : t.by ? `Asked by ${t.by === me ? 'you' : PEOPLE[t.by]?.short || 'someone'}${log[0]?.date ? (log[0].date === NOW ? ' today' : ` ${log[0].date}`) : ''}` : undefined) : undefined
   const status = gcw ? <span data-gc-sofar><b className="font-medium">Waiting on the GC</b> · {gcSoFar(t, false)}</span>
     : asked ? <span data-task-asked>{asked}</span>
-      : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? 'Set aside' : t.state === 'done' ? when.text : undefined
-  /* what it's about — under its name; a request's "who asked" is its Status, not said twice */
-  const about = (isRequest(t) ? (t.detail || '').replace(/(^|\s*·\s*)[^·]*\basked for it\s*$/i, '') : t.detail || '').trim()
-  const canMove = !theirs || admin
+      /* where it stands, picked right here: To do · On hold · Done (waiting on someone: its button at the bottom) */
+      : canMove && t.state !== 'done' ? <TaskStatusPick t={t} />
+        : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? (t.hold ? 'On hold' : 'Set aside') : t.state === 'done' ? when.text : undefined
+  /* what it's about — under its name; a request's "who asked" is its Status, not said twice. Touch-ups: their own
+     checklist instead (the same as the project's), not a paragraph */
+  const touch = s.punch.filter((p) => p.taskId === t.id)
+  const about = touch.length ? '' : (isRequest(t) ? (t.detail || '').replace(/(^|\s*·\s*)[^·]*\basked for it\s*$/i, '') : t.detail || '').trim()
   const header = (
     <WinHead
       kind={taskKind(t)}
@@ -1757,7 +1780,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       where={t.where && t.where.trim() !== job?.name ? t.where : undefined}
       title={cleanTitle(t.title, job)}
       sub={about ? <span data-task-detail>{about}</span> : undefined}
-      edit={editable ? { title: t.title, sub: t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }) } : undefined}
+      edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
       who={t.owner}
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')}. Whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
@@ -1765,7 +1788,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       state={whenWords ? <span data-task-when {...(gcw ? { 'data-gc-needby': t.needBy || '' } : {})}>{whenWords}</span> : undefined}
-      tone={gcw ? 'warn' : t.state === 'now' ? (b === 'overdue' ? 'late' : b === 'today' ? 'warn' : undefined) : t.state === 'waiting' && followDue(t) ? 'warn' : undefined}
+      tone={gcw ? 'warn' : t.state === 'now' ? (b === 'overdue' ? 'late' : b === 'today' ? 'warn' : undefined) : (t.state === 'waiting' && followDue(t)) || holdUp(t) ? 'warn' : undefined}
       status={status}
       statusTone={gcw || t.state === 'waiting' ? 'warn' : t.state === 'done' ? 'ok' : asked && t.req?.trip === 'onway' ? 'ok' : 'quiet'}
       extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
@@ -1779,7 +1802,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       whenPick={gcw && canMove ? { title: 'Needed by', value: t.needBy ? labelFromIso(t.needBy) : undefined, presets: Array.from(new Set([...(start && start >= TODAY ? [labelFromIso(start)] : []), 'Next Mon', 'In 2 weeks'])), onPick: (d) => setNeedBy(t.id, isoFromLabel(d)) }
         : canDate ? { value: t.due, onPick: (d) => s.setTaskDue(t.id, d), time: t.at, onTime: (v) => setTaskTime(t.id, v), onClear: t.due || t.at ? () => clearTaskWhen(t.id) : undefined }
           : t.state === 'waiting' && canMove ? { title: 'Follow up on', value: t.followUp, presets: ['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon'], onPick: (d) => setFollowUp(t.id, d) }
-            : t.state === 'later' && canMove ? { title: 'Back on', value: t.laterUntil, onPick: (d) => s.laterTask(t.id, d) } : undefined}
+            : t.state === 'later' && canMove && !t.hold ? { title: 'Back on', value: t.laterUntil, onPick: (d) => s.laterTask(t.id, d) }
+              : t.state === 'later' && canMove && t.hold ? { title: 'On hold until', value: t.laterUntil, presets: HOLD_DAYS, onPick: (d) => s.holdTask(t.id, d), onClear: t.laterUntil ? () => s.holdTask(t.id) : undefined } : undefined}
     />
   )
 
@@ -1842,6 +1866,12 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       {gcw && !theirs && <GcMessageBox t={t} />}
       {/* a to-do about a PO shows the PO itself: what was ordered, from whom — and Open the PO */}
       {poOfTask(t) && <div className="mb-5" data-task-po><LinkedPO t={t} /></div>}
+      {/* touch-ups: the checklist itself — tick them right here, change their words, add photos */}
+      {touch.length > 0 && (
+        <div className="mb-5 overflow-hidden rounded-2xl border border-line bg-white [&>[data-touchup]:first-child]:border-t-0" data-task-touchups>
+          {touch.map((p) => <TouchupLine key={p.id} p={p} />)}
+        </div>
+      )}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
           one quiet box to add one. The same on a step */}
       <Notes kind="task" me={me} notes={notesOnly} onAdd={t.state !== 'done' ? (x) => s.noteTask(t.id, x) : undefined} className={cn(((gcw && !theirs) || (t.state === 'done' && t.result)) && 'mt-5')} />
@@ -1855,6 +1885,47 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     <Modal level={level} size="md" onClose={s.close} inlineClose header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
       {body}
     </Modal>
+  )
+}
+
+/** where a to-do stands, picked right on its Status line: To do, On hold, Done. On hold asks until when — that day it's
+ *  back on Today, to check in (or no day: until it's taken off hold). Waiting on someone is its button at the bottom */
+export const HOLD_DAYS = ['Tomorrow', 'Next Mon', 'In 2 weeks']
+function TaskStatusPick({ t }: { t: Task }) {
+  const s = useStore()
+  const [open, setOpen] = React.useState(false)
+  const [until, setUntil] = React.useState(false)
+  const word = t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? (t.hold ? 'On hold' : `Set aside · back ${t.laterUntil}`) : 'To do'
+  const hold = (d?: string) => { setOpen(false); s.holdTask(t.id, d) }
+  const item = (on: boolean, label: React.ReactNode, onClick: () => void, attrs: Record<string, string>) => (
+    <button type="button" role="menuitemradio" aria-checked={on} onClick={onClick} className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[0.9375rem] text-ink transition hover:bg-wash" {...attrs}>
+      <span className="min-w-0 flex-1">{label}</span>{on && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
+    </button>
+  )
+  return (
+    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setUntil(false) }} align="start" width={until ? 332 : 240} className="p-0" sheet={until}
+      trigger={<button type="button" className={cn(CHIP, '-ml-1')} data-task-status-pick={t.hold ? 'hold' : t.state}><span className={cn('text-[0.9375rem]', t.state === 'waiting' ? 'text-warn-700' : t.hold ? 'font-medium text-ink' : 'text-ink')}>{word}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+      {!until ? (
+        <div className="flex flex-col p-1.5" role="menu">
+          {item(t.state === 'now', 'To do', () => { setOpen(false); if (t.state !== 'now') s.reopenTask(t.id) }, { 'data-status-now': '' })}
+          {item(t.state === 'later' && !!t.hold, <>On hold<span className="text-muted"> · until when?</span></>, () => setUntil(true), { 'data-status-hold': '' })}
+          {item(false, 'Done', () => { setOpen(false); s.completeTask(t.id) }, { 'data-status-done': '' })}
+        </div>
+      ) : (
+        /* until when: that day it's back on Today to check in */
+        <div data-hold-until>
+          <div className="px-4 pb-1 pt-3.5 text-[0.875rem] font-semibold text-ink">On hold until</div>
+          <div className="flex flex-wrap gap-1.5 px-4 pb-3 pt-1.5" data-when-presets>
+            {HOLD_DAYS.map((p) => <button key={p} type="button" onClick={() => hold(p)} className="inline-flex h-8 items-center rounded-full border border-line bg-white px-3 text-[0.8125rem] font-medium text-ink-2 transition hover:border-[#d1cbc0] hover:bg-wash" data-hold-preset={p}>{p}</button>)}
+          </div>
+          <div className="border-t border-line-2"><MonthCal value={isoFromLabel(t.laterUntil)} onPick={(iso) => hold(pickedLabel(iso))} className="px-3 pb-3 pt-2.5" /></div>
+          <div className="flex items-center gap-3 border-t border-line-2 px-4 py-2.5">
+            <span className="min-w-0 flex-1 text-[0.8125rem] text-muted">That day it’s back on your Today.</span>
+            <button type="button" onClick={() => hold()} className="shrink-0 rounded-full px-2 py-1 text-[0.8125rem] font-semibold text-muted transition hover:bg-wash hover:text-ink" data-hold-nodate>No day</button>
+          </div>
+        </div>
+      )}
+    </Pop>
   )
 }
 

@@ -150,7 +150,7 @@ function standsOf(s: Store, job: Job): { kicker: string; big: string; meta: stri
 /** where the project is, like a parcel's tracking: Approved · Getting ready · Crew scheduled · Installing · Touch-ups ·
  *  Closed — one bar each: green when it's done, blue for the one going on (as far as it's got), gray after. Under
  *  the one going on, where it's at — its problems in red words (the bar stays blue). On a phone: the bars, and the one going on in words under them */
-function StageBar({ job }: { job: Job }) {
+function StageBar({ job, onChange }: { job: Job; /** tap it: Where it's up to (its status, on hold…) */ onChange?: () => void }) {
   const s = useStore()
   const line = lineOf(s, job, tracksFor(s, job))
   const n = problemsOf(s, job).length
@@ -168,7 +168,8 @@ function StageBar({ job }: { job: Job }) {
   /* slim: a thin bar for each stage, and its name with its day on one line under it — the one going on in bold with
      how far it's got. Half the height it was, so the project itself has the room */
   return (
-    <div className="mt-2.5" data-project-line>
+    <div className={cn('mt-2.5', onChange && '-mx-1.5 cursor-pointer rounded-lg px-1.5 pb-1 pt-0.5 transition hover:bg-wash')} data-project-line
+      {...(onChange ? { role: 'button', tabIndex: 0, title: 'Change where it’s up to', 'aria-label': 'Where it’s up to · change it', onClick: onChange, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange() } }, 'data-stage-change': '' } : {})}>
       <ol className="grid grid-cols-6 gap-1.5" aria-label="Where the project is">
         {line.map((x, i) => {
           const on = i === at
@@ -233,7 +234,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
      says where it's up to straight out: the client, where it stands, who's on it — no going through its steps */
   const setsWhere = ['owner', 'pm', 'office'].includes(role)
   const more = (canEdit || ['owner', 'pm'].includes(role)) ? (
-    <Menu align="end" width={240} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} className="max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:shadow-none" />}>
+    <Menu align="end" width={280} trigger={<Button size="sm" aria-label="More for this project" icon={<MoreHorizontal />} className="max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:shadow-none" />}>
       {setsWhere && <MenuItem icon={<ListChecks className="h-4 w-4" />} onSelect={() => s.open({ t: 'catchup', id: job.id })}>Update where it’s up to</MenuItem>}
       {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'editproject', id: job.id })}>Change the project’s details</MenuItem>}
       {/* the same project twice (an estimate brought in, and the project): one of them, joined into the other */}
@@ -280,7 +281,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
             {canPeople
               ? <button onClick={() => s.open({ t: 'jobcontact', jobId: job.id, index: 0 })} className="min-w-0 truncate font-medium hover:text-brand-700" title="Change or take off" data-job-contact-open>{job.contacts[0].name}</button>
               : <span className="truncate font-medium">{job.contacts[0].name}</span>}
-            {job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}
+            {job.contacts[0].phone && job.contacts[0].phone.replace(/\D/g, '') !== job.contacts[0].name.replace(/\D/g, '') && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}
           </span>
         )}
         {meta[1] && <span className={META}><MapPin className={META_ICON} /><span className="truncate">{meta[1]}</span></span>}
@@ -291,7 +292,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         {date && <span className={cn(META, date.late && 'font-medium text-warn-700')} data-key-date><CalendarDays className={META_ICON} />{date.text}</span>}
       </div>
       {/* where it is, like a parcel's tracking — six stages, clean */}
-      {!pricing && <StageBar job={job} />}
+      {!pricing && <StageBar job={job} onChange={setsWhere ? () => s.open({ t: 'catchup', id: job.id }) : undefined} />}
       {/* what it waits on from the GC — always in sight, until it's done */}
       {!pricing && <GcLine job={job} />}
     </div>

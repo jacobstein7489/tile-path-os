@@ -73,8 +73,7 @@ function Stage({ job, phase, setView }: { job: Job; phase: Phase; setView: (v: B
   return (
     <>
       {phase === 'crew' && <CrewCard job={job} />}
-      {/* installing: how far each room is, on its line in the scope of work — nothing more to scroll through here */}
-      {(phase === 'punch' || punch) && <TouchupsCard job={job} />}
+      {/* installing: how far each room is, on its line in the scope of work. The touch-ups are part of To do */}
     </>
   )
 }

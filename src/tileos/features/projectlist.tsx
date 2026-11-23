@@ -7,7 +7,7 @@ import { Plus, Wrench, CircleCheckBig, Building2, HardHat, ClipboardList, Sparkl
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, BAND_STRONG, bandStyle, bandLabel, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -126,8 +126,8 @@ export function ProjectsPage() {
               const rows = list.filter((j) => typeOf(j) === t.key)
               if (!rows.length) return null
               return (
-                <section key={t.key}>
-                  <Group label={t.label} count={rows.length} tone={TYPE_TONE[t.key]} />
+                <section key={t.key} data-project-group={t.key}>
+                  <GroupHead k={t.key} label={t.label} n={rows.length} />
                   {rows.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
                 </section>
               )
@@ -140,6 +140,21 @@ export function ProjectsPage() {
 }
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
+/** each group's mark: the same as its card on top */
+const TYPE_ICON: Record<ProjType, React.ReactNode> = { hold: <PauseCircle />, coming: <ClipboardList />, progress: <HardHat />, touchups: <Sparkles />, repairs: <Wrench />, done: <CircleCheckBig /> }
+/** All open: each group's name — big, in its color, with its mark — stays on top while its projects scroll by (under
+ *  the column names on a computer), so you always see which group you're in */
+const GROUP_STICKY = 'sticky z-[4] top-[calc(var(--app-top,0px)+var(--ptop,0px))] md:top-[calc(var(--app-top,0px)+var(--bar,0px)+2.5rem)] lg:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px)+2.5rem)]'
+function GroupHead({ k, label, n }: { k: ProjType; label: string; n: number }) {
+  const tone = TYPE_TONE[k]
+  return (
+    <div className={cn(BAND_STRONG, 'px-5 max-sm:px-4', GROUP_STICKY)} style={bandStyle(tone)} data-band data-strong data-group-tone={tone} data-group-head={k}>
+      <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4', bandLabel(tone).split(' ').filter((c) => c.startsWith('text-[#')).join(' '))} aria-hidden>{TYPE_ICON[k]}</span>
+      <span className={bandLabel(tone)}>{label}</span>
+      <BandCount n={n} />
+    </div>
+  )
+}
 
 /* One line per project — the same as Estimates: the project's name, the client (gray), where it stands, and the date:
  *   Project · (Client, on a wide screen) · Where it stands · Date
@@ -212,7 +227,7 @@ export function standOf(s: Store, j: Job): { text: string; quiet?: boolean } {
   const crew = (b?.crew || j.crew || installerOf(s, j)) as PersonKey | undefined
   const who = crew ? ` · ${PEOPLE[crew]?.short || crew}` : ''
   const cap = (x: string) => x.replace(/^./, (c) => c.toUpperCase())
-  if (t === 'hold') return { text: j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold', quiet: true }
+  if (t === 'hold') return { text: `${j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold'}${j.hold?.until ? ` · until ${j.hold.until}` : ''}`, quiet: true }
   if (t === 'progress') return { text: `${j.pct ?? 0}% installed${who}` }
   if (t === 'touchups' || t === 'repairs') return { text: s.punch.some((p) => p.jobId === j.id) ? cap(howFar(s, j).text) : t === 'repairs' ? j.scope || 'Repair' : 'No touch-ups yet' }
   if (t === 'done') { const bl = billingOf(j); return bl.paidPct >= 100 ? { text: 'Paid in full', quiet: true } : bl.billedPct >= 100 ? { text: 'Waiting to be paid', quiet: true } : { text: 'Bill the rest' } }
@@ -220,6 +235,23 @@ export function standOf(s: Store, j: Job): { text: string; quiet?: boolean } {
   const tracks = tracksFor(s, j)
   if (gateOpen(tracks)) return b ? { text: `Crew booked${who}` } : { text: 'Ready. Pick the crew’s days' }
   return { text: `${tracks.filter((x) => x.state === 'done').length} of ${tracks.length} done` }
+}
+/** what a project is waiting on, in a few words each — its to-dos marked waiting (on the GC, an inspector, another
+ *  trade): "stone install", "waterproofing inspection". Never its ordinary to-dos. Only once it's being installed (or
+ *  in touch-ups), where "80% installed" alone doesn't say it; getting ready says it with its steps, on hold with why */
+export function waitingOn(s: Store, j: Job): string[] {
+  if (!['installation', 'punch'].includes(j.stage) || j.hold) return []
+  return s.tasks
+    /* a problem is counted in red already — not said again here. What comes back first, first */
+    .filter((t) => t.jobId === j.id && t.state === 'waiting' && t.tone !== 'bad')
+    .sort((a, b) => (isoFromLabel(a.followUp || '') || '9999').localeCompare(isoFromLabel(b.followUp || '') || '9999'))
+    .map((t) => {
+      const what = t.title.replace(/\s*[·,-]?\s*waiting (on|for)\b.*$/i, '').replace(/^waiting (on|for)( the gc)?(:|\s·)?\s*/i, '').replace(/\.$/, '').trim()
+      const low = /^[A-Z][a-z]/.test(what) ? what.charAt(0).toLowerCase() + what.slice(1) : what
+      /* the GC: said as who it's on ("the GC for CO-004") */
+      return /\bgc\b/i.test(t.waitingOn || '') || /\bthe gc\b/i.test(t.title) ? (low ? `the GC for ${low}` : 'the GC') : low
+    })
+    .filter(Boolean)
 }
 /** a project's problems, counted — "1 problem", "3 problems" */
 const probWords = (n: number) => `${n} ${n === 1 ? 'problem' : 'problems'}`
@@ -239,7 +271,7 @@ export function nowOf(s: Store, j: Job, probs: ReturnType<typeof problemsOf> = p
   const b = bookingOf(s, j)
   const crew = (b?.crew || j.crew || installerOf(s, j)) as PersonKey | undefined
   const cap = (x: string) => x.replace(/^./, (c) => c.toUpperCase())
-  if (t === 'hold') return { text: j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold', tone: 'quiet' }
+  if (t === 'hold') return { text: `${j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold'}${j.hold?.until ? ` · until ${j.hold.until}` : ''}`, tone: 'quiet' }
   if (t === 'progress') return crew ? { text: `${j.pct ?? 0}% installed`, who: crew } : { text: 'No installer on it' }
   if (t === 'touchups') return crew ? { text: cap(howFar(s, j).text), who: crew } : { text: 'Pick who fixes them' }
   if (t === 'repairs') return crew ? { text: s.punch.some((p) => p.jobId === j.id) ? cap(howFar(s, j).text) : j.scope || 'Repair', who: crew } : { text: 'Pick a crew' }
@@ -265,11 +297,16 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
   const w = whenOf(s, j)
   const open = () => s.open({ t: 'job', id: j.id })
   const date = (cls: string, text: string) => <span className={cn(cls, 'whitespace-nowrap tnum', w.late ? 'font-medium text-warn-700' : 'text-muted')} title={w.late ? 'The start date passed' : undefined} data-when>{text}</span>
-  /* where it stands, and its problems counted in red (pointing at it lists them) */
+  /* where it stands, and its problems counted in red (pointing at it lists them) — and, under it in amber, what it's
+     waiting on (two at most, then how many more) */
+  const waits = waitingOn(s, j)
   const stand = (cls: string) => (
-    <span className={cn('min-w-0 truncate', cls)} data-stand={st.text} title={probs.length ? probs.map((p) => p.text).join('\n') : undefined}>
-      <span className={st.quiet ? 'text-muted' : 'text-ink-2'}>{st.text}</span>
-      {probs.length > 0 && <span className="font-medium text-bad-600" data-problems={probs.length}> · {probWords(probs.length)}</span>}
+    <span className={cn('min-w-0', cls)} data-stand={st.text} title={probs.length ? probs.map((p) => p.text).join('\n') : undefined}>
+      <span className="block truncate">
+        <span className={st.quiet ? 'text-muted' : 'text-ink-2'}>{st.text}</span>
+        {probs.length > 0 && <span className="font-medium text-bad-600" data-problems={probs.length}> · {probWords(probs.length)}</span>}
+      </span>
+      {waits.length > 0 && <span className="block whitespace-normal text-[0.8125rem] leading-snug text-warn-700" data-waiting-on={waits.length}>Waiting on: {waits.slice(0, 2).join(' · ')}{waits.length > 2 ? ` · ${waits.length - 2} more` : ''}</span>}
     </span>
   )
   return (
@@ -299,7 +336,7 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
           <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
-        <div className="truncate text-[0.875rem] leading-5" data-now>{stand('block')}</div>
+        <div className="min-w-0 text-[0.875rem] leading-5" data-now>{stand('block')}</div>
       </div>
     </div>
   )

@@ -38,11 +38,21 @@ function setPicks(me: string, f: (p: Picks) => Picks) {
   try { localStorage.setItem(pickKey(me), JSON.stringify(f(readPicks(me)))) } catch { /* private window: for now only */ }
   usePicks.setState((x) => ({ n: x.n + 1 }))
 }
-const FIELD_OFF = ['request', 'estimating', 'proposal', 'followup', 'closeout', 'complete']
-/** the job sites with work going on today: a crew booked there today, or it's being installed or touched up */
-export function siteJobs(s: Store, day = TODAY): Job[] {
-  const booked = new Set(s.bookings.filter((b) => b.start <= day && b.end >= day).map((b) => b.jobId))
-  return Object.values(s.jobs).filter((j) => !j.hold && !FIELD_OFF.includes(j.stage) && (booked.has(j.id) || ['installation', 'punch'].includes(j.stage)))
+/** the job sites with work going on: the jobs in progress (being installed) — not on hold, not getting ready, not the
+ *  touch-ups */
+export function siteJobs(s: Store, _day = TODAY): Job[] {
+  return Object.values(s.jobs).filter((j) => !j.hold && j.stage === 'installation')
+}
+/** Visit the jobs skipped for today (on any phone or computer): off Today until the next work day */
+export const roundsSkipped = (s: Pick<Store, 'rules'>, me: string) => s.rules.skipped?.['rounds:' + me] === TODAY
+export function skipRounds(me: string, skip = true) {
+  S().commit((st) => {
+    const k = 'rounds:' + me
+    const m = { ...(st.rules.skipped || {}) }
+    if (skip) m[k] = TODAY
+    else delete m[k]
+    st.rules.skipped = m
+  }, skip ? 'Skipped for today' : 'Back on Today', skip ? { sub: 'Visit the jobs is back on your Today the next work day.', undo: true } : { undo: false })
 }
 /** today's stops: those, less any skipped, with any added */
 export function roundJobs(s: Store, me: string): Job[] {
@@ -182,9 +192,13 @@ export function RoundsModal({ level }: { level: number }) {
       header={<ListHead kind={{ icon: <MapPinned />, label: 'Site visits' }} title="Visit the jobs" sub={left.length ? `${left.length} ${left.length === 1 ? 'job' : 'jobs'} ${how}` : 'Every job has its video'} who={me} me={me} when={`Today · ${dayShort(TODAY)}`} attrs={{ 'data-rounds-head': '' }} />}
       footer={
         left.length ? (
+          <>
+          {/* not today: off Today until the next work day */}
+          <Button variant="ghost" className={cn(small && 'h-12')} onClick={() => { skipRounds(me); s.close() }} data-rounds-skip-day>Skip today</Button>
           <a href={route} target="_blank" rel="noopener noreferrer" className={cn(btnClass('primary', 'md'), 'ml-auto gap-2', small && 'h-12 flex-1 text-[1rem]')} data-rounds-start>
-            <Navigation className="h-[1.125rem] w-[1.125rem]" />{left.length > 10 ? 'Start in Google Maps · stops 1–10' : 'Start in Google Maps'}
+            <Navigation className="h-[1.125rem] w-[1.125rem]" />{left.length > 10 ? 'Start in Google Maps · stops 1–10' : small ? 'Start' : 'Start in Google Maps'}
           </a>
+          </>
         ) : (
           <Button className={cn('ml-auto', small && 'h-12 flex-1 text-[1rem]')} variant="primary" onClick={s.close}>Done for today</Button>
         )

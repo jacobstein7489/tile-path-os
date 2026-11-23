@@ -36,6 +36,7 @@ import {
 } from '../tiles'
 import { EdgePicker } from '../metalpick'
 import { PatternPic, PatternPick } from '../patternpic'
+import { TilePicker } from '../tilepick'
 
 const SURF_STATUS: Record<string, string> = { done: 'Done', working: 'Working', ready: 'Ready', blocked: 'Blocked', waitmat: 'Waiting on material', hold: 'On hold', notstarted: 'Not started', unknown: 'To check' }
 const IN_FIELD = ['scheduled', 'installation', 'punch', 'closeout', 'complete']
@@ -434,18 +435,8 @@ export function SurfaceModal({ jobId, room, surface, level }: { jobId: string; r
       ) : null}
       <fieldset disabled={!lock.canEdit} className="m-0 min-w-0 border-0 p-0">
       <Row label="Tile">
-        <SearchSelect
-          label="Tile"
-          value={tile}
-          onChange={pickTile}
-          emptyLabel="No tile yet"
-          placeholder="Pick the tile"
-          search={tiles.length > 8}
-          options={tiles.map((tt) => ({ key: tt.tag, label: `${tt.tag} · ${tt.name}`, hint: [tt.size, tt.finish].filter(Boolean).join(' · '), lead: <TileImg tile={tt} size={28} radius={6} /> }))}
-          footer={{ label: 'Add a new tile', onClick: () => s.open({ t: 'tile', jobId, room, surface }) }}
-          width={380}
-          className={cn(t && 'h-12')}
-        />
+        {/* every tile of the project, big, with where each goes already — the ones in this room first */}
+        <TilePicker jobId={jobId} room={room} value={tile} onPick={pickTile} onAdd={() => s.open({ t: 'tile', jobId, room, surface })} disabled={!lock.canEdit} />
       </Row>
       <Row label="Grout">
         <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2">

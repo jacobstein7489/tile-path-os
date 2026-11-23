@@ -226,10 +226,12 @@ function EditText({ value, onSave, area, placeholder, label, attrs }: { value: s
   const keep = () => { setOn(false); if (v.trim() !== value.trim() && (area || v.trim())) onSave(v) }
   const back = () => { setV(value); setOn(false) }
   const keys = (e: React.KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); back() } else if (e.key === 'Enter' && !(area && e.shiftKey)) { e.preventDefault(); keep() } }
-  const box = '-mx-2 -my-1 block w-[calc(100%+1rem)] rounded-lg border border-brand-300 bg-white px-2 py-1 text-ink outline-none ring-[0.1875rem] ring-brand-50 [font:inherit] [letter-spacing:inherit]'
-  if (on) return area
-    ? <textarea autoFocus value={v} rows={Math.min(6, Math.max(2, Math.ceil((v.length || 1) / 64)))} onChange={(e) => setV(e.target.value)} onBlur={keep} onKeyDown={keys} placeholder={placeholder} aria-label={label} className={cn(box, 'resize-none')} data-editing />
-    : <input autoFocus value={v} onChange={(e) => setV(e.target.value)} onBlur={keep} onKeyDown={keys} aria-label={label} className={box} data-editing />
+  const box = '-mx-2 -my-1 block w-[calc(100%+1rem)] resize-none overflow-hidden rounded-lg border border-brand-300 bg-white px-2 py-1 text-ink outline-none ring-[0.1875rem] ring-brand-50 [font:inherit] [letter-spacing:inherit]'
+  /* the whole sentence, always in sight: the box grows with what's in it (Enter saves; the details take a new line
+     with Shift+Enter) */
+  const ref = React.useRef<HTMLTextAreaElement>(null)
+  React.useLayoutEffect(() => { const el = ref.current; if (!el) return; el.style.height = 'auto'; el.style.height = `${el.scrollHeight + 2}px` }, [v, on])
+  if (on) return <textarea ref={ref} autoFocus value={v} rows={1} onChange={(e) => setV(area ? e.target.value : e.target.value.replace(/\n/g, ' '))} onBlur={keep} onKeyDown={keys} onFocus={(e) => { const n = e.target.value.length; e.target.setSelectionRange(n, n) }} placeholder={placeholder} aria-label={label} className={box} data-editing data-keep-size={area ? undefined : ''} />
   return (
     <button type="button" onClick={() => setOn(true)} title="Tap to change it" aria-label={`${label} · change it`} className="-mx-2 -my-1 block w-[calc(100%+1rem)] cursor-text rounded-lg border border-transparent px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none" {...attrs}>
       {value || <span className="text-faint">{placeholder}</span>}

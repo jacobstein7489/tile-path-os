@@ -482,6 +482,13 @@ export interface Surface {
   sf?: number
   /** how far along, 0–100 (done = 100) */
   pct?: number
+  /** ticked on the scope: the tile is in (the day), and the grout is done (the day) — grouted is done */
+  tiledOn?: string
+  groutedOn?: string
+  /** left for later (a niche waiting on its shelf, a backsplash on the counters): not holding the room up */
+  later?: boolean
+  /** how far it was before its tile was ticked in — a tick taken back puts it back */
+  pctBefore?: number
   /** a change asked on site that is waiting for approval */
   pending?: { co: string; label: string; from: string; to: string }
 }

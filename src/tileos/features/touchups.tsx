@@ -3,7 +3,7 @@
  * yet says what it's waiting on ("the tile delivery"). The project shows them as one line on What's open.
  * And a note on a project: say it (or type it), add photos or videos — it goes into the project's Latest. */
 import * as React from 'react'
-import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, UserRound, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, UserRound, RotateCcw, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { useStore, meOf, NOW, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
@@ -17,6 +17,8 @@ import { setPunch } from './flows'
 import { isOff } from './active'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 import { fieldPeople } from './steps-ui'
+import { Whose } from './job/whatsleft'
+import { isoFromLabel, labelFromIso, TODAY } from '@/tileos/lib/today'
 
 const ORDER: Record<PunchItem['status'], number> = { open: 0, working: 0, verify: 1, verified: 2 }
 
@@ -33,7 +35,7 @@ const isVideo = (f?: FileRec) => !!f && (/^video\//.test(f.type) || /\.(mov|mp4|
 
 /** the list itself — to do, fixed-to-check, checked — the same on the project page and in its own window */
 /** the list, edge to edge — each group a band, each touch-up a line (in a window, it fills the window's width) */
-export function TouchupsList({ job }: { job: Job }) {
+export function TouchupsList({ job, bare }: { job: Job; /** inside the project's To do: its own band says Touch-ups — no "To fix" band, no empty word */ bare?: boolean }) {
   const s = useStore()
   const jobId = job.id
   const [showDone, setShowDone] = React.useState(false)
@@ -45,16 +47,18 @@ export function TouchupsList({ job }: { job: Job }) {
   const started = ['installation', 'punch', 'closeout', 'complete'].includes(job.stage) || job.kind === 'repair'
   return (
     <>
-      {!items.length && (
+      {!items.length && !bare && (
         <div className="flex flex-col items-center px-4 py-12 text-center">
           <div className="text-[1rem] font-semibold text-ink">{started ? `No touch-ups on ${job.name}` : 'Touch-ups come after the installing'}</div>
           <div className="mt-1 max-w-sm text-[0.875rem] text-muted">{started ? 'Type the whole list at once. One per line. Each one gets its own line here, with its photos and videos.' : 'Once the crew is on site, the list goes here: one line per touch-up, with photos, done and checked one by one.'}</div>
           {canAdd && <Button className="mt-4" variant={started ? 'primary' : undefined} icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>{started ? 'Add touch-ups' : 'Add touch-ups anyway'}</Button>}
         </div>
       )}
-      {open.length > 0 && <Part label="To fix" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
-      {check.length > 0 && <Part label="Fixed · to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
-      {done.length > 0 && (
+      {/* the project's To do: what's left, one list (the ones fixed and waiting to be checked last); checked ones aren't on it */}
+      {bare && [...open, ...check].map((p) => <TouchupLine key={p.id} p={p} />)}
+      {!bare && open.length > 0 && <Part label="To fix" n={open.length}>{open.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {!bare && check.length > 0 && <Part label="Fixed · to check" n={check.length}>{check.map((p) => <TouchupLine key={p.id} p={p} />)}</Part>}
+      {!bare && done.length > 0 && (
         <div>
           <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'group w-full px-5 text-left max-sm:px-4')}>
             <span className={cn(BAND_LABEL, 'group-hover:text-ink')}>Checked</span><BandCount n={done.length} />
@@ -104,37 +108,78 @@ function Part({ label, n, children }: { label: string; n: number; children: Reac
   )
 }
 
-/** one touch-up, one line: what it is, where and who, what it's waiting on — then the one button (Done, then Checked),
- *  a camera for a photo or a video, and ··· for the rest. Its photos, if it has any, in a small row under it. */
-function TouchupLine({ p }: { p: PunchItem }) {
+/** a touch-up's day: its own, or what its note said ("Due Fri") — and whether it's gone by */
+export function punchDue(p: PunchItem): { text: string; late: boolean } | null {
+  const d = p.due || p.note?.match(/^Due (.+)$/)?.[1]
+  if (!d) return null
+  const iso = isoFromLabel(d)
+  const late = !!iso && iso < TODAY && p.status !== 'verified'
+  return { text: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : d, late }
+}
+/** one touch-up, one line — the same as a to-do: its tick, what it is (whole, never cut), who does it (their circle and
+ *  name), its day — then a camera and ··· (its words, who, waiting, take it off). Where it is and what it waits on, in
+ *  gray under it; its photos in a small row. The tick: the crew ticks it done (the site manager checks it next);
+ *  anyone else ticking it has checked it. Laid out by the room it has: wide (a project's To do) in columns; narrow
+ *  (a window, a phone) who and when under the words */
+export function TouchupLine({ p }: { p: PunchItem }) {
   const s = useStore()
   const pick = React.useRef<HTMLInputElement>(null)
   const [waitOpen, setWaitOpen] = React.useState(false)
   const [wait, setWait] = React.useState('')
+  /* its words, changed right on the line */
+  const [editing, setEditing] = React.useState(false)
+  const [words, setWords] = React.useState(p.text)
   const media = (p.media || []).map((id) => s.files.find((f) => f.id === id)).filter(Boolean) as FileRec[]
   const done = p.status === 'verified'
+  const toCheck = p.status === 'verify'
   const waiting = !!p.note && /^waiting/i.test(p.note)
-  const set = (patch: Partial<PunchItem>, msg: string) => s.commit((st) => { const x = st.punch.find((y) => y.id === p.id); if (x) Object.assign(x, patch) }, msg)
+  const set = (patch: Partial<PunchItem>, msg?: string) => s.commit((st) => { const x = st.punch.find((y) => y.id === p.id); if (x) Object.assign(x, patch) }, msg)
   const crews = CREWS.filter((c) => !isOff(s, 'crew', c))
-  const people: PersonKey[] = [...crews, ...fieldPeople(s, s.jobs[p.jobId])]
-  const where = [p.where !== 'To place' ? p.where : '', PEOPLE[p.owner]?.short].filter(Boolean).join(' · ')
-  const note = p.note ? <span className={cn('inline-flex min-w-0 items-center gap-1', waiting ? 'text-warn-700' : 'text-ink-2')}>{waiting && <Hourglass className="h-3.5 w-3.5 shrink-0" />}<span className="truncate">{p.note}</span></span> : null
+  const people: PersonKey[] = Array.from(new Set([...crews, ...fieldPeople(s, s.jobs[p.jobId])]))
+  const due = punchDue(p)
+  const where = p.where !== 'To place' ? p.where : ''
+  const note = p.note && !/^Due /.test(p.note) ? <span className={cn('inline-flex min-w-0 items-center gap-1', waiting ? 'text-warn-700' : 'text-ink-2')}>{waiting && <Hourglass className="h-3.5 w-3.5 shrink-0" />}<span className="min-w-0">{p.note}</span></span> : null
+  const canEdit = !['client', 'accounting'].includes(s.role)
+  /* the crew says it's done; whoever checks (the site manager, the office) — checked, in one tap */
+  const crew = s.role === 'crew'
+  const canTick = canEdit && !done && !(toCheck && crew)
+  const tick = () => { if (canTick) setPunch(p.id, crew && !toCheck ? 'verify' : 'verified') }
+  const tickWord = crew && !toCheck ? 'Done' : 'Checked'
+  /* its day — or, fixed: waiting to be checked; checked */
+  const day = done ? { text: 'Checked', cls: 'font-medium text-[#2c8a5b]' } : toCheck ? { text: 'Fixed · to check', cls: 'font-medium text-brand-700' } : due ? { text: due.text, cls: due.late ? 'font-medium text-bad-600' : 'text-muted' } : null
+  const saveWords = () => {
+    const v = words.trim()
+    setEditing(false)
+    if (!v || v === p.text) { setWords(p.text); return }
+    s.commit((st) => { const x = st.punch.find((y) => y.id === p.id); if (x) { x.text = v; addHist(st, p.jobId, { who: meOf(st.role), kind: 'field', title: `Touch-up changed · ${v}`, detail: `Was “${p.text}”` }) } }, 'Changed')
+  }
   return (
-    <div data-touchup={p.id} className="border-t border-line-2 px-5 py-2.5 max-sm:px-4">
-      {/* what it is, and its buttons — then where, who and what it waits on, in gray under it */}
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full', done ? 'bg-ok-500 text-white' : p.status === 'verify' ? 'bg-brand-600 text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{(done || p.status === 'verify') && <Check className="h-3 w-3" strokeWidth={3} />}</span>
-        <span title={p.text} className={cn('min-w-0 flex-1 truncate text-[0.875rem] font-medium max-md:line-clamp-2 max-md:whitespace-normal', done ? 'text-muted line-through decoration-faint' : 'text-ink')}>{p.text}</span>
+    <div data-touchup={p.id} data-touchup-status={p.status} className="@container border-t border-line-2 px-5 py-2.5 max-sm:px-4">
+      <div className="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-x-3 @3xl:grid-cols-[1.25rem_minmax(0,1fr)_8rem_7.5rem_auto]">
+        {/* its tick — a bigger spot to tap than it looks */}
+        <button type="button" disabled={!canTick} onClick={tick} aria-label={done ? `Checked · ${p.text}` : `${tickWord} · ${p.text}`} title={done ? 'Checked' : toCheck && crew ? 'Fixed · the site manager checks it' : tickWord}
+          className={cn('relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition before:absolute before:-inset-2.5', done ? 'bg-ok-500 text-white' : toCheck ? 'bg-brand-600 text-white enabled:hover:bg-ok-500' : 'border-[0.09375rem] border-[#cfc9be] enabled:hover:border-brand-500 enabled:hover:bg-brand-50')} data-touchup-tick>
+          {(done || toCheck) && <Check className="h-3 w-3" strokeWidth={3} />}
+        </button>
+        {editing ? (
+          <textarea autoFocus value={words} rows={Math.min(4, Math.max(1, Math.ceil(words.length / 60)))} onChange={(e) => setWords(e.target.value)} onBlur={saveWords}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveWords() } else if (e.key === 'Escape') { e.preventDefault(); setWords(p.text); setEditing(false) } }}
+            aria-label="What the touch-up is" className="-my-1 w-full resize-none rounded-lg border border-brand-300 bg-white px-2 py-1 text-[0.9375rem] text-ink outline-none ring-[0.1875rem] ring-brand-50" data-touchup-words-edit />
+        ) : (
+          <span className={cn('min-w-0 break-words text-[0.9375rem] leading-snug', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-touchup-text>{p.text}</span>
+        )}
+        {/* who does it, and its day — the same as every to-do (narrow: under the words) */}
+        <span className="min-w-0 @max-3xl:hidden" data-touchup-who><Whose who={p.owner} /></span>
+        <span className={cn('truncate text-right text-[0.875rem] tnum @max-3xl:hidden', day?.cls)} data-touchup-when>{day?.text || ''}</span>
         <span className="flex shrink-0 items-center gap-1">
           {!done && (
             <>
               <input ref={pick} type="file" accept="image/*,video/*" multiple className="hidden" aria-label={`Photos or videos of ${p.text}`} onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) void addMedia(p, l) }} />
-              <button type="button" onClick={() => pick.current?.click()} aria-label={`Add a photo or video of ${p.text}`} title="Add a photo or video" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink max-md:hidden"><Camera className="h-4 w-4" /></button>
+              <button type="button" onClick={() => pick.current?.click()} aria-label={`Add a photo or video of ${p.text}`} title="Add a photo or video" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink @max-3xl:hidden"><Camera className="h-4 w-4" /></button>
             </>
           )}
-          {(p.status === 'open' || p.status === 'working') && <Button size="sm" icon={<Check />} onClick={() => setPunch(p.id, 'verify')}>Done</Button>}
-          {p.status === 'verify' && <Button size="sm" variant="primary" icon={<Check />} onClick={() => setPunch(p.id, 'verified')}>Checked</Button>}
-          <Menu align="end" width={250} trigger={<button aria-label={`More for ${p.text}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
+          <Menu align="end" width={250} trigger={<button aria-label={`More for ${p.text}`} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink" data-touchup-more><MoreHorizontal className="h-4 w-4" /></button>}>
+            {canEdit && <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setWords(p.text); setTimeout(() => setEditing(true), 0) }} data-touchup-edit>Change the wording</MenuItem>}
             {!done && <MenuItem icon={<Camera className="h-4 w-4" />} onSelect={() => pick.current?.click()}>Add a photo or video</MenuItem>}
             {!done && <MenuItem icon={<Hourglass className="h-4 w-4" />} onSelect={() => setWaitOpen(true)}>{waiting ? 'Change what it’s waiting on' : 'It’s waiting on something'}</MenuItem>}
             {waiting && <MenuItem icon={<Check className="h-4 w-4" />} onSelect={() => set({ note: undefined }, 'Not waiting any more')}>Not waiting any more</MenuItem>}
@@ -146,12 +191,18 @@ function TouchupLine({ p }: { p: PunchItem }) {
               </>
             )}
             <MenuSep />
-            {p.status !== 'open' && <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setPunch(p.id, 'open')}>Not done after all</MenuItem>}
+            {p.status !== 'open' && <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setPunch(p.id, 'open')} data-touchup-reopen>Not done after all</MenuItem>}
             <MenuItem icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.commit((st) => { st.punch = st.punch.filter((y) => y.id !== p.id); addHist(st, p.jobId, { who: meOf(st.role), kind: 'field', title: `Touch-up taken off · ${p.text}` }) }, 'Touch-up taken off')}>Take it off the list</MenuItem>
           </Menu>
         </span>
       </div>
-      {(where || note) && <div className="mt-0.5 flex min-w-0 items-center gap-1.5 pl-8 text-[0.75rem] text-muted">{where && <span className="min-w-0 shrink truncate">{where}</span>}{where && note && <span>·</span>}{note}</div>}
+      {/* under it: narrow, who and when; where it is and what it waits on */}
+      <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 pl-8 text-[0.8125rem] text-muted', !where && !note && '@3xl:hidden')} data-touchup-under>
+        <span className="@3xl:hidden"><Whose who={p.owner} size={18} /></span>
+        {day && <span className={cn('@3xl:hidden', day.cls)}>· {day.text}</span>}
+        {where && <span className="min-w-0"><span className="@3xl:hidden">· </span>{where}</span>}
+        {where && note && <span>·</span>}{note}
+      </div>
       {media.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-8">
           {media.map((f) => (

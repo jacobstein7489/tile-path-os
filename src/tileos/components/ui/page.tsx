@@ -54,8 +54,20 @@ export function Page({
      under the one above it, and the column names under both */
   const headRef = React.useRef<HTMLDivElement>(null)
   const barRef = React.useRef<HTMLDivElement>(null)
+  const topRef = React.useRef<HTMLDivElement>(null)
   const [head, setHead] = React.useState(0)
   const [bar, setBar] = React.useState(0)
+  /* a phone: how tall the pinned bubbles are — a list's group names pin right under them */
+  const [ptop, setPtop] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const el = topRef.current
+    if (!el) { setPtop(0); return }
+    const set = () => setPtop(el.offsetHeight)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [!!top])
   React.useLayoutEffect(() => {
     const el = headRef.current
     if (!el) { setHead(0); return }
@@ -78,7 +90,7 @@ export function Page({
     <div className={cn('min-h-full pb-28 max-lg:pb-24', className)}>
       {/* centered: as wide as a laptop's screen at most — a big monitor gets even margins on both sides, so nothing is
           stretched edge to edge with big gaps in the rows (the top bar lines up with it) */}
-      <div className={cn('mx-auto w-full', PAGE_MAX)} style={{ '--head': head + 'px' } as React.CSSProperties} data-page-frame>
+      <div className={cn('mx-auto w-full', PAGE_MAX)} style={{ '--head': head + 'px', '--ptop': ptop + 'px' } as React.CSSProperties} data-page-frame>
         {/* the head stays where it is while the list scrolls under it (on a computer): the page's name, its button,
             the bubbles — and the toolbar right under them */}
         {/* on a phone the head lets its bubbles out (it's "contents" there), so they stay pinned under the top bar while
@@ -93,7 +105,7 @@ export function Page({
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:w-full">{actions}</div>}
           </header>
-          {top && <div className={cn('pb-3.5 max-md:sticky max-md:top-[var(--app-top,0px)] max-md:z-[16] max-md:bg-canvas max-md:pb-2.5 max-md:pt-2', PAGE_PX)} data-page-top>{top}</div>}
+          {top && <div ref={topRef} className={cn('pb-3.5 max-md:sticky max-md:top-[var(--app-top,0px)] max-md:z-[16] max-md:bg-canvas max-md:pb-2.5 max-md:pt-2', PAGE_PX)} data-page-top>{top}</div>}
         </div>
         <div className={cn('flex flex-col gap-3.5', PAGE_PX)}>
           <div className={cn('flex items-start gap-4', aside && 'max-xl:flex-col max-xl:items-stretch')}>
@@ -546,6 +558,7 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
               aria-selected={!!b.on}
               onClick={b.onClick}
               disabled={!b.onClick}
+              data-bubble={b.key}
               data-tall={tall || undefined}
               className={cn(
                 /* a computer: a tile of its own — with many (seven), the icon small in the corner so every name shows */

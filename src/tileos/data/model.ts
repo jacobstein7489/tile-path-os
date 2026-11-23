@@ -268,7 +268,7 @@ export interface Job {
   kind?: 'install' | 'repair'
   stageDates?: Record<string, string>
   /** stopped while something is missing (tile, the GC, the site) — the project shows On hold */
-  hold?: { reason: string; since: string; by: PersonKey; shortage?: string }
+  hold?: { reason: string; since: string; by: PersonKey; shortage?: string; /** on hold until this day ("Nov 30") — that day it's on Today to check in */ until?: string }
   /** the morning crew report: who was on site, how many people, the day it was said */
   onSite?: { day: string; crew: string; workers: number; by: string }
   /** the crew list sent the night before for the next work day — that day's crew, until that morning's says otherwise */

@@ -70,6 +70,8 @@ export function runTaskAction(t: Task) {
     }
     case 'schedule': return s.open({ t: 'readytobook' })
     case 'assign': return s.open({ t: 'assign', jobId: t.jobId })
+    /* a project's hold is up: Where it's up to (take it off hold, or keep it on) */
+    case 'catchup': return s.open({ t: 'catchup', id: t.jobId })
     case 'followup': return s.open({ t: 'followup', jobId: t.jobId })
     case 'drain': return s.open({ t: 'drain' })
     case 'co004': return s.open({ t: 'co004' })
@@ -1401,17 +1403,25 @@ export const STAGE_ORDER: Stage[] = ['setup', 'verification', 'ready', 'schedule
 
 /* ================= punch, surfaces, rooms ================= */
 export function setPunch(id: string, status: 'open' | 'working' | 'verify' | 'verified') {
+  /* one tick is quiet (the tick itself says it) — the last one on the list gets the "all done" */
+  const p0 = S().punch.find((x) => x.id === id)
+  if (!p0) return
+  const same = (x: { id: string; jobId: string; taskId?: string }) => (p0.taskId ? x.taskId === p0.taskId : x.jobId === p0.jobId)
+  const rest = S().punch.filter((x) => same(x) && x.id !== id)
+  const allChecked = status === 'verified' && rest.every((x) => x.status === 'verified')
+  const allDone = status === 'verify' && rest.every((x) => x.status === 'verify' || x.status === 'verified')
   S().commit((s) => {
     const p = s.punch.find((x) => x.id === id)
     if (!p) return
     p.status = status
-    if (status === 'verified' && p.taskId) closeTasks(s, [p.taskId], 'Verified')
+    /* its to-do is done once every touch-up on it is checked — not with the first one */
+    if (status === 'verified' && p.taskId && s.punch.every((x) => x.taskId !== p.taskId || x.status === 'verified')) closeTasks(s, [p.taskId], 'Verified')
     /* the crew says it's done — the site manager gets it to check, once per project */
     if (status === 'verify' && !s.tasks.some((t) => t.jobId === p.jobId && t.state !== 'done' && /check/i.test(t.title) && /touch-?up/i.test(t.title))) {
       newTask(s, { jobId: p.jobId, title: `Check the touch-ups at ${s.jobs[p.jobId]?.name || 'the project'}`, type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: `${PEOPLE[p.owner]?.short || 'The crew'} marked “${p.text}” done`, action: { label: 'Check them', kind: 'tab:touchups' } })
     }
     addHist(s, p.jobId, { who: me(), kind: 'field', title: `Punch · ${p.text} · ${({ open: 'reopened', working: 'crew working', verify: 'ready to verify', verified: 'verified' } as any)[status]}` })
-  }, status === 'verified' ? 'Checked!' : status === 'verify' ? 'Done!' : 'Updated', status === 'verified' || status === 'verify' ? { tone: 'done', sub: status === 'verify' ? 'The site manager checks it next.' : undefined } : undefined)
+  }, allChecked ? 'All the touch-ups are checked' : allDone ? 'All done!' : undefined, allChecked || allDone ? { tone: 'done', sub: allDone ? 'The site manager checks them next.' : undefined } : undefined)
 }
 export function addPunch(jobId: string, text: string, where: string) {
   S().commit((s) => {

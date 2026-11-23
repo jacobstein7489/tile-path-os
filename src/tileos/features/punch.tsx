@@ -60,10 +60,10 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
     const ids = items.map((_, i) => `pu${stamp}${i}`)
     s.commit((st) => {
       const tid = 't' + stamp.toString(36)
-      items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', note: `Due ${due}`, taskId: tid }))
+      items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', due, taskId: tid }))
       const crewDoes = !!PEOPLE[owner]?.crew
       newTask(st, {
-        id: tid, jobId, title: crewDoes ? `Touch-ups at ${st.jobs[jobId].name}. Check them when ${PEOPLE[owner].short} is done` : `Touch-ups at ${st.jobs[jobId].name}`,
+        id: tid, jobId, title: crewDoes ? `Check the touch-ups when ${PEOPLE[owner].short} is done` : `Fix the touch-ups`,
         type: 'Field', owner: crewDoes ? checker : owner, for: crewDoes ? ['site'] : ['site', 'owner'], state: 'now', due, tone: 'warn',
         where: `${items.length} item${items.length > 1 ? 's' : ''}${crewDoes ? ` · ${PEOPLE[owner].name}’s crew` : ''}`,
         detail: items.map((it) => `• ${it.where !== 'To place' ? it.where + ' · ' : ''}${it.text}`).join('\n'),
