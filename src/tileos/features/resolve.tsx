@@ -9,9 +9,10 @@ import { Button, OptionCard, Chip, Field, Pill, IconCircle, Avatar, Stepper as N
 import { Swatch, TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, PEOPLE, ROLES, roleDef, type Role, LOGIN_TYPES, loginOf } from '@/tileos/data/model'
-import { tileOf } from '@/tileos/data/jobs'
-import { needWithWaste } from '@/tileos/data/work'
+import { tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
+import { needNow, shortNow } from '@/tileos/data/work'
 import { DRAIN_ANSWERS, resolveDrain, approveCO004, thinsetDecision, settleQty, receiveMat, receiveTile, receiveTiles, verifyPunch } from './flows'
+import { setTileOrdered } from './flows2'
 import { shiftText, shiftDeep } from '@/tileos/lib/today'
 
 function JobHead({ jobId, kicker, title, right }: { jobId: string; kicker: string; title: string; right?: React.ReactNode }) {
@@ -162,53 +163,106 @@ export function ThinsetModal({ level }: { level: number }) {
   )
 }
 
+/** what was ordered of the tile, typed in: the number and SF or boxes — saved as you leave the box (Undo puts it back) */
+function OrderedBox({ jobId, tag, have, unit }: { jobId: string; tag: string; have?: number; unit: 'SF' | 'boxes' }) {
+  const [q, setQ] = React.useState(have != null ? String(have) : '')
+  const [u, setU] = React.useState<'SF' | 'boxes'>(unit)
+  React.useEffect(() => setQ(have != null ? String(have) : ''), [have])
+  const save = (uu = u) => { const n = Number(q); if (q.trim() && !isNaN(n) && (n !== have || uu !== unit)) setTileOrdered(jobId, tag, n, uu) }
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <TextInput inputMode="decimal" aria-label={`How much of ${tag} was ordered`} value={q} placeholder="0" onChange={(e) => setQ(e.target.value.replace(/[^\d.]/g, ''))} onBlur={() => save()} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} className="h-11 w-28 text-right text-[1.125rem] font-bold tnum" data-qty-ordered-in />
+      <span className="inline-flex rounded-[0.625rem] bg-white p-0.5 ring-1 ring-inset ring-line">
+        {(['SF', 'boxes'] as const).map((k) => <button key={k} type="button" onClick={() => { setU(k); save(k) }} aria-pressed={u === k} className={cn('h-9 rounded-[0.5rem] px-3 text-[0.875rem] font-semibold transition', u === k ? 'bg-ink text-white' : 'text-ink-2 hover:bg-wash')} data-qty-unit={k}>{k === 'SF' ? 'SF' : 'Boxes'}</button>)}
+      </span>
+    </div>
+  )
+}
+/* A tile's count, how it adds up: every wall and floor it goes on with its square feet (one without any said plainly —
+ * tap it to put them in), the extra for cuts, our takeoff; their order; the difference. Short: how to settle it. */
+const sfWords = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('en-US')} SF`
 export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; level: number }) {
   const s = useStore()
   const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
   const [pick, setPick] = React.useState<'askgc' | 'order' | 'accept' | ''>('')
-  if (!c) return null
-  const need = needWithWaste(c)
-  const short = need - c.ordered
   const t = tileOf(jobId, tag)
+  const lines = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, name: x.name, sf: sfFor(jobId, x, tag) })))
+  const live = lines.reduce((n, l) => n + l.sf, 0)
+  const none = lines.filter((l) => !l.sf)
+  if (!c && !lines.length) return null
+  /* our takeoff: the walls and floors as they are now, with the extra for cuts (none with square feet yet: what was
+     counted when their order was checked) — the same numbers the tile's line goes by */
+  const boxes = !!c && /box/i.test(c.unit)
+  const measured = live > 0 || !c ? live : c.measured
+  const pct = c ? c.wastePct : 10
+  const need = c ? needNow(s.rooms[jobId], jobId, c) : Math.ceil(live * 1.1)
+  const short = c ? shortNow(s.rooms[jobId], jobId, c) : 0
+  const gap = c ? need - c.ordered : 0
+  /* the walls and floors changed since their order was checked (square feet only — boxes are counted their own way) */
+  const moved = !!c && !boxes && live > 0 && Math.abs(live - c.measured) >= 1
+  const unit = c?.unit || 'SF'
+  const title = short ? `Their order is ${short} ${unit} short of our takeoff` : c ? 'Their order covers our takeoff' : 'Our takeoff'
+  const row = 'flex min-h-10 items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0 max-sm:px-3'
   return (
     <Modal
       level={level}
       size="lg"
       onClose={s.close}
-      title="Quantity check"
-      header={<JobHead jobId={jobId} kicker={`${tag} · ${c.where}`} title={`Their order is ${short} ${c.unit} short of our takeoff`} />}
-      footer={
+      title="How it adds up"
+      header={<JobHead jobId={jobId} kicker={`${tag}${t?.name ? ` ${t.name}` : ''}`} title={title} />}
+      footer={short ? (
         <>
-          <span className="text-[0.84375rem] text-muted">Settled now, not when the crew is standing there.</span>
+          <span className="text-[0.84375rem] text-muted max-sm:hidden">Settled now, not when the crew is standing there.</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!pick} onClick={() => settleQty(jobId, tag, pick as any)}>{pick === 'order' ? 'Set up the PO' : 'Save'}</Button>
         </>
-      }
+      ) : <><div className="ml-auto" aria-hidden /><Button variant="primary" onClick={s.close}>Done</Button></>}
     >
-      <div className="mb-6 flex items-center gap-6 rounded-2xl border border-line p-5">
-        <TileImg tile={t} size={72} />
-        <div className="grid flex-1 grid-cols-3 gap-4 max-sm:grid-cols-1 max-sm:gap-3">
-          <div>
-            <div className="text-[0.78125rem] text-muted">Our takeoff</div>
-            <div className="text-[1.375rem] font-bold tnum text-ink">{need} {c.unit}</div>
-            <div className="text-[0.78125rem] text-muted">{c.measured} measured + {c.wastePct}% waste</div>
+      <div className="flex flex-col gap-5" data-qty-breakdown>
+        {/* where our takeoff comes from: each wall and floor, tap one to change its square feet */}
+        <section>
+          <div className="mb-2 flex items-center gap-3">
+            <TileImg tile={t} size={40} />
+            <div className="min-w-0">
+              <div className="text-[0.9375rem] font-semibold text-ink">Where our takeoff comes from</div>
+              <div className="text-[0.8125rem] text-muted">Every wall and floor {tag} goes on. Tap one to change its square feet.</div>
+            </div>
           </div>
-          <div>
-            <div className="text-[0.78125rem] text-muted">Store ordered</div>
-            <div className="text-[1.375rem] font-bold tnum text-ink">{c.ordered} {c.unit}</div>
-            <div className="text-[0.78125rem] text-muted">{c.supplier} · for the {c.suppliedBy}</div>
+          <div className="overflow-hidden rounded-xl border border-line" data-qty-lines>
+            {lines.map((l) => (
+              <button key={l.room + '|' + l.name} type="button" onClick={() => s.open({ t: 'surface', jobId, room: l.room, surface: l.name })} className={cn(row, 'w-full text-left transition hover:bg-wash')} data-qty-line={`${l.room} · ${l.name}`}>
+                <span className="min-w-0 flex-1 text-[0.9375rem] text-ink"><span className="text-muted">{l.room} · </span>{l.name}</span>
+                <span className={cn('shrink-0 text-[0.9375rem] tnum', l.sf ? 'text-ink' : 'font-medium text-warn-700')}>{l.sf ? sfWords(l.sf) : 'No square feet yet'}</span>
+              </button>
+            ))}
+            {!lines.length && <div className={row}><span className="text-[0.875rem] text-muted">It isn’t on a wall or floor anymore.</span></div>}
+            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Measured</span><span className="text-[0.9375rem] font-semibold tnum text-ink" data-qty-measured>{boxes && live <= 0 ? `${measured} ${unit}` : sfWords(measured)}</span></div>
+            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Extra for cuts · {pct}%</span><span className="text-[0.9375rem] tnum text-ink">+ {boxes && live <= 0 ? `${Math.round(measured * pct) / 100} ${unit}` : sfWords((measured * pct) / 100)}</span></div>
+            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] font-semibold text-ink">Our takeoff</span><span className="text-[1.0625rem] font-bold tnum text-ink" data-qty-need>{need.toLocaleString('en-US')} {unit}</span></div>
           </div>
-          <div>
-            <div className="text-[0.78125rem] text-muted">Gap</div>
-            <div className="text-[1.375rem] font-bold tnum text-bad-600">−{short} {c.unit}</div>
-            <div className="text-[0.78125rem] text-muted">About {Math.ceil(short / 30)} boxes</div>
+          {none.length > 0 && <div className="mt-2 text-[0.8125rem] font-medium text-warn-700" data-qty-none>{none.length} {none.length === 1 ? 'wall or floor has' : 'walls and floors have'} no square feet yet, so our takeoff is low. Tap {none.length === 1 ? 'it' : 'each one'} to put them in.</div>}
+          {moved && <div className="mt-2 text-[0.8125rem] text-muted" data-qty-moved>When their order went in, the walls and floors came to {sfWords(c!.measured)}. They’re {sfWords(live)} now, and that’s what it goes by.</div>}
+        </section>
+        {/* their order and the difference */}
+        <section className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          <div className="rounded-xl bg-wash px-4 py-3">
+            <div className="text-[0.8125rem] text-muted">Their order · type it in</div>
+            <OrderedBox jobId={jobId} tag={tag} have={c?.ordered} unit={(c?.unit === 'boxes' ? 'boxes' : t?.paper?.unit) || 'SF'} />
+            {c && <div className="mt-1 text-[0.8125rem] text-muted">{[c.supplier, c.suppliedBy ? `for the ${c.suppliedBy}` : ''].filter(Boolean).join(' · ')}</div>}
           </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <OptionCard on={pick === 'askgc'} onClick={() => setPick('askgc')} icon={<Building2 className="h-5 w-5" />} title={`Ask the GC to add ${short} ${c.unit} to their order`} sub="They supply the tile. It waits on the GC and comes back Wednesday." />
-        <OptionCard on={pick === 'order'} onClick={() => setPick('order')} icon={<Package className="h-5 w-5" />} title="We order the short tile ourselves" sub="A PO to Best Tile from here. Billed back to the GC if agreed." />
-        <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="The store counted differently. Accept their number" sub="Use only if our takeoff was high. It’s logged with your name." />
+          <div className={cn('rounded-xl px-4 py-3', short ? 'bg-bad-50' : 'bg-[#eef6f1]')}>
+            <div className="text-[0.8125rem] text-muted">Difference</div>
+            <div className={cn('text-[1.25rem] font-bold tnum', short ? 'text-bad-600' : 'text-[#2c8a5b]')} data-qty-gap>{!c ? '' : short ? `${short} ${unit} short` : gap > 0 ? `${gap} ${unit} under` : gap < 0 ? `${-gap} ${unit} to spare` : 'Exactly enough'}</div>
+            <div className="text-[0.8125rem] text-muted">{!c ? 'Once their order is in' : short ? `About ${Math.ceil(short / (t?.boxSF || 30))} ${Math.ceil(short / (t?.boxSF || 30)) === 1 ? 'box' : 'boxes'}` : gap > 0 ? 'That’s rounding. The extra for cuts covers it.' : 'Covered, with the extra for cuts'}</div>
+          </div>
+        </section>
+        {short > 0 && (
+          <div className="flex flex-col gap-2.5">
+            <OptionCard on={pick === 'askgc'} onClick={() => setPick('askgc')} icon={<Building2 className="h-5 w-5" />} title={`Ask the GC to add ${short} ${unit} to their order`} sub="They supply the tile. It waits on the GC and comes back Wednesday." />
+            <OptionCard on={pick === 'order'} onClick={() => setPick('order')} icon={<Package className="h-5 w-5" />} title="We order the short tile ourselves" sub="A PO to the tile store from here. Billed back to the GC if agreed." />
+            <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="Their number is right. Accept it" sub="Use it if our takeoff was high. It’s logged with your name." />
+          </div>
+        )}
       </div>
     </Modal>
   )

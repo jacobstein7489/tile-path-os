@@ -7,8 +7,9 @@
  *   At a glance — the five facts, each in the same shape. Scope of work — the rooms.
  * Plus the project's estimate, and changing the project's own details. */
 import * as React from 'react'
-import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight, Truck } from 'lucide-react'
-import { useStore, meOf, historyOf, type Store } from '@/tileos/store'
+import { FileText, Pencil, Check, Building2, Plus, CalendarDays, HardHat, TriangleAlert, ListTodo, ClipboardList, Paperclip, MessageCircle, Wrench, StickyNote, Grid2x2, Package, Wallet, Ruler, UserRound, Users, ChevronRight, Truck, Palette } from 'lucide-react'
+import { useStore, meOf, historyOf, addHist, type Store } from '@/tileos/store'
+import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
 import { Button, TextInput, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { Status, Path } from '@/tileos/components/ui/page'
@@ -540,14 +541,31 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
   const [clientId, setClientId] = React.useState(j?.clientId || '')
   const [po, setPo] = React.useState(j?.clientPO || '')
   const [contract, setContract] = React.useState(j?.contract ? String(j.contract) : '')
+  /* the designer: one from Designers, none, or a new one typed in (added to Designers when this is saved) */
+  const [designer, setDesigner] = React.useState(() => designerOf(s.designers, j)?.id || '')
   if (!j) return null
   const clients = Object.values(s.clients)
   const ok = !!name.trim() && !!clientId
+  const fresh = designer.startsWith('new:') ? designer.slice(4) : ''
+  const designers = [...s.designers.map((d) => ({ key: d.id, label: d.name, hint: d.contact && d.contact !== d.name ? d.contact : undefined })), ...(fresh ? [{ key: designer, label: fresh, hint: 'New designer' }] : [])]
   const save = () => {
     const c = s.clients[clientId] || CUSTOMERS[clientId]
     s.commit((st) => {
       const x = st.jobs[id]
       if (!x) return
+      /* the designer: written on the project only when it changes */
+      let did = designer
+      if (fresh) {
+        const same = st.designers.find((d) => d.name.toLowerCase() === fresh.toLowerCase())
+        did = same?.id || 'd' + Date.now().toString(36)
+        if (!same) st.designers.push({ id: did, name: fresh, contact: '', phone: '', email: '', clients: [], notes: '' })
+      }
+      const before = designerOf(st.designers, x)
+      if ((before?.id || '') !== did) {
+        x.designerId = did || NO_DESIGNER
+        const d = st.designers.find((y) => y.id === did)
+        addHist(st, id, { who: meOf(st.role), kind: 'setup', title: d ? `Designer: ${d.name}` : 'No designer on it', detail: before ? `Was ${before.name}` : undefined })
+      }
       const was = x.name
       x.name = name.trim()
       x.address = address.trim()
@@ -573,6 +591,13 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
         <Field label="Address"><TextInput value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city" /></Field>
         <Field label="Client">
           <SearchSelect label="Client" value={clientId} onChange={setClientId} options={clients.map((c) => ({ key: c.id, label: c.name, hint: c.kind }))} placeholder="Pick the client" icon={<Building2 />} width={380} search />
+        </Field>
+        {/* the designer on this job: from Designers, or a new one typed in */}
+        <Field label="Designer">
+          <div data-edit-designer={designer || 'none'}>
+            <SearchSelect label="Designer" value={designer} onChange={setDesigner} options={designers} emptyLabel="No designer" placeholder="Pick the designer" icon={<Palette />} width={380} search
+              onCreate={(t) => t.trim() && setDesigner('new:' + t.trim())} createLabel={(t) => `Add “${t}” as a new designer`} />
+          </div>
         </Field>
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
           <Field label="Their PO or contract number"><TextInput value={po} onChange={(e) => setPo(e.target.value)} placeholder="Optional" /></Field>

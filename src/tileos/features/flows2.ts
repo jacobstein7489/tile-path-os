@@ -1,11 +1,11 @@
 /* The v8 flows: estimates → projects, the installer PO loop, materials from the estimate,
  * tile selection, recurring tasks and the daily crew report. Every step logs itself with a link to its record. */
 import { SURFACES, SCOPE_NAME, floorName } from '@/tileos/data/areas'
-import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask, clockNow } from '@/tileos/store'
+import { useStore, addHist, newTask, closeTasks, NOW, meOf, repeatTask, clockNow, type Store } from '@/tileos/store'
 import type { PersonKey, Role } from '@/tileos/data/model'
 import { fmtMoney, PEOPLE, PRICING_STAGES } from '@/tileos/data/model'
 import type { Room } from '@/tileos/data/jobs'
-import { tileOf } from '@/tileos/data/jobs'
+import { tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { curRev, revTotal, teamOf, type Estimate, type EstLine } from '@/tileos/data/estimates'
 import type { IPOLine } from '@/tileos/data/field'
@@ -506,14 +506,53 @@ export function estAssign(estId: string, who: PersonKey) {
   }, `${PEOPLE[who].name} has it`)
 }
 
+/* ================= how much of a tile was ordered, put in by hand (or said) ================= */
+/** what was ordered of one tile — the store's paperwork number: kept with the tile and on its count, checked against
+ *  our takeoff (the walls and floors it goes on, with the extra for cuts). Undo puts it back. */
+export function setTileOrdered(jobId: string, tag: string, qty: number, unit: 'SF' | 'boxes' = 'SF') {
+  if (!(qty >= 0)) return
+  S().commit((s) => orderedIn(s, jobId, tag, qty, unit), `${tag}: ${qty.toLocaleString('en-US')} ${unit === 'boxes' ? (qty === 1 ? 'box' : 'boxes') : 'SF'} ordered`)
+}
+/** the same, inside a save that's already going (Change by talking makes several changes in one) */
+export function orderedIn(s: Store, jobId: string, tag: string, qty: number, unit: 'SF' | 'boxes' = 'SF') {
+  const t = s.tiles[jobId]?.[tag]
+  if (t) t.paper = { qty, unit }
+  const live = (s.rooms[jobId] || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, tag)).reduce((n, x) => n + sfFor(jobId, x, tag), 0)
+  const measured = Math.round(live * 10) / 10
+  let c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
+  const box = t?.boxSF
+  /* our takeoff in the count's own unit: square feet, or boxes when it's counted in boxes (and a box's SF is known) */
+  const inUnit = (u: string) => (/box/i.test(u) ? (box ? Math.round((measured / box) * 10) / 10 : 0) : measured)
+  if (!c) {
+    const where = (s.rooms[jobId] || []).flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => `${r.name} ${x.name.toLowerCase()}`)).join(' · ')
+    s.checks.push({ jobId, tag, where, unit, measured: inUnit(unit), wastePct: 10, ordered: qty, received: 0, supplier: t?.supplier || '', suppliedBy: t?.suppliedBy || 'GC', eta: 'TBD' })
+  } else {
+    /* the count follows what's ordered (in its own unit once some came in) — and our takeoff as the walls and floors
+       are now */
+    let q = qty
+    if (c.unit !== unit) {
+      if (!c.received) c.unit = unit
+      else if (box) q = /box/i.test(c.unit) ? Math.ceil(qty / box) : Math.round(qty * box)
+    }
+    c.ordered = q
+    delete c.accepted
+    const m = inUnit(c.unit)
+    if (m > 0) c.measured = m
+  }
+  addHist(s, jobId, { who: meOf(s.role), kind: 'material', title: `${tag} ordered · ${qty.toLocaleString('en-US')} ${unit === 'boxes' ? (qty === 1 ? 'box' : 'boxes') : 'SF'}`, detail: 'Put in by hand' })
+}
+
 /* ================= the finish tile the GC orders: log it against our takeoff ================= */
 export function logTileOrder(jobId: string, tag: string, o: { sf: number; where: string }) {
   const t = tileOf(jobId, tag)
   const waste = 10
-  const need = Math.ceil(o.sf * (1 + waste / 100))
+  /* the square feet kept to a tenth, and what's ordered worked out from that same number — so the check after it
+     never comes out a square foot short by rounding */
+  const measured = Math.round(o.sf * 10) / 10
+  const need = Math.ceil(measured * (1 + waste / 100))
   S().commit((s) => {
     if (s.checks.some((c) => c.jobId === jobId && c.tag === tag)) return
-    s.checks.push({ jobId, tag, where: o.where, unit: 'SF', measured: Math.round(o.sf), wastePct: waste, ordered: need, received: 0, supplier: t?.supplier || 'Best Tile', suppliedBy: t?.suppliedBy || 'GC', eta: 'TBD' })
-    addHist(s, jobId, { who: me(), kind: 'material', title: `${tag} ordered by the ${t?.suppliedBy || 'GC'} · ${need} SF`, detail: `Covers our takeoff of ${Math.round(o.sf)} SF + ${waste}% waste` })
+    s.checks.push({ jobId, tag, where: o.where, unit: 'SF', measured, wastePct: waste, ordered: need, received: 0, supplier: t?.supplier || 'Best Tile', suppliedBy: t?.suppliedBy || 'GC', eta: 'TBD' })
+    addHist(s, jobId, { who: me(), kind: 'material', title: `${tag} ordered by the ${t?.suppliedBy || 'GC'} · ${need} SF`, detail: `Covers our takeoff of ${Math.round(measured)} SF + ${waste}% waste` })
   }, `${tag} logged · ${need} SF, matches our takeoff`)
 }

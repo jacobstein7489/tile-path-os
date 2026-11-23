@@ -2,7 +2,7 @@ import * as React from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays, Plus, AlertTriangle, Ban, Users, Clock3, ArrowRight, Trash2, CalendarPlus, CheckCircle2, Info } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { PageHeader, Card, CardHeader, Button, Pill, Avatar, Segmented, Chip, Field, Stepper as NumStepper, Count, IconCircle } from '@/tileos/components/ui/core'
-import { Modal, Tip, Pop } from '@/tileos/components/ui/overlay'
+import { Modal, Tip, Pop, MonthCal } from '@/tileos/components/ui/overlay'
 import { Page } from '@/tileos/components/ui/page'
 import { Swatch } from '@/tileos/components/ui/swatch'
 import { Bar } from '@/tileos/components/ui/progress'
@@ -270,6 +270,24 @@ const START_OPTS = [
   { iso: addDaysT(MONDAY, 14), label: dayShort(addDaysT(MONDAY, 14)).replace(',', '') },
 ].filter((o, i, all) => all.findIndex((x) => x.iso === o.iso) === i) /* late in the week "in 3 days" is next Monday — once */
 
+/** "Another day": a big calendar (a phone: from the bottom), any day, one gone by too */
+function OtherDay({ value, on, onPick }: { value: string; on: boolean; onPick: (iso: string) => void }) {
+  const [open, setOpen] = React.useState(false)
+  return (
+    <Pop open={open} onOpenChange={setOpen} sheet width={392} trigger={
+      <button type="button" className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', !on ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700')} data-start-other aria-label="The day it starts. Any day, one that passed too">
+        <CalendarDays className="h-4 w-4" />
+        {!on ? 'Another day' : `${value < TODAY ? 'Started ' : ''}${isoLabel(value)}`}
+      </button>
+    }>
+      <div className="p-1 max-sm:px-5 max-sm:pb-6 max-sm:pt-3" data-date-cal>
+        <div className="mb-2 text-[0.9375rem] font-semibold text-muted">The day it starts</div>
+        <MonthCal big value={value} min="1900-01-01" onPick={(iso) => { onPick(iso); setOpen(false) }} />
+      </div>
+    </Pop>
+  )
+}
+
 export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initialStart, level }: { jobId?: string; crew?: PersonKey; start?: string; level: number }) {
   const s = useStore()
   const close = s.close
@@ -373,12 +391,8 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
               {START_OPTS.map((o) => (
                 <Chip key={o.iso} on={start === o.iso} onClick={() => setStart(o.iso)} className="h-10 px-3 text-[0.84375rem]">{o.label}</Chip>
               ))}
-              {/* any day — one that already passed too, for a job that's already going */}
-              <label className={cn('relative inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', START_OPTS.some((o) => o.iso === start) ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700')} data-start-other>
-                <CalendarDays className="h-4 w-4" />
-                {START_OPTS.some((o) => o.iso === start) ? 'Another day' : `${start < TODAY ? 'Started ' : ''}${isoLabel(start)}`}
-                <input type="date" value={start} onChange={(e) => { if (e.target.value) setStart(e.target.value) }} aria-label="The day it starts. Any day, one that passed too" data-start-date className="absolute inset-0 cursor-pointer opacity-0" />
-              </label>
+              {/* any day — one that already passed too, for a job that's already going — on a big calendar */}
+              <OtherDay value={start} on={!START_OPTS.some((o) => o.iso === start)} onPick={setStart} />
             </div>
           </Field>
           <Field label="Days"><NumStepper value={days} onChange={setDays} min={1} max={40} /></Field>

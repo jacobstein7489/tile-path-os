@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
 import { DOC_GRAY } from '../docpaper'
-import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Image as ImageIcon } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Palette, Trash2, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
@@ -35,7 +35,10 @@ import { firstName, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME,
 import { printNode } from '@/tileos/lib/print'
 import { useSmall } from '@/tileos/lib/phone'
 import { Button } from '@/tileos/components/ui/core'
-import { Menu, MenuItem } from '@/tileos/components/ui/overlay'
+import { Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
+import { SearchSelect } from '@/tileos/components/ui/select'
+import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
+import { setJobDesigner, addDesignerNamed, removeJobContact } from '../jobcontacts'
 import { edgeWords, parseMetal, finishOf, profileOf, edgeKind } from '@/tileos/data/catalog'
 import { isWall } from '../heights'
 import { detailsOf, setRoomDetails, surfaceDetailLines, edgeShort } from '../roomdetails'
@@ -475,11 +478,11 @@ function ReachButtons({ r, who, onMessage }: { r: Reachable; who: string; onMess
 /** a person on the job — the same kind of line as every list in the app: their circle and name · what they are · what
  *  they have on this job · the buttons to reach them (call, text, email — the number and the address show when you
  *  point at them), each in its own column, lined up top to bottom. On a phone what they are goes under the name. */
-const PEOPLE_COLS = { '--list': 'minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,1.5fr) 7rem' } as React.CSSProperties
+const PEOPLE_COLS = { '--list': 'minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,1.5fr) 9.25rem' } as React.CSSProperties
 const PERSON_ROW = 'flex min-h-[3.25rem] min-w-0 items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:px-3 md:grid md:gap-x-6'
-function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, noReach }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string; /** you: nothing to reach yourself with */ noReach?: boolean }) {
+function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, noReach, menu, mark }: { initials?: string; who?: PersonKey; name: string; role: string; r: Reachable; sub?: React.ReactNode; onName?: () => void; onMessage?: () => void; tone?: string; /** you: nothing to reach yourself with */ noReach?: boolean; /** its ···: change it, take it off */ menu?: React.ReactNode; mark?: string }) {
   return (
-    <div data-person={role} data-subrow className={PERSON_ROW}>
+    <div data-person={role} data-subrow className={PERSON_ROW} {...(mark ? { [mark]: '' } : {})}>
       <span className="flex min-w-0 flex-1 items-center gap-3">
         {who ? <Avatar who={who} size={30} /> : <span className={cn('inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
         <span className="min-w-0 leading-snug">
@@ -490,8 +493,20 @@ function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, n
       </span>
       <span className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-person-role>{role}</span>
       <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:truncate" data-person-on>{sub || <span className="text-faint"></span>}</span>
-      <span className="flex shrink-0 justify-end">{!noReach && <ReachButtons r={r} who={name} onMessage={onMessage} />}</span>
+      <span className="flex shrink-0 items-center justify-end gap-1">{!noReach && <ReachButtons r={r} who={name} onMessage={onMessage} />}{menu}</span>
     </div>
+  )
+}
+const MORE_BTN = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink'
+/** the designer on this job, picked right on its line: from Designers, none, or a new one typed in */
+function DesignerPick({ job, trigger }: { job: Job; trigger: React.ReactNode }) {
+  const s = useStore()
+  const cur = designerOf(s.designers, job)
+  return (
+    <SearchSelect label="Designer" value={cur?.id || ''} trigger={trigger} width={340} search emptyLabel="No designer"
+      options={s.designers.map((d) => ({ key: d.id, label: d.name, hint: d.contact && d.contact !== d.name ? d.contact : undefined }))}
+      onChange={(id) => setJobDesigner(job.id, id || NO_DESIGNER)}
+      onCreate={(t) => t.trim() && setJobDesigner(job.id, addDesignerNamed(t))} createLabel={(t) => `Add “${t}” as a new designer`} />
   )
 }
 /** the installer's PO, under his name — where it is, what it comes to against our estimate (for whoever sees money),
@@ -517,7 +532,7 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
   const s = useStore()
   const me = meOf(s.role)
   const client = s.clients[job.clientId]
-  const designer = s.designers.find((d) => d.clients.includes(job.clientId))
+  const designer = designerOf(s.designers, job)
   const crew = installerOf(s, job) || (job.crew as PersonKey | undefined)
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const b = s.bookings.find((x) => x.jobId === job.id)
@@ -552,8 +567,28 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
         {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
         {/* this job's own people — the homeowner, the designer, the super (a client like NJ Private Customer is many
             homeowners) — tap a name to change it */}
-        {(job.contacts || []).map((c, i) => <Contact key={'jc' + i} initials={initialsOf(c.name)} tone="bg-[#e6eef8] text-[#1f4f8f]" name={c.name} role={c.role || 'On this job'} r={{ phone: c.phone, email: c.email }} onName={canContacts ? () => s.open({ t: 'jobcontact', jobId: job.id, index: i }) : undefined} />)}
-        {designer && <Contact initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? designer.contact : undefined} onName={() => s.open({ t: 'designer', id: designer.id })} />}
+        {(job.contacts || []).map((c, i) => (
+          <Contact key={'jc' + i} mark="data-job-person" initials={initialsOf(c.name)} tone="bg-[#e6eef8] text-[#1f4f8f]" name={c.name} role={c.role || 'On this job'} r={{ phone: c.phone, email: c.email }} onName={canContacts ? () => s.open({ t: 'jobcontact', jobId: job.id, index: i }) : undefined}
+            menu={canContacts ? (
+              <Menu align="end" width={220} trigger={<button aria-label={`Change or take off ${c.name}`} className={MORE_BTN} data-job-person-more><MoreHorizontal className="h-4 w-4" /></button>}>
+                <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'jobcontact', jobId: job.id, index: i })}>Change</MenuItem>
+                <MenuSep />
+                <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeJobContact(job.id, i)} data-job-person-remove>Take off this job</MenuItem>
+              </Menu>
+            ) : undefined} />
+        ))}
+        {designer
+          ? <Contact mark="data-job-designer" initials={initialsOf(designer.name)} tone="bg-[#efe6f6] text-[#5b2f86]" name={designer.name} role="Designer" r={designer} sub={designer.contact && !/^designer$/i.test(designer.contact) && designer.contact !== designer.name ? designer.contact : undefined} onName={() => s.open({ t: 'designer', id: designer.id })}
+              menu={canContacts ? <DesignerPick job={job} trigger={<button aria-label="Change the designer" title="Change the designer" className={MORE_BTN} data-designer-change><Pencil className="h-4 w-4" /></button>} /> : undefined} />
+          : canContacts && (
+            /* no designer on it: picked right here, like the installer */
+            <div data-person="Designer" data-job-designer="none" data-subrow className={PERSON_ROW}>
+              <span className="flex min-w-0 flex-1 items-center gap-3"><span className="inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full border border-dashed border-[#d1cbc0] text-faint"><Palette className="h-3.5 w-3.5" /></span><span className="truncate text-[0.9375rem] text-muted">No designer<span className="md:hidden"> yet</span></span></span>
+              <span className="text-[0.875rem] text-muted max-md:hidden">Designer</span>
+              <span className="max-md:hidden"><DesignerPick job={job} trigger={<button className={cn(LINK, '-ml-1.5 text-[0.875rem]')} data-designer-pick>Pick the designer</button>} /></span>
+              <span className="flex justify-end md:hidden"><DesignerPick job={job} trigger={<button className={LINK} data-designer-pick>Pick</button>} /></span>
+            </div>
+          )}
         {crew
           ? <Contact who={crew} name={PEOPLE[crew]?.name || crew} role="Installer" r={crewReach} sub={<InstallerPO job={job} />} onName={() => s.open({ t: 'installerwin', jobId: job.id })} />
           : (

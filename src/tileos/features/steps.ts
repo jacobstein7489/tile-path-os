@@ -10,7 +10,7 @@
  * a delivery) comes back on that person's Today on the day it's due: "did it come?" */
 import { useStore, meOf, newTask, NOW, clockNow, type Store } from '@/tileos/store'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Role } from '@/tileos/data/model'
-import { needWithWaste, type Task } from '@/tileos/data/work'
+import { shortNow, type Task } from '@/tileos/data/work'
 import { hasTile, sfFor, type Room } from '@/tileos/data/jobs'
 import { teamOf, EST_TEAM0 } from '@/tileos/data/estimates'
 import { TODAY, addDays, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
@@ -390,8 +390,8 @@ function builtIn(s: Store, j: Job, key: string, rec: StepRec): Raw | null {
     }
     case 'order': {
       const checks = s.checks.filter((c) => c.jobId === j.id)
-      const short = checks.find((c) => c.ordered < needWithWaste(c) && !c.note)
-      if (short) return { state: 'bad', note: `${short.tag}: the store ordered ${needWithWaste(short) - short.ordered} ${short.unit} less than we need`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: j.id, tag: short.tag }) } }
+      const short = checks.find((c) => shortNow(s.rooms[j.id], j.id, c) > 0 && !c.note)
+      if (short) return { state: 'bad', note: `${short.tag}: the store ordered ${shortNow(s.rooms[j.id], j.id, short)} ${short.unit} less than we need`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: j.id, tag: short.tag }) } }
       if (checks.length) {
         const eta = checks.find((c) => c.eta && c.received < c.ordered)?.eta
         return { state: 'done', note: `Ordered from ${checks[0].supplier}${eta ? ` · delivery ${eta}` : ''}` }

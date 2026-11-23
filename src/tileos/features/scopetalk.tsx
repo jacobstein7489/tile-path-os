@@ -19,6 +19,7 @@ import { HEIGHTS, WHICH_WALLS } from './tiles'
 import { jsonIn } from './reader'
 import { lineStarted, roomStarted } from './scopebuild'
 import { detailsOf } from './roomdetails'
+import { orderedIn } from './flows2'
 
 type Field = 'tile' | 'height' | 'walls' | 'layout' | 'grout' | 'sf' | 'notes'
 export type ScopeChange =
@@ -29,8 +30,13 @@ export type ScopeChange =
   | { op: 'removeRoom'; room: string }
   | { op: 'roomNote'; room: string; value: string }
   | { op: 'note'; room: string; value: string }
-/** a change, checked against the scope as it is: what it does in a few words — and, when it can't be done, why */
-export type Checked = { c: ScopeChange; say: string; ok: boolean; why?: string }
+  /** how much of a tile was ordered (the tile store's paperwork) */
+  | { op: 'ordered'; room: string; tile: string; value: string; unit: 'SF' | 'boxes' }
+/** a change, checked against the scope as it is: what it does in a few words — and, when it can't be done, why; a
+ *  change that takes off what the crew started: said plainly, and left unticked until you tick it */
+export type Checked = { c: ScopeChange; say: string; ok: boolean; why?: string; warn?: string }
+/** the admin may take off what was started too — said first, and only once ticked */
+const adminOf = (s: Pick<Store, 'role'>) => s.role === 'owner' || s.role === 'pm'
 
 const low = (t: string) => t.trim().toLowerCase()
 const lowFirst = (t: string) => t.replace(/^[A-Z](?![A-Z])/, (c) => c.toLowerCase())
@@ -43,7 +49,7 @@ export function scopePrompt(s: Store, jobId: string, words: string): string {
     room: r.name, floor: r.floor || '', note: r.note || '',
     walls_and_floors: r.surfaces.map((x) => ({ name: x.name, tile: x.tile || '', more_tiles: x.also || [], how_high: x.height || '', which_walls: x.walls || '', layout: x.layout || '', grout: x.grout ? GROUTS[x.grout]?.name || x.grout : '', sf: x.sf || 0, note: x.notes || '' })),
   }))
-  const tiles = Object.values(s.tiles[jobId] || {}).map((t) => ({ tag: t.tag, name: t.name, size: t.size }))
+  const tiles = Object.values(s.tiles[jobId] || {}).map((t) => { const c = s.checks.find((x) => x.jobId === jobId && x.tag === t.tag); return { tag: t.tag, name: t.name, size: t.size, ordered: c ? `${c.ordered} ${c.unit}` : t.paper ? `${t.paper.qty} ${t.paper.unit}` : '' } })
   return [
     'You help Cobblestone, a tile installation company, change a project’s scope of work. Below is the scope as it is now. Every room with its walls and floors · and the project’s tiles. Then what the person said changed. It was spoken, so it may be loose. Write it back as changes.',
     `Project: ${job?.name || ''}`,
@@ -63,6 +69,8 @@ export function scopePrompt(s: Store, jobId: string, words: string): string {
     '- {"op":"removeRoom","room":""}. A room taken off the scope.',
     '- {"op":"roomNote","room":"","value":""}. The short note next to the room’s name ("Floor only", "Not tiled").',
     '- {"op":"note","room":"","value":""}. Something for the room that isn’t a wall or floor ("1 niche", "Saddle · white quartz", "Cut the border on site").',
+    '- {"op":"ordered","tile":"","value":"","unit":"SF|boxes"}. How much of a tile was ordered (what the tile store’s paperwork has): the tag from the tiles list, a number, SF or boxes. "T-2, 240 feet" is 240 SF of T-2.',
+    'Taking things off: "delete the laundry" is removeRoom. "Delete everything" or "start the scope over" is one removeRoom for every room. "Take off the square feet" is set sf with value "".',
     'Rules: for rooms and walls and floors that are there, use their names exactly as written above. "The shower walls go to the ceiling" is how high. "Herringbone floor in the master bath" is that floor’s layout. One change for each thing said. When something doesn’t match the scope or isn’t clear, don’t guess. Say it in "unclear", in a few plain words.',
     'Answer with JSON only: {"changes":[...],"unclear":""}',
     `What was said: """${words.trim()}"""`,
@@ -76,6 +84,7 @@ export function readChanges(text: string): { changes: ScopeChange[]; unclear: st
   const out: ScopeChange[] = []
   ;(Array.isArray(j.changes) ? j.changes : []).forEach((c: any) => {
     const op = str(c?.op), room = str(c?.room), surface = str(c?.surface)
+    if (op === 'ordered' && str(c.tile) && str(c.value)) { out.push({ op, room: '', tile: str(c.tile), value: str(c.value), unit: /box/i.test(str(c.unit)) ? 'boxes' : 'SF' }); return }
     if (!room) return
     if (op === 'set' && surface && ['tile', 'height', 'walls', 'layout', 'grout', 'sf', 'notes'].includes(str(c.field))) out.push({ op, room, surface, field: str(c.field) as Field, value: str(c.value) })
     else if (op === 'addSurface' && surface) out.push({ op, room, surface, tile: str(c.tile) || undefined, height: str(c.height) || undefined, layout: str(c.layout) || undefined })
@@ -95,7 +104,15 @@ const groutIn = (v: string) => (GROUTS[v] ? v : Object.entries(GROUTS).find(([, 
 
 export function checkChanges(s: Store, jobId: string, list: ScopeChange[]): Checked[] {
   const rooms = s.rooms[jobId] || []
+  const admin = adminOf(s)
   return list.map((c): Checked => {
+    if (c.op === 'ordered') {
+      const t = tileIn(s, jobId, c.tile)
+      const n = Number(c.value.replace(/[^\d.]/g, ''))
+      const amount = `${n.toLocaleString('en-US')} ${c.unit === 'boxes' ? (n === 1 ? 'box' : 'boxes') : 'SF'}`
+      if (!t) return { c, say: `${c.tile} · ordered: ${c.value}`, ok: false, why: `No tile called ${c.tile} on this project` }
+      return n >= 0 && c.value.trim() && !isNaN(n) ? { c, say: `${t.tag} ${t.name} · ordered: ${amount}`, ok: true } : { c, say: `${t.tag} · ordered: ${c.value}`, ok: false, why: 'Not a number' }
+    }
     const r = roomIn(rooms, c.room)
     const at = (x?: Surface) => `${r?.name || c.room} · ${x?.name || ('surface' in c ? c.surface : '')}`
     if (c.op === 'addRoom') {
@@ -106,7 +123,7 @@ export function checkChanges(s: Store, jobId: string, list: ScopeChange[]): Chec
       return { c, say: `Add a room: ${c.room}${c.floor ? ` on the ${c.floor}` : ''}${c.note ? ` · ${c.note}` : ''}${more}`, ok: true }
     }
     if (!r) return { c, say: `${c.room}`, ok: false, why: `There’s no ${c.room} on the scope` }
-    if (c.op === 'removeRoom') return roomStarted(r) ? { c, say: `Take ${r.name} off the scope`, ok: false, why: 'The crew started there · it stays' } : { c, say: `Take ${r.name} off the scope`, ok: true }
+    if (c.op === 'removeRoom') return !roomStarted(r) ? { c, say: `Take ${r.name} off the scope`, ok: true } : admin ? { c, say: `Take ${r.name} off the scope`, ok: true, warn: 'The crew started there. What they did goes too. Tick it to take it off.' } : { c, say: `Take ${r.name} off the scope`, ok: false, why: 'The crew started there · it stays' }
     if (c.op === 'roomNote') return { c, say: `${r.name}. Next to its name: ${c.value}`, ok: true }
     if (c.op === 'note') return { c, say: `${r.name} · a note: ${c.value}`, ok: true }
     if (c.op === 'addSurface') {
@@ -116,12 +133,12 @@ export function checkChanges(s: Store, jobId: string, list: ScopeChange[]): Chec
     }
     const x = surfIn(r, c.surface)
     if (!x) return { c, say: `${r.name} · ${c.surface}`, ok: false, why: `${r.name} has no ${c.surface}` }
-    if (c.op === 'removeSurface') return lineStarted(x) ? { c, say: `${at(x)}. Take it off`, ok: false, why: 'The crew started it · it stays' } : { c, say: `${at(x)}. Take it off`, ok: true }
+    if (c.op === 'removeSurface') return !lineStarted(x) ? { c, say: `${at(x)}. Take it off`, ok: true } : admin ? { c, say: `${at(x)}. Take it off`, ok: true, warn: 'The crew started it. What they did goes too. Tick it to take it off.' } : { c, say: `${at(x)}. Take it off`, ok: false, why: 'The crew started it · it stays' }
     /* set one thing */
     const v = c.value
     if (c.field === 'tile') { const t = v ? tileIn(s, jobId, v) : undefined; return v && !t ? { c, say: `${at(x)} · tile: ${v}`, ok: false, why: `No tile called ${v} on this project` } : { c, say: `${at(x)} · tile: ${t ? `${t.tag} ${t.name}` : 'none'}`, ok: true } }
     if (c.field === 'grout') { const g = v ? groutIn(v) : ''; return v && !g ? { c, say: `${at(x)} · grout: ${v}`, ok: false, why: `No grout color called ${v}` } : { c, say: `${at(x)} · grout: ${g ? GROUTS[g].name : 'none'}`, ok: true } }
-    if (c.field === 'sf') { const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); return n > 0 ? { c, say: `${at(x)} · ${n.toLocaleString('en-US')} SF`, ok: true } : { c, say: `${at(x)} · square feet: ${v}`, ok: false, why: 'Not a number of square feet' } }
+    if (c.field === 'sf') { if (!v.trim()) return { c, say: `${at(x)} · square feet: none`, ok: true }; const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); return n > 0 ? { c, say: `${at(x)} · ${n.toLocaleString('en-US')} SF`, ok: true } : { c, say: `${at(x)} · square feet: ${v}`, ok: false, why: 'Not a number of square feet' } }
     return { c, say: `${at(x)} · ${FIELD_WORD[c.field]}: ${v ? lowFirst(v) : 'none'}`, ok: true }
   })
 }
@@ -131,16 +148,23 @@ export function applyChanges(jobId: string, list: Checked[]) {
   const go = list.filter((x) => x.ok)
   if (!go.length) return
   useStore.getState().commit((st) => {
-    const rooms = (st.rooms[jobId] ||= [])
+    st.rooms[jobId] ||= []
     const who = meOf(st.role)
+    const admin = adminOf(st)
     go.forEach(({ c, say }) => {
-      const r = roomIn(rooms, c.room)
+      if (c.op === 'ordered') {
+        const t = tileIn(st as Store, jobId, c.tile)
+        const n = Number(c.value.replace(/[^\d.]/g, ''))
+        if (t && !isNaN(n)) orderedIn(st as Store, jobId, t.tag, n, c.unit)
+        return
+      }
+      const r = roomIn(st.rooms[jobId] || [], c.room)
       if (c.op === 'addRoom') {
         if (r) return
         const walls = c.surfaces?.length ? c.surfaces : ['Floor']
-        rooms.push({ name: c.room, pct: 0, ...(c.floor ? { floor: c.floor } : {}), ...(c.note ? { note: c.note } : {}), surfaces: walls.map((n) => ({ name: n, tile: '', state: 'notstarted' as const })) })
+        ;(st.rooms[jobId] ||= []).push({ name: c.room, pct: 0, ...(c.floor ? { floor: c.floor } : {}), ...(c.note ? { note: c.note } : {}), surfaces: walls.map((n) => ({ name: n, tile: '', state: 'notstarted' as const })) })
       } else if (!r) return
-      else if (c.op === 'removeRoom') { if (!roomStarted(r)) st.rooms[jobId] = rooms.filter((y) => y !== r) }
+      else if (c.op === 'removeRoom') { if (!roomStarted(r) || admin) st.rooms[jobId] = (st.rooms[jobId] || []).filter((y) => y !== r) }
       else if (c.op === 'roomNote') r.note = c.value
       else if (c.op === 'note') r.details = [...detailsOf(st, jobId, r).lines, c.value]
       else if (c.op === 'addSurface') {
@@ -150,12 +174,12 @@ export function applyChanges(jobId: string, list: Checked[]) {
       } else {
         const x = surfIn(r, c.surface)
         if (!x) return
-        if (c.op === 'removeSurface') { if (!lineStarted(x)) r.surfaces = r.surfaces.filter((y) => y !== x) }
+        if (c.op === 'removeSurface') { if (!lineStarted(x) || admin) r.surfaces = r.surfaces.filter((y) => y !== x) }
         else if (c.op === 'set') {
           const v = c.value
           if (c.field === 'tile') { x.tile = v ? tileIn(st as Store, jobId, v)?.tag || x.tile : ''; if (x.tile && x.state === 'unknown' && /tile not (confirmed|picked)/i.test(x.reason || '')) { x.state = 'ready'; x.reason = undefined } }
           else if (c.field === 'grout') { const g = v ? groutIn(v) : ''; if (g) x.grout = g; else delete x.grout }
-          else if (c.field === 'sf') { const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); if (n > 0) x.sf = n }
+          else if (c.field === 'sf') { if (!v.trim()) delete x.sf; else { const n = Math.round(Number(v.replace(/[^\d.]/g, ''))); if (n > 0) x.sf = n } }
           else { const k = c.field === 'notes' ? 'notes' : c.field; if (v) (x as any)[k] = v; else delete (x as any)[k] }
         }
       }
@@ -207,8 +231,10 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
       const text2 = await REAL.ai(scopePrompt(st, jobId, text), [], ac.signal)
       if (ac.signal.aborted) return
       const { changes, unclear } = readChanges(text2)
-      setOff([])
-      setStep({ k: 'check', list: checkChanges(useStore.getState(), jobId, changes), unclear })
+      const checked = checkChanges(useStore.getState(), jobId, changes)
+      /* what takes off something the crew started waits for its tick */
+      setOff(checked.map((x, i) => (x.warn ? i : -1)).filter((i) => i >= 0))
+      setStep({ k: 'check', list: checked, unclear })
     } catch (e: any) {
       if (ac.signal.aborted) return
       setStep({ k: 'fail', msg: e?.message || 'Couldn’t read it just now · try again.' })
@@ -229,7 +255,8 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
           <Button className="ml-auto" variant="primary" icon={<Check />} disabled={!picked.length} onClick={() => applyChanges(jobId, picked)} data-talk-apply>{picked.length ? `Make ${picked.length === 1 ? 'this change' : `these ${picked.length} changes`}` : 'Nothing to change'}</Button>
         </>
       ) : (
-        <Button className="ml-auto" variant="primary" disabled={!words.trim() || step.k === 'busy' || v.busy} onClick={() => void look()} data-talk-look>{step.k === 'busy' ? 'Reading it…' : 'Look at it'}</Button>
+        /* listening: it stops, writes it down and reads it right away */
+        <Button className="ml-auto" variant="primary" disabled={(!words.trim() && !v.on) || step.k === 'busy' || v.busy} onClick={() => void look()} data-talk-look>{step.k === 'busy' || v.busy ? 'Reading it…' : v.on ? 'Done · look at it' : 'Look at it'}</Button>
       )}
     >
       {step.k !== 'check' && (
@@ -265,6 +292,7 @@ export function ScopeTalkModal({ jobId, room, level }: { jobId: string; room?: s
                   <span className="min-w-0 flex-1">
                     <span className={cn('block text-[0.9375rem]', x.ok ? 'text-ink' : 'text-muted line-through decoration-faint')}>{x.say}</span>
                     {x.why && <span className="block text-[0.8125rem] text-warn-700">{x.why}</span>}
+                    {x.warn && <span className="block text-[0.8125rem] font-medium text-bad-600" data-talk-warn>{x.warn}</span>}
                   </span>
                 </button>
               )

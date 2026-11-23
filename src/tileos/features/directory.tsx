@@ -11,7 +11,7 @@ import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow,
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, roleDef, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
-import { allSubs, kindsOf, kindsText, SUPPLY_KINDS, type SupplierInfo } from '@/tileos/data/directory'
+import { allSubs, kindsOf, kindsText, SUPPLY_KINDS, designerOf, type SupplierInfo } from '@/tileos/data/directory'
 import { ITEM_TYPE_LABEL, type ItemType } from '@/tileos/data/items'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, PAY_STATE, payRow } from './pay'
@@ -144,8 +144,8 @@ export function DesignersPage() {
   const s = useStore()
   const [q, setQ] = React.useState('')
   const [tab, setTab] = React.useState<'all' | 'waiting' | 'active' | 'off'>('all')
-  const waitsOf = (d: (typeof s.designers)[number]) => s.tasks.filter((t) => t.state !== 'done' && /designer/i.test(`${t.title} ${t.waitingOn || ''}`) && d.clients.includes(s.jobs[t.jobId]?.clientId)).length
-  const activeOf = (d: (typeof s.designers)[number]) => Object.values(s.jobs).some((j) => d.clients.includes(j.clientId) && !DONE.includes(j.stage) && !PRICING.includes(j.stage))
+  const waitsOf = (d: (typeof s.designers)[number]) => s.tasks.filter((t) => t.state !== 'done' && /designer/i.test(`${t.title} ${t.waitingOn || ''}`) && designerOf(s.designers, s.jobs[t.jobId])?.id === d.id).length
+  const activeOf = (d: (typeof s.designers)[number]) => Object.values(s.jobs).some((j) => designerOf(s.designers, j)?.id === d.id && !DONE.includes(j.stage) && !PRICING.includes(j.stage))
   const live = s.designers.filter((d) => !isOff(s, 'designer', d.id))
   const offList = s.designers.filter((d) => isOff(s, 'designer', d.id))
   const list = (tab === 'off' ? offList : live).filter((d) => (tab === 'all' || tab === 'off' || (tab === 'waiting' ? waitsOf(d) > 0 : activeOf(d))) && (!q || `${d.name} ${d.contact}`.toLowerCase().includes(q.toLowerCase())))

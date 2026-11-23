@@ -8,7 +8,7 @@ import type { PersonKey, Stage, SwatchKey, Role, Member } from '@/tileos/data/mo
 import { siteSpotHolder } from '@/tileos/lib/twins'
 import { fmtMoney, PEOPLE } from '@/tileos/data/model'
 import type { Task, MoneyItem, PO, TileCheck } from '@/tileos/data/work'
-import { needWithWaste } from '@/tileos/data/work'
+import { needWithWaste, shortNow } from '@/tileos/data/work'
 import { surfacePct, tileOf, hasTile, sfFor } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
@@ -374,26 +374,31 @@ export function newRequest(d: { name: string; address: string; clientId: string;
 
 /* ================= setup & readiness ================= */
 export function settleQty(jobId: string, tag: string, choice: 'askgc' | 'order' | 'accept') {
+  const c0 = S().checks.find((x) => x.jobId === jobId && x.tag === tag)
+  if (!c0) return
+  /* the real difference, against our takeoff as it is now */
+  const short = shortNow(S().rooms[jobId], jobId, c0)
+  const amount = `${short.toLocaleString('en-US')} ${/box/i.test(c0.unit) ? (short === 1 ? 'box' : 'boxes') : 'SF'}`
   if (choice === 'order') {
-    S().swap({ t: 'newpo', jobId, prefill: { supplier: 'Best Tile', lines: [{ item: `${tag} wall tile · short quantity`, qty: '60 SF (2 boxes)' }], amount: 540, what: `Short tile ${tag}`, tag, addQty: 60 } })
+    /* Order more tile, the difference filled in */
+    S().swap({ t: 'moretile', jobId, tags: [tag], qty: { [tag]: short }, units: { [tag]: /box/i.test(c0.unit) ? 'boxes' : 'SF' } })
     return
   }
   S().commit((s) => {
     const c = s.checks.find((x) => x.jobId === jobId && x.tag === tag)
     if (!c) return
     if (choice === 'askgc') {
-      c.note = 'GC asked to add 60 SF · waiting'
-      newTask(s, { jobId, title: `GC to add 60 SF of ${tag}`, type: 'Materials', owner: 'office', for: ['office'], watch: ['materials'], state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', blocks: 'Master bath walls', where: 'Quantity', log: [L(me(), 'Asked the GC to add 60 SF to the Best Tile order')] })
-      setIssues(s, jobId, (iss) => iss.map((i) => (/short/i.test(i.text) ? { tone: 'warn', text: 'Waiting on the GC for 60 SF more wall tile' } : i)))
-      addHist(s, jobId, { who: me(), kind: 'material', title: 'Asked the GC to add 60 SF of wall tile', detail: 'Comes back Wednesday' })
+      c.note = `GC asked to add ${amount} · waiting`
+      newTask(s, { jobId, title: `GC to add ${amount} of ${tag}`, type: 'Materials', owner: 'office', for: ['office'], watch: ['materials'], state: 'waiting', waitingOn: 'GC', followUp: 'Wed', tone: 'warn', where: 'Quantity', log: [L(me(), `Asked the GC to add ${amount} of ${tag}${c.supplier ? ` to the ${c.supplier} order` : ''}`)] })
+      addHist(s, jobId, { who: me(), kind: 'material', title: `Asked the GC to add ${amount} of ${tag}`, detail: 'Comes back Wednesday' })
     } else {
-      c.measured = Math.floor(c.ordered / (1 + c.wastePct / 100))
+      c.accepted = true
       c.note = 'Store count accepted'
-      setIssues(s, jobId, (iss) => iss.filter((i) => !/short/i.test(i.text)))
-      addHist(s, jobId, { who: me(), kind: 'material', title: 'Store count accepted for ' + tag })
+      addHist(s, jobId, { who: me(), kind: 'material', title: `${tag}: their count accepted`, detail: `${c.ordered.toLocaleString('en-US')} ${c.unit} ordered` })
     }
+    setIssues(s, jobId, (iss) => (choice === 'askgc' ? iss.map((i) => (/short/i.test(i.text) && i.text.includes(tag) ? { tone: 'warn', text: `Waiting on the GC for ${amount} more ${tag}` } : i)) : iss.filter((i) => !(/short/i.test(i.text) && i.text.includes(tag)))))
     closeTasks(s, ['t-qty114'], 'Settled')
-  }, choice === 'askgc' ? 'Sent to the GC · back Wednesday' : 'Quantity accepted')
+  }, choice === 'askgc' ? 'Sent to the GC · back Wednesday' : 'Their count accepted')
   S().close()
 }
 

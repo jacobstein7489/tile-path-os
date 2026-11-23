@@ -1,4 +1,5 @@
 import type { PersonKey, Role, Tone } from './model'
+import { hasTile, sfFor, tileOf, type Room } from './jobs'
 
 /* ================= tasks (one item per thing that has to happen) ================= */
 export type TaskType = 'Pricing' | 'Setup' | 'Materials' | 'Field' | 'Changes' | 'Schedule' | 'Money'
@@ -349,6 +350,8 @@ export interface TileCheck {
   jobId: string; tag: string; where: string; unit: string
   measured: number; wastePct: number; ordered: number; received: number
   supplier: string; suppliedBy: string; eta?: string; note?: string
+  /** their number was accepted as it is (settled): not short anymore, until what's ordered changes */
+  accepted?: boolean
 }
 export const TILECHECKS: TileCheck[] = [
   { jobId: '119', tag: 'T-01', where: 'Master main floor · curb · foyer', unit: 'SF', measured: 380, wastePct: 10, ordered: 440, received: 440, supplier: 'Best Tile', suppliedBy: 'GC' },
@@ -372,6 +375,23 @@ export const TILECHECKS: TileCheck[] = [
   { jobId: 'wilk', tag: 'T-04', where: 'Hall bath tub walls', unit: 'SF', measured: 110, wastePct: 12, ordered: 125, received: 125, supplier: 'Best Tile', suppliedBy: 'GC' },
 ]
 export const needWithWaste = (t: TileCheck) => Math.ceil(t.measured * (1 + t.wastePct / 100))
+/** the square feet of a tile on a job's walls and floors as they are now */
+export const tileSFNow = (rooms: Room[] | undefined, jobId: string, tag: string) => (rooms || []).flatMap((r) => r.surfaces).filter((x) => hasTile(x, tag)).reduce((n, x) => n + sfFor(jobId, x, tag), 0)
+/** our takeoff now, to hold what was ordered against: the walls and floors as they are, with the count's own extra for
+ *  cuts — none with square feet yet: what was counted when it was checked */
+export function needNow(rooms: Room[] | undefined, jobId: string, c: TileCheck): number {
+  const live = Math.round(tileSFNow(rooms, jobId, c.tag) * 10) / 10
+  if (live > 0) {
+    if (/^sf$/i.test(c.unit)) return Math.ceil(live * (1 + c.wastePct / 100))
+    const box = tileOf(jobId, c.tag)?.boxSF
+    if (box) return Math.ceil((live * (1 + c.wastePct / 100)) / box)
+  }
+  return needWithWaste(c)
+}
+/** how much their order is short of our takeoff (with the extra for cuts): a square foot or less is rounding, not short */
+export const orderShort = (t: TileCheck, need = needWithWaste(t)) => { const gap = need - t.ordered; return gap > (/^sf$/i.test(t.unit) ? 1 : 0) ? gap : 0 }
+/** the same, against our takeoff now */
+export const shortNow = (rooms: Room[] | undefined, jobId: string, c: TileCheck) => (c.accepted ? 0 : orderShort(c, needNow(rooms, jobId, c)))
 
 export type MatStatus = 'suggested' | 'to-order' | 'sent' | 'confirmed' | 'partial' | 'delivered' | 'late'
 export interface OurMat {

@@ -17,7 +17,7 @@ import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
 import { PEOPLE, type Job, type Tone } from '@/tileos/data/model'
 import { GROUTS, JOINTS, SURF_TONE, surfacePct, roomPct, tilesOf, tileOf, floorsOf, hasTile, sfFor, type Room, type Surface, type Tile } from '@/tileos/data/jobs'
-import { needWithWaste } from '@/tileos/data/work'
+import { shortNow } from '@/tileos/data/work'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
 import { methodOf, suggestMethod, methodsFor, kindOf } from '../takeoff'
 import { settingStatus } from '../setting'
@@ -49,8 +49,8 @@ export function tileStatus(s: Pick<Store, 'checks' | 'shortages' | 'rooms'>, job
   const sf = on.reduce((n, x) => n + sfFor(jobId, x, tag), 0)
   if (tileOf(jobId, tag)?.trim && on.length && !s.checks.some((y) => y.jobId === jobId && y.tag === tag)) return { tone: 'neutral', label: 'Trim. By the piece' }
   if (!c) return sf ? { tone: 'warn', label: 'Not ordered yet' } : on.length ? { tone: 'neutral', label: 'No square feet yet' } : { tone: 'neutral', label: 'Not on a wall or floor yet' }
-  const need = needWithWaste(c)
-  if (c.ordered < need) return { tone: 'bad', label: `Order is ${need - c.ordered} ${c.unit} short` }
+  const short = shortNow(s.rooms[jobId], jobId, c)
+  if (short > 0) return { tone: 'bad', label: `Order is ${short} ${c.unit} short` }
   if (c.received >= c.ordered) return { tone: 'ok', label: 'On site' }
   if (c.received > 0) return { tone: 'warn', label: `${c.received} of ${c.ordered} ${c.unit} here` }
   return { tone: 'info', label: c.eta && c.eta !== 'TBD' ? `Ordered · due ${c.eta}` : 'Ordered' }

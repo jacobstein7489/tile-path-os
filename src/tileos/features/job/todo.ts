@@ -2,7 +2,7 @@
  * the install (what holds the work up, today's daily update, bills to make), touch-ups and closing out — and the
  * project's tasks and meetings, as one list with who has each. The project window's To do is built from this. */
 import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
-import { needWithWaste, type Task } from '@/tileos/data/work'
+import { shortNow, type Task } from '@/tileos/data/work'
 import { CAL_TODAY, type CalEvent } from '@/tileos/data/calendar'
 import { NOW } from '@/tileos/lib/today'
 import type { Store } from '@/tileos/store'
@@ -35,7 +35,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
   if (['awarded', 'setup'].includes(st)) {
     const picked = flat.filter((x) => x.sf.tile).length
     const checks = s.checks.filter((c) => c.jobId === job.id)
-    const short = checks.find((c) => c.ordered < needWithWaste(c))
+    const short = checks.find((c) => shortNow(s.rooms[job.id], job.id, c) > 0)
     const pos = s.pos.filter((p) => p.jobId === job.id)
     const cpo = s.money.find((m) => m.jobId === job.id && m.kind === 'custpo')
     const items: (NowItem | null)[] = [
@@ -44,7 +44,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
         : { key: 'rooms', title: 'Rooms and surfaces', status: 'todo', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: job.id }) } },
       { key: 'tile', title: 'Tile entered for every surface', status: !flat.length ? 'todo' : picked === flat.length ? 'done' : 'part', note: flat.length ? `${picked} of ${flat.length} entered` : 'After the rooms', action: flat.length && picked < flat.length ? { label: 'Enter tiles', run: () => setTab('scope') } : undefined },
       short
-        ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${needWithWaste(short) - short.ordered} ${short.unit} short of our takeoff`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
+        ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${shortNow(s.rooms[job.id], job.id, short)} ${short.unit} short of our takeoff`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
         : { key: 'qty', title: 'Tile quantity', status: checks.length ? 'done' : 'wait', note: checks.length ? 'Covers our takeoff and waste' : 'Waiting for the store’s order' },
       (() => {
         const st = settingStatus(s, job.id)

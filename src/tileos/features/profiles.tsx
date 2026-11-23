@@ -12,7 +12,7 @@ import { TileImg } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, STAGE_LABEL, fmtMoney, type PersonKey, type Tone, type Job } from '@/tileos/data/model'
 import { CUSTOMERS, TILES, tileOf } from '@/tileos/data/jobs'
-import { allSubs } from '@/tileos/data/directory'
+import { allSubs, designerOf } from '@/tileos/data/directory'
 import { curRev, revTotal, estAmount, type Estimate } from '@/tileos/data/estimates'
 import { estLabel as estLabelOf } from './estimates'
 import { dayLabel, timeLabel, CAL_TODAY } from '@/tileos/data/calendar'
@@ -297,7 +297,8 @@ export function DesignerProfile({ id, level }: { id: string; level: number }) {
   const [tab, setTab] = React.useState('overview')
   const d = s.designers.find((x) => x.id === id)
   if (!d) return null
-  const js = Object.values(s.jobs).filter((j) => d.clients.includes(j.clientId))
+  /* their projects: the ones they're the designer on (picked on it, or their clients') */
+  const js = Object.values(s.jobs).filter((j) => designerOf(s.designers, j)?.id === d.id)
   const won = js.filter((j) => !PRICING.includes(j.stage))
   const ests = s.estimates.filter((e) => js.some((j) => j.id === e.jobId))
   const waits = s.tasks.filter((t) => t.state !== 'done' && js.some((j) => j.id === t.jobId) && /designer/i.test(`${t.title} ${t.waitingOn || ''}`))

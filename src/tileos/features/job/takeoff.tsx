@@ -16,7 +16,7 @@ import { addMat, setMatQty, removeMat, restoreMat } from '../matedit'
 import { Status, HEAD_ROW } from '@/tileos/components/ui/page'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { needWithWaste } from '@/tileos/data/work'
+import { needNow, orderShort } from '@/tileos/data/work'
 import { tilesOf, tileOf, hasTile, sfFor, GROUTS, floorsOf, type Room } from '@/tileos/data/jobs'
 import { sellsTile } from '@/tileos/data/directory'
 import type { Job } from '@/tileos/data/model'
@@ -137,9 +137,9 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
   const uses = rooms.flatMap((r) => r.surfaces.filter((x) => hasTile(x, tag)).map((x) => ({ room: r.name, x })))
   const sfAll = Math.round(uses.reduce((n, u) => n + sfFor(job.id, u.x, tag), 0))
   const sfHere = Math.round(xs.reduce((n, x) => n + sfFor(job.id, x, tag), 0))
-  const need = c ? needWithWaste(c) : Math.ceil(sfAll * 1.1)
+  const need = c ? needNow(rooms, job.id, c) : Math.ceil(sfAll * 1.1)
   const st = tileStatus(s, job.id, tag)
-  const short = c ? Math.max(0, need - c.ordered) : 0
+  const short = c ? orderShort(c, need) : 0
   const who = t?.suppliedBy === 'Us' ? 'We' : `The ${t?.suppliedBy === 'Owner' ? 'owner' : 'GC'}`
   const po = openTilePOs(s, job.id, tag)[0]
   /* the other rooms it's used in — as the paperwork says it ("Also used in") */
@@ -147,6 +147,8 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
   const also = others.length ? `also used in ${others.join(', ')}` : ''
   /* what can be done with it — the office orders and settles; the site manager checks deliveries in */
   const acts: { label: string; run: () => void }[] = []
+  /* how it adds up: every wall and floor with its square feet, the extra, their order (typed in there), the difference */
+  if (uses.length && !simple) acts.push({ label: 'How it adds up · what was ordered', run: () => s.open({ t: 'qty', jobId: job.id, tag }) })
   if (!c && sfAll > 0 && !simple) acts.push({ label: `${who} ordered it`, run: () => logTileOrder(job.id, tag, { sf: sfAll, where: uses.map((u) => `${u.room} ${u.x.name.toLowerCase()}`).join(' · ') }) })
   if ((c && c.received < c.ordered) || (!c && simple)) acts.push({ label: 'It came in. Count the boxes', run: () => s.open({ t: 'receivetile', jobId: job.id, tag }) })
   if (c && short && !simple) acts.push({ label: 'Settle the count', run: () => s.open({ t: 'qty', jobId: job.id, tag }) })

@@ -257,6 +257,9 @@ export interface Job {
   /** this job's own people — the homeowner, the designer, the super — with their phone: a client like "NJ Private
    *  Customer" is many homeowners, so each job keeps who to call */
   contacts?: JobContact[]
+  /** the designer on this job, picked on the project's details (none: the one who works with its client · "none": no
+   *  designer on it) */
+  designerId?: string
   /** the store this job's tile comes from — set once (the first tile PO, the paperwork, or by hand) and every tile PO
    *  and "Order more tile" goes there */
   tileStore?: string

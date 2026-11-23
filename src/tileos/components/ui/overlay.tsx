@@ -7,7 +7,7 @@ import * as TT from '@radix-ui/react-tooltip'
 import { Check, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
 import { CloseButton, Chip, Button } from './core'
-import { TODAY, addDays, dow, isoFromLabel, labelFromIso, pickedLabel } from '@/tileos/lib/today'
+import { TODAY, addDays, dow, isoFromLabel, labelFromIso, pickedLabel, dayShort } from '@/tileos/lib/today'
 import { useSmall } from '@/tileos/lib/phone'
 
 /* ---------------- Center popup ---------------- */
@@ -285,7 +285,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const ym = (iso: string) => iso.slice(0, 7)
 /** a month to pick a day from, like any calendar: Monday first (like the schedule), today ringed, the day picked filled,
  *  days gone by faded and not picked */
-export function MonthCal({ value, onPick, min = TODAY, className }: { value?: string; onPick: (iso: string) => void; min?: string; className?: string }) {
+export function MonthCal({ value, onPick, min = TODAY, className, big }: { value?: string; onPick: (iso: string) => void; min?: string; className?: string; /** roomy: big days to tap (a start or a finish) */ big?: boolean }) {
   const [at, setAt] = React.useState(ym(value || TODAY))
   React.useEffect(() => { if (value) setAt(ym(value)) }, [value])
   const y = +at.slice(0, 4)
@@ -295,27 +295,27 @@ export function MonthCal({ value, onPick, min = TODAY, className }: { value?: st
   const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: n }, (_, i) => `${at}-${String(i + 1).padStart(2, '0')}`)]
   while (cells.length % 7) cells.push(null)
   const go = (k: number) => { const d = new Date(Date.UTC(y, m - 1 + k, 1)); setAt(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`) }
-  const arrow = 'inline-flex h-8 w-8 items-center justify-center rounded-full text-ink-2 transition hover:bg-wash-2 disabled:opacity-30 disabled:hover:bg-transparent'
+  const arrow = cn('inline-flex items-center justify-center rounded-full text-ink-2 transition hover:bg-wash-2 disabled:opacity-30 disabled:hover:bg-transparent', big ? 'h-10 w-10' : 'h-8 w-8')
   return (
-    <div className={cn('select-none', className)} data-month-cal={at}>
-      <div className="mb-1 flex items-center justify-between pl-1">
-        <span className="text-[0.9375rem] font-semibold text-ink" data-cal-month>{MONTHS[m - 1]} {y}</span>
+    <div className={cn('select-none', className)} data-month-cal={at} {...(big ? { 'data-cal-big': '' } : {})}>
+      <div className={cn('flex items-center justify-between pl-1', big ? 'mb-2' : 'mb-1')}>
+        <span className={cn('font-semibold text-ink', big ? 'text-[1.125rem]' : 'text-[0.9375rem]')} data-cal-month>{MONTHS[m - 1]} {y}</span>
         <span className="flex items-center">
-          <button type="button" onClick={() => go(-1)} disabled={at <= ym(min)} aria-label="The month before" className={arrow} data-cal-prev><ChevronLeft className="h-4 w-4" /></button>
-          <button type="button" onClick={() => go(1)} aria-label="The next month" className={arrow} data-cal-next><ChevronRight className="h-4 w-4" /></button>
+          <button type="button" onClick={() => go(-1)} disabled={at <= ym(min)} aria-label="The month before" className={arrow} data-cal-prev><ChevronLeft className={big ? 'h-5 w-5' : 'h-4 w-4'} /></button>
+          <button type="button" onClick={() => go(1)} aria-label="The next month" className={arrow} data-cal-next><ChevronRight className={big ? 'h-5 w-5' : 'h-4 w-4'} /></button>
         </span>
       </div>
-      <div className="grid grid-cols-7 text-center text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-faint" aria-hidden>
-        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i} className="py-1">{d}</span>)}
+      <div className={cn('grid grid-cols-7 text-center font-semibold uppercase tracking-[0.06em] text-faint', big ? 'text-[0.75rem]' : 'text-[0.6875rem]')} aria-hidden>
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <span key={i} className={big ? 'py-1.5' : 'py-1'}>{d}</span>)}
       </div>
-      <div className="grid grid-cols-7 gap-y-0.5">
+      <div className={cn('grid grid-cols-7', big ? 'gap-y-1' : 'gap-y-0.5')}>
         {cells.map((iso, i) => {
           if (!iso) return <span key={'x' + i} />
           const on = iso === value
           const past = iso < min
           return (
             <button key={iso} type="button" disabled={past && !on} onClick={() => onPick(iso)} aria-pressed={on} aria-label={iso} data-cal-day={iso}
-              className={cn('mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-[0.875rem] tnum transition max-sm:text-[0.9375rem]',
+              className={cn('mx-auto inline-flex items-center justify-center rounded-full tnum transition', big ? 'aspect-square w-full max-w-12 text-[1.0625rem]' : 'h-9 w-9 text-[0.875rem] max-sm:text-[0.9375rem]',
                 on ? 'bg-brand-600 font-semibold text-white shadow-[0_0.375rem_0.875rem_-0.5rem_rgba(38,80,207,.9)]'
                   : past ? 'text-[#cbc6bd]'
                     : iso === TODAY ? 'font-semibold text-brand-700 ring-1 ring-inset ring-brand-300 hover:bg-brand-50'
@@ -328,6 +328,28 @@ export function MonthCal({ value, onPick, min = TODAY, className }: { value?: st
     </div>
   )
 }
+/** a day to pick (a start, a finish): the day in words on a field, and a big calendar under it — a phone: it comes up
+ *  from the bottom. min: the first day it can be (none: any day, one gone by too, for a job that's already going) */
+export function DateField({ value, onChange, min, label, placeholder = 'Pick a day', className, ...rest }: { value?: string; onChange: (iso: string) => void; min?: string; label: string; placeholder?: string; className?: string } & { [k: `data-${string}`]: string | undefined }) {
+  const [open, setOpen] = React.useState(false)
+  /* "Mon, Nov 30" (and its year when it isn't this one) */
+  const words = value ? `${dayShort(value)}${value.slice(0, 4) !== TODAY.slice(0, 4) ? `, ${value.slice(0, 4)}` : ''}` : ''
+  return (
+    <Pop open={open} onOpenChange={setOpen} sheet width={392} align="start" trigger={
+      <button type="button" aria-label={label} data-value={value || ''} {...rest}
+        className={cn('flex h-11 w-full min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.9375rem] text-ink transition hover:border-[#cdc7bc] focus-visible:border-brand-300 focus-visible:outline-none', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        <CalendarDays className="h-[1.125rem] w-[1.125rem] shrink-0 text-faint" />
+        <span className={cn('min-w-0 flex-1 truncate', !value && 'text-faint')}>{words || placeholder}</span>
+      </button>
+    }>
+      <div className="p-1 max-sm:px-5 max-sm:pb-6 max-sm:pt-3" data-date-cal>
+        <div className="mb-2 text-[0.9375rem] font-semibold text-muted">{label}</div>
+        <MonthCal big value={value} min={min || '1900-01-01'} onPick={(iso) => { onChange(iso); setOpen(false) }} />
+      </div>
+    </Pop>
+  )
+}
+
 /** the times of a day: the one picked filled; it opens on that one (or 9 in the morning). A column beside the calendar
  *  on a computer, a row under it on a phone */
 export function TimeList({ value, times, anyTime, onPick }: { value?: string; times: string[]; anyTime?: boolean; onPick: (t?: string) => void }) {

@@ -14,7 +14,7 @@ import { TaskRow } from '../common'
 import { cn, TONE } from '@/tileos/lib/utils'
 import { PEOPLE, type Job, type Tone } from '@/tileos/data/model'
 import { SURF_LABEL, SURF_TONE, surfacePct, type Room, type Surface, tileOf } from '@/tileos/data/jobs'
-import { needWithWaste } from '@/tileos/data/work'
+import { shortNow } from '@/tileos/data/work'
 import { sendToSite, setPunch, addPunch, buildRooms, verificationDone } from '../flows'
 import { openChangeFor, openRoom } from '../field'
 import { WhatsGoingOn, NotesCard } from './going-on'
@@ -260,7 +260,7 @@ function useSetupChecks(job: Job): Check[] {
   const rooms = s.rooms[job.id] || []
   const surfaces = rooms.reduce((n, r) => n + r.surfaces.length, 0)
   const checks = s.checks.filter((c) => c.jobId === job.id)
-  const short = checks.filter((c) => c.ordered < needWithWaste(c))
+  const short = checks.filter((c) => shortNow(s.rooms[job.id], job.id, c) > 0)
   const pos = s.pos.filter((p) => p.jobId === job.id)
   const dep = s.money.find((m) => m.jobId === job.id && m.kind === 'deposit')
   const cpo = s.money.find((m) => m.jobId === job.id && m.kind === 'custpo')
@@ -275,7 +275,7 @@ function useSetupChecks(job: Job): Check[] {
     { n: 3, title: 'Tile store paperwork', state: checks.length ? 'ok' : 'todo', detail: checks.length ? 'Best Tile order entered' : 'Waiting for the store paperwork', blocking: false },
     {
       n: 4, title: 'Quantity check. Their order vs our takeoff', state: !checks.length ? 'todo' : short.length ? 'bad' : 'ok', blocking: short.length > 0,
-      detail: short.length ? `${short.map((c) => `${c.tag} ${needWithWaste(c) - c.ordered} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers our takeoff + waste' : 'Runs when the paperwork is in',
+      detail: short.length ? `${short.map((c) => `${c.tag} ${shortNow(s.rooms[job.id], job.id, c)} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers our takeoff + waste' : 'Runs when the paperwork is in',
       action: short.length ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short[0].tag }) } : undefined,
     },
     { n: 5, title: 'Who supplies what', state: rooms.length ? 'ok' : 'todo', detail: 'Finish tile: GC via Best Tile · materials & metal edges: Cobblestone' },

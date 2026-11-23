@@ -12,7 +12,7 @@
 import { meOf, isRequest, type Store } from '@/tileos/store'
 import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
 import { roomPct, type Room } from '@/tileos/data/jobs'
-import { labelFromIso, isoFromLabel, TODAY } from '@/tileos/lib/today'
+import { labelFromIso, isoFromLabel, TODAY, md } from '@/tileos/lib/today'
 import { stepsFor, paperQty, takesTile, floorRooms, fracIn, siteRooms, IN_FIELD_STAGES, SITE_CHECKS, type StepView, type StepState } from './steps'
 import { methodOf } from './takeoff'
 import { installerOf } from './upcoming'
@@ -187,6 +187,9 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
   const punch = s.punch.filter((p) => p.jobId === job.id)
   const openP = punch.filter((p) => p.status !== 'verified')
   const pct = st === 'installation' ? job.pct ?? 0 : 0
+  /* the day it ends: the project's own, or its booking's last day — gone by and not done: "Was to end Nov 20" */
+  const endIso = (job.dates?.finish && isoFromLabel(job.dates.finish)) || b?.end
+  const endWords = endIso ? (endIso < TODAY ? `Was to end ${md(endIso)}` : `Ends ${md(endIso)}`) : job.dates?.finish ? `Ends ${job.dates.finish}` : ''
   const n = tracks.length
   /* the day each step was reached — "Mon, Nov 9" said short: "Nov 9" */
   const day = (d?: string) => (d ? d.replace(/^[A-Z][a-z]{2},\s*/, '') : undefined)
@@ -209,8 +212,9 @@ export function lineOf(s: Store, job: Job, tracks: TrackView[] = tracksFor(s, jo
       : open
         ? { key: 'crew', label: 'Crew scheduled', state: 'now', sub: crew ? `${PEOPLE[crew]?.short}. Pick the days` : 'Pick the days' }
         : { key: 'crew', label: 'Crew scheduled', state: 'later', lock: true, sub: `opens when all ${n} are done` },
+    /* installing: how far, and the day it ends (the installer is on top already) — "Started Nov 16 · 65% · Ends Nov 23" */
     st === 'installation'
-      ? { key: 'install', label: 'Installing', state: 'now', sub: `${pct}%${crew ? ` · ${PEOPLE[crew]?.short}` : ''}`, link: pct }
+      ? { key: 'install', label: 'Installing', state: 'now', sub: [`${pct}%`, endWords].filter(Boolean).join(' · '), link: pct }
       : inField
         ? { key: 'install', label: 'Installing', state: 'done', sub: job.dates?.finish ? `Done ${job.dates.finish}` : 'Done' }
         : { key: 'install', label: 'Installing', state: 'later', sub: start ? `${startIso && startIso < TODAY ? 'was to start' : 'starts'} ${start}` : undefined },

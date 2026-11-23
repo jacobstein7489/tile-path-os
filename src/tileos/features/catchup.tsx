@@ -14,7 +14,7 @@ import { Building2, CalendarCheck, Check, ChevronLeft, ChevronRight, CircleCheck
 import { useStore, addHist, meOf, NOW, type Store } from '@/tileos/store'
 import { Avatar, Button, TextInput } from '@/tileos/components/ui/core'
 import { Group } from '@/tileos/components/ui/page'
-import { Modal } from '@/tileos/components/ui/overlay'
+import { Modal, DateField } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, type Customer, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
@@ -457,6 +457,7 @@ function Line({ label, hint, warn, children }: { label: string; hint?: string; w
   )
 }
 
+/** a start or a finish: the day in words, and a big calendar to pick it from (any day, one gone by too) */
 function DateBox({ value, min, onChange, label, data }: { value: string; min?: string; onChange: (v: string) => void; label: string; data: string }) {
-  return <input type="date" value={value} min={min || undefined} onChange={(e) => onChange(e.target.value)} aria-label={label} data-catchup-date={data} className="h-10 w-full rounded-[0.5625rem] border border-line bg-white px-3 text-[0.9375rem] text-ink focus:border-brand-300 focus:outline-none" />
+  return <DateField value={value} min={min} onChange={onChange} label={label} data-catchup-date={data} />
 }

@@ -8,6 +8,15 @@ export const DESIGNERS0: Designer[] = [
   { id: 'hudson', name: 'Hudson Row Design', contact: 'Designer', phone: '(718) 555-0122', email: 'office@hudsonrow.design', clients: ['parkave'], notes: '' },
 ]
 export const SAMPLE_DESIGNERS = true
+/** picked on a project: it has no designer, even when its client works with one */
+export const NO_DESIGNER = 'none'
+/** the designer on a project: the one picked on it (its details, or its People), or else the one who works with its
+ *  client — the same one everywhere (its name on top, its People, the designer's own projects) */
+export function designerOf(designers: Designer[], job?: { clientId: string; designerId?: string }): Designer | undefined {
+  if (!job || job.designerId === NO_DESIGNER) return undefined
+  if (job.designerId) { const d = designers.find((x) => x.id === job.designerId); if (d) return d }
+  return designers.find((d) => d.clients.includes(job.clientId))
+}
 
 export interface SubInfo { crew: string; trade: string; region?: string }
 export const SUBS0: SubInfo[] = [

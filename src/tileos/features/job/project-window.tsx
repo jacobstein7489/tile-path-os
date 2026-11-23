@@ -13,6 +13,7 @@ import { EstimatePaper } from '../estpaper'
 import { printNode } from '@/tileos/lib/print'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
 import { tileOf, floorsOf, roomPct } from '@/tileos/data/jobs'
+import { designerOf } from '@/tileos/data/directory'
 import { IN_FIELD_STAGES } from '../steps'
 import { readyForCrew, startProject } from '../flows'
 import { installerOf } from '../upcoming'
@@ -160,8 +161,10 @@ function StageBar({ job }: { job: Job }) {
   /* where the one going on is at — the problems counted the same as everywhere else, in red */
   const sub = (x: LineStep) => {
     const words = (x.sub || '').split(' · ').filter((w) => !/problem/.test(w))
-    return <>{words.join(' · ')}{n > 0 && <b className="font-medium text-bad-600" data-stands-problems={n}>{words.length ? ' · ' : ''}{n} {n === 1 ? 'problem' : 'problems'}</b>}</>
+    return <>{words.map((w, i) => <React.Fragment key={i}>{i > 0 && ' · '}<span className={/^Was to end/.test(w) ? 'font-medium text-warn-700' : undefined}>{w}</span></React.Fragment>)}{n > 0 && <b className="font-medium text-bad-600" data-stands-problems={n}>{words.length ? ' · ' : ''}{n} {n === 1 ? 'problem' : 'problems'}</b>}</>
   }
+  /* the day the one going on was reached: installing, the day it started */
+  const since = (x: LineStep) => (x.date ? <span data-stage-date>{x.key === 'install' ? 'Started ' : 'Since '}{x.date} · </span> : null)
   /* slim: a thin bar for each stage, and its name with its day on one line under it — the one going on in bold with
      how far it's got. Half the height it was, so the project itself has the room */
   return (
@@ -179,14 +182,14 @@ function StageBar({ job }: { job: Job }) {
                 <span className={cn('shrink-0', on && 'font-semibold')} data-stage-word={on ? '' : undefined}>{x.label}</span>
                 {/* its day — and, for the one going on, how far it's got */}
                 {/* the one going on: said whole (it goes on to a second line rather than end in "…") */}
-                {on ? <span className="min-w-0 text-muted" data-stage-sub>{x.date ? <span data-stage-date>{x.date} · </span> : null}{sub(x)}</span>
+                {on ? <span className="min-w-0 text-muted" data-stage-sub>{since(x)}{sub(x)}</span>
                   : x.date ? <span className="min-w-0 truncate tnum text-faint" data-stage-date>{x.date}</span> : null}
               </span>
             </li>
           )
         })}
       </ol>
-      {cur && <div className="mt-1 text-[0.8125rem] leading-snug text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {sub(cur)}</div>}
+      {cur && <div className="mt-1 text-[0.8125rem] leading-snug text-muted sm:hidden"><b className="font-semibold text-ink">{cur.label}</b> · {since(cur)}{sub(cur)}</div>}
     </div>
   )
 }
@@ -199,6 +202,19 @@ function keyDate(s: Store, job: Job): { text: string; late?: boolean } | null {
   return w.meta && !/billed|paid/.test(w.meta) ? { text: w.meta, late: w.late } : null
 }
 
+/** the address, only what it says beyond the project's name: "110 Park Pl" named "110 Park PL" says nothing more (not
+ *  shown twice); "110 Park Pl, Lakewood NJ" says "Lakewood NJ" */
+export function addressBeyond(name: string, address?: string): string {
+  const a = (address || '').trim()
+  if (!a) return ''
+  const norm = (t: string) => t.toLowerCase().replace(/[.,#]/g, ' ').replace(/\bplace\b/g, 'pl').replace(/\bstreet\b/g, 'st').replace(/\bavenue\b/g, 'ave').replace(/\broad\b/g, 'rd').replace(/\bdrive\b/g, 'dr').replace(/\s+/g, ' ').trim()
+  const n = norm(name)
+  const parts = a.split(/,\s*/)
+  /* its first part (the street) is the name: what's after it */
+  if (n && norm(parts[0]) === n) return parts.slice(1).join(', ')
+  if (n && norm(a) === n) return ''
+  return a
+}
 const META = 'inline-flex min-w-0 max-w-full items-center gap-1.5'
 const META_ICON = 'h-3.5 w-3.5 shrink-0 text-faint'
 
@@ -224,12 +240,15 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
       {['owner', 'pm'].includes(role) && <><MenuSep /><MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => s.open({ t: 'delete', kind: 'job', id: job.id })}>Delete this project…</MenuItem></>}
     </Menu>
   ) : null
-  const meta = [job.client, job.address].filter(Boolean)
-  const designer = s.designers.find((d) => d.clients.includes(job.clientId))
+  const meta = [job.client, addressBeyond(job.name, job.address)]
+  const designer = designerOf(s.designers, job)
+  /* the job's own person (and the designer): a tap opens them, to change them or take them off */
+  const canPeople = !['client', 'crew'].includes(role)
   const statusChip = status.onClick
     ? <button onClick={status.onClick} className="min-w-0"><Status tone={status.tone} plain={status.tone !== 'bad'}>{status.label}</Status></button>
     : <Status tone={status.tone} plain={status.tone !== 'bad'} className="min-w-0">{status.label}</Status>
-  const date = !pricing ? keyDate(s, job) : null
+  /* the one date that matters — installing, it's on the stage line (Started · Ends), not twice */
+  const date = !pricing && job.stage !== 'installation' ? keyDate(s, job) : null
   const hold = !pricing && job.hold
   return (
     <div className={cn('relative bg-white px-5 pb-3 pt-3 max-sm:px-4 max-sm:pt-3', mode === 'modal' && 'pr-14 max-sm:pr-14')} data-stands-head>
@@ -255,12 +274,20 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
         {hold && <span className="font-medium text-bad-600" data-on-hold>{statusChip}</span>}
         <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className={cn(META, 'hover:text-brand-700')} data-project-client><Building2 className={META_ICON} /><span className="truncate">{meta[0]}</span></button>
         {/* this job's own person to call (the homeowner on a "Private customer" job) — a tap calls them on a phone */}
-        {job.contacts?.[0] && <span className={META} data-job-contact><UserRound className={META_ICON} /><span className="truncate font-medium">{job.contacts[0].name}</span>{job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}</span>}
+        {job.contacts?.[0] && (
+          <span className={META} data-job-contact>
+            <UserRound className={META_ICON} />
+            {canPeople
+              ? <button onClick={() => s.open({ t: 'jobcontact', jobId: job.id, index: 0 })} className="min-w-0 truncate font-medium hover:text-brand-700" title="Change or take off" data-job-contact-open>{job.contacts[0].name}</button>
+              : <span className="truncate font-medium">{job.contacts[0].name}</span>}
+            {job.contacts[0].phone && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}
+          </span>
+        )}
         {meta[1] && <span className={META}><MapPin className={META_ICON} /><span className="truncate">{meta[1]}</span></span>}
         {!pricing && (crew
           ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(META, 'hover:text-brand-700')} title="The installer" data-project-installer><Avatar who={crew} size={20} /><span className="truncate font-medium">{PEOPLE[crew].short}</span></button>
           : !['closeout', 'complete'].includes(job.stage) && <span className={cn(META, 'text-muted')}><HardHat className={META_ICON} />No installer yet</span>)}
-        {designer && <span className={META} title="The designer"><Palette className={META_ICON} /><span className="truncate">{designer.name}</span></span>}
+        {designer && <button onClick={() => s.open({ t: 'designer', id: designer.id })} className={cn(META, 'hover:text-brand-700')} title="The designer" data-project-designer><Palette className={META_ICON} /><span className="truncate">{designer.name}</span></button>}
         {date && <span className={cn(META, date.late && 'font-medium text-warn-700')} data-key-date><CalendarDays className={META_ICON} />{date.text}</span>}
       </div>
       {/* where it is, like a parcel's tracking — six stages, clean */}
