@@ -92,6 +92,10 @@ export const PEOPLE: Record<PersonKey, Person> = {
   jose: { key: 'jose', name: 'Jose (Jersey)', short: 'Jose', initials: 'J', bg: 'bg-[#efe6da]', fg: 'text-[#74532c]', crew: true },
   system: { key: 'system', name: 'Tile OS', short: 'Tile OS', initials: 'OS', bg: 'bg-ink', fg: 'text-white' },
 }
+/** a person by key — or nothing, when there's nobody: an installer not picked yet ('', 'tbd'), someone not on the team */
+export const personOf = (k?: string | null): Person | undefined => (k ? (PEOPLE as Record<string, Person | undefined>)[k] : undefined)
+/** "Leo’s crew", or "No installer yet" */
+export const crewWords = (k?: string | null) => { const p = personOf(k); return p ? `${p.short}’s crew` : 'No installer yet' }
 /** who gets the game plan */
 export const seesUpcoming = (r: Role) => ['owner', 'pm', 'office', 'site', 'materials'].includes(r)
 export const CREWS: PersonKey[] = ['walter', 'leo', 'alex', 'philip', 'caesar', 'giovanni', 'jose']

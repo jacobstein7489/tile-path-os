@@ -20,7 +20,7 @@ import { readyForCrew, startProject } from '../flows'
 import { firstName } from './kit'
 import { installerOf } from '../upcoming'
 import { KindTag } from '../winhead'
-import { tagOfTask, plainTodo, todosOf, touchupsWords } from '../todokinds'
+import { tagOfTask, plainTodo, todosOf, touchupsWords, TOUCH_WORDS } from '../todokinds'
 
 export type LeftRow = {
   key: string
@@ -183,7 +183,8 @@ export function WhatsLeft({ job }: { job: Job }) {
     const words = l.open.map((t) => t.title.replace(/\.$/, '')).join(' · ')
     todoRows.push({ key: 'todos:' + who, kind: 'To do', what: `${words}${l.done.length ? ` · ${l.done.length} of ${l.open.length + l.done.length} done` : ''}`, who: who as PersonKey, iso: first.iso, when: first.when, late: rs.some((r) => r.late), tone: 'now', open: () => s.open({ t: 'todos', jobId: job.id, who }), done: () => {}, noCheck: true })
   })
-  const touchTask = (k: string) => punch.some((p) => p.taskId === k)
+  /* a touch-ups task, or (with the list there) a to-do about them said in words: inside the one touch-ups line */
+  const touchTask = (k: string) => punch.some((p) => p.taskId === k) || (!!touchRow && TOUCH_WORDS.test(s.tasks.find((t) => t.id === k && t.state === 'now')?.title || ''))
   const rest = [...(touchRow && !ret ? [touchRow] : []), ...todoRows, ...left.filter((r) => !touchTask(r.key) && r !== retTask && !folded.has(r.key))]
     .sort((a, b) => Number(b.tone === 'bad') - Number(a.tone === 'bad') || (a.iso || '9999').localeCompare(b.iso || '9999'))
   /* at the touch-ups, they're the next big thing: the return visit, then the touch-ups, first */

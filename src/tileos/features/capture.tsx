@@ -139,10 +139,10 @@ Our installers (key: name) · outside crews; they never talk to the GC, we pass 
 ${crews}
 
 The kinds of new things:
-- "task": something one of us has to do (call, send, check, set up, find out, pick up paperwork)
+- "task": something one of us has to do (call, send, check, set up, find out, pick up paperwork). A call one of us makes to find something out is a "task" for whoever calls, even a call to the GC ("call the contractor to see where the project is up to")
 - "problem": something wrong on a job, not good, broken, missing, wrong, leaking, not ready · that has to be fixed
 - "question": a question for us to answer, or to ask the client or the designer. Say it as the question
-- "gc": something the GC (the contractor) has to do, provide, fix or answer. A question for the GC too. We tell him today and remind him until it's done
+- "gc": something the GC (the contractor) owes us: he has to do, provide or fix it ("the GC has to put in the drain", "waiting on the GC for the vanity"). We tell him today and remind him until it's done. Never a call one of us makes: that's a "task"
 - "touchup": fixing or finishing our own tile work that's already in (grout, a crack, a loose or pitched tile). A punch list (they list what's left to fix on a job): every line is its own "touchup", all on that project. They all go on that project's one punch list. Never a "task" called punch list
 - "bring": material or a tool to pick up and bring to a job
 - "change": the designer or the client changed what we're doing. It needs a price and an OK
@@ -268,6 +268,8 @@ function kindOf(t: string): CapKind {
   if (/\bmeasure\b/.test(w)) return 'measure'
   if (/\b(designer|client) (decided|wants|changed)|\bchange order\b|\binstead of\b/.test(w)) return 'change'
   if (/\b(pick up|bring|deliver)\b/.test(w)) return 'bring'
+  /* a call we make (even to the GC) is ours to do: a task for today */
+  if (/^(call|phone|ring|text)\b/.test(w)) return 'task'
   if (/\b(contractor|gc)\b.*\b(has to|needs to|take care|waiting)|\bwaiting (for|on)\b/.test(w)) return 'gc'
   if (/\b(contractor|gc)\b/.test(w) && /\?\s*$/.test(w)) return 'gc'
   if (/\b(ask|tell|remind) the (gc|contractor)\b/.test(w)) return 'gc'

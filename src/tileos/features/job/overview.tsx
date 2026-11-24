@@ -12,7 +12,7 @@ import { Swatch } from '@/tileos/components/ui/swatch'
 import { Ring, Bar } from '@/tileos/components/ui/progress'
 import { TaskRow } from '../common'
 import { cn, TONE } from '@/tileos/lib/utils'
-import { PEOPLE, type Job, type Tone } from '@/tileos/data/model'
+import { PEOPLE, personOf, type Job, type Tone } from '@/tileos/data/model'
 import { SURF_LABEL, SURF_TONE, surfacePct, type Room, type Surface, tileOf } from '@/tileos/data/jobs'
 import { shortNow } from '@/tileos/data/work'
 import { sendToSite, setPunch, addPunch, buildRooms, verificationDone } from '../flows'
@@ -174,11 +174,11 @@ function InstallOverview({ job, setTab }: { job: Job; setTab: (t: JobTab) => voi
               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600"><HardHat className="h-4 w-4" /></span>
               Working now
             </div>
-            {job.crew && (
+            {personOf(job.crew) && (
               <div className="mb-3 flex items-center gap-2.5 rounded-xl bg-wash px-3 py-2.5">
-                <Avatar who={job.crew} size={30} />
+                <Avatar who={job.crew!} size={30} />
                 <div>
-                  <div className="text-[0.875rem] font-semibold text-ink">{PEOPLE[job.crew].name} · {job.workers} workers</div>
+                  <div className="text-[0.875rem] font-semibold text-ink">{personOf(job.crew)!.name} · {job.workers} workers</div>
                   <div className="text-[0.78125rem] text-muted">{lastUpdate ? `Update ${lastUpdate.date === NOW ? 'today' : lastUpdate.date}` : 'Last update Sat 4:10 PM'}</div>
                 </div>
               </div>

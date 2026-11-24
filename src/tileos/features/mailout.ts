@@ -297,7 +297,7 @@ export function crewMailWords(s: Store, rows: CrewLine[], day: string): { subjec
   const dayWords = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const subject = `Crews for ${dayWords} · ${on.length} ${on.length === 1 ? 'job' : 'jobs'}, ${people} ${people === 1 ? 'person' : 'people'}`
   const by = PEOPLE[meOf(s.role)]?.name || 'the site manager'
-  const crewName = (r: CrewLine) => PEOPLE[r.crew]?.name || 'No crew set'
+  const crewName = (r: CrewLine) => PEOPLE[r.crew]?.name || 'No installer yet'
   const jobName = (r: CrewLine) => s.jobs[r.jobId]?.name || 'A project'
   const addrOf = (r: CrewLine) => { const j = s.jobs[r.jobId]; return j?.address && j.address !== j.name ? j.address : '' }
   /* by crew: each crew once, its jobs under it (A to Z) — who's where at a glance */

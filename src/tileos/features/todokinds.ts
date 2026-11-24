@@ -38,14 +38,25 @@ export function todosOf(s: Pick<Store, 'tasks' | 'punch'>, jobId: string, who: P
   return { open, done }
 }
 
-/** touch-ups, counted the same everywhere: "1 of 4 done"; every one fixed but some still to be checked: "All fixed · 2
- *  to check"; all checked: "All done". (Fixed: the crew says it's done. Checked: the site manager or the office saw it.)
- *  With the word (the Projects list): "1 of 4 touch-ups done" */
+/** touch-ups, counted the same everywhere: none fixed yet "5 to fix"; some "1 of 4 fixed"; every one fixed but some still
+ *  to be checked "All fixed · 2 to check"; all checked "All done". (Fixed: the crew says it's done. Checked: the site
+ *  manager or the office saw it.) With the word (the Projects list): "5 touch-ups to fix", "1 of 4 touch-ups fixed" */
 export function touchupsWords(items: { status: string }[], noun?: boolean): string {
   const n = items.length
   const fixed = items.filter((p) => p.status === 'verify' || p.status === 'verified').length
   const toCheck = items.filter((p) => p.status === 'verify').length
   const word = noun ? ` ${n === 1 ? 'touch-up' : 'touch-ups'}` : ''
-  if (fixed < n) return `${fixed} of ${n}${word} done`
+  if (!fixed) return `${n}${word} to fix`
+  if (fixed < n) return `${fixed} of ${n}${word} fixed`
   return toCheck ? `All fixed · ${toCheck} to check` : n === 1 ? `Done` : `All ${n}${word} done`
+}
+/** a touch-ups to-do said in words ("Touch-ups at 114 — check them when Leo is done") — no list of its own */
+export const TOUCH_WORDS = /\btouch-?\s?ups?\b/i
+/** on a project that has its list of touch-ups, the to-dos about them in words (still open, the same person's) go
+ *  inside that one line — and show at the top of its window */
+export function strayTouchups(s: Pick<Store, 'tasks' | 'punch'>, main: Task): Task[] {
+  const linked = new Set(s.punch.map((p) => p.taskId).filter(Boolean) as string[])
+  if (!linked.has(main.id)) return []
+  const mine = (t: Task) => t.owner === main.owner || (t.also || []).includes(main.owner)
+  return s.tasks.filter((t) => t.id !== main.id && t.jobId === main.jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title) && mine(t))
 }

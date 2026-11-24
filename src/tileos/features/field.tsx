@@ -15,7 +15,7 @@ import { FlowSteps } from '@/tileos/components/ui/page'
 import { Swatch, TileImg } from '@/tileos/components/ui/swatch'
 import { Bar, MiniSteps } from '@/tileos/components/ui/progress'
 import { cn, TONE } from '@/tileos/lib/utils'
-import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
+import { PEOPLE, fmtMoney, personOf, type Job, type PersonKey } from '@/tileos/data/model'
 import { SURF_LABEL, SURF_TONE, surfacePct, jobPct, type Room, type Surface, tileOf, tilesOf, tileLine } from '@/tileos/data/jobs'
 import type { Media } from '@/tileos/data/field'
 import { sendDailyUpdate, siteChange, sendCO, approveChange, logMeeting, recordHeights, nextCO, setWalk } from './flows'
@@ -321,7 +321,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
      finished already is one quiet line, not more buttons), a photo, anything to flag, a note — Send */
   const header = (
     <div className="border-b border-line px-7 pb-4 pt-6 pr-20 max-sm:px-4 max-sm:pr-14 max-sm:pt-4">
-      <div className="text-[0.8125rem] font-medium text-muted">{job.crew ? `${PEOPLE[job.crew].name}’s crew` : 'Site'} · {dayShort(TODAY)} · {before}% installed</div>
+      <div className="text-[0.8125rem] font-medium text-muted">{personOf(job.crew) ? `${personOf(job.crew)!.name}’s crew` : 'Site'} · {dayShort(TODAY)} · {before}% installed</div>
       <h2 className="mt-0.5 text-[1.375rem] font-bold tracking-[-0.02em] text-ink max-sm:text-[1.1875rem]">Daily update · {job.name}</h2>
     </div>
   )
@@ -628,7 +628,7 @@ function useSiteChange({ jobId, room: r0, surface: s0, by: by0 = 'Homeowner', me
           {tileSF > 0 && (
             <li><button type="button" role="checkbox" aria-checked={tileOn} onClick={() => setDoTile((v) => !v)} className="flex w-full gap-2 text-left" data-change-tile>{tickBox(tileOn)}<span>Tile: about {tileNeed} SF of {tileTag} {tileOf(jobId, tileTag)?.name || ''}, with {waste}% for cuts. {supplier === 'GC' ? 'The GC is asked to order it once approved.' : 'We order it once approved.'}</span></button></li>
           )}
-          <li className="flex gap-2"><span className="mt-[0.4375rem] h-1.5 w-1.5 shrink-0 rounded-full bg-faint" />{sf ? `${meeting ? 'The' : crew ? `${PEOPLE[crew].name}’s` : 'The crew’s'} ${meeting ? `${room.toLowerCase()} ${sf.name.toLowerCase()} waits` : `phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()}`} until it’s approved. Everything else keeps going.` : 'Only that wall or floor waits.'}</li>
+          <li className="flex gap-2"><span className="mt-[0.4375rem] h-1.5 w-1.5 shrink-0 rounded-full bg-faint" />{sf ? `${meeting ? 'The' : personOf(crew) ? `${personOf(crew)!.name}’s` : 'The crew’s'} ${meeting ? `${room.toLowerCase()} ${sf.name.toLowerCase()} waits` : `phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()}`} until it’s approved. Everything else keeps going.` : 'Only that wall or floor waits.'}</li>
         </ul>
       </div>
     </div>
@@ -824,7 +824,7 @@ export function MeetingModal({ taskId, jobId: jid, kind, level }: { taskId?: str
   const job = s.jobs[jobId]
   const walk = kind === 'walk'
   const crew = (job?.crew || s.bookings.find((b) => b.jobId === jobId)?.crew) as PersonKey | undefined
-  const crewName = crew ? PEOPLE[crew].name : 'The crew'
+  const crewName = personOf(crew)?.name || 'The crew'
   const withOptions = walk ? [crewName, 'Site super', 'GC'] : ['Designer', 'Homeowner', 'GC']
   const [when, setWhen] = React.useState(walk ? 'Wed' : 'Thu')
   const [time, setTime] = React.useState(walk ? '8 AM' : '10 AM')

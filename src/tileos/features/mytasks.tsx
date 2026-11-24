@@ -5,14 +5,15 @@
 import * as React from 'react'
 import { create } from 'zustand'
 import { Sparkles, History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
-import { useStore, meOf, NOW, isRequest, DATA_KEYS, type Store } from '@/tileos/store'
+import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from '@/tileos/store'
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
-import { Button, Avatar, TextInput, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
 import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
-import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, type Role, type PersonKey, type Job } from '@/tileos/data/model'
+import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role, type PersonKey, type Job } from '@/tileos/data/model'
+import { Safe } from '@/tileos/components/ui/safe'
 import { TODAY_LABEL } from '@/tileos/data/jobs'
 import { REPEAT_LABEL, type Task, type TaskType } from '@/tileos/data/work'
 import { runTaskAction, setPunchOwner } from './flows'
@@ -47,9 +48,9 @@ import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 /** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
  *  text) gives each switch its own line rather than cut a word */
 import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
-import { TouchupLine } from './touchups'
+import { TouchupLine, StrayLine } from './touchups'
 import { holdWords } from './common'
-import { tagOfTask, plainTodo, todosOf, touchupsWords } from './todokinds'
+import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
 import { autoWho } from './autowho'
 import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 
@@ -375,18 +376,19 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   /* (a phone: your own line doesn't show your own circle — the list is yours; someone else's, or a shared one, does) */
   const phoneDoers = turnKeys.length === 1 && turnKeys[0] === viewer && !multi ? [] : turnKeys.includes(me) ? [me, ...turnKeys.filter((p) => p !== me)] : turnKeys
   const phoneTurn = !!t0.name || phoneDoers.length > 0
-  const dots = phoneTurn || watchers.length ? (
-    <span className="inline-flex h-[1.375rem] shrink-0 items-center gap-2" data-row-people>
-      {phoneTurn && (phoneDoers.length ? <span className="flex gap-0.5" data-row-doer={phoneDoers.join(',')}>{phoneDoers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null)}
-      <WatchDots who={watchers} eye />
+  /* a phone: only who does it, when it isn't just you (a shared one, someone else's) — who's watching is in its
+     window, not on the line */
+  const phoneDots = phoneTurn ? (
+    <span className="inline-flex h-5 shrink-0 items-center" data-row-people>
+      {phoneDoers.length ? <span className="flex gap-0.5" data-row-doer={phoneDoers.join(',')}>{phoneDoers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={18} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null}
     </span>
   ) : null
   /* the job, first — its address; no project: "Company", quiet. A phone with one job picked doesn't say it again under
      each row (the bar on top says it) */
   const company = project === 'Company'
   const where = project || ''
-  const inJob = React.useContext(InJob)
-  const wherePhone = inJob ? '' : where
+  /* a phone: the project always says on the line — with one job picked too, so every line says what it's for */
+  const wherePhone = where
   const phoneTop = !!wherePhone
   const flagged = flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}{where ? ' · ' : ''}</span> : null
   /* the star is yours: on your own list only — not on someone else's you're looking at */
@@ -404,7 +406,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       data-subrow
       /* a computer: one line, the list's straight columns. A phone: two lines — what to do, the job under it — every row
          the same height */
-      className={cn('group/row relative items-center border-t border-line-2 transition-colors focus-visible:outline-none max-md:flex max-md:min-h-[calc(4rem+1px)] max-md:gap-3 max-md:py-2 md:grid md:min-h-[3rem] md:gap-x-6 md:py-1.5', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      className={cn('group/row relative items-center border-t border-line-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-3 md:grid md:min-h-[3rem] md:gap-x-6 md:py-1.5', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
       data-starred={star?.on && ownList ? '' : undefined}
     >
       {/* its star, in the margin at the left — nothing on the line moves */}
@@ -415,27 +417,24 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
         {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
-          {/* a phone: the project on top (its address), who else is on it, and the time at its end; what it is under it */}
-          {phoneTop && (
-            <div className="flex min-h-[1.375rem] min-w-0 items-start gap-2 md:hidden">
-              <span className={cn('min-w-0 flex-1 break-words text-[0.9375rem] font-semibold leading-[1.375rem]', company ? 'text-muted' : 'text-ink')} data-row-where-phone>{flag ? <span className="font-medium text-bad-600" data-row-flag>{flag} · </span> : null}{wherePhone}</span>
-              {dots}
-              {w && phoneWhen && <span className={cn('shrink-0 text-[0.8125rem] leading-[1.375rem] tnum', whenCls)} data-todo-when-phone>{w}</span>}
+          {/* a phone: one quiet line on top — the project and what kind of thing it is (words, not tags), who else
+              has it, when — then what to do, bigger and darker: the one thing to read. Nothing boxed, few colors */}
+          {(phoneTop || kind || flag || phoneTurn || (w && phoneWhen)) && (
+            <div className="flex min-h-5 min-w-0 items-start gap-2 md:hidden" data-row-eyebrow>
+              <span className={cn('min-w-0 flex-1 break-words text-[0.84375rem] font-medium leading-5', company ? 'text-faint' : 'text-muted')} data-row-where-phone>
+                {flag ? <span className="text-bad-600" data-row-flag>{flag}{wherePhone || (kind && kind !== flag) ? ' · ' : ''}</span> : null}
+                {wherePhone}
+                {kind && kind !== flag ? <span className={kind === 'Problem' ? 'text-bad-600' : undefined} data-row-kind-phone={kind}>{wherePhone ? ' · ' : ''}{kind}</span> : null}
+              </span>
+              {phoneDots}
+              {w && phoneWhen && <span className={cn('shrink-0 text-[0.84375rem] leading-5 tnum', whenCls)} data-todo-when-phone>{w}</span>}
             </div>
           )}
-          {/* what it is: its kind, then the words — whole, never cut off (a long one takes a second line) */}
-          <div className={cn('flex min-w-0 items-start gap-2', phoneTop && 'max-md:mt-1')}>
-            {kind && <KindTag label={kind} className={phoneTop ? 'md:mt-[0.0625rem]' : 'mt-[0.0625rem]'} />}
-            <span className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem]', phoneTop && 'max-md:text-[0.875rem] max-md:leading-5', done ? 'text-muted line-through decoration-faint' : phoneTop ? 'text-ink md:text-ink max-md:text-ink-2' : 'text-ink')} data-row-title>{title}</span>
-            {!phoneTop && w && phoneWhen && <span className={cn('shrink-0 text-[0.8125rem] leading-[1.375rem] tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
+          {/* what it is: on a computer its kind, then the words — whole, never cut off (a long one takes a second line) */}
+          <div className="flex min-w-0 items-start gap-2 max-md:mt-1">
+            {kind && <KindTag label={kind} className="mt-[0.0625rem] max-md:hidden" />}
+            <span className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-md:text-[1rem] max-md:font-medium max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint max-md:font-normal' : 'text-ink')} data-row-title>{title}</span>
           </div>
-          {/* a phone, nothing on top (one job picked): the flag and the people under it */}
-          {!phoneTop && (flag || dots) && (
-            <div className="mt-1 flex h-[1.375rem] min-w-0 items-center gap-3 md:hidden">
-              <div className="min-w-0 flex-1 truncate text-[0.875rem] leading-5 text-muted" data-row-where-phone>{flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}</span> : null}</div>
-              {dots}
-            </div>
-          )}
         </div>
       </div>
       {who && (
@@ -574,7 +573,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
       icon={<ClipboardList />}
       /* yesterday's not sent: its day is on the right, in red — not twice on one line */
       title={d.missed ? 'Daily update, not sent' : 'Daily update'}
-      detail={`${PEOPLE[d.crew].short}’s crew · ${job.pct ?? 0}% installed`}
+      detail={`${crewWords(d.crew)} · ${job.pct ?? 0}% installed`}
       owner={showOwner ? siteOf(s, job) : undefined}
       project={job.name}
       when={d.missed ? md(d.missed) : undefined}
@@ -970,7 +969,10 @@ export function collapse(items: PlateItem[]): PlateItem[] {
   const trips = new Map<string, PlateItem[]>()
   const steps = new Map<string, PlateItem[]>()
   const add = (m: Map<string, PlateItem[]>, k: string, x: PlateItem) => m.set(k, [...(m.get(k) || []), x])
+  /* a project's list of touch-ups is one line; a to-do about them said in words, same person, goes inside it */
+  const touchLines = new Set(items.filter((x) => x.kind === 'task' && x.t && x.t.state === 'now' && touchIds.has(x.t.id)).map((x) => `${x.who || x.t!.owner}|${x.t!.jobId}`))
   items.forEach((x) => {
+    if (x.kind === 'task' && x.t && x.t.state === 'now' && !x.starred && !touchIds.has(x.t.id) && TOUCH_WORDS.test(x.t.title) && touchLines.has(`${x.who || x.t.owner}|${x.t.jobId}`)) return
     /* starred: its own line — it goes on top */
     if (x.starred) return out.push(x)
     /* every daily update on this list together — yesterday's not sent too */
@@ -1311,7 +1313,7 @@ function Lines({ lines: lines0, me, day, showOwner, on }: { lines: Line[]; me: P
   }
   return (
     <>
-      {lines.map((l, i) => <React.Fragment key={l.key}>{i === at && <NowLine min={nowMin} />}<LineOn.Provider value={on?.[l.key] || null}><LineRow l={l} me={me} showOwner={showOwner} /></LineOn.Provider></React.Fragment>)}
+      {lines.map((l, i) => <React.Fragment key={l.key}>{i === at && <NowLine min={nowMin} />}<LineOn.Provider value={on?.[l.key] || null}><Safe name={`Today line ${l.key}`}><LineRow l={l} me={me} showOwner={showOwner} /></Safe></LineOn.Provider></React.Fragment>)}
       {at === lines.length && <NowLine min={nowMin} />}
     </>
   )
@@ -1778,6 +1780,46 @@ export function MyTasksPage() {
   )
 }
 
+/** a GC item that's really ours to do (a call to make): a plain to-do for its person, due today */
+function gcToTodo(id: string) {
+  useStore.getState().commit((st) => {
+    const x = st.tasks.find((y) => y.id === id)
+    if (!x) return
+    x.state = 'now'
+    x.due = 'Today'
+    x.tone = 'info'
+    delete x.waitingOn; delete x.needBy; delete x.followUp; delete x.promised
+    ;(x.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(st.role), text: 'Made a to-do · ours, not the GC’s' })
+  }, 'It’s a to-do now', { sub: 'On their Today, today.' })
+}
+/** a call (call the GC, ask the client, find out…): what came of it is the point — so Done asks what they said */
+export const isCallTask = (t: Pick<Task, 'title' | 'state' | 'waitingOn'>) => t.state !== 'waiting' && /^\s*(call|phone|ring|text|ask|check with|find out|follow up with|reach out to|speak (to|with)|talk to)\b/i.test(t.title)
+function CallDone({ t, onDone }: { t: Task; onDone: () => void }) {
+  const s = useStore()
+  const [said, setSaid] = React.useState('')
+  /* no answer: a line in its notes, and it's back on the list tomorrow */
+  const noAnswer = () => {
+    s.commit((st) => {
+      const x = st.tasks.find((y) => y.id === t.id)
+      if (!x) return
+      x.due = 'Tomorrow'
+      ;(x.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(st.role), text: 'Called · no answer', note: true })
+    }, 'No answer · back tomorrow', { sub: 'It’s on your list again tomorrow.' })
+    onDone()
+  }
+  return (
+    <div data-call-panel>
+      <div className="text-[0.9375rem] font-semibold text-ink">What did they say?</div>
+      <div className="mb-2 mt-0.5 text-[0.8125rem] text-muted">It goes with it, for {t.by && t.by !== meOf(s.role) ? PEOPLE[t.by]?.short || 'whoever asked' : 'the team'} to read.</div>
+      <TextArea autoFocus rows={3} value={said} onChange={(e) => setSaid(e.target.value)} placeholder="e.g. Tile starts Monday. The drain is in." data-call-said />
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button className="max-sm:h-12 max-sm:flex-1 max-sm:text-[1rem]" onClick={noAnswer} data-call-noanswer>No answer · tomorrow</Button>
+        <Button variant="primary" className="ml-auto max-sm:h-12 max-sm:flex-1 max-sm:text-[1rem]" icon={<Check />} onClick={() => { s.completeTask(t.id, said.trim() || undefined); onDone() }} data-call-save>Done</Button>
+      </div>
+    </div>
+  )
+}
+
 function FollowedUp({ t, onDone }: { t: Task; onDone: () => void }) {
   const s = useStore()
   const [note, setNote] = React.useState('')
@@ -1854,6 +1896,7 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
   const [waitOpen, setWaitOpen] = React.useState(false)
+  const [callOpen, setCallOpen] = React.useState(false)
   /* a change from ··· opens in place of the task, with Back to it */
   const [panel, setPanel] = React.useState<null | 'share' | 'answer'>(null)
   /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
@@ -1896,6 +1939,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
     /* the admin shares it right in Who ("More than one can do it"); whoever has it, here */
     !admin && (t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it. Whoever gets to it first</MenuItem>,
     admin && t.state !== 'done' && <MenuItem key="all" icon={<Megaphone className="h-4 w-4" />} checked={!!t.everyone} onSelect={() => setEveryone(t.id, !t.everyone)}>On everyone’s Today</MenuItem>,
+    /* made as the GC's, but it's ours to do (a call to make): a to-do for its person, today */
+    isGcWait(t) && (!theirs || admin) && <MenuItem key="ours" icon={<ListTodo className="h-4 w-4" />} hint="A call or something we do. On their Today, today" onSelect={() => gcToTodo(t.id)} data-gc-to-todo>It’s ours to do, not the GC’s</MenuItem>,
   ].filter(Boolean)
   const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
   const more = items.length > 0 && (
@@ -1924,6 +1969,8 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
   /* what it's about — under its name; a request's "who asked" is its Status, not said twice. Touch-ups: their own
      checklist instead (the same as the project's), not a paragraph */
   const touch = s.punch.filter((p) => p.taskId === t.id)
+  /* to-dos about these touch-ups said in words (same project, same person): here, on top — they're not lines of their own */
+  const strays = touch.length ? strayTouchups(s, t) : []
   const about = touch.length ? '' : (isRequest(t) ? (t.detail || '').replace(/(^|\s*·\s*)[^·]*\basked for it\s*$/i, '') : t.detail || '').trim()
   const header = (
     <WinHead
@@ -1998,7 +2045,14 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       {hasAction ? (
         <Button variant="primary" className="max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
       ) : (
-        isRequest(t) && t.owner === meOf(s.role) ? <TripButtons t={t} size="md" onDone={() => s.close()} /> : <Button variant="primary" className="max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }} data-task-done>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
+        isRequest(t) && t.owner === meOf(s.role) ? <TripButtons t={t} size="md" onDone={() => s.close()} />
+          /* a call: Done asks what they said (it goes to whoever's following it) — or No answer, back tomorrow */
+          : isCallTask(t) && t.state === 'now' ? (
+            <Pop open={callOpen} onOpenChange={setCallOpen} side="top" align="end" width={380} sheet className="max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] max-sm:pt-3" trigger={<Button variant="primary" className="max-sm:flex-1" icon={<Check />} data-task-done data-call-done>Done</Button>}>
+              <CallDone t={t} onDone={() => { setCallOpen(false); s.close() }} />
+            </Pop>
+          )
+          : <Button variant="primary" className="max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }} data-task-done>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
       )}
     </>
   )
@@ -2019,6 +2073,12 @@ export function TaskModal({ id, level }: { id: string; level: number }) {
       {gcw && !theirs && <GcMessageBox t={t} />}
       {/* a to-do about a PO shows the PO itself: what was ordered, from whom — and Open the PO */}
       {poOfTask(t) && <div className="mb-5" data-task-po><LinkedPO t={t} /></div>}
+      {/* a to-do about them, said in words: on top, ticked off right here */}
+      {strays.length > 0 && (
+        <div className="mb-3 overflow-hidden rounded-2xl border border-line bg-white" data-task-strays>
+          {strays.map((x) => <StrayLine key={x.id} t={x} />)}
+        </div>
+      )}
       {/* touch-ups: the checklist itself — tick them right here, change their words, add photos */}
       {touch.length > 0 && (
         <div className="mb-5 overflow-hidden rounded-2xl border border-line bg-white [&>[data-touchup]:first-child]:border-t-0" data-task-touchups>
@@ -2401,7 +2461,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
               <Avatar who={r.crew} size={32} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[0.9375rem] font-semibold text-ink">{j?.name}</div>
-                <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? (today ? 'Nobody there today' : 'Nobody there') : `${PEOPLE[r.crew]?.name || 'The crew'}`}</div>
+                <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? (today ? 'Nobody there today' : 'Nobody there') : `${PEOPLE[r.crew]?.name || 'No installer yet'}`}</div>
                 {r.note && <div className="break-words text-[0.78125rem] leading-snug text-muted" data-crew-note>{r.note}</div>}
               </div>
               <div className={cn(small && 'w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>

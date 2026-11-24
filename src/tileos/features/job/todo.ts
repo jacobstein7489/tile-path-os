@@ -1,7 +1,7 @@
 /* What has to happen on a project at its stage — the checklist for setup, the site check, getting ready to start,
  * the install (what holds the work up, today's daily update, bills to make), touch-ups and closing out — and the
  * project's tasks and meetings, as one list with who has each. The project window's To do is built from this. */
-import { PEOPLE, fmtMoney, type Job, type PersonKey } from '@/tileos/data/model'
+import { PEOPLE, fmtMoney, crewWords, type Job, type PersonKey } from '@/tileos/data/model'
 import { shortNow, type Task } from '@/tileos/data/work'
 import { CAL_TODAY, type CalEvent } from '@/tileos/data/calendar'
 import { NOW } from '@/tileos/lib/today'
@@ -97,7 +97,7 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
       items.push({ key: 'held:' + why, title: why.replace(/ \d+ days? late$/, ''), status: these.some((x) => x.sf.state === 'blocked') ? 'bad' : 'wait', note: `${/late/.test(why) ? why.match(/\d+ days? late/)?.[0] + ' · ' : ''}holds up ${these.map((x) => `${x.room.toLowerCase()} ${x.sf.name.toLowerCase()}`).join(', ')}`, action: fix || undefined })
     })
     const sentToday = s.diary[job.id]?.[0]?.date === NOW
-    items.push({ key: 'daily', title: 'Today’s daily update', status: sentToday ? 'done' : 'todo', note: sentToday ? 'Sent' : `${PEOPLE[(job.crew as PersonKey) || 'ys'].short}’s crew · ${job.pct ?? 0}% installed`, action: sentToday ? undefined : { label: 'Send', run: () => s.open({ t: 'daily', jobId: job.id }) } })
+    items.push({ key: 'daily', title: 'Today’s daily update', status: sentToday ? 'done' : 'todo', note: sentToday ? 'Sent' : `${crewWords(job.crew)} · ${job.pct ?? 0}% installed`, action: sentToday ? undefined : { label: 'Send', run: () => s.open({ t: 'daily', jobId: job.id }) } })
     s.money.filter((m) => m.jobId === job.id && m.state === 'todo').forEach((m) => items.push({ key: m.id, title: m.title, status: 'todo', note: m.due, action: { label: m.action || 'Open', run: () => s.open({ t: 'money', id: m.id }) } }))
     return { heading: 'In progress', items }
   }

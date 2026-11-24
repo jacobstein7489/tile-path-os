@@ -12,10 +12,11 @@ import { cn } from '@/tileos/lib/utils'
 import { keepFiles, openFile } from '@/tileos/lib/files'
 import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
 import type { FileRec } from '@/tileos/data/jobs'
-import type { PunchItem } from '@/tileos/data/work'
+import type { PunchItem, Task } from '@/tileos/data/work'
 import { setPunch, setPunchOwner } from './flows'
 import { WhoMenu, WhenPop, type WhoPick, type WhenPick } from './winhead'
 import { isOff } from './active'
+import { TOUCH_WORDS } from './todokinds'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 import { fieldPeople } from './steps-ui'
 import { Whose } from './job/whatsleft'
@@ -72,11 +73,32 @@ export function TouchupsList({ job, bare }: { job: Job; /** inside the project's
   )
 }
 
+/** a to-do about the touch-ups said in words ("check them when Leo is done"): not a line of its own on the lists — one
+ *  line at the top of their window, ticked off there */
+export function StrayLine({ t }: { t: Task }) {
+  const s = useStore()
+  const iso = isoFromLabel(t.due)
+  const late = !!iso && iso < TODAY
+  const when = !t.due ? '' : late ? `Was due ${labelFromIso(iso!)}` : iso === TODAY || /^today$/i.test(t.due) ? 'Today' : `Due ${t.due}`
+  return (
+    <div className="flex items-start gap-3 border-t border-line-2 px-5 py-3 first:border-t-0 max-sm:px-4" data-task-stray={t.id}>
+      <button type="button" onClick={() => s.completeTask(t.id)} aria-label={`Done: ${t.title}`} className="mt-0.5 inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#c9c2b7] text-transparent transition hover:border-ok-500 hover:text-ok-500" data-task-stray-done><Check className="h-3 w-3" strokeWidth={3} /></button>
+      <span className="min-w-0 flex-1">
+        <span className="block break-words text-[0.9375rem] leading-snug text-ink">{t.title}</span>
+        {/* only the day goes red when it's late, not the whole line */}
+        <span className="block text-[0.8125rem] leading-snug text-muted">To-do{t.owner ? ` · ${t.owner === meOf(s.role) ? 'You' : PEOPLE[t.owner]?.short || ''}` : ''}{when ? <> · <span className={cn(late && 'font-medium text-bad-600')} data-stray-when>{when}</span></> : null}</span>
+      </span>
+    </div>
+  )
+}
 export function TouchupsModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
   if (!job) return null
   const items = s.punch.filter((p) => p.jobId === jobId)
+  /* the to-dos about them said in words: on top */
+  const linked = new Set(items.map((p) => p.taskId).filter(Boolean) as string[])
+  const strays = items.length ? s.tasks.filter((t) => t.jobId === jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title)) : []
   const open = items.filter((p) => p.status === 'open' || p.status === 'working')
   const check = items.filter((p) => p.status === 'verify')
   const done = items.filter((p) => p.status === 'verified')
@@ -96,7 +118,8 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
         </>
       }
     >
-      <div className="-mx-6 -my-5 max-sm:-mx-4"><TouchupsList job={job} /></div>
+      {strays.length > 0 && <div className="-mx-6 -mt-5 mb-5 border-b border-line-2 max-sm:-mx-4" data-task-strays>{strays.map((t) => <StrayLine key={t.id} t={t} />)}</div>}
+      <div className={cn('-mx-6 -my-5 max-sm:-mx-4', strays.length > 0 && 'mt-0')}><TouchupsList job={job} /></div>
     </Modal>
   )
 }

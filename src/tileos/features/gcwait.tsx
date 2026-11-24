@@ -12,7 +12,7 @@
  *
  * The admin doesn't chase anyone: every one of them is on his Today under Waiting on the GC — what the GC said, the
  * days left. Red only when something's wrong: the GC wasn't told the same day, a reminder was skipped, the GC missed
- * the day he gave, or it's a week before we start and it's still not done. */
+ * the day he gave, or it's two days before we start and it's still not done (a week out: amber). */
 import * as React from 'react'
 import { Hourglass, Check, Copy, Send, ChevronLeft } from 'lucide-react'
 import { useStore, meOf, NOW, addHist, type Store } from '@/tileos/store'
@@ -73,8 +73,10 @@ export function gcState(t: Task): GcState {
   if (!told && fu && fu < TODAY) return { text: 'GC not told yet', tone: 'bad', flag: true }
   if (t.promised && t.promised < TODAY) return { text: `GC said ${md(t.promised)}, not done`, tone: 'bad', flag: true }
   if (told && fu && fu < TODAY) return { text: `Reminder ${days(Math.max(1, workDaysTo(fu, TODAY)))} late`, tone: 'bad', flag: true }
-  if (n !== undefined && n <= 7) return { text: n < 0 ? `Needed ${days(-n)} ago` : n === 0 ? 'Needed today' : `${days(n)} left`, tone: 'bad', flag: true }
+  /* red only when it's late or two days out; a week out it's amber — something to watch, not a problem yet */
+  if (n !== undefined && n <= 2) return { text: n < 0 ? `Needed ${days(-n)} ago` : n === 0 ? 'Needed today' : `${days(n)} left`, tone: 'bad', flag: true }
   if (!told) return { text: 'Tell the GC today', tone: 'warn', flag: false }
+  if (n !== undefined && n <= 7) return { text: `${days(n)} left`, tone: 'warn', flag: false }
   if (n !== undefined) return { text: `Needed in ${days(n)}`, tone: 'quiet', flag: false }
   return { text: fu === TODAY ? 'Remind today' : fu ? `Remind ${labelFromIso(fu) === 'Tomorrow' ? 'tomorrow' : labelFromIso(fu)}` : 'Waiting', tone: 'quiet', flag: false }
 }

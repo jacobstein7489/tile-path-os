@@ -8,7 +8,7 @@ import { Card, Count, Avatar, Button } from '@/tileos/components/ui/core'
 import { Tip } from '@/tileos/components/ui/overlay'
 import { Bar } from '@/tileos/components/ui/progress'
 import { cn, dueBucket, greeting } from '@/tileos/lib/utils'
-import { roleDef, PEOPLE, CREWS, fmtMoney, STAGE_LABEL, seesUpcoming, type Role, type PersonKey } from '@/tileos/data/model'
+import { roleDef, PEOPLE, CREWS, fmtMoney, STAGE_LABEL, seesUpcoming, crewWords, type Role, type PersonKey } from '@/tileos/data/model'
 import { TODAY_LABEL } from '@/tileos/data/jobs'
 import type { Task } from '@/tileos/data/work'
 import { runTaskAction } from './flows'
@@ -304,7 +304,7 @@ function DailyRow({ it }: { it: DailyItem }) {
       <div className="min-w-0 flex-1">
         <div className="line-clamp-2 text-[0.90625rem] font-medium leading-snug text-ink">Send today’s update · {job.name}</div>
         <div className="mt-0.5 truncate text-[0.78125rem] text-muted">
-          {PEOPLE[it.crew].name}’s crew{it.workers ? `, ${it.workers} workers` : ''} · {job.pct ?? 0}% installed{last ? ` · last ${last.day.split(',')[0]}` : ''}
+          {crewWords(it.crew)}{it.workers ? `, ${it.workers} workers` : ''} · {job.pct ?? 0}% installed{last ? ` · last ${last.day.split(',')[0]}` : ''}
         </div>
       </div>
       <Button

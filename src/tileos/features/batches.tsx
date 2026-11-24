@@ -12,7 +12,7 @@ import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { BAND_STRONG, bandStyle, bandLabel } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
-import { PEOPLE, type Job, type PersonKey } from '@/tileos/data/model'
+import { PEOPLE, crewWords, type Job, type PersonKey } from '@/tileos/data/model'
 import { md, TODAY } from '@/tileos/lib/today'
 import type { Task } from '@/tileos/data/work'
 import { dailyDue, taskIso } from './mytasks'
@@ -54,7 +54,7 @@ export function DailiesModal({ who, jobs: only, level }: { who?: PersonKey; /** 
         {list.map((d) => {
           const j = s.jobs[d.jobId]
           const ok = sent(d)
-          const crew = d.crew && PEOPLE[d.crew] ? `${PEOPLE[d.crew].short}’s crew · ` : ''
+          const crew = `${crewWords(d.crew)} · `
           return (
             <div key={d.jobId} className="flex min-h-14 items-center gap-3 border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4" data-daily-row={d.jobId} data-sent={ok ? '1' : '0'}>
               <span className="min-w-0 flex-1">

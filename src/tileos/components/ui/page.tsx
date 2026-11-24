@@ -589,7 +589,7 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
                 {/* a phone (Today's row): the same little color as on a computer — its icon, small, before the number */}
                 {row ? (
                   <span className="flex items-center max-sm:justify-center max-sm:gap-1">
-                    <span className="inline-flex shrink-0 sm:hidden [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: b.on && !soft ? '#fff' : c.solid }} aria-hidden data-bubble-icon>{b.icon}</span>
+                    {/* (a phone: just the number and its name — no colored icons, the top stays calm) */}
                     <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
                   </span>
                 ) : <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>}

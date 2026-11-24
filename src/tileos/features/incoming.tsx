@@ -112,8 +112,8 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
             <button type="button" onClick={r.open} className="group flex min-h-[3.75rem] w-full items-center gap-3 px-6 py-2.5 text-left transition hover:bg-wash/70 max-sm:px-4" data-incoming-row {...(r.urgent ? { 'data-incoming-urgent': '' } : {})}>
               {r.who && PEOPLE[r.who] ? <Avatar who={r.who} size={32} /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash-2 text-muted">{r.icon}</span>}
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] font-semibold leading-snug text-ink">{r.title}</span>
-                <span className="block truncate text-[0.8125rem] leading-snug"><span className={r.tone === 'bad' ? 'font-medium text-bad-600' : r.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted'}>{r.why}</span>{r.job && <span className="text-muted"> · {r.job}</span>}</span>
+                <span className="block break-words text-[0.9375rem] font-semibold leading-snug text-ink">{r.title}</span>
+                <span className="block break-words text-[0.8125rem] leading-snug"><span className={r.tone === 'bad' ? 'font-medium text-bad-600' : r.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted'}>{r.why}</span>{r.job && <span className="text-muted"> · {r.job}</span>}</span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
             </button>

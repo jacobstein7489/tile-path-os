@@ -8,6 +8,8 @@ import { roleDef, seesUpcoming } from '@/tileos/data/model'
 import { Sidebar, TopBar, BottomNav, CommandPalette, DesktopTopBar, AppBadge, UpdatePill } from '@/tileos/components/shell/shell'
 import { ReadingBar } from '@/tileos/features/readcard'
 import { TipProvider } from '@/tileos/components/ui/overlay'
+import { Safe } from '@/tileos/components/ui/safe'
+import { Button } from '@/tileos/components/ui/core'
 import { MyTasksPage, TaskModal, NewTaskModal, CrewReportModal, CrewWatcher, JobPickModal, NobodyModal, TheirList, NobodyLine, theirToday } from '@/tileos/features/mytasks'
 import { CaptureModal } from './features/capture'
 import { AskButton } from '@/tileos/features/askbutton'
@@ -239,10 +241,24 @@ function ModalHost() {
   const modals = useStore((s) => s.modals)
   return (
     <>
+      {/* a window that can't be drawn doesn't open; the page under it stays as it was */}
       {modals.map((m, i) => (
-        <ModalSwitch key={[i, m.t, m.id || m.jobId || m.taskId || m.matId || '', m.tab || '', m.room || '', m.view || '', m.surface || '', m.tag || ''].join(':')} m={m} level={i} />
+        <Safe key={[i, m.t, m.id || m.jobId || m.taskId || m.matId || '', m.tab || '', m.room || '', m.view || '', m.surface || '', m.tag || ''].join(':')} name={`Window ${m.t}`}>
+          <ModalSwitch m={m} level={i} />
+        </Safe>
       ))}
     </>
+  )
+}
+
+/** a page that can't be drawn: one calm line and a way back, never a blank screen (the menu stays) */
+function PageTrouble() {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center" data-page-trouble>
+      <div className="text-[1.0625rem] font-semibold text-ink">This page didn’t load</div>
+      <div className="text-[0.875rem] text-muted">Reload to try again.</div>
+      <Button variant="primary" className="mt-1" onClick={() => window.location.reload()}>Reload</Button>
+    </div>
   )
 }
 
@@ -320,7 +336,9 @@ export default function App() {
             <TopBar />
             <DesktopTopBar />
             <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
-              {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[72rem] px-7 pb-28 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
+              <Safe name={`Page ${page}`} fallback={<PageTrouble />}>
+                {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[72rem] px-7 pb-28 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
+              </Safe>
             </main>
           </div>
           <BottomNav />

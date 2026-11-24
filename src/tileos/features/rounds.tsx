@@ -7,7 +7,7 @@
  *   Skip a stop for today (×), or add a project that isn't on it. The row on Today goes once every stop has its video. */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Navigation, Video, Send, Check, X, Plus, MapPinned } from 'lucide-react'
+import { Navigation, Video, Send, Check, X, Plus, MapPinned, LocateFixed, Car } from 'lucide-react'
 import { ListHead } from './winhead'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -21,7 +21,7 @@ import { useSmall } from '@/tileos/lib/phone'
 import { REAL } from '@/tileos/lib/save'
 import { keepFiles } from '@/tileos/lib/files'
 import { putLocal, getLocal, delLocal } from '@/tileos/lib/localdb'
-import { placeOf, findPlaces, inOrder, mapsRoute, mapsTo, whereAmI, type Pt } from '@/tileos/lib/route'
+import { placeOf, findPlaces, inOrder, mapsRoute, mapsTo, whereAmI, driveTable, guessTable, bestPath, driveWords, mileWords, type Pt } from '@/tileos/lib/route'
 import { ProjectField } from './formkit'
 
 const S = () => useStore.getState()
@@ -38,11 +38,16 @@ function setPicks(me: string, f: (p: Picks) => Picks) {
   try { localStorage.setItem(pickKey(me), JSON.stringify(f(readPicks(me)))) } catch { /* private window: for now only */ }
   usePicks.setState((x) => ({ n: x.n + 1 }))
 }
-/** the job sites with work going on: the jobs in progress (being installed) — not on hold, not getting ready, not the
- *  touch-ups */
-export function siteJobs(s: Store, _day = TODAY): Job[] {
-  return Object.values(s.jobs).filter((j) => !j.hold && j.stage === 'installation')
+/** where the crews are today: the crew list sent last night (or this morning) — the jobs with people there. No list
+ *  for today yet: the jobs with a crew booked today */
+export function siteJobs(s: Store, day = TODAY): Job[] {
+  const all = Object.values(s.jobs).filter((j) => !j.hold)
+  const said = (j: Job) => (j.onSite?.day === day ? j.onSite : j.crewPlan?.day === day ? j.crewPlan : undefined)
+  if (all.some((j) => said(j))) return all.filter((j) => (said(j)?.workers || 0) > 0)
+  return all.filter((j) => s.bookings.some((b) => b.jobId === j.id && b.start <= day && b.end >= day))
 }
+/** where today's stops come from, in words */
+export const stopsFrom = (s: Store, day = TODAY) => (Object.values(s.jobs).some((j) => !j.hold && (j.onSite?.day === day || j.crewPlan?.day === day)) ? 'from last night’s crew list' : 'with a crew booked today')
 /** Visit the jobs skipped for today (on any phone or computer): off Today until the next work day */
 export const roundsSkipped = (s: Pick<Store, 'rules'>, me: string) => s.rules.skipped?.['rounds:' + me] === TODAY
 export function skipRounds(me: string, skip = true) {
@@ -153,13 +158,38 @@ export function RoundsModal({ level }: { level: number }) {
   const forJob = React.useRef('')
   const jobs = roundJobs(s, me)
   const ids = jobs.map((j) => j.id).join()
+  const locate = () => { setHere(undefined); void whereAmI().then((p) => setHere(p)) }
   React.useEffect(() => { let on = true; void whereAmI().then((p) => { if (on) setHere(p) }); return () => { on = false } }, [])
-  React.useEffect(() => { const ac = new AbortController(); void findPlaces(jobs.map((j) => j.address || '').filter(Boolean), found, ac.signal); return () => ac.abort() }, [ids])
+  /* each address found (near where you are, once the phone says where that is) */
+  /* (the map asked about every one: one it couldn't answer goes last, the rest are planned without it) */
+  const [searched, setSearched] = React.useState('')
+  React.useEffect(() => { if (here === undefined) return; const ac = new AbortController(); void findPlaces(jobs.map((j) => j.address || '').filter(Boolean), found, ac.signal, here).then(() => { if (!ac.signal.aborted) setSearched(ids) }); return () => ac.abort() }, [ids, here === undefined])
   const left = jobs.filter((j) => !wentToday(j))
   const done = jobs.filter(wentToday)
-  const order = inOrder(left.map((j) => ({ id: j.id, j, pt: j.address ? placeOf(j.address) : null })), here)
-  const looking = here === undefined || order.some((x) => x.pt === undefined)
-  const how = looking ? 'putting them in driving order…' : order.filter((x) => x.pt).length >= 2 ? (here ? 'in driving order from where you are' : 'in driving order') : 'in the order they’re listed'
+  const stops = left.map((j) => { const pt = j.address ? placeOf(j.address) : null; return { id: j.id, j, pt: pt === undefined && searched === ids ? null : pt } })
+  const finding = here === undefined || stops.some((x) => x.pt === undefined)
+  /* the quickest way, by road: the drive between every two stops (and from where you are), every order tried */
+  const known = stops.filter((x) => x.pt) as (typeof stops[number] & { pt: Pt })[]
+  const key = `${here ? `${here.lat.toFixed(3)},${here.lng.toFixed(3)}` : '-'}|${known.map((x) => x.id).join()}`
+  const [plan, setPlan] = React.useState<{ key: string; ids: string[]; legs: { sec: number; m: number }[]; road: boolean } | null>(null)
+  React.useEffect(() => {
+    if (finding || known.length < 1) return
+    const ac = new AbortController()
+    const pts = [...(here ? [here] : []), ...known.map((x) => x.pt)]
+    void driveTable(pts, ac.signal).then((t) => {
+      if (ac.signal.aborted) return
+      const g = t || guessTable(pts)
+      const path = bestPath(g.sec, !!here)
+      const visit = here ? path.slice(1) : path
+      const legs = visit.map((p, i) => { const from = i === 0 ? (here ? 0 : -1) : visit[i - 1]; return from < 0 ? { sec: 0, m: 0 } : { sec: g.sec[from][p], m: g.m[from][p] } })
+      setPlan({ key, ids: visit.map((p) => known[p - (here ? 1 : 0)].id), legs, road: !!t })
+    })
+    return () => ac.abort()
+  }, [key, finding])
+  const planned = plan && plan.key === key ? plan : null
+  const order = planned ? [...planned.ids.map((id) => stops.find((x) => x.id === id)!).filter(Boolean), ...stops.filter((x) => !x.pt)] : inOrder(stops, here)
+  const legOf = (id: string) => { const i = planned ? planned.ids.indexOf(id) : -1; return i >= 0 ? planned!.legs[i] : undefined }
+  const total = planned ? planned.legs.reduce((a, l) => ({ sec: a.sec + l.sec, m: a.m + l.m }), { sec: 0, m: 0 }) : null
   const route = mapsRoute(order.map((x) => x.j.address || x.j.name))
   /* the camera, for one stop */
   const shoot = (jobId: string) => { forJob.current = jobId; const el = cam.current; if (el) { el.value = ''; el.click() } }
@@ -189,7 +219,7 @@ export function RoundsModal({ level }: { level: number }) {
       onClose={s.close}
       title="Visit the jobs"
       inlineClose
-      header={<ListHead kind={{ icon: <MapPinned />, label: 'Site visits' }} title="Visit the jobs" sub={left.length ? `${left.length} ${left.length === 1 ? 'job' : 'jobs'} ${how}` : 'Every job has its video'} who={me} me={me} when={`Today · ${dayShort(TODAY)}`} attrs={{ 'data-rounds-head': '' }} />}
+      header={<ListHead kind={{ icon: <MapPinned />, label: 'Site visit' }} title="Visit the jobs" sub={left.length ? `${left.length} ${left.length === 1 ? 'job site' : 'job sites'} ${stopsFrom(s)}` : jobs.length ? 'Every job has its video' : `No crews out today ${stopsFrom(s).replace(/^with a crew booked today$/, 'on the calendar')}`} who={me} me={me} when={`Today · ${dayShort(TODAY)}`} attrs={{ 'data-rounds-head': '' }} />}
       footer={
         left.length ? (
           <>
@@ -205,10 +235,28 @@ export function RoundsModal({ level }: { level: number }) {
       }
     >
       <div className="-mx-6 -my-5 max-sm:-mx-4" data-rounds>
+        {/* the day's drive, before Google Maps opens: how long, how far, from where */}
+        {left.length > 0 && (
+          <div className="flex items-start gap-3 border-b border-line-2 bg-[#f7f6f3] px-6 py-3.5 max-sm:px-4" data-rounds-plan>
+            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-700 shadow-[0_0_0_1px_rgba(0,0,0,.06)]"><Car className="h-[1.125rem] w-[1.125rem]" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[0.9375rem] font-semibold text-ink" data-rounds-total>
+                {total && total.sec > 0 ? <>{planned!.road ? '' : 'About '}{driveWords(total.sec)} driving · {mileWords(total.m)}</> : finding || known.length ? 'Working out the best route…' : `${left.length} ${left.length === 1 ? 'stop' : 'stops'}`}
+              </div>
+              <div className="mt-0.5 text-[0.8125rem] leading-snug text-muted" data-rounds-from>
+                {here === undefined ? 'Finding where you are…'
+                  : here ? <>{finding || (known.length && !planned) ? 'From where you are' : known.length >= 2 ? 'The quickest order, from where you are' : 'From where you are'}{planned && !planned.road ? ' · a guess, the road map didn’t answer' : ''}</>
+                    : <>Your location is off, so it starts at the first stop. To turn it on: the phone’s <b className="font-medium text-ink-2">Settings → Privacy & Security → Location Services → Safari Websites → While Using</b>.</>}
+              </div>
+              {here === null && <button type="button" onClick={locate} className="mt-1.5 inline-flex items-center gap-1.5 text-[0.84375rem] font-semibold text-brand-700" data-rounds-locate><LocateFixed className="h-4 w-4" />Try my location again</button>}
+            </div>
+          </div>
+        )}
         {order.map((x, i) => {
           const j = x.j
           const clip = clips[j.id]
           const line = [j.address, crewLine(s, j)].filter(Boolean).join(' · ')
+          const leg = legOf(j.id)
           return (
             <React.Fragment key={j.id}>
             {/* Google Maps takes ten stops at a time: where the first trip ends, and that the rest come after */}
@@ -216,9 +264,12 @@ export function RoundsModal({ level }: { level: number }) {
             <div className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-stop={j.id}>
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[0.8125rem] font-bold text-brand-700 tnum">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[0.9375rem] font-semibold text-ink">{j.name}</div>
+                <div className="break-words text-[0.9375rem] font-semibold text-ink">{j.name}</div>
                 {/* the address: Google Maps to just this one */}
-                <a href={mapsTo(j.address || j.name)} target="_blank" rel="noopener noreferrer" className="block truncate text-[0.8125rem] text-muted hover:text-brand-700" data-rounds-address>{line || 'No address yet'}</a>
+                <a href={mapsTo(j.address || j.name)} target="_blank" rel="noopener noreferrer" className="block break-words text-[0.8125rem] text-muted hover:text-brand-700" data-rounds-address>{line || 'No address yet'}</a>
+                {/* the drive to it: from where you are (the first), else from the stop before */}
+                {leg && leg.sec > 0 ? <div className="mt-0.5 text-[0.75rem] font-medium text-ink-2 tnum" data-rounds-leg>{planned!.road ? '' : '~'}{driveWords(leg.sec)} · {mileWords(leg.m)}{i === 0 && here ? ' from you' : ''}</div>
+                  : x.pt === null ? <div className="mt-0.5 text-[0.75rem] text-warn-700" data-rounds-nomap>Not found on the map · last</div> : null}
               </div>
               {clip
                 ? <Button variant="primary" size="sm" icon={<Send />} onClick={() => void send(j)} data-rounds-send>Send</Button>
