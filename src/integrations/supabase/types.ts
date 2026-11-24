@@ -1867,6 +1867,57 @@ export type Database = {
           },
         ]
       }
+      tileos_quickbooks: {
+        Row: {
+          access_expires: string | null
+          access_token: string | null
+          company: string | null
+          connected_at: string | null
+          connected_by: string | null
+          env: string | null
+          id: string
+          origin: string | null
+          realm_id: string | null
+          refresh_expires: string | null
+          refresh_token: string | null
+          state: string | null
+          state_expires: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_expires?: string | null
+          access_token?: string | null
+          company?: string | null
+          connected_at?: string | null
+          connected_by?: string | null
+          env?: string | null
+          id?: string
+          origin?: string | null
+          realm_id?: string | null
+          refresh_expires?: string | null
+          refresh_token?: string | null
+          state?: string | null
+          state_expires?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_expires?: string | null
+          access_token?: string | null
+          company?: string | null
+          connected_at?: string | null
+          connected_by?: string | null
+          env?: string | null
+          id?: string
+          origin?: string | null
+          realm_id?: string | null
+          refresh_expires?: string | null
+          refresh_token?: string | null
+          state?: string | null
+          state_expires?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tileos_records: {
         Row: {
           client_id: string | null
