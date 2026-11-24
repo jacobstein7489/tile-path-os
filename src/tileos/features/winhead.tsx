@@ -92,7 +92,7 @@ export function WinLine({ k, label, top, children }: { k: string; label: string;
  *  any), their circle, their name */
 function PersonOption({ p, me, on, round, lock, onClick, attrs }: { p: PersonKey; me: PersonKey; on: boolean; round?: boolean; lock?: boolean; onClick: () => void; attrs: Record<string, string> }) {
   return (
-    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} aria-disabled={lock || undefined} title={lock ? 'It’s theirs. To give it to someone else, turn off “More than one”' : undefined} onClick={lock ? undefined : onClick} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition', lock ? 'cursor-default' : 'hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
+    <button type="button" role={round ? 'radio' : 'checkbox'} aria-checked={on} aria-disabled={lock || undefined} title={lock ? 'It’s theirs. To give it to someone else, turn off “More than one”' : undefined} onClick={lock ? undefined : onClick} className={cn('flex min-h-9 w-full items-center gap-3 rounded-lg px-2 py-1 text-left text-[0.9375rem] text-ink transition', lock ? 'cursor-default' : 'hover:bg-wash', on && round && 'bg-brand-50/60 hover:bg-brand-50')} {...attrs}>
       {round
         ? <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
         : <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>}
@@ -126,12 +126,13 @@ export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.React
     setMany(!many)
   }
   return (
-    <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={trigger}>
-      <PeopleHead title="Who does it" sub={many ? 'Each one ticked has it. Whoever gets to it first.' : 'One person. It’s on their Today.'} />
-      <div className="-mx-1 flex flex-col" role={many ? 'group' : 'radiogroup'} data-who-options>
+    /* the top and the switch always show; when the screen is short, just the names scroll between them */
+    <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={trigger} className="flex flex-col overflow-hidden">
+      <div className="shrink-0"><PeopleHead title="Who does it" sub={many ? 'Each one ticked has it. Whoever gets to it first.' : 'One person. It’s on their Today.'} /></div>
+      <div className="scroll-soft -mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain" role={many ? 'group' : 'radiogroup'} data-who-options>
         {/* nobody yet — when that's a choice */}
         {pick.onNone && !many && (
-          <button type="button" role="radio" aria-checked={!pick.current} onClick={() => { setOpen(false); if (pick.current) pick.onNone!() }} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', !pick.current && 'bg-brand-50/60 hover:bg-brand-50')} data-who-option="none">
+          <button type="button" role="radio" aria-checked={!pick.current} onClick={() => { setOpen(false); if (pick.current) pick.onNone!() }} className={cn('flex min-h-9 w-full items-center gap-3 rounded-lg px-2 py-1 text-left text-[0.9375rem] text-ink transition hover:bg-wash', !pick.current && 'bg-brand-50/60 hover:bg-brand-50')} data-who-option="none">
             <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', !pick.current ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{!pick.current && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
             <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 rounded-full border border-dashed border-[#bdb6aa]" aria-hidden />
             <span className={cn('min-w-0 flex-1 truncate', !pick.current && 'font-medium')}>{pick.noneLabel || 'Nobody yet'}</span>
@@ -142,7 +143,7 @@ export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.React
         ))}
       </div>
       {pick.onAlso && (
-        <button type="button" role="switch" aria-checked={many} onClick={flip} className="-mx-1 mt-1.5 flex min-h-10 w-[calc(100%+0.5rem)] items-center gap-3 rounded-lg border-t border-line-2 px-2 pt-1.5 text-left text-[0.875rem] text-ink-2 transition hover:bg-wash" data-who-many>
+        <button type="button" role="switch" aria-checked={many} onClick={flip} className="-mx-1 mt-1.5 flex min-h-10 w-[calc(100%+0.5rem)] shrink-0 items-center gap-3 rounded-lg border-t border-line-2 px-2 pt-1.5 text-left text-[0.875rem] text-ink-2 transition hover:bg-wash" data-who-many>
           <span className={cn('relative inline-flex h-[1.125rem] w-8 shrink-0 rounded-full transition-colors', many ? 'bg-brand-600' : 'bg-[#d5d0c7]')}><span className={cn('absolute top-0.5 h-[0.875rem] w-[0.875rem] rounded-full bg-white shadow-sm transition-all', many ? 'left-[0.9375rem]' : 'left-0.5')} /></span>
           <span className="min-w-0 flex-1">More than one can do it</span>
         </button>

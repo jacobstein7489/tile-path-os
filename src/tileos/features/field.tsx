@@ -351,10 +351,11 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
       header={header}
       title="Daily update"
       bodyClass="px-7 py-5 max-sm:px-4"
+      footerClass="px-7"
       footer={
         <>
           <span className="min-w-0 text-[0.84375rem] text-muted max-sm:hidden">
-            {moved ? <><span className="font-semibold text-ink">{moved} {moved > 1 ? 'walls and floors' : 'wall or floor'}</span> moved</> : 'Nothing marked yet. It still goes as the crew being there'}
+            {moved ? <><span className="font-semibold text-ink">{moved} {moved > 1 ? 'walls and floors' : 'wall or floor'}</span> moved</> : 'Nothing marked yet. It still counts: the crew was there.'}
             {mediaCount ? ` · ${mediaCount} photo${mediaCount > 1 ? 's' : ''}` : ''}
             {moved && projected !== before ? <> · project <span className="font-semibold text-ink">{before}% → {projected}%</span></> : ''}
           </span>
@@ -414,7 +415,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                                 if (v < 100 && v <= cur) return <span key={v} className={cn('h-9 shrink-0 border border-transparent max-sm:flex-1', w)} aria-hidden />
                                 return (
                                   <button key={v} type="button" onClick={() => setFor(rm.name, sf, on ? null : v)} aria-pressed={on}
-                                    className={cn('inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border text-[0.84375rem] font-semibold tnum transition max-sm:flex-1', w, on ? (v >= 100 ? 'border-ok-500 bg-ok-500 text-white' : 'border-brand-600 bg-brand-600 text-white') : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:bg-brand-50')}>
+                                    className={cn('inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border text-[0.84375rem] font-semibold tnum transition max-sm:flex-1', v >= 100 && 'max-sm:flex-[1.4]', w, on ? (v >= 100 ? 'border-ok-500 bg-ok-500 text-white' : 'border-brand-600 bg-brand-600 text-white') : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:bg-brand-50')}>
                                     {v >= 100 ? <><Check className="h-3.5 w-3.5" strokeWidth={2.6} />Done</> : `${v}%`}
                                   </button>
                                 )

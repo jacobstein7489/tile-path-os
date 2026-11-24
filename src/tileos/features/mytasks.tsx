@@ -605,7 +605,8 @@ function TodosRow({ x, showOwner, overdue }: { x: PlateItem; showOwner?: boolean
       detail={ts.map((t) => t.title).join(' · ')}
       owner={who}
       project={job?.name || 'Company'}
-      when={late || (x.b === 'today' ? 'Today' : x.iso ? md(x.iso) : 'Anytime')}
+      /* like every other line for today: nothing in When unless it's late (another day: its date) */
+      when={late || (x.b === 'today' ? undefined : x.iso ? md(x.iso) : 'Anytime')}
       whenTone={late ? 'bad' : 'quiet'}
       action={<Button size="sm" className={TBTN} onClick={open} data-todos-open>Open</Button>}
     />
@@ -2336,10 +2337,14 @@ export function CrewWatcher() {
 export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string; level: number; day?: string }) {
   const s = useStore()
   const small = useSmall()
-  /* who gets it: the people it's emailed to (Settings → Automations → Crew list), else the office */
-  const mailed = s.rules.crewMail?.off ? [] : crewMailPeople(s).filter((p) => p !== meOf(s.role))
-  const goesTo = mailed.length > 3 ? `${mailed.slice(0, 2).map((p) => PEOPLE[p]?.short || p).join(', ')} and ${mailed.length - 2} more`
-    : mailed.length ? namesOf(mailed) : PEOPLE[meOf('owner')]?.short || 'the office'
+  /* who gets it: the people it's emailed to (Settings → Automations → Crew list) — only those with an email, the same
+     ones the email counts — else it stays in the app, for the office */
+  const meK = meOf(s.role)
+  const mailed = s.rules.crewMail?.off ? [] : crewMailPeople(s).filter((p) => !!s.team.find((m) => m.key === p)?.email).sort((a, b) => (a === meK ? -1 : b === meK ? 1 : 0))
+  const nm = (p: PersonKey) => (p === meK ? 'you' : PEOPLE[p]?.short || p)
+  const goesTo = mailed.length > 3 ? `It’s emailed to ${mailed.slice(0, 2).map(nm).join(', ')} and ${mailed.length - 2} more`
+    : mailed.length ? `It’s emailed to ${mailed.length === 1 ? nm(mailed[0]) : `${mailed.slice(0, -1).map(nm).join(', ')} and ${nm(mailed[mailed.length - 1])}`}`
+    : `It goes to ${PEOPLE[meOf('owner')]?.short || 'the office'}`
   /* the day it's for: the one it was opened for, else today's until 3 and the next work day's after */
   const [day] = React.useState(() => day0 || crewDay())
   const today = day === TODAY_ISO
@@ -2369,7 +2374,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
       onClose={s.close}
       title={`Where the crews are ${crewWhen(day)}`}
       inlineClose
-      header={<ListHead kind={{ icon: <HardHat />, label: 'Crew list' }} title={`Where the crews are ${crewWhen(day)}`} sub={`How many people on each project. It goes to ${goesTo}.`} who={meOf(s.role)} me={meOf(s.role)} when={dayShort(day)} attrs={{ 'data-crew-head': '' }} />}
+      header={<ListHead kind={{ icon: <HardHat />, label: 'Crew list' }} title={`Where the crews are ${crewWhen(day)}`} sub={`How many people on each project. ${goesTo}.`} who={meOf(s.role)} me={meOf(s.role)} when={dayShort(day)} attrs={{ 'data-crew-head': '' }} />}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted max-sm:hidden">{on} {on === 1 ? 'project' : 'projects'} · {people} {people === 1 ? 'person' : 'people'}</span>

@@ -1047,10 +1047,11 @@ function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEst
         <span key={i} className="flex flex-col gap-1">
           <span className="flex items-center gap-1.5">
             <TextInput type="email" inputMode="email" value={v} onChange={(e) => setList(list.map((x, j) => (j === i ? e.target.value : x)))} onBlur={() => save()} onKeyDown={(e) => { if (e.key === 'Enter') save() }}
-              placeholder={i === 0 ? 'Nobody · name@company.com' : 'Another email'} aria-label={`Copied on ${title.toLowerCase()}${i ? ` · ${i + 1}` : ''}`} className={cn('min-w-0 flex-1', bad(v) && 'border-bad-300')} data-email-cc-box={i} />
-            {(list.length > 1 || v.trim()) && (
+              placeholder={i === 0 ? 'name@company.com' : 'Another email'} aria-label={`Copied on ${title.toLowerCase()}${i ? ` · ${i + 1}` : ''}`} className={cn('min-w-0 flex-1', bad(v) && 'border-bad-300')} data-email-cc-box={i} />
+            {/* the × keeps its place even when there's nothing to take off, so every box ends at the same edge */}
+            {list.length > 1 || v.trim() ? (
               <button type="button" aria-label={`Stop copying ${v || 'this one'}`} onClick={() => { const n = list.filter((_, j) => j !== i); const next = n.length ? n : ['']; setList(next); save(next) }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-bad-50 hover:text-bad-600"><X className="h-4 w-4" /></button>
-            )}
+            ) : <span className="h-9 w-9 shrink-0" aria-hidden />}
           </span>
           {bad(v) && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
         </span>
