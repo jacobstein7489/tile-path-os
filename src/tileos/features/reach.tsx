@@ -12,13 +12,53 @@ export const PHONE_LABELS = ['Cell', 'Office', 'Home', 'Fax', 'Other']
 export const EMAIL_LABELS = ['Work', 'Billing', 'Personal', 'Other']
 export const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim())
 
+/** a phone number in the usual shape — (718) 555-0100; with a 1 in front +1 (718) 555-0100; an extension kept
+ *  ("x12"); a number from abroad (+44…) as it was typed */
+export function fmtPhone(v: string): string {
+  const t = v.trim()
+  if (!t) return ''
+  const ext = t.match(/\s*(?:x|ext\.?)\s*(\d+)$/i)
+  const base = ext ? t.slice(0, ext.index) : t
+  if (/^\+(?!1\b)/.test(base.replace(/\s/g, '')) && !/^\+1/.test(base.replace(/\s/g, ''))) return t
+  let d = base.replace(/\D/g, '')
+  let pre = ''
+  if (d.length === 11 && d.startsWith('1')) { pre = '+1 '; d = d.slice(1) }
+  if (d.length !== 10) return t
+  return `${pre}(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}${ext ? ` x${ext[1]}` : ''}`
+}
+/** a whole phone number: 10 digits (a 1 in front is fine), or a number from abroad with its + */
+export const isPhone = (v: string) => { const d = v.replace(/(?:x|ext\.?)\s*\d+$/i, '').replace(/\D/g, ''); return /^\s*\+/.test(v) ? d.length >= 8 : d.length === 10 || (d.length === 11 && d.startsWith('1')) }
+
+/** a phone box: it puts the number in shape when you leave it, and says so when it's not a whole number */
+export function PhoneInput({ value, onChange, className, label = 'Phone', placeholder = '(718) 555-0100', required }: { value: string; onChange: (v: string) => void; className?: string; label?: string; placeholder?: string; required?: boolean }) {
+  const [left, setLeft] = React.useState(false)
+  const bad = left && (value.trim() ? !isPhone(value) : !!required)
+  return (
+    <span className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <TextInput aria-label={label} type="tel" inputMode="tel" autoComplete="tel" value={value} onChange={(e) => onChange(e.target.value)} onBlur={() => { setLeft(true); const f = fmtPhone(value); if (f !== value) onChange(f) }} placeholder={placeholder} className={cn('w-full', bad && 'border-bad-300')} data-phone-input />
+      {bad && <span className="text-[0.75rem] font-medium text-bad-600">{value.trim() ? 'That isn’t a whole phone number' : 'A phone number is needed'}</span>}
+    </span>
+  )
+}
+/** an email box: it tidies the address when you leave it, and says so when it isn't one */
+export function EmailInput({ value, onChange, className, label = 'Email', placeholder = 'name@company.com', required }: { value: string; onChange: (v: string) => void; className?: string; label?: string; placeholder?: string; required?: boolean }) {
+  const [left, setLeft] = React.useState(false)
+  const bad = left && (value.trim() ? !isEmail(value) : !!required)
+  return (
+    <span className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <TextInput aria-label={label} type="email" inputMode="email" autoComplete="email" value={value} onChange={(e) => onChange(e.target.value)} onBlur={() => { setLeft(true); const f = value.trim().toLowerCase(); if (f !== value) onChange(f) }} placeholder={placeholder} className={cn('w-full', bad && 'border-bad-300')} data-email-input />
+      {bad && <span className="text-[0.75rem] font-medium text-bad-600">{value.trim() ? 'That isn’t an email address' : 'An email is needed'}</span>}
+    </span>
+  )
+}
+
 /** the list as it's kept: empty rows out, spaces trimmed (nothing at all: no list) */
 export function cleanReach(list: Reach[] | undefined): Reach[] | undefined {
   const out = (list || []).map((r) => ({ ...r, value: r.value.trim() })).filter((r) => r.value)
   return out.length ? out : undefined
 }
-/** every email typed in is an email address */
-export const reachOk = (list: Reach[] | undefined) => (list || []).every((r) => r.kind !== 'email' || !r.value.trim() || isEmail(r.value))
+/** every email typed in is an email address, every phone a whole number */
+export const reachOk = (list: Reach[] | undefined) => (list || []).every((r) => !r.value.trim() || (r.kind === 'email' ? isEmail(r.value) : isPhone(r.value)))
 const telOf = (v: string) => `tel:${v.replace(/ext.*$/i, '').replace(/[^\d+]/g, '')}`
 
 /** the editor: one row for each extra phone or email — what it's for, the number or address, and × to take it off */
@@ -54,6 +94,7 @@ export function MoreReach({ value, onChange, className }: { value: Reach[] | und
                 inputMode={r.kind === 'phone' ? 'tel' : 'email'}
                 value={r.value}
                 onChange={(e) => set(i, { value: e.target.value })}
+                onBlur={() => { const f = r.kind === 'phone' ? fmtPhone(r.value) : r.value.trim().toLowerCase(); if (f !== r.value) set(i, { value: f }) }}
                 placeholder={r.kind === 'phone' ? '(718) 555-0100' : 'name@company.com'}
                 className="h-10 min-w-0 flex-1"
               />

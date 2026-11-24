@@ -21,6 +21,7 @@ import { crewMailPeople, crewMailWords, emailCrewList, mailLive, type CrewLine }
 import { crewsOn, nextWorkDay } from './mytasks'
 import { showPop } from '@/tileos/lib/pop'
 import { PUBLISHED } from '@/tileos/lib/save'
+import { autoWho } from './autowho'
 import { TODAY } from '@/tileos/lib/today'
 
 const S = () => useStore.getState()
@@ -33,34 +34,41 @@ const boss = (s: Store) => meOf('owner')
 const siteMgr = (s: Store) => roleHolder(s, 'site') || (onTeam(s, 'yakov') ? 'yakov' : boss(s))
 const books = (s: Store) => roleHolder(s, 'accounting') || (onTeam(s, 'accounting') ? 'accounting' : boss(s))
 export const AUTOS: AutoDef[] = [
-  { key: 'crew-morning', short: 'Tomorrow’s crews on his Today. Send emails it to the team.', who: siteMgr, what: 'Crew list: where the crews are tomorrow', sub: 'On his Today every work day: each job in progress with a crew the next day, how many people already filled in. He fixes what’s different and taps Send: it’s emailed right away to the people you pick. Not sent by morning: it comes up again then, for that day.', when: (s) => `Every work day at ${hourWords(s.rules.crewAt ?? 18)}`, icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count|tomorrow/i },
-  { key: 'rounds', short: 'Each job site with work going on, in driving order, a video from each.', who: boss, what: 'Visit the jobs', sub: 'Every work day on your Today: each job site with work going on, in driving order from where you are · Google Maps through all of them, and a video from each one (it goes out on WhatsApp and stays with the project)', when: () => 'Every work day', icon: MapPinned, toggle: true, words: /visit|rounds|route|google maps|video/i },
-  { key: 'daily-update', short: 'One per job with a crew working: how far each wall and floor moved.', who: siteMgr, what: 'Daily update for each crew on site', sub: 'One per project with a crew working. How far each wall and floor moved, with photos. It’s what installer pay is figured from.', when: () => 'Every work day', icon: ClipboardList, toggle: true, words: /daily|update|progress|how far/i },
+  { key: 'crew-morning', short: 'Tomorrow’s crews on his Today. Send emails it to the team.', who: (s) => autoWho(s, 'crew-morning') || siteMgr(s), what: 'Crew list: where the crews are tomorrow', sub: 'On his Today every work day: each job in progress with a crew the next day, how many people already filled in. He fixes what’s different and taps Send: it’s emailed right away to the people you pick. Not sent by morning: it comes up again then, for that day.', when: (s) => `Every work day at ${hourWords(s.rules.crewAt ?? 18)}`, icon: HardHat, toggle: true, words: /crew|people|where.*work|head ?count|tomorrow/i },
+  { key: 'rounds', short: 'Each job site with work going on, in driving order, a video from each.', who: (s) => autoWho(s, 'rounds') || boss(s), what: 'Visit the jobs', sub: 'Every work day on your Today: each job site with work going on, in driving order from where you are · Google Maps through all of them, and a video from each one (it goes out on WhatsApp and stays with the project)', when: () => 'Every work day', icon: MapPinned, toggle: true, words: /visit|rounds|route|google maps|video/i },
+  { key: 'daily-update', short: 'One per job with a crew working: how far each wall and floor moved.', who: (s) => autoWho(s, 'daily-update') || siteMgr(s), what: 'Daily update for each crew on site', sub: 'One per project with a crew working. How far each wall and floor moved, with photos. It’s what installer pay is figured from.', when: () => 'Every work day', icon: ClipboardList, toggle: true, words: /daily|update|progress|how far/i },
   { key: 'delivery', short: 'On the day it’s due: all here, or short, wrong or broken.', who: (s) => matBy(s), what: 'Check in each delivery', sub: 'On the day it’s due, all here, or short, wrong or broken', when: () => 'On the delivery day', icon: Truck, toggle: false, words: /deliver|check in|arriv/i },
-  { key: 'pay-review', who: boss, what: 'Approve installer pay for the week', sub: 'Every installer’s week from the daily updates, next to his bill', when: () => 'Every Monday', icon: HandCoins, toggle: true, words: /\bpay\b|payroll|approve/i },
+  { key: 'pay-review', who: (s) => autoWho(s, 'pay-review') || boss(s), what: 'Approve installer pay for the week', sub: 'Every installer’s week from the daily updates, next to his bill', when: () => 'Every Monday', icon: HandCoins, toggle: true, words: /\bpay\b|payroll|approve/i },
   { key: 'est-final', who: (s) => companyTeam(s).final, what: 'Final review of every estimate', sub: 'When the office review is done. Approve it and it goes to the client', when: () => 'When it’s their turn', icon: BadgeCheck, toggle: false, words: /final review|review.*estimate/i },
   { key: 'est-followup', who: (s) => companyTeam(s).follow, what: 'Follow up on estimates that went out', sub: 'The client hasn’t answered. Call or email, then set the next date', when: (s) => `${s.rules.followDays ?? 3} days after it’s sent`, icon: PhoneCall, toggle: true, words: /follow.?up|estimate.*(sent|answer)/i },
   { key: 'steps', short: 'Each step lands on its person’s Today when the one before it is done.', who: boss, what: 'Getting-ready steps, in order', sub: 'Every project’s steps. Each lands on its own person’s Today when the one before it is done (Who does what)', when: () => 'When it’s their turn', icon: ListChecks, toggle: false, words: /paperwork|design meeting|site check|heights|installer|materials|tile delivery/i },
   { key: 'late', short: 'What’s past its date, the first time each person opens the app.', who: boss, what: 'What’s late. A pop-up for each person', sub: 'Once a day, the first time they open it: what’s past its date on their Today. You also see the team’s, with “Remind”. It pops up on their screen.', when: () => 'Once a day', icon: AlarmClock, toggle: true, words: /\blate\b|overdue|past due|behind/i },
-  { key: 'inv-remind', who: books, what: 'Remind clients about unpaid invoices', sub: 'A reminder email, ready to send, until it’s paid', when: (s) => `Every ${s.rules.reminderDays} days after it’s due`, icon: Mail, toggle: true, words: /unpaid|invoice|remind.*pa/i },
-  { key: 'billing-day', short: 'Last week’s progress on every project, ready to bill.', who: books, what: 'Bill last week’s progress', sub: 'What got installed on every project last week, from the daily updates. What to bill each client, one click per bill', when: () => 'Every Monday', icon: Receipt, toggle: true, words: /\bbill|billing/i },
+  { key: 'inv-remind', who: (s) => autoWho(s, 'inv-remind') || books(s), what: 'Remind clients about unpaid invoices', sub: 'A reminder email, ready to send, until it’s paid', when: (s) => `Every ${s.rules.reminderDays} days after it’s due`, icon: Mail, toggle: true, words: /unpaid|invoice|remind.*pa/i },
+  { key: 'billing-day', short: 'Last week’s progress on every project, ready to bill.', who: (s) => autoWho(s, 'billing-day') || books(s), what: 'Bill last week’s progress', sub: 'What got installed on every project last week, from the daily updates. What to bill each client, one click per bill', when: () => 'Every Monday', icon: Receipt, toggle: true, words: /\bbill|billing/i },
 ]
 export const autoOn = (s: Pick<Store, 'rules'>, key: string) => !(s.rules.autoOff || []).includes(key)
 /** 18 → "6 PM" */
 export const hourWords = (h: number) => (h === 12 ? 'Noon' : `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`)
 /** who gets each of the app's own: changed right in its window where the company sets it (the estimate's final review
  *  and follow-up, who checks in the deliveries); the rest say who it goes to, and where that's set */
-const WHO_EDIT: Record<string, { set?: (p: PersonKey) => void; note?: string; go?: 'checklist' | 'team' }> = {
-  'est-final': { set: (p) => setCompanyPeople('final', [p]) },
-  'est-followup': { set: (p) => setCompanyPeople('follow', [p]) },
-  delivery: { set: (p) => S().commit((st) => { st.rules.matBy = p }, `${PEOPLE[p]?.short || 'They'} checks in the deliveries`) },
+/** pick who gets one (or back to the usual person) — it lands on their Today from then on */
+const setWho = (key: string, what: string) => (p: PersonKey | null) => S().commit((st) => {
+  const m = { ...(st.rules.autoWho || {}) }
+  if (p) m[key] = p
+  else delete m[key]
+  st.rules.autoWho = m
+}, p ? `${PEOPLE[p]?.short || 'They'} gets it` : 'Back to the usual person', { sub: `${what}: on their Today from now on.` })
+const WHO_EDIT: Record<string, { set?: (p: PersonKey | null) => void; usual?: string; note?: string; go?: 'checklist' | 'team' }> = {
+  'est-final': { set: (p) => p && setCompanyPeople('final', [p]) },
+  'est-followup': { set: (p) => p && setCompanyPeople('follow', [p]) },
+  delivery: { set: (p) => p && S().commit((st) => { st.rules.matBy = p }, `${PEOPLE[p]?.short || 'They'} checks in the deliveries`) },
   steps: { note: 'Each step has its own person', go: 'checklist' },
-  'crew-morning': { note: 'Each project’s site manager', go: 'team' },
-  'daily-update': { note: 'Each project’s site manager', go: 'team' },
-  'inv-remind': { note: 'Whoever does the books', go: 'team' },
-  'billing-day': { note: 'Whoever does the books', go: 'team' },
-  rounds: { note: 'The admin' },
-  'pay-review': { note: 'The admin' },
+  'crew-morning': { set: setWho('crew-morning', 'The crew list'), usual: 'The site manager' },
+  'daily-update': { set: setWho('daily-update', 'The daily updates'), usual: 'Each project’s site manager' },
+  'inv-remind': { set: setWho('inv-remind', 'Invoice reminders'), usual: 'Whoever does the books' },
+  'billing-day': { set: setWho('billing-day', 'Billing the week'), usual: 'Whoever does the books' },
+  rounds: { set: setWho('rounds', 'Visit the jobs'), usual: 'The admin' },
+  'pay-review': { set: setWho('pay-review', 'Installer pay'), usual: 'The admin' },
   late: { note: 'Each person gets their own. The admin also sees the team’s' },
 }
 export function toggleAuto(key: string) {
@@ -252,48 +260,57 @@ export function AutomationModal({ level, k }: { level: number; k: string }) {
   const on = autoOn(s, a.key)
   const who = a.who(s)
   const e = WHO_EDIT[a.key] || {}
+  /* the person the admin picked for it (nobody picked: the usual person) */
+  const picked = s.rules.autoWho?.[a.key]
   const go = (tab: string) => { s.closeAll(); s.go({ page: 'settings', tab }) }
-  const pill = <span className="inline-flex h-9 min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-3 text-[0.875rem] font-medium text-ink"><Avatar who={who} size={26} /><span className="truncate">{PEOPLE[who]?.name || 'Nobody yet'}</span>{e.set && <ChevronDown className="h-4 w-4 shrink-0 text-faint" />}</span>
+  const pill = <span className="inline-flex h-9 min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-3 text-[0.875rem] font-medium text-ink"><Avatar who={who} size={26} /><span className="break-words">{PEOPLE[who]?.name || 'Nobody yet'}</span>{e.set && <ChevronDown className="h-4 w-4 shrink-0 text-faint" />}</span>
   const pick = WHEN_PICK[a.key]
+  /* one short window, nothing to scroll: on or off, when, who gets it — and for the crew list, who it's emailed to and
+     the email itself (one tap to see it) — each one changed right on its line */
   return (
-    <Modal level={level} size={a.key === 'crew-morning' ? 'md' : 'sm'} onClose={s.close} title={a.what} sub={a.when(s)}>
-      <p className="text-[0.875rem] leading-relaxed text-ink-2" data-auto-what>{a.sub}</p>
-      {/* when it comes: changed right here when it has a time or a number of days; otherwise what sets it */}
-      <div className="mt-5" data-auto-when={a.key}>
-        <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2">{pick ? pick.label : 'When'}</div>
-        {pick ? (
-          <div className="flex flex-wrap gap-1.5">
-            {pick.options.map((o) => {
-              const on = pick.value(s) === o
-              return <button key={o} type="button" onClick={() => pick.set(o)} aria-pressed={on} className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.875rem] font-semibold transition', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink-2 hover:bg-wash')} data-auto-when-pick={o}>{pick.words(o)}</button>
-            })}
-          </div>
-        ) : (
-          <div className="text-[0.875rem] text-ink" data-auto-when-text>{a.when(s)}{WHEN_WHY[a.key] && <span className="text-muted"> · {WHEN_WHY[a.key]}</span>}</div>
-        )}
-      </div>
-      <div className="mt-5">
-        <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2">Who gets it</div>
+    <Modal level={level} size="md" onClose={s.close} title={a.what} sub={a.short || a.when(s)}>
+      <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-4 gap-y-4 max-sm:grid-cols-1 max-sm:gap-y-1.5" data-auto-rows>
+        <AutoLabel>{a.toggle ? (on ? 'On' : 'Off') : 'On'}</AutoLabel>
+        <div className="flex min-h-9 items-center gap-3" data-auto-onoff>
+          {a.toggle ? <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} /> : null}
+          <span className="text-[0.8125rem] text-muted">{a.toggle ? (on ? 'Turned on' : 'Turned off. Nothing comes until it’s back on') : 'Always on. Every project needs it'}</span>
+        </div>
+        {/* when it comes: changed right here when it has a time or a number of days; otherwise what sets it */}
+        <AutoLabel>{pick ? pick.label : 'When'}</AutoLabel>
+        <div data-auto-when={a.key}>
+          {pick ? (
+            <div className="flex flex-wrap gap-1.5">
+              {pick.options.map((o) => {
+                const sel = pick.value(s) === o
+                return <button key={o} type="button" onClick={() => pick.set(o)} aria-pressed={sel} className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.875rem] font-semibold transition', sel ? 'border-brand-600 bg-brand-600 text-white' : 'border-line bg-white text-ink-2 hover:bg-wash')} data-auto-when-pick={o}>{pick.words(o)}</button>
+              })}
+            </div>
+          ) : (
+            <div className="flex min-h-9 items-center text-[0.875rem] text-ink" data-auto-when-text><span>{a.when(s)}{WHEN_WHY[a.key] && <span className="text-muted"> · {WHEN_WHY[a.key]}</span>}</span></div>
+          )}
+        </div>
+        <AutoLabel>Who gets it</AutoLabel>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-auto-who={who}>
           {e.set ? (
-            <Menu align="start" width={260} trigger={<button type="button" aria-label="Who gets it" className="min-w-0 hover:opacity-90">{pill}</button>}>
+            <Menu align="start" width={280} trigger={<button type="button" aria-label="Who gets it" className="min-w-0 hover:opacity-90" data-auto-who-pick>{pill}</button>}>
               <MenuLabel>Who gets it</MenuLabel>
-              {peopleOf(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={who === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => e.set!(p)}>{PEOPLE[p]?.name}</MenuItem>)}
+              {e.usual && <MenuItem checked={!picked} hint="Set by who's on the team" onSelect={() => e.set!(null)} data-auto-who-usual>{e.usual}</MenuItem>}
+              {peopleOf(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={e.usual ? picked === p : who === p} hint={PEOPLE[p]?.roleLabel} onSelect={() => e.set!(p)} data-auto-who-person={p}>{PEOPLE[p]?.name}</MenuItem>)}
             </Menu>
           ) : pill}
           {e.note && <span className="text-[0.8125rem] text-muted">{e.note}</span>}
+          {e.usual && !picked && <span className="text-[0.8125rem] text-muted">{e.usual}</span>}
           {e.go === 'checklist' && <Button size="sm" variant="ghost" onClick={() => go('checklist')}>Who does what</Button>}
-          {e.go === 'team' && <Button size="sm" variant="ghost" onClick={() => go('team')}>Team</Button>}
         </div>
+        {a.key === 'crew-morning' && <CrewMailSettings />}
       </div>
-      {a.key === 'crew-morning' && <CrewMailSettings />}
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <span className="text-[0.84375rem] font-semibold text-ink-2">{a.toggle ? (on ? 'On' : 'Off') : 'Always on. Every project needs it'}</span>
-        {a.toggle && <Switch on={on} onClick={() => toggleAuto(a.key)} label={a.what} />}
-      </div>
+      {/* what it does, in full — under the settings, quiet */}
+      <p className="mt-5 border-t border-line-2 pt-4 text-[0.8125rem] leading-relaxed text-muted" data-auto-what>{a.sub}</p>
     </Modal>
   )
 }
+/** a setting's name, on the left of its line */
+const AutoLabel = ({ children }: { children: React.ReactNode }) => <div className="flex min-h-9 items-center text-[0.84375rem] font-semibold text-ink-2">{children}</div>
 
 /* ================= the crew list: what time, who it's emailed to, what the email looks like, a test ================= */
 function CrewMailSettings() {
@@ -306,7 +323,7 @@ function CrewMailSettings() {
   const setOff = (v: boolean) => s.commit((st) => { st.rules.crewMail = { ...(st.rules.crewMail || {}), off: v } }, v ? 'Not emailed' : 'Emailed when it’s sent')
   /* what it looks like: tomorrow's list as it stands now */
   const day = nextWorkDay(TODAY)
-  const rows: CrewLine[] = crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? j?.crewPlan?.workers ?? j?.onSite?.workers ?? 2, note: '' } })
+  const rows: CrewLine[] = crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; const fix = (c as { fix?: string[] }).fix; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? j?.crewPlan?.workers ?? j?.onSite?.workers ?? 2, note: fix?.length ? `Touch-ups: ${fix.join('; ')}` : '' } })
   const preview = crewMailWords(s, rows, day)
   const test = async () => {
     if (!mailLive()) { showPop({ title: 'Email isn’t on in this copy', sub: 'In your real app, “Send me a test” emails it to you.', tone: 'warn' }); return }
@@ -315,34 +332,36 @@ function CrewMailSettings() {
     setBusy(false)
     showPop(r.ok ? { title: 'Test sent', sub: `To ${r.to.join(', ')}. Check your inbox.` } : { title: 'The test didn’t go out', sub: `${r.why}.`, tone: 'warn' })
   }
+  const [see, setSee] = React.useState(false)
   return (
-    <div className="mt-5 flex flex-col gap-5" data-crew-mail>
-      <div>
-        <div className="mb-1.5 flex items-center gap-3">
-          <span className="text-[0.84375rem] font-semibold text-ink-2">Emailed to, when he sends it</span>
-          <span className="ml-auto flex items-center gap-2 text-[0.8125rem] text-muted">{off ? 'Off' : 'On'}<Switch on={!off} onClick={() => setOff(!off)} label="Email the crew list" /></span>
-        </div>
+    <>
+      <AutoLabel>Email it to</AutoLabel>
+      <div data-crew-mail>
+        <div className="mb-2 flex min-h-9 items-center gap-2 text-[0.8125rem] text-muted"><Switch on={!off} onClick={() => setOff(!off)} label="Email the crew list" />{off ? 'Not emailed' : 'Emailed the moment he sends it'}</div>
         <div className={cn('flex flex-wrap gap-1.5', off && 'opacity-50')} data-crew-mail-to={picked.join(',')}>
           {team.map((m) => {
-            const on = picked.includes(m.key)
+            const sel = picked.includes(m.key)
             return (
-              <button key={m.key} type="button" disabled={off} onClick={() => toggle(m.key)} aria-pressed={on} title={m.email || 'No email on the team yet'} className={cn('inline-flex h-9 items-center gap-2 rounded-full border pl-1 pr-3 text-[0.875rem] font-medium transition', on ? 'border-brand-300 bg-brand-50 text-ink' : 'border-line bg-white text-muted hover:bg-wash')} data-crew-mail-person={m.key}>
-                <Avatar who={m.key} size={26} />{PEOPLE[m.key]?.short}{on && !m.email && <span className="text-[0.75rem] font-semibold text-warn-700">no email</span>}
+              <button key={m.key} type="button" disabled={off} onClick={() => toggle(m.key)} aria-pressed={sel} title={m.email || 'No email on the team yet'} className={cn('inline-flex h-9 items-center gap-2 rounded-full border pl-1 pr-3 text-[0.875rem] font-medium transition', sel ? 'border-brand-300 bg-brand-50 text-ink' : 'border-line bg-white text-muted hover:bg-wash')} data-crew-mail-person={m.key}>
+                <Avatar who={m.key} size={26} />{PEOPLE[m.key]?.short}{sel && !m.email && <span className="text-[0.75rem] font-semibold text-warn-700">no email</span>}
               </button>
             )
           })}
         </div>
       </div>
+      <AutoLabel>The email</AutoLabel>
       <div>
-        <div className="mb-1.5 flex items-center gap-3">
-          <span className="text-[0.84375rem] font-semibold text-ink-2">What the email looks like</span>
-          <Button size="sm" className="ml-auto" disabled={busy} onClick={() => void test()} data-crew-mail-test>{busy ? 'Sending…' : 'Send me a test'}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => setSee(!see)} aria-expanded={see} data-crew-mail-see>{see ? 'Hide it' : 'See what it looks like'}</Button>
+          <Button size="sm" disabled={busy} onClick={() => void test()} data-crew-mail-test>{busy ? 'Sending…' : 'Send me a test'}</Button>
         </div>
-        <div className="overflow-hidden rounded-xl border border-line bg-white" data-crew-mail-preview>
-          <div className="border-b border-line-2 bg-wash px-4 py-2 text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{preview.subject}</b></div>
-          <div className="max-h-[22rem] overflow-auto px-4 py-3 [&_img]:max-w-[110px]" dangerouslySetInnerHTML={{ __html: preview.html.split(`${PUBLISHED}/`).join('/') }} />
-        </div>
+        {see && (
+          <div className="mt-2 overflow-hidden rounded-xl border border-line bg-white" data-crew-mail-preview>
+            <div className="border-b border-line-2 bg-wash px-4 py-2 text-[0.8125rem] text-muted"><b className="font-semibold text-ink">{preview.subject}</b></div>
+            <div className="max-h-[18rem] overflow-auto px-4 py-3 [&_img]:max-w-[110px]" dangerouslySetInnerHTML={{ __html: preview.html.split(`${PUBLISHED}/`).join('/') }} />
+          </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }

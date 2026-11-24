@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, Plus, AlertTriangle, Ban, Users, Clock3, ArrowRight, Trash2, CalendarPlus, CheckCircle2, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Check, CalendarDays, Plus, AlertTriangle, Ban, Users, Clock3, ArrowRight, Trash2, CalendarPlus, CheckCircle2, Info } from 'lucide-react'
 import { useStore } from '@/tileos/store'
 import { PageHeader, Card, CardHeader, Button, Pill, Avatar, Segmented, Chip, Field, Stepper as NumStepper, Count, IconCircle } from '@/tileos/components/ui/core'
 import { Modal, Tip, Pop, MonthCal } from '@/tileos/components/ui/overlay'
@@ -10,6 +10,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, CREW_BLOCK, type PersonKey } from '@/tileos/data/model'
 import { assignCrew, confirmCrewFor, addBusinessDays, isoLabel } from './flows'
 import { TODAY, TOMORROW, MONDAY, addDays as addDaysT, dayShort, workday } from '@/tileos/lib/today'
+import { SearchSelect } from '@/tileos/components/ui/select'
 
 export function mondayOf(iso: string) {
   const d = new Date(iso + 'T12:00:00')
@@ -271,11 +272,11 @@ const START_OPTS = [
 ].filter((o, i, all) => all.findIndex((x) => x.iso === o.iso) === i) /* late in the week "in 3 days" is next Monday — once */
 
 /** "Another day": a big calendar (a phone: from the bottom), any day, one gone by too */
-function OtherDay({ value, on, onPick }: { value: string; on: boolean; onPick: (iso: string) => void }) {
+function OtherDay({ value, on, onPick, field }: { value: string; on: boolean; onPick: (iso: string) => void; /** as one box, like any other field — the day in it */ field?: boolean }) {
   const [open, setOpen] = React.useState(false)
   return (
     <Pop open={open} onOpenChange={setOpen} sheet width={392} trigger={
-      <button type="button" className={cn('inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', !on ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700')} data-start-other aria-label="The day it starts. Any day, one that passed too">
+      <button type="button" className={cn(field ? 'flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink transition hover:border-[#cdc7bc] [&>svg]:text-faint' : 'inline-flex h-10 items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-semibold transition', !field && (!on ? 'border-line bg-white text-ink-2 hover:bg-wash' : 'border-brand-500 bg-brand-50 text-brand-700'))} data-start-other aria-label="The day it starts. Any day, one that passed too">
         <CalendarDays className="h-4 w-4" />
         {!on ? 'Another day' : `${value < TODAY ? 'Started ' : ''}${isoLabel(value)}`}
       </button>
@@ -294,7 +295,8 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
   const [jobId, setJobId] = React.useState(initialJob || '')
   const r = s.ready.find((x) => x.jobId === jobId)
   const job = s.jobs[jobId]
-  const [crew, setCrew] = React.useState<PersonKey | ''>(initialCrew || '')
+  /* the project's installer, unless another was picked */
+  const [crew, setCrew] = React.useState<PersonKey | ''>(initialCrew || ((initialJob && (s.jobs[initialJob]?.crew || (s.prep[initialJob]?.installer !== 'tbd' ? s.prep[initialJob]?.installer : undefined))) as PersonKey) || '')
   const [start, setStart] = React.useState(initialStart || workday(addDaysT(TODAY, 3)))
   const [days, setDays] = React.useState(r?.days || 3)
   const [workers, setWorkers] = React.useState(r?.workers || 2)
@@ -309,6 +311,9 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
     }
   }, [jobId])
   const end = addBusinessDays(start, days)
+  /* the project's installer first, then the rest */
+  const onJob = (job ? (job.crew || s.prep[jobId]?.installer) : undefined) as PersonKey | undefined
+  const crewList = [...CREWS.filter((c) => c === onJob), ...CREWS.filter((c) => c !== onJob)].filter((c) => PEOPLE[c])
   const busyUntil = (c: PersonKey) => {
     const b = s.bookings.filter((x) => x.crew === c && x.end >= start).sort((a, b2) => (a.end > b2.end ? -1 : 1))[0]
     return b
@@ -345,7 +350,7 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
   return (
     <Modal
       level={level}
-      size="lg"
+      size="md"
       onClose={close}
       header={
         <div className="flex items-center gap-4 border-b border-line-2 px-7 pb-5 pt-6 pr-20 max-sm:flex-wrap max-sm:gap-x-3 max-sm:gap-y-2 max-sm:px-4 max-sm:pb-4 max-sm:pr-14 max-sm:pt-4">
@@ -367,68 +372,52 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
         </>
       }
     >
-      <div className="flex flex-col gap-6">
-        <Field label="Crew">
-          <div className="grid grid-cols-3 gap-2.5 max-sm:grid-cols-1">
-            {CREWS.map((c) => {
-              const b = busyUntil(c)
-              const busy = b && b.start <= end
-              return (
-                <button key={c} onClick={() => setCrew(c)} className={cn('flex items-center gap-3 rounded-2xl border p-3 text-left transition', crew === c ? 'border-brand-500 bg-brand-50/60 ring-2 ring-brand-100' : 'border-line hover:bg-wash')}>
-                  <Avatar who={c} size={36} />
-                  <div className="min-w-0">
-                    <div className="text-[0.90625rem] font-semibold text-ink">{PEOPLE[c].name}</div>
-                    <div className={cn('truncate text-[0.78125rem]', busy ? 'text-warn-700' : 'font-semibold text-ok-600')}>{busy ? `Busy until ${isoLabel(b!.end)}` : 'Free'}</div>
-                  </div>
-                </button>
-              )
-            })}
+      {/* short and simple: who, when, how long, how many — one line each */}
+      <div className="flex flex-col gap-4" data-assign-form>
+        <BookRow label="Crew">
+          <SearchSelect label="Crew" value={crew} onChange={(k) => setCrew(k as PersonKey)} placeholder="Pick the crew" width={320} search={crewList.length > 8}
+            options={crewList.map((c) => { const b = busyUntil(c); const busy = !!b && b.start <= end; return { key: c, label: PEOPLE[c].name, hint: c === onJob ? 'On this project' : busy ? `Busy until ${isoLabel(b!.end)}` : 'Free', lead: <Avatar who={c} size={22} /> } })} />
+        </BookRow>
+        <BookRow label="Start" hint={start < TODAY ? 'Already going. It goes on as started that day' : undefined}>
+          <OtherDay field value={start} on onPick={setStart} />
+        </BookRow>
+        <BookRow label="How long">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <span className="flex items-center gap-2 text-[0.875rem] text-ink-2"><NumStepper value={days} onChange={setDays} min={1} max={40} />{days === 1 ? 'day' : 'days'}</span>
+            <span className="flex items-center gap-2 text-[0.875rem] text-ink-2"><NumStepper value={workers} onChange={setWorkers} min={1} max={8} />{workers === 1 ? 'worker' : 'workers'}</span>
           </div>
-        </Field>
-        <div className="grid grid-cols-[1fr_auto_auto] items-end gap-5 max-sm:grid-cols-1 max-sm:items-start max-sm:gap-4">
-          <Field label="Start" hint={start < TODAY ? 'Already going. It goes on as started that day' : undefined}>
-            <div className="flex flex-wrap gap-2">
-              {START_OPTS.map((o) => (
-                <Chip key={o.iso} on={start === o.iso} onClick={() => setStart(o.iso)} className="h-10 px-3 text-[0.84375rem]">{o.label}</Chip>
-              ))}
-              {/* any day — one that already passed too, for a job that's already going — on a big calendar */}
-              <OtherDay value={start} on={!START_OPTS.some((o) => o.iso === start)} onPick={setStart} />
-            </div>
-          </Field>
-          <Field label="Days"><NumStepper value={days} onChange={setDays} min={1} max={40} /></Field>
-          <Field label="Workers"><NumStepper value={workers} onChange={setWorkers} min={1} max={8} /></Field>
-        </div>
-        {r && (
-          <Field label="Starting areas" hint="Only areas the rules released. Held areas stay off the crew’s list.">
-            <div className="flex flex-wrap gap-2">
+        </BookRow>
+        {r && r.areas.length > 1 && !['punch', 'closeout'].includes(job.stage) && (
+          <BookRow label="Areas">
+            <div className="flex flex-wrap gap-1.5">
               {r.areas.map((a) => (
                 <Chip key={a} on={areas.includes(a)} onClick={() => setAreas((p) => (p.includes(a) ? p.filter((x) => x !== a) : [...p, a]))} className="h-9 px-3 text-[0.84375rem]">{a}</Chip>
               ))}
             </div>
-          </Field>
+          </BookRow>
         )}
+        <BookRow label="">
+          <button type="button" role="checkbox" aria-checked={confirm} onClick={() => setConfirm((v) => !v)} className="flex items-center gap-2.5 text-left text-[0.875rem] text-ink-2" data-assign-confirm>
+            <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.375rem] border-2', confirm ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7]')}>{confirm && <Check className="h-3 w-3" strokeWidth={3} />}</span>
+            Wait for {crew ? PEOPLE[crew as PersonKey].short : 'the crew'}’s OK first
+          </button>
+        </BookRow>
         {warns.length > 0 && (
-          <div className="rounded-2xl border border-warn-100 bg-warn-50/70 p-4">
-            <div className="mb-2 flex items-center gap-2 text-[0.875rem] font-semibold text-ink"><AlertTriangle className="h-4 w-4 text-warn-600" />Before you book</div>
-            <div className="flex flex-col gap-1.5">
-              {warns.map((w) => (
-                <div key={w} className="text-[0.84375rem] text-ink-2">• {w}</div>
-              ))}
-            </div>
+          <div className="rounded-xl bg-warn-50/70 px-4 py-3 text-[0.84375rem] text-ink-2" data-assign-warns>
+            {warns.map((w) => <div key={w} className="flex gap-2"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn-600" />{w}</div>)}
           </div>
         )}
-        <button onClick={() => setConfirm((v) => !v)} className={cn('flex items-center gap-3.5 rounded-2xl border p-4 text-left transition', confirm ? 'border-brand-200 bg-brand-50/50' : 'border-line')}>
-          <IconCircle tone={confirm ? 'info' : 'neutral'} size={40}><Clock3 className="h-5 w-5" /></IconCircle>
-          <div className="min-w-0 flex-1">
-            <div className="text-[0.90625rem] font-semibold text-ink">Wait for {crew ? PEOPLE[crew as PersonKey].name : 'the crew'}’s OK</div>
-            <div className="text-[0.8125rem] text-muted">Shows dashed on the Schedule until you mark that he confirmed.</div>
-          </div>
-          <span className={cn('relative h-6 w-11 rounded-full transition', confirm ? 'bg-brand-600' : 'bg-[#D5DBE4]')}>
-            <span className={cn('absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all', confirm ? 'left-[1.375rem]' : 'left-0.5')} />
-          </span>
-        </button>
       </div>
     </Modal>
+  )
+}
+/** one line of the booking: its name on the left, the one thing to pick on the right */
+function BookRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-4 max-sm:grid-cols-1 max-sm:gap-y-1.5">
+      <span className="flex min-h-10 items-center text-[0.84375rem] font-semibold text-ink-2">{label}</span>
+      <span className="min-w-0">{children}{hint && <span className="mt-1 block text-[0.78125rem] text-muted">{hint}</span>}</span>
+    </div>
   )
 }
 

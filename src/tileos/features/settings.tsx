@@ -1,6 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
-import { Percent, Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
+import { ArrowUp, ArrowDown, Percent, Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
 import { salesPeople, rateOf, pct } from './commissions'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
@@ -13,8 +13,8 @@ import { ROLES, PEOPLE, CREWS, ACCESS_PAGES, LOGIN_TYPES, type Role, type Person
 import { MAT_RULES0, MAT_RULE_ROWS } from '@/tileos/data/takeoff'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { addMember, updateMember, setAccess, resetAccess, removeMember } from './team'
-import { companySteps, addCompanyStep, removeCompanyStep, setCompanyStepOwner, setCompanyStepOff, renameCompanyStep, BUILT_IN, type StepDef } from './steps'
-import { TRACKS, STEP_SHORT } from './tracks'
+import { companySteps, addCompanyStep, removeCompanyStep, setCompanyStepOwner, setCompanyStepOff, renameCompanyStep, moveCompanyStep, BUILT_IN, type StepDef } from './steps'
+import { TRACKS, STEP_SHORT, partOrder } from './tracks'
 import { insidePeople } from './steps-ui'
 import { STATUS_BOOK } from './statuses'
 import { companyTeam, companyAreas, surfaceOf, setCompanyTeam, addCompanyArea, removeCompanyArea, setCompanyAreaSurfaces, addCompanySurface, removeCompanySurface, TEAM_KEYS, TEAM_LABEL } from './estflow'
@@ -118,7 +118,7 @@ export function SettingsPage() {
           {tab === 'commission' && <CommissionTab />}
           {tab === 'connections' && <ConnectionsTab />}
           {tab === 'email' && <EmailTab />}
-          {tab === 'practice' && <div className="flex flex-col gap-6">{REAL.cloud && REAL.admin && <SampleCard />}<PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
+          {tab === 'practice' && <div className="flex flex-col gap-6"><PracticeTab />{!REAL.cloud && !REAL.sampleView && <div id="settings-testdata"><TestDataTab /></div>}</div>}
           {tab === 'bringin' && <BringInTab />}
           {tab === 'startover' && <StartOverCard />}
           {tab === 'device' && <DeviceTab />}
@@ -556,11 +556,12 @@ function ChecklistTab() {
   const steps = companySteps(s)
   const parts = [...TRACKS.map((t) => ({ key: t.key as string, label: t.label, list: steps.filter((d) => t.steps.includes(d.key) || (d.group && (PART_GROUP[t.key] === d.group || d.group === t.key))) })),
     { key: 'other', label: 'Your own', list: steps.filter((d) => !TRACKS.some((t) => t.steps.includes(d.key)) && !(d.group && Object.values(PART_GROUP).includes(d.group)) && d.key !== 'deposit') }]
-    .map((p) => ({ ...p, list: [...p.list].sort((a, b) => { const t = TRACKS.find((x) => x.key === p.key); return (t ? (t.steps.indexOf(a.key) + 1 || 99) - (t.steps.indexOf(b.key) + 1 || 99) : 0) }) }))
+    .map((p) => ({ ...p, list: [...p.list].sort((a, b) => { const o = partOrder(s, p.key, TRACKS.find((x) => x.key === p.key)?.steps || []); return (o.indexOf(a.key) + 1 || 99) - (o.indexOf(b.key) + 1 || 99) }) }))
     .filter((p) => p.key !== 'other' || p.list.length)
-  /* one short line per step — the step and who does it; tap the person to change it. Two columns on a wide screen */
+  /* the whole flow, top to bottom in its order: each part, each step numbered, what it means under its name, and who
+     does it (tap to change). ··· moves a step up or down — the flow follows */
   return (
-    <div className="columns-2 gap-4 max-xl:columns-1 [&>*]:mb-4 [&>*]:break-inside-avoid" data-steps-settings>
+    <div className="flex max-w-[60rem] flex-col gap-4" data-steps-settings>
       <EstimateSteps />
       {parts.map((p) => <PartSteps key={p.key} part={p.key} label={p.label} list={p.list} all={steps} />)}
     </div>
@@ -573,9 +574,12 @@ function ChecklistTab() {
 function FlowRow({ n, last, name, what, starts, then, who, more, off, ...rest }: { n: number; last?: boolean; name: React.ReactNode; what?: string; starts: string; then: string; who?: React.ReactNode; more?: React.ReactNode; off?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
   /* one line: its number, its name (what it is and when it starts on hover), who does it, ··· */
   return (
-    <div className={cn('grid min-h-[2.875rem] grid-cols-[1.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-3 border-t border-line-2 px-4 py-1.5', off && 'bg-[#faf9f6]')} title={[what, `Starts ${starts}`, `Then ${then}`].filter(Boolean).join(' · ')} {...rest}>
+    <div className={cn('grid min-h-[2.875rem] grid-cols-[1.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-3 border-t border-line-2 px-4 py-2', off && 'bg-[#faf9f6]')} title={[`Starts ${starts}`, `Then ${then}`].join(' · ')} {...rest}>
       <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold tnum', off ? 'bg-wash text-faint' : 'bg-[#e9edf9] text-brand-700')}>{n}</span>
-      <span className={cn('min-w-0 truncate text-[0.875rem] font-medium', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
+      <span className="min-w-0">
+        <span className={cn('block break-words text-[0.875rem] font-medium leading-snug', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
+        {what && <span className="mt-0.5 block break-words text-[0.78125rem] leading-snug text-muted" data-step-what>{what}</span>}
+      </span>
       <span className="min-w-0">{who}</span>
       <span className="flex justify-end">{more}</span>
     </div>
@@ -589,9 +593,9 @@ function PeoplePick({ value, onChange, label }: { value: PersonKey[]; onChange: 
   const people = insidePeople(s)
   return (
     <Menu align="end" width={270} trigger={
-      <button type="button" aria-label={`Who does ${label}`} className="inline-flex h-8 w-[10.5rem] min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash" data-people-pick={value.join(',')}>
+      <button type="button" aria-label={`Who does ${label}`} className="inline-flex min-h-8 w-[13rem] min-w-0 items-center gap-2 rounded-[1rem] border border-line bg-white py-1 pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash max-sm:w-[10.5rem]" data-people-pick={value.join(',')}>
         <span className="flex shrink-0 -space-x-1.5">{value.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} ring={value.length > 1} />)}</span>
-        <span className="min-w-0 flex-1 truncate text-left">{namesOf(value, null, value.length === 1)}</span>
+        <span className="min-w-0 flex-1 break-words text-left leading-tight">{namesOf(value, null, value.length === 1)}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
       </button>
     }>
@@ -691,7 +695,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
         <span className="text-[0.8125rem] tnum text-faint">{on}</span>
         {part !== 'other' && !adding && <button onClick={() => setAdding(true)} className="ml-auto inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-add-step={part}><Plus className="h-3.5 w-3.5" />Add step</button>}
       </div>
-      {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} />)}
+      {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} part={part} keys={list.map((x) => x.key)} />)}
       {part !== 'other' && (adding ? (
         <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
           <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen · e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
@@ -710,7 +714,7 @@ function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'ma
   const s = useStore()
   const who = value === 'matBy' ? (s.rules.matBy || 'yakov') : realOwner(s, value)
   return (
-    <Menu align="end" width={260} trigger={<button type="button" aria-label={`Who does ${label}`} className="inline-flex h-8 w-[10.5rem] min-w-0 items-center gap-2 rounded-full border border-line bg-white pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash"><Avatar who={who as PersonKey} size={22} /><span className="min-w-0 flex-1 truncate text-left">{value === 'matBy' ? 'Who orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+    <Menu align="end" width={260} trigger={<button type="button" aria-label={`Who does ${label}`} className="inline-flex min-h-8 w-[13rem] min-w-0 items-center gap-2 rounded-[1rem] border border-line bg-white py-1 pl-1 pr-2.5 text-[0.8125rem] font-medium text-ink hover:border-[#cdc7bc] hover:bg-wash max-sm:w-[10.5rem]"><Avatar who={who as PersonKey} size={22} /><span className="min-w-0 flex-1 break-words text-left leading-tight">{value === 'matBy' ? 'Who orders materials' : PEOPLE[who as PersonKey]?.name}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
       <MenuLabel>Who has “{label}”</MenuLabel>
       {matRule && <MenuItem checked={value === 'matBy'} onSelect={() => onChange('matBy')} hint="Company rules → who orders our materials">Whoever orders materials</MenuItem>}
       {insidePeople(s).map((p) => <MenuItem key={p} icon={<Avatar who={p} size={20} />} checked={value === p} hint={PEOPLE[p].roleLabel} onSelect={() => onChange(p)}>{PEOPLE[p].name}</MenuItem>)}
@@ -720,7 +724,7 @@ function OwnerPick({ value, onChange, label, matRule }: { value: PersonKey | 'ma
 
 /** one step in a part's flow: its number, its name (Rename changes it everywhere), what it is, when it starts and what
  *  comes after it, who has it — and ··· */
-function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[]; last?: boolean }) {
+function StepSetting({ d, n, all, last, part, keys }: { d: StepDef; n: number; all: StepDef[]; last?: boolean; part: string; keys: string[] }) {
   const [editing, setEditing] = React.useState(false)
   const [name, setName] = React.useState(d.short)
   const nameOf = (x: StepDef) => (x.named ? x.short : STEP_SHORT[x.key] || x.short)
@@ -750,6 +754,8 @@ function StepSetting({ d, n, all, last }: { d: StepDef; n: number; all: StepDef[
       more={
         <Menu align="end" width={240} trigger={<button aria-label={`More for ${shown}`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
           <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => { setName(shown); setEditing(true) }}>Rename</MenuItem>
+          {n > 1 && <MenuItem icon={<ArrowUp className="h-4 w-4" />} hint="It comes before the step above it" onSelect={() => moveCompanyStep(part, keys, d.key, -1)} data-step-up>Move up</MenuItem>}
+          {!last && <MenuItem icon={<ArrowDown className="h-4 w-4" />} hint="It comes after the step below it" onSelect={() => moveCompanyStep(part, keys, d.key, 1)} data-step-down>Move down</MenuItem>}
           {d.off
             ? <MenuItem icon={<RotateCcw className="h-4 w-4" />} onSelect={() => setCompanyStepOff(d.key, false)}>Turn back on</MenuItem>
             : <MenuItem icon={<EyeOff className="h-4 w-4" />} hint="Not on any project. The steps after it don’t wait for it" onSelect={() => setCompanyStepOff(d.key, true)}>Turn off</MenuItem>}
@@ -1020,41 +1026,42 @@ function FromCell({ k, title }: { k: MailKind; title: string }) {
     </span>
   )
 }
-/** who's copied on a kind of email — one address or a few, with commas */
+/** who's copied on a kind of email — one box for each address (the same as a client's emails): type one, Add another
+ *  for the next, × takes one off. Saved when you leave a box; one that isn't an email address says so and isn't kept */
 function CcCell({ k, title, field }: { k: MailKind; title: string; field: 'ccEstimates' | 'ccInvoices' | 'ccOther' }) {
   const s = useStore()
-  const saved = (s.rules.email?.[field] || []).join(', ')
-  const [v, setV] = React.useState(saved)
-  React.useEffect(() => setV(saved), [saved])
-  const list = Array.from(new Set(v.split(/[,;\s]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)))
-  const bad = list.some((x) => !EMAIL_OK(x))
-  const save = () => {
-    if (bad || list.join(', ') === saved) return
-    setEmailRule({ [field]: list.length ? list : undefined }, list.length ? `${title}: ${list.join(', ')} copied` : `${title}: nobody copied`)
+  const saved = s.rules.email?.[field] || []
+  const [list, setList] = React.useState<string[]>(saved.length ? saved : [''])
+  React.useEffect(() => setList(saved.length ? saved : ['']), [saved.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const clean = (l: string[]) => Array.from(new Set(l.map((x) => x.trim().toLowerCase()).filter(Boolean)))
+  const bad = (x: string) => !!x.trim() && !EMAIL_OK(x.trim().toLowerCase())
+  const save = (l: string[] = list) => {
+    const c = clean(l)
+    if (c.some((x) => !EMAIL_OK(x)) || c.join(',') === saved.join(',')) return
+    setEmailRule({ [field]: c.length ? c : undefined }, c.length ? `${title}: ${c.join(', ')} copied` : `${title}: nobody copied`)
   }
-  React.useEffect(() => { if (bad || list.join(', ') === saved) return; const id = setTimeout(save, 1500); return () => clearTimeout(id) }, [v])
-  const savedList = (s.rules.email?.[field] || [])
+  const last = list[list.length - 1] || ''
   return (
-    <span className="flex w-full flex-col gap-1">
-      <TextInput value={v} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') save() }} placeholder="Nobody, or several, with commas" aria-label={`Copied on ${title.toLowerCase()}`} className={cn('w-full', bad && 'border-bad-300')} data-email-cc={k} />
-      {bad && <span className="text-[0.75rem] font-medium text-bad-600">One of these isn’t an email address</span>}
-      {/* each one copied, on its own — take one off with its × */}
-      {savedList.length > 1 && !bad && (
-        <span className="flex flex-wrap gap-1" data-cc-chips>
-          {savedList.map((e) => (
-            <span key={e} className="inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-wash-2 pl-2 pr-0.5 text-[0.75rem] font-medium text-ink-2">
-              <span className="truncate">{e}</span>
-              <button aria-label={`Stop copying ${e}`} onClick={() => setEmailRule({ [field]: savedList.filter((x) => x !== e).length ? savedList.filter((x) => x !== e) : undefined }, `${e} isn’t copied on ${title.toLowerCase()} any more`)} className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-faint hover:bg-white hover:text-bad-600"><X className="h-3 w-3" /></button>
-            </span>
-          ))}
+    <span className="flex w-full flex-col gap-1.5" data-email-cc={k}>
+      {list.map((v, i) => (
+        <span key={i} className="flex flex-col gap-1">
+          <span className="flex items-center gap-1.5">
+            <TextInput type="email" inputMode="email" value={v} onChange={(e) => setList(list.map((x, j) => (j === i ? e.target.value : x)))} onBlur={() => save()} onKeyDown={(e) => { if (e.key === 'Enter') save() }}
+              placeholder={i === 0 ? 'Nobody · name@company.com' : 'Another email'} aria-label={`Copied on ${title.toLowerCase()}${i ? ` · ${i + 1}` : ''}`} className={cn('min-w-0 flex-1', bad(v) && 'border-bad-300')} data-email-cc-box={i} />
+            {(list.length > 1 || v.trim()) && (
+              <button type="button" aria-label={`Stop copying ${v || 'this one'}`} onClick={() => { const n = list.filter((_, j) => j !== i); const next = n.length ? n : ['']; setList(next); save(next) }} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-bad-50 hover:text-bad-600"><X className="h-4 w-4" /></button>
+            )}
+          </span>
+          {bad(v) && <span className="text-[0.75rem] font-medium text-bad-600">That isn’t an email address</span>}
         </span>
-      )}
+      ))}
+      {last.trim() && !bad(last) && <button type="button" onClick={() => setList([...list, ''])} className="inline-flex h-7 items-center gap-1.5 self-start text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-email-cc-add><Plus className="h-3.5 w-3.5" />Add another</button>}
     </span>
   )
 }
 /* one table, the same lines as every list: the column names on top, a light line between the rows, no lines between
  * the columns. On a phone each kind stacks: its name, then "Comes from", then "Copy (Cc)", each with its small label. */
-const MAIL_COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] items-center gap-x-6 max-md:grid-cols-1 max-md:gap-y-2.5'
+const MAIL_COLS = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.1fr)] items-start gap-x-6 max-md:grid-cols-1 max-md:gap-y-2.5'
 function EmailTab() {
   const s = useStore()
   const every = s.rules.email?.cc || []
@@ -1063,7 +1070,7 @@ function EmailTab() {
     <div className="flex flex-col gap-4" data-email-settings>
       <EmailCard compact />
       <Card pad={false} className="overflow-hidden">
-        <div className={cn(HEAD_ROW, MAIL_COLS, 'px-5 max-md:hidden')}>
+        <div className={cn(HEAD_ROW, MAIL_COLS, 'items-center px-5 max-md:hidden')}>
           <span>Email</span>
           <span>Comes from</span>
           <span>Copy (Cc)</span>
@@ -1072,7 +1079,7 @@ function EmailTab() {
           <div key={m.k} className={cn(MAIL_COLS, 'px-5 py-3 max-sm:px-4 max-md:py-4', i > 0 && 'border-t border-line-2')} data-email-kind={m.k}>
             <span className="min-w-0">
               <span className="block text-[0.875rem] font-semibold text-ink">{m.title}</span>
-              <span className="block truncate text-[0.78125rem] text-muted">{m.sub}</span>
+              <span className="block break-words text-[0.78125rem] text-muted">{m.sub}</span>
             </span>
             <span className="flex min-w-0 flex-col gap-1"><span className={small}>Comes from</span><FromCell k={m.k} title={m.title} /></span>
             <span className="flex min-w-0 flex-col gap-1"><span className={small}>Copy (Cc)</span><CcCell k={m.k} title={m.title} field={m.cc} /></span>

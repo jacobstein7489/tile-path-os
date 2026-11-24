@@ -88,7 +88,9 @@ export function turnOn(s: Pick<Store, 'rules' | 'team'>, e: Estimate): PersonKey
 }
 /** "Mordcha" · "Yanky and David" · "You and David" — first names */
 export function namesOf(list: PersonKey[], me?: PersonKey | null, full = false): string {
-  const n = list.map((k) => (k === me ? 'You' : (full ? PEOPLE[k]?.name : PEOPLE[k]?.short) || k))
+  /* you first, always — "You and Yaakov", never "Yaakov and You" */
+  const l = me && list.includes(me) ? [me, ...list.filter((k) => k !== me)] : list
+  const n = l.map((k) => (k === me ? 'You' : (full ? PEOPLE[k]?.name : PEOPLE[k]?.short) || k))
   return n.length <= 2 ? n.join(' and ') : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`
 }
 /** the logins that see a step's task on their Today: each person's own */

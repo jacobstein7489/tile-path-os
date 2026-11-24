@@ -1,16 +1,20 @@
-/* A project's to-dos, one person's — the window behind the one line on Today ("2052 West County · To-dos · 2 of 5
- * done"): each one with its tick (done, quietly — the last one says so), its day, and a tap to open it. Done today stays
- * on the list, ticked, so you see how far it got. One more is added right at the bottom. */
+/* A project's to-dos, one person's — the window behind the one line on Today ("2052 West County · To do · Wrap up ·
+ * Take in tiles"): everything right here, no second page — its tick (done, quietly; the last one says so), its words
+ * (tap them to change them), who (tap the circle: the same Who as everywhere), its day (tap it to move it), and ···
+ * (delete it; its notes and history if you need them). Done today stays on the list, ticked, so you see how far it
+ * got. One more is added right at the bottom. */
 import * as React from 'react'
-import { Check, ChevronRight, ListTodo, Plus } from 'lucide-react'
+import { Check, ListTodo, Plus, MoreHorizontal, Trash2, History, CalendarDays } from 'lucide-react'
 import { useStore, meOf, addHist, kindOfTask as histKind, NOW } from '@/tileos/store'
-import { Modal } from '@/tileos/components/ui/overlay'
-import { Button, TextInput } from '@/tileos/components/ui/core'
+import { Modal, Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
+import { Button, TextInput, Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
-import { ListHead } from './winhead'
+import { ListHead, WhoMenu, WhenPop } from './winhead'
+import { removeTask, editTask } from './taskshare'
+import { insidePeople } from './steps-ui'
 import { lateBy } from './mytasks'
 import { todosOf } from './todokinds'
 
@@ -61,29 +65,11 @@ export function TodosModal({ jobId, who, level }: { jobId: string; who: PersonKe
       onClose={s.close}
       title="To-dos"
       inlineClose
-      header={<ListHead kind={{ icon: <ListTodo />, label: 'To-dos' }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={`${done.length} of ${all} done`} who={who} me={me} when="Today" attrs={{ 'data-todos-head': '' }} />}
+      header={<ListHead kind={{ icon: <ListTodo />, label: 'To-dos' }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={open.length ? `${open.length} left${done.length ? ` · ${done.length} done` : ''}` : `All ${all} done`} who={who} me={me} when="Today" attrs={{ 'data-todos-head': '' }} />}
       footer={<Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>}
     >
       <div className="-mx-6 -my-5 max-sm:-mx-4" data-todos={jobId}>
-        {[...open, ...done].map((t) => {
-          const d = dayOf(t)
-          const isDone = t.state === 'done'
-          return (
-            <div key={t.id} className="flex items-center gap-3 border-b border-line-2 px-6 py-2.5 max-sm:px-4" data-todos-line={t.id} data-done={isDone ? '' : undefined}>
-              {/* its tick — a bigger spot to tap than it looks */}
-              <button type="button" disabled={isDone} onClick={() => tick(t.id, open.length === 1)} aria-label={`Done · ${t.title}`}
-                className={cn('relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition before:absolute before:-inset-2.5', isDone ? 'bg-ok-500 text-white' : 'border-[0.09375rem] border-[#cfc9be] hover:border-brand-500 hover:bg-brand-50')} data-todos-tick>
-                {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
-              </button>
-              {/* the words, whole — tap them: its own window */}
-              <button type="button" onClick={() => s.open({ t: 'task', id: t.id })} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-todos-open>
-                <span className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-snug', isDone ? 'text-muted line-through decoration-faint' : 'text-ink')}>{t.title}</span>
-                <span className={cn('shrink-0 text-[0.8125rem] tnum', isDone ? 'font-medium text-[#2c8a5b]' : d.late ? 'font-medium text-bad-600' : 'text-muted')}>{isDone ? 'Done' : d.text}</span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
-              </button>
-            </div>
-          )
-        })}
+        {[...open, ...done].map((t) => <TodoLine key={t.id} t={t} last={open.length === 1} />)}
         {/* one more, right here */}
         <div className="flex items-center gap-3 px-6 py-2.5 max-sm:px-4">
           <Plus className="h-4 w-4 shrink-0 text-brand-600" />
@@ -92,5 +78,53 @@ export function TodosModal({ jobId, who, level }: { jobId: string; who: PersonKe
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** one to-do in the window: tick · its words (tap: change them) · who (tap the circle) · its day (tap: move it) · ··· */
+function TodoLine({ t, last }: { t: Task; last: boolean }) {
+  const s = useStore()
+  const me = meOf(s.role)
+  const d = dayOf(t)
+  const isDone = t.state === 'done'
+  const [editing, setEditing] = React.useState(false)
+  const [words, setWords] = React.useState(t.title)
+  const save = () => { const v = words.trim(); setEditing(false); if (v && v !== t.title) editTask(t.id, { title: v }); else setWords(t.title) }
+  const people = insidePeople(s)
+  return (
+    <div className="flex items-center gap-3 border-b border-line-2 px-6 py-2 max-sm:px-4" data-todos-line={t.id} data-done={isDone ? '' : undefined}>
+      {/* its tick — a bigger spot to tap than it looks */}
+      <button type="button" disabled={isDone} onClick={() => tick(t.id, last)} aria-label={`Done · ${t.title}`}
+        className={cn('relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition before:absolute before:-inset-2.5', isDone ? 'bg-ok-500 text-white' : 'border-[0.09375rem] border-[#cfc9be] hover:border-brand-500 hover:bg-brand-50')} data-todos-tick>
+        {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
+      </button>
+      {/* its words, whole — tap them to change them right here */}
+      {editing ? (
+        <textarea autoFocus value={words} rows={Math.min(4, Math.max(1, Math.ceil(words.length / 55)))} onChange={(e) => setWords(e.target.value)} onBlur={save}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setWords(t.title); setEditing(false) } }}
+          aria-label="What the to-do is" className="-my-1 min-w-0 flex-1 resize-none rounded-lg border border-brand-300 bg-white px-2 py-1 text-[0.9375rem] text-ink outline-none ring-[0.1875rem] ring-brand-50" data-todos-words-edit data-editing />
+      ) : (
+        <button type="button" disabled={isDone} onClick={() => { setWords(t.title); setEditing(true) }} title={isDone ? undefined : 'Tap to change the words'}
+          className={cn('-mx-1.5 min-w-0 flex-1 rounded-md px-1.5 py-1 text-left text-[0.9375rem] leading-snug transition enabled:cursor-text enabled:hover:bg-wash-2', isDone ? 'text-muted line-through decoration-faint' : 'text-ink')} data-todos-words>
+          <span className="break-words">{t.title}</span>
+        </button>
+      )}
+      {!isDone && (
+        <>
+          {/* who — the same Who as everywhere (more than one: the switch under it) */}
+          <WhoMenu pick={{ people, me, current: t.owner, onPick: (p) => s.reassignTask(t.id, p) }}
+            trigger={<button type="button" aria-label={`Who does it · ${t.title}`} title={PEOPLE[t.owner]?.name} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-wash-2" data-todos-who><Avatar who={t.owner} size={22} /></button>} />
+          {/* its day — tap it to move it */}
+          <WhenPop pick={{ value: t.due, onPick: (v) => s.setTaskDue(t.id, v) }}
+            trigger={<button type="button" aria-label={`When · ${t.title}`} className={cn('inline-flex h-8 shrink-0 items-center rounded-md px-2 text-[0.8125rem] tnum transition hover:bg-wash-2', d.late ? 'font-medium text-bad-600' : 'text-muted')} data-todos-when>{d.text || <CalendarDays className="h-3.5 w-3.5 text-faint" />}</button>} />
+        </>
+      )}
+      {isDone && <span className="shrink-0 text-[0.8125rem] font-medium text-[#2c8a5b]">Done</span>}
+      <Menu align="end" width={240} trigger={<button type="button" aria-label={`More for ${t.title}`} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink" data-todos-more><MoreHorizontal className="h-4 w-4" /></button>}>
+        <MenuItem icon={<History className="h-4 w-4" />} onSelect={() => s.open({ t: 'task', id: t.id })} data-todos-open>Notes and history</MenuItem>
+        <MenuSep />
+        <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeTask(t.id)} data-todos-delete>Delete</MenuItem>
+      </Menu>
+    </div>
   )
 }

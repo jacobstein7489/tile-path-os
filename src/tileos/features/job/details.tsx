@@ -188,12 +188,28 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
   const picker = usePaperPicker(job)
   const checking = usePaperReview(job.id) && canEdit
   const small = useSmall()
+  /* the bar stays on top while the rooms scroll under it (a computer) — an open room's name pins right under it */
+  const barRef = React.useRef<HTMLDivElement>(null)
+  const [barH, setBarH] = React.useState(0)
+  const hasRooms = rooms.length > 0
+  React.useLayoutEffect(() => {
+    const el = barRef.current
+    if (!el) return
+    /* rounded down, so a room's name pins a hair under the bar's edge, never leaving a slit the rows show through */
+    const set = () => setBarH(Math.floor(el.getBoundingClientRect().height))
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    set()
+    return () => ro.disconnect()
+  }, [hasRooms])
   return (
-    <section data-detail="scope" className="px-5 pb-8 pt-4 max-sm:px-3">
+    <section data-detail="scope" className="px-5 pb-8 pt-4 max-sm:px-3" style={{ '--scope-bar': `${small ? 0 : barH}px` } as React.CSSProperties}>
       {/* one slim bar — the tab already says "Scope of work": how much there is (and, installing, the last daily update)
           on the left, its buttons on the right. The rooms say the rest */}
       {rooms.length > 0 && (
+        <div ref={barRef} className="-mx-5 -mt-4 bg-canvas px-5 pb-3 pt-4 md:sticky md:top-0 md:z-[7] max-sm:-mx-3 max-sm:px-3" data-scope-sticky>
         <PaperBar
+          className="mb-0"
           mark="data-scope-bar"
           buttonsMark="data-scope-buttons"
           lead={
@@ -223,6 +239,7 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
             </>
           )}
         </PaperBar>
+        </div>
       )}
       {canEdit && picker.input}
       {canEdit && rooms.length > 0 && <PaperPanel job={job} className="mb-4" />}
@@ -352,7 +369,7 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
     <div data-room={room.name} data-room-state={view.state} data-room-open={open ? '' : undefined} className={cn(!first && 'border-t border-line')}>
       {/* the room's line: its name in capitals and its short note — then where it's up to and its square feet. Tap it to
           open (or close) its walls and floors; ↗ opens the room itself */}
-      <div className={cn('flex min-h-11 min-w-0 items-center pr-2 max-sm:pr-1', open && 'sticky top-0 z-[5]')} style={{ background: DOC_GRAY }} data-room-band>
+      <div className={cn('flex min-h-11 min-w-0 items-center pr-2 max-sm:pr-1', open && 'sticky top-0 z-[5] md:top-[var(--scope-bar,0px)]')} style={{ background: DOC_GRAY }} data-room-band>
         <button type="button" onClick={onToggle} aria-expanded={open} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1.5 pl-3 pr-2 text-left max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-2 max-sm:pl-2')}>
           <ChevronRight className={cn('h-4 w-4 shrink-0 text-[#8a8f98] transition-transform group-hover:text-brand-700', open && 'rotate-90')} aria-hidden />
           {/* a phone: the name and its note wrap rather than end in "…" */}

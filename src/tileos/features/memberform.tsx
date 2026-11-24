@@ -8,6 +8,7 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { ROLES, type PersonKey, type Reach } from '@/tileos/data/model'
 import { updateMember } from './team'
 import { MoreReach, cleanReach, reachOk, isEmail } from './reach'
+import { PhoneInput } from './reach'
 
 const field = (label: string, el: React.ReactNode) => (
   <label className="block min-w-0"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">{label}</span>{el}</label>
@@ -48,7 +49,7 @@ export function MemberModal({ k, level }: { k: PersonKey; level: number }) {
         </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {field(locked ? 'Email · their login' : 'Email to sign in', <TextInput aria-label="Email to sign in" type="email" value={email} disabled={locked} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="h-10" />)}
-          {field('Phone', <TextInput aria-label="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(718) 555-0100" className="h-10" />)}
+          {field('Phone', <PhoneInput value={phone} onChange={setPhone} />)}
         </div>
         {badMain && <div className="-mt-2 text-[0.75rem] font-medium text-bad-600">That isn’t an email address</div>}
         <div>

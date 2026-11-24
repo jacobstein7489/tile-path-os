@@ -51,13 +51,13 @@ function Profile({
         <div className="min-w-0 flex-1">
           <div className="text-[0.8125rem] font-medium text-muted">{kind}</div>
           <div className="flex min-w-0 items-center gap-1.5">
-            <h2 className="truncate text-[1.5625rem] font-bold leading-tight tracking-[-0.02em] text-ink max-sm:text-[1.3125rem]">{name}</h2>
+            <h2 className="min-w-0 break-words text-[1.5625rem] font-bold leading-tight tracking-[-0.02em] text-ink max-sm:text-[1.3125rem]">{name}</h2>
             {onEdit && <button onClick={onEdit} aria-label="Change the details" title="Change the details" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash hover:text-ink"><Pencil className="h-4 w-4" /></button>}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.84375rem] text-ink-2">
             {lines.map((l) => (
               <a key={l.text} href={l.href} onClick={(e) => !l.href && e.preventDefault()} className={cn('inline-flex min-w-0 items-center gap-1.5 [&_svg]:h-[0.9375rem] [&_svg]:w-[0.9375rem] [&_svg]:text-faint', l.href && 'hover:text-brand-700')}>
-                {l.icon}<span className="truncate">{l.text}</span>
+                {l.icon}<span className="min-w-0 [overflow-wrap:anywhere]">{l.text}</span>
               </a>
             ))}
           </div>
@@ -67,8 +67,8 @@ function Profile({
         {kpis.map((k) => (
           <button key={k.label} onClick={() => k.tab && setTab(k.tab)} disabled={!k.tab} className={cn('rounded-xl border px-4 py-3 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:shadow-xs', k.tone === 'bad' ? 'border-bad-100 bg-bad-50' : k.tone === 'warn' ? 'border-warn-100 bg-warn-50' : 'border-line bg-wash')}>
             <div className="text-[0.78125rem] font-semibold text-muted">{k.label}</div>
-            <div className={cn('mt-0.5 truncate text-[1.25rem] font-bold leading-tight tnum', k.tone === 'bad' ? 'text-bad-600' : k.tone === 'warn' ? 'text-warn-700' : 'text-ink')}>{k.value}</div>
-            {k.sub && <div className="mt-0.5 truncate text-[0.78125rem] text-muted">{k.sub}</div>}
+            <div className={cn('mt-0.5 break-words text-[1.25rem] font-bold leading-tight tnum', k.tone === 'bad' ? 'text-bad-600' : k.tone === 'warn' ? 'text-warn-700' : 'text-ink')}>{k.value}</div>
+            {k.sub && <div className="mt-0.5 break-words text-[0.78125rem] text-muted">{k.sub}</div>}
           </button>
         ))}
       </div>
@@ -76,7 +76,7 @@ function Profile({
     </div>
   )
   return (
-    <Modal level={level} size="xl" tall onClose={s.close} header={header} footer={footer} title={name} bodyClass="px-7 py-5 max-sm:px-4">
+    <Modal level={level} size="full" tall onClose={s.close} header={header} footer={footer} title={name} bodyClass="px-7 py-5 max-sm:px-4">
       {children}
     </Modal>
   )
@@ -107,8 +107,8 @@ function List<T>({ rows, cols, onRow, empty, keyOf }: { rows: T[]; cols: Col<T>[
 }
 const Two = ({ title, sub }: { title: React.ReactNode; sub?: React.ReactNode }) => (
   <span className="block min-w-0 leading-tight">
-    <span className="block truncate text-[0.875rem] font-medium text-ink">{title}</span>
-    {sub && <span className="mt-0.5 block truncate text-[0.78125rem] text-muted">{sub}</span>}
+    <span className="block break-words text-[0.875rem] font-medium text-ink">{title}</span>
+    {sub && <span className="mt-0.5 block break-words text-[0.78125rem] text-muted">{sub}</span>}
   </span>
 )
 const Money = ({ n, muted }: { n: number | null | undefined; muted?: boolean }) => <span className={cn('tnum', muted ? 'text-muted' : 'font-semibold text-ink')}>{n ? fmtMoney(n) : ''}</span>
@@ -204,9 +204,9 @@ export function ClientProfile({ id, level }: { id: string; level: number }) {
       lines={[...(c.phone ? [{ icon: <Phone />, text: c.phone, href: `tel:${c.phone}` }] : []), ...(c.email ? [{ icon: <Mail />, text: c.email, href: `mailto:${c.email}` }] : []), ...reachLines(c.more), ...(c.address ? [{ icon: <MapPin />, text: c.address }] : [])]}
       kpis={[
         { label: 'Open projects', value: live.length, sub: `${won.length} won with us`, tab: 'projects' },
-        { label: 'Estimates with them', value: out.length ? fmtMoney(out.reduce((n, e) => n + estAmount(e), 0)) : '', sub: `${out.length} waiting · ${working.length} in the works`, tab: 'estimates' },
-        { label: 'Under contract', value: contract ? fmtMoney(contract) : '', sub: contract ? `${fmtMoney(invoiced)} invoiced so far` : 'Nothing open', tab: 'projects' },
-        { label: 'Open to collect', value: toCollect ? fmtMoney(toCollect) : '', sub: `${openMoney.length} ${openMoney.length === 1 ? 'invoice' : 'invoices'} out`, tone: openMoney.some((m) => m.dueTone === 'bad' || m.dueTone === 'warn') ? 'warn' : undefined, tab: 'billing' },
+        { label: 'Estimates with them', value: fmtMoney(out.reduce((n, e) => n + estAmount(e), 0)), sub: out.length || working.length ? `${out.length} waiting · ${working.length} in the works` : 'None out now', tab: 'estimates' },
+        { label: 'Under contract', value: fmtMoney(contract), sub: contract ? `${fmtMoney(invoiced)} invoiced so far` : 'Nothing open', tab: 'projects' },
+        { label: 'Open to collect', value: fmtMoney(toCollect), sub: openMoney.length ? `${openMoney.length} ${openMoney.length === 1 ? 'invoice' : 'invoices'} out` : 'Nothing out', tone: openMoney.some((m) => m.dueTone === 'bad' || m.dueTone === 'warn') ? 'warn' : undefined, tab: 'billing' },
       ]}
       tabs={tabs}
       tab={tab}
@@ -408,7 +408,7 @@ export function InstallerProfile({ id, level }: { id: PersonKey; level: number }
       lines={[...(mem?.phone ? [{ icon: <Phone />, text: mem.phone, href: `tel:${mem.phone}` }] : []), ...(mem?.email ? [{ icon: <Mail />, text: mem.email, href: `mailto:${mem.email}` }] : []), ...reachLines(mem?.more), { icon: <HardHat />, text: now ? `On ${s.jobs[now.jobId]?.name} · ${now.workers || 2} people` : 'Not on a job' }, { icon: <CalendarDays />, text: free ? (free.iso === TODAY ? 'Free now' : `Free from ${shortDate(free.iso)}`) : '' }].filter((l) => l.text)}
       kpis={[
         { label: 'Working now', value: now ? s.jobs[now.jobId]?.name : 'Free', sub: now ? `${now.label} · till ${shortDate(now.end)}` : free?.iso === TODAY ? 'Ready for a job' : '', tab: 'schedule' },
-        { label: 'Last week’s pay', value: last ? fmtMoney(last.calc.total) : '', sub: last ? PAY_STATE[last.state].label : 'No work last week', tone: last?.state === 'check' ? 'bad' : undefined, tab: 'pay' },
+        { label: 'Last week’s pay', value: fmtMoney(last ? last.calc.total : 0), sub: last ? PAY_STATE[last.state].label : 'No work last week', tone: last?.state === 'check' ? 'bad' : undefined, tab: 'pay' },
         { label: 'Installer POs', value: ipos.length, sub: openPOs.length ? `${openPOs.length} waiting for him` : `${fmtMoney(ipos.reduce((n, p) => n + poTotal(p), 0))} in all`, tone: openPOs.length ? 'warn' : undefined, tab: 'pos' },
         { label: 'Paperwork', value: '2 missing', sub: 'Insurance · W-9', tone: 'warn', tab: 'papers' },
       ]}
@@ -549,7 +549,7 @@ export function SupplierProfile({ id, level }: { id: string; level: number }) {
       kpis={pos.length ? [
         { label: 'Open POs', value: open.length || '', sub: open.length ? fmtMoney(open.reduce((n, p) => n + p.amount, 0)) : 'Nothing on order', tab: 'pos' },
         { label: 'Late', value: late.length || '', sub: late[0] ? `${late[0].id} · ${s.jobs[late[0].jobId]?.name}` : 'Nothing late', tone: late.length ? 'bad' : undefined, tab: 'pos' },
-        { label: 'Spent this year', value: spent ? fmtMoney(spent) : '', sub: `${pos.length} POs${smp(' · sample')}`, tab: 'pos' },
+        { label: 'Spent this year', value: fmtMoney(spent), sub: `${pos.length} POs${smp(' · sample')}`, tab: 'pos' },
         { label: 'Items we buy', value: items.length || '', sub: 'priced from QuickBooks', tab: items.length ? 'items' : undefined },
       ] : [
         { label: 'Tile orders', value: tile.length, sub: 'ordered by the GC', tab: 'tile' },

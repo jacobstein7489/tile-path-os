@@ -68,8 +68,9 @@ export const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(lab
 /** what kind of thing a line is — a small tag in its own soft color, the same as its window says on top (To do,
  *  Touch-ups, Materials, Problem, Meeting…): you know right away what it's about */
 export function KindTag({ label, className }: { label: string; className?: string }) {
-  const c = kindTone(label)
-  return <span className={cn('inline-flex h-[1.25rem] shrink-0 items-center rounded-[0.3125rem] px-1.5 text-[0.71875rem] font-semibold leading-none tracking-[0.01em]', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
+  /* quiet: one gray for every kind, the same width, so the words after it line up — only a problem is red */
+  const c = /problem/i.test(label) ? { background: '#fdecea', color: '#c4311f' } : { background: '#f1efea', color: '#57534c' }
+  return <span className={cn('inline-flex h-[1.25rem] w-[6rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.3125rem] px-1 text-[0.71875rem] font-semibold leading-none', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
 }
 
 export const CHIP = 'inline-flex min-h-8 min-w-0 items-center gap-2 rounded-full border border-[#e9e5de] bg-white px-3 py-1 text-left shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3] hover:shadow-[0_2px_6px_-2px_rgba(20,26,36,.15)] focus-visible:border-brand-300 focus-visible:outline-none'
@@ -95,7 +96,7 @@ function PersonOption({ p, me, on, round, lock, onClick, attrs }: { p: PersonKey
       {round
         ? <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', on ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{on && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
         : <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>}
-      <Avatar who={p} size={22} /><span className={cn('min-w-0 flex-1 truncate', on && round && 'font-medium')}>{p === me ? 'Me' : PEOPLE[p]?.name || p}</span>
+      <Avatar who={p} size={22} /><span className={cn('min-w-0 flex-1 break-words', on && round && 'font-medium')}>{p === me ? 'Me' : PEOPLE[p]?.name || p}</span>
     </button>
   )
 }

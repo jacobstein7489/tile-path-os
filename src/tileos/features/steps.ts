@@ -66,7 +66,9 @@ export interface StepDef { key: string; label: string; short: string; owner: Per
   /** the company turned it off in Settings: not on any project (its steps after it don't wait for it) */
   off?: boolean
   /** the company gave it its own name in Settings — that name is used everywhere */
-  named?: boolean }
+  named?: boolean
+  /** the company moved it (Who does what: Move up / down): what it waits for is theirs, not the usual */
+  ownAfter?: boolean }
 export interface StepRec {
   done?: string; by?: PersonKey; owner?: PersonKey; due?: string; na?: boolean; note?: string
   /** the time of day it got done ("3:42 PM") */
@@ -267,10 +269,12 @@ export function companySteps(s: Pick<Store, 'rules'>): StepDef[] {
     const x = saved.find((y) => y.key === d.key)
     if (!x) return d
     const moved = Object.entries(MOVED).find(([n, m]) => Number(n) > v && m[d.key]?.[0] === x.owner)
+    /* the company's own order (moved up or down): what it waits for is theirs */
+    const own = (y: StepDef): StepDef => (x.ownAfter ? { ...y, after: x.after ? [...x.after] : undefined, ownAfter: true } : y)
     /* the company's own name and on/off (Settings) stay as they set them */
-    if (x.named) return { ...d, owner: moved ? d.owner : x.owner, label: x.label || d.label, short: x.short || d.short, named: true, ...(x.off ? { off: true } : {}) }
-    if (fresh) return { ...d, owner: moved ? d.owner : x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short, ...(x.off ? { off: true } : {}) }
-    return x.owner !== OLD_OWNER[d.key] ? { ...d, owner: x.owner } : d
+    if (x.named) return own({ ...d, owner: moved ? d.owner : x.owner, label: x.label || d.label, short: x.short || d.short, named: true, ...(x.off ? { off: true } : {}) })
+    if (fresh) return own({ ...d, owner: moved ? d.owner : x.owner, label: x.label && !RENAMED.has(x.label) ? x.label : d.label, short: x.short && !RENAMED.has(x.short) ? x.short : d.short, ...(x.off ? { off: true } : {}) })
+    return own(x.owner !== OLD_OWNER[d.key] ? { ...d, owner: x.owner } : d)
   })
   const own = saved.filter((d) => !OURS.has(d.key)).map((d) => ({ ...d, custom: true, phase: d.phase || 'own' }))
   return [...ours, ...own]
@@ -1037,6 +1041,36 @@ export function removeCompanyStep(key: string) {
 }
 export function setCompanyStepOwner(key: string, owner: PersonKey | 'matBy') {
   S().commit((st) => { saveSteps(st, companySteps(st).map((d) => (d.key === key ? { ...d, owner } : d))) }, 'Saved. Every project follows it')
+}
+/** move a step up (or down) in its part — Who does what. The flow moves with it: the step it passes now waits for it,
+ *  and it waits for what that one waited for (Confirm the scope moved above the Design meeting: the scope is confirmed
+ *  first, then the meeting). The part's order is kept as the company set it */
+export function moveCompanyStep(part: string, keys: string[], key: string, dir: -1 | 1) {
+  const i = keys.indexOf(key)
+  const j = i + dir
+  if (i < 0 || j < 0 || j >= keys.length) return
+  /* x goes up, above p */
+  const x = dir === -1 ? key : keys[j]
+  const p = dir === -1 ? keys[j] : key
+  const name = companySteps(S()).find((d) => d.key === key)
+  S().commit((st) => {
+    const list = companySteps(st).map((d) => ({ ...d, after: d.after ? [...d.after] : undefined }))
+    const X = list.find((d) => d.key === x)
+    const P = list.find((d) => d.key === p)
+    if (!X || !P) return
+    const pa = P.after || []
+    if ((X.after || []).includes(p)) X.after = Array.from(new Set([...(X.after || []).filter((k) => k !== p), ...pa]))
+    /* everything x waits for, all the way back — p waits for x only if that doesn't make a circle */
+    const reach = (k: string, seen = new Set<string>()): Set<string> => { (list.find((d) => d.key === k)?.after || []).forEach((a) => { if (!seen.has(a)) { seen.add(a); reach(a, seen) } }); return seen }
+    if (!reach(x).has(p)) P.after = Array.from(new Set([...pa, x]))
+    X.ownAfter = true
+    P.ownAfter = true
+    const order = [...keys]
+    order[i] = keys[j]
+    order[j] = key
+    st.rules.stepOrder = { ...(st.rules.stepOrder || {}), [part]: order }
+    saveSteps(st, list)
+  }, `${name?.short || 'The step'} moved ${dir === -1 ? 'up' : 'down'}`, { sub: 'Every project follows the new order.' })
 }
 /** the company's own name for a step — on the project, on Today, everywhere */
 export function renameCompanyStep(key: string, name: string) {

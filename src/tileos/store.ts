@@ -64,6 +64,11 @@ export interface Rules {
   crewAt?: number
   /** an estimate that went out: the follow-up comes this many days later (3 unless he changes it) */
   followDays?: number
+  /** each part's steps in the company's order (Who does what: Move up / down) */
+  stepOrder?: Record<string, string[]>
+  /** who an automation goes to, when the admin picked someone (Settings → Automations): the crew list, the daily
+   *  updates, Visit the jobs, installer pay, billing, invoice reminders */
+  autoWho?: Record<string, PersonKey>
   /** the crew list, emailed when it's sent: to these people (none set: everyone on the team but estimating), or off */
   crewMail?: { off?: boolean; to?: PersonKey[] }
   /** who does each estimate step by default — new estimates start with these people */

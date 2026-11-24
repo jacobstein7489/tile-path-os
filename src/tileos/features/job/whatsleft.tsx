@@ -52,7 +52,7 @@ export function nextRow(s: Store, job: Job): LeftRow | null {
   const pm = 'ys' as PersonKey
   const noop = () => {}
   if (phase === 'crew' && !booked) return { key: 'next:crew', kind: 'Schedule', what: 'Schedule the crew', who: pm, when: 'Getting ready is done', tone: 'now', next: true, noCheck: true, open: () => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }, done: noop }
-  if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', kind: 'On site', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
+  if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', kind: 'Schedule', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
   if (phase === 'punch') return { key: 'next:return', kind: 'Touch-ups', what: 'Book the return visit', who: pm, when: 'For the touch-ups', tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: noop }
   const fin = s.money.find((m) => m.jobId === job.id && m.kind === 'final')
   if (job.stage === 'closeout' && fin) return { key: 'next:final', kind: 'Billing', what: 'Send the final invoice', who: pm, tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'money', id: fin.id }), done: noop }
@@ -179,7 +179,9 @@ export function WhatsLeft({ job }: { job: Job }) {
     rs.forEach((r) => folded.add(r.key))
     const l = todosOf(s, job.id, who as PersonKey)
     const first = rs.reduce((a, r) => ((r.iso || '9999') < (a.iso || '9999') ? r : a))
-    todoRows.push({ key: 'todos:' + who, kind: 'To-dos', what: `${l.done.length} of ${l.open.length + l.done.length} done`, who: who as PersonKey, iso: first.iso, when: first.when, late: rs.some((r) => r.late), tone: 'now', open: () => s.open({ t: 'todos', jobId: job.id, who }), done: () => {}, noCheck: true })
+    /* the to-dos themselves, so they're read right here — and how many are done, once some are */
+    const words = l.open.map((t) => t.title.replace(/\.$/, '')).join(' · ')
+    todoRows.push({ key: 'todos:' + who, kind: 'To do', what: `${words}${l.done.length ? ` · ${l.done.length} of ${l.open.length + l.done.length} done` : ''}`, who: who as PersonKey, iso: first.iso, when: first.when, late: rs.some((r) => r.late), tone: 'now', open: () => s.open({ t: 'todos', jobId: job.id, who }), done: () => {}, noCheck: true })
   })
   const touchTask = (k: string) => punch.some((p) => p.taskId === k)
   const rest = [...(touchRow && !ret ? [touchRow] : []), ...todoRows, ...left.filter((r) => !touchTask(r.key) && r !== retTask && !folded.has(r.key))]

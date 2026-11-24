@@ -267,6 +267,8 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
   const [preview, setPreview] = React.useState(true)
   const [step, setStep] = React.useState(0)
   const fileRef = React.useRef<HTMLInputElement>(null)
+  /* the room a photo goes with (its Photo button) */
+  const photoFor = React.useRef('')
   if (!job) return null
   /* the update is the crew's work, whoever types it — that's what their weekly pay is worked out from */
   const who: PersonKey = job.crew || (s.bookings.find((b) => b.jobId === jobId && b.start <= TODAY && b.end >= TODAY)?.crew as PersonKey) || (s.role === 'crew' ? 'philip' : 'ys')
@@ -315,263 +317,145 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
   /* nothing to mark is still an update — the crew was there */
   const can = true
 
+  /* one page, nothing to step through: what's still open, room by room — tap how far each wall or floor got (what's
+     finished already is one quiet line, not more buttons), a photo, anything to flag, a note — Send */
   const header = (
-    <div className="border-b border-line px-7 pb-5 pt-6 pr-20 max-sm:px-4 max-sm:pr-14 max-sm:pt-4">
+    <div className="border-b border-line px-7 pb-4 pt-6 pr-20 max-sm:px-4 max-sm:pr-14 max-sm:pt-4">
       <div className="text-[0.8125rem] font-medium text-muted">{job.crew ? `${PEOPLE[job.crew].name}’s crew` : 'Site'} · {dayShort(TODAY)} · {before}% installed</div>
       <h2 className="mt-0.5 text-[1.375rem] font-bold tracking-[-0.02em] text-ink max-sm:text-[1.1875rem]">Daily update · {job.name}</h2>
-      <FlowSteps className="mt-4" steps={['What got done', 'Anything to flag', 'Send']} at={step} onPick={(i) => setStep(i)} />
     </div>
   )
-  const lines = Object.entries(targets).map(([k, v]) => {
-    const [rn, sn] = k.split('::')
-    const cur = surfacePct(rooms.find((x) => x.name === rn)?.surfaces.find((x) => x.name === sn) || ({ state: 'notstarted' } as Surface))
-    return { k, room: rn, surface: sn, from: cur, to: v }
-  })
+  const stopped = (sf: Surface) => ['blocked', 'hold', 'waitmat', 'unknown'].includes(sf.state)
+  /* the rooms with something still open (a finished room is only named, at the bottom) */
+  const openRooms = rooms.filter((rm) => rm.surfaces.some((x) => x.state !== 'done'))
+  const doneRooms = rooms.filter((rm) => rm.surfaces.length > 0 && rm.surfaces.every((x) => x.state === 'done'))
+  const pickPhotos = (rn: string) => { photoFor.current = rn; fileRef.current?.click() }
+  const addFilesTo = (files: FileList | null) => {
+    if (!files?.length) return
+    const rn = photoFor.current || openRooms[0]?.name || room
+    const added: Media[] = Array.from(files).map((f, k) => ({ id: 'u' + Date.now() + k, kind: f.type.startsWith('video') ? 'video' : 'photo', url: URL.createObjectURL(f), cap: f.name.replace(/\.[^.]+$/, '') }))
+    setMedia((p) => ({ ...p, [rn]: [...(p[rn] || []), ...added] }))
+  }
+  const setFor = (rn: string, sf: Surface, v: number | null) => setTargets((p) => { const n = { ...p }; if (v === null) delete n[keyOf(rn, sf.name)]; else n[keyOf(rn, sf.name)] = v; return n })
+  const flag = (on: boolean, set: (v: boolean) => void, label: string, attr: string) => (
+    <button type="button" onClick={() => set(!on)} aria-pressed={on} className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[0.84375rem] font-medium transition', on ? 'border-warn-300 bg-warn-50 text-warn-800' : 'border-line bg-white text-ink-2 hover:bg-wash')} {...{ [attr]: '' }}>
+      {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}{label}
+    </button>
+  )
   return (
     <Modal
       level={level}
-      size="xl"
+      size="lg"
       tall
       onClose={s.close}
       header={header}
       title="Daily update"
-      bodyClass={step === 0 ? 'p-0' : 'px-7 py-6 max-sm:px-4'}
+      bodyClass="px-7 py-5 max-sm:px-4"
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted max-sm:hidden">
-            {moved ? <><span className="font-semibold text-ink">{moved} surface{moved > 1 ? 's' : ''}</span> moved</> : 'Nothing marked yet'}
+          <span className="min-w-0 text-[0.84375rem] text-muted max-sm:hidden">
+            {moved ? <><span className="font-semibold text-ink">{moved} {moved > 1 ? 'walls and floors' : 'wall or floor'}</span> moved</> : 'Nothing marked yet. It still goes as the crew being there'}
             {mediaCount ? ` · ${mediaCount} photo${mediaCount > 1 ? 's' : ''}` : ''}
             {moved && projected !== before ? <> · project <span className="font-semibold text-ink">{before}% → {projected}%</span></> : ''}
           </span>
-          {step > 0 ? (
-            <Button className="ml-auto" variant="ghost" icon={<ChevronLeft className="h-4 w-4" />} onClick={() => setStep(step - 1)}>Back</Button>
-          ) : (
-            <div className="ml-auto" aria-hidden />
-          )}
-          {step < 2 ? (
-            <Button variant="primary" iconRight={<ChevronRight className="h-4 w-4" />} onClick={() => setStep(step + 1)}>Next</Button>
-          ) : (
-            <Button variant="primary" disabled={!can} icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={send}>Send update</Button>
-          )}
+          <div className="ml-auto" aria-hidden />
+          <Button variant="primary" disabled={!can} icon={<Send className="h-[1.125rem] w-[1.125rem]" />} onClick={send} data-daily-send-update>Send update</Button>
         </>
       }
     >
-      {step === 0 && noRooms && (
-        <div className="mx-auto flex w-full max-w-[44rem] flex-col gap-3 px-7 py-6 max-sm:px-4" data-daily-norooms>
-          <div>
-            <div className="text-[1rem] font-semibold text-ink">What got done today?</div>
-            <div className="mt-0.5 text-[0.84375rem] text-muted">No rooms on this project yet. Say it in a few words. Photos help.</div>
-          </div>
-          <TextArea value={notes[room] || ''} onChange={(e) => setNotes((p) => ({ ...p, [room]: e.target.value }))} placeholder="e.g. Prepped the master bath walls, set the shower pan" aria-label="What got done today" />
-          <div className="flex flex-wrap items-center gap-2">
-            <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
-            <Button size="sm" icon={<ImagePlus className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>Photos</Button>
-          </div>
-          {(media[room] || []).length > 0 && (
-            <div className="grid grid-cols-6 gap-2 max-md:grid-cols-4 max-sm:grid-cols-3">
-              {(media[room] || []).map((m) => <MediaTile key={m.id} m={m} onRemove={() => setMedia((p) => ({ ...p, [room]: (p[room] || []).filter((x) => x.id !== m.id) }))} />)}
+      <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { if (noRooms) addFiles(e.target.files); else addFilesTo(e.target.files); e.target.value = '' }} />
+      <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-6" data-daily-page>
+        {noRooms ? (
+          <div className="flex flex-col gap-3" data-daily-norooms>
+            <div>
+              <div className="text-[1rem] font-semibold text-ink">What got done today?</div>
+              <div className="mt-0.5 text-[0.84375rem] text-muted">No rooms on this project yet. Say it in a few words. Photos help.</div>
             </div>
-          )}
-        </div>
-      )}
-      {step === 0 && !noRooms && (
-        <div className="grid h-full min-h-0 grid-cols-[16.5rem_minmax(0,1fr)] max-md:flex max-md:h-auto max-md:flex-col">
-          {/* the rooms */}
-          <nav aria-label="Rooms" className="scroll-soft min-h-0 overflow-y-auto border-r border-line-2 bg-wash p-3 max-md:no-scrollbar max-md:flex max-md:gap-2 max-md:overflow-x-auto max-md:border-b max-md:border-r-0">
-            {rooms.map((rm) => {
-              const on = rm.name === room
-              const touched = roomHas(rm.name)
-              return (
-                <button
-                  key={rm.name}
-                  onClick={() => setRoom(rm.name)}
-                  className={cn('mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition max-md:mb-0 max-md:w-auto max-md:shrink-0', on ? 'bg-white shadow-xs ring-1 ring-brand-200' : 'hover:bg-white/70')}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-[0.875rem] font-semibold', on ? 'text-brand-700' : 'text-ink')}>{rm.name}</span>
-                    <span className="mt-1 flex items-center gap-2 max-md:hidden">
-                      <span className="h-1.5 w-[5.25rem] overflow-hidden rounded-full bg-[#e5e0d7]"><span className={cn('block h-full rounded-full', rm.pct >= 100 ? 'bg-ok-500' : 'bg-brand-500')} style={{ width: `${rm.pct}%` }} /></span>
-                      <span className="text-[0.75rem] font-semibold tnum text-muted">{rm.pct}%</span>
-                    </span>
-                  </span>
-                  {touched && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600" aria-label="Marked today" />}
-                </button>
-              )
-            })}
-          </nav>
-          {/* what got done in it */}
-          {r && (
-            <div className="scroll-soft flex min-h-0 flex-col overflow-y-auto px-7 py-6 max-sm:px-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-[1.1875rem] font-bold tracking-[-0.015em] text-ink">{r.name}</h3>
-                <span className="text-[0.8125rem] text-muted">{r.surfaces.length} surfaces · {r.pct}% done</span>
+            <TextArea value={notes[room] || ''} onChange={(e) => setNotes((p) => ({ ...p, [room]: e.target.value }))} placeholder="e.g. Prepped the master bath walls, set the shower pan" aria-label="What got done today" />
+            <div><Button size="sm" icon={<ImagePlus className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>Photos</Button></div>
+            {(media[room] || []).length > 0 && (
+              <div className="grid grid-cols-6 gap-2 max-md:grid-cols-4 max-sm:grid-cols-3">
+                {(media[room] || []).map((m) => <MediaTile key={m.id} m={m} onRemove={() => setMedia((p) => ({ ...p, [room]: (p[room] || []).filter((x) => x.id !== m.id) }))} />)}
               </div>
-              <div className="mt-4 flex flex-col gap-2.5">
-                {r.surfaces.map((sf) => {
-                  const cur = surfacePct(sf)
-                  const t = targets[keyOf(room, sf.name)]
-                  const tile = tileOf(jobId, sf.tile)
-                  const stop = ['blocked', 'hold', 'waitmat', 'unknown'].includes(sf.state)
-                  const opts = [...STEPS.filter((v) => v > cur), 100]
-                  return (
-                    <div key={sf.name} className={cn('rounded-2xl border px-4 py-3.5 transition', t !== undefined ? 'border-brand-300 bg-brand-50/50' : 'border-line bg-white')}>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                        <div className="min-w-0 flex-1 basis-[15rem]">
-                          <div className="text-[0.9375rem] font-semibold text-ink">{sf.name}</div>
-                          <div className="mt-0.5 truncate text-[0.78125rem] text-muted">{tile ? `${tile.tag} ${tile.name} · ${tile.size}` : sf.tile || 'No tile yet'}{sf.sf ? ` · ${sf.sf} SF` : ''}</div>
-                          <div className="mt-2 flex items-center gap-2.5">
-                            <span className="w-[9.375rem] max-sm:w-[6.875rem]"><Delta from={cur} to={t ?? cur} /></span>
-                            <span className={cn('text-[0.78125rem] font-semibold tnum', t !== undefined ? 'text-brand-700' : cur >= 100 ? 'text-ok-600' : 'text-muted')}>{t !== undefined ? `${cur}% → ${t >= 100 ? 'done' : t + '%'}` : cur >= 100 ? 'Done' : `${cur}%`}</span>
-                          </div>
-                        </div>
-                        {sf.state === 'done' ? (
-                          <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-ok-600"><CheckCircle2 className="h-4 w-4" />Complete</span>
-                        ) : stop ? (
-                          <span className={cn('inline-flex max-w-[18.75rem] items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.78125rem] font-semibold', sf.state === 'blocked' ? 'bg-bad-50 text-bad-700' : 'bg-warn-50 text-warn-700')}>
-                            <Ban className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">Don’t start · {sf.pending ? `${sf.pending.co} pending` : sf.reason || SURF_LABEL[sf.state]}</span>
+            )}
+          </div>
+        ) : (
+          <section data-daily-rooms>
+            <div className="mb-2 text-[1rem] font-semibold text-ink">How far did each one get today?</div>
+            <div className="overflow-hidden rounded-xl border border-line bg-white">
+              {openRooms.map((rm) => {
+                const done = rm.surfaces.filter((x) => x.state === 'done')
+                const open = rm.surfaces.filter((x) => x.state !== 'done')
+                return (
+                  <div key={rm.name} className="border-t border-line-2 first:border-t-0" data-daily-room={rm.name}>
+                    <div className="flex items-center gap-3 bg-[#f6f5f2] px-4 py-2">
+                      <span className="min-w-0 flex-1 text-[0.875rem] font-semibold text-ink">{rm.name}<span className="ml-2 font-normal text-muted">{rm.pct}%</span></span>
+                      <button type="button" onClick={() => pickPhotos(rm.name)} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-semibold text-brand-700 hover:bg-white" data-daily-photos={rm.name}><ImagePlus className="h-4 w-4" />Photo{(media[rm.name] || []).length ? ` · ${(media[rm.name] || []).length}` : ''}</button>
+                    </div>
+                    {open.map((sf) => {
+                      const cur = surfacePct(sf)
+                      const t = targets[keyOf(rm.name, sf.name)]
+                      /* always the same five places, so they stand in straight columns down the list (one already
+                         passed keeps its place, empty) */
+                      const opts = [...STEPS, 100]
+                      return (
+                        <div key={sf.name} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-2 px-4 py-2.5', t !== undefined && 'bg-brand-50/40')} data-daily-line={`${rm.name} · ${sf.name}`}>
+                          <span className="min-w-0 flex-1 basis-[11rem]">
+                            <span className="block text-[0.9375rem] text-ink">{sf.name}</span>
+                            <span className={cn('block text-[0.78125rem] tnum', t !== undefined ? 'font-semibold text-brand-700' : 'text-muted')}>{t !== undefined ? `${cur}% → ${t >= 100 ? 'done' : t + '%'}` : cur ? `${cur}% so far` : 'Not started'}</span>
                           </span>
-                        ) : (
-                          <div className="flex flex-wrap items-center gap-1.5 max-sm:w-full" role="group" aria-label={`How far is the ${sf.name.toLowerCase()} now?`}>
-                            {opts.map((v) => {
-                              const on = t === v
-                              return (
-                                <button
-                                  key={v}
-                                  onClick={() => setT(sf, on ? null : v)}
-                                  className={cn(
-                                    'inline-flex h-10 min-w-[3.625rem] items-center justify-center gap-1.5 rounded-xl border px-3 text-[0.875rem] font-semibold tnum transition max-sm:flex-1',
-                                    on ? (v >= 100 ? 'border-ok-500 bg-ok-500 text-white shadow-xs' : 'border-brand-600 bg-brand-600 text-white shadow-xs') : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:bg-brand-50',
-                                  )}
-                                >
-                                  {v >= 100 ? <><Check className="h-4 w-4" strokeWidth={2.6} />Done</> : `${v}%`}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
+                          {stopped(sf) ? (
+                            <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-warn-700"><Ban className="h-3.5 w-3.5 shrink-0" />Don’t start · {sf.pending ? `${sf.pending.co} pending` : sf.reason || SURF_LABEL[sf.state]}</span>
+                          ) : (
+                            <span className="flex flex-wrap items-center gap-1.5 max-sm:w-full" role="group" aria-label={`How far is the ${sf.name.toLowerCase()} now?`}>
+                              {opts.map((v) => {
+                                const on = t === v
+                                const w = v >= 100 ? 'w-[4.75rem]' : 'w-[3.5rem]'
+                                if (v < 100 && v <= cur) return <span key={v} className={cn('h-9 shrink-0 border border-transparent max-sm:flex-1', w)} aria-hidden />
+                                return (
+                                  <button key={v} type="button" onClick={() => setFor(rm.name, sf, on ? null : v)} aria-pressed={on}
+                                    className={cn('inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border text-[0.84375rem] font-semibold tnum transition max-sm:flex-1', w, on ? (v >= 100 ? 'border-ok-500 bg-ok-500 text-white' : 'border-brand-600 bg-brand-600 text-white') : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:bg-brand-50')}>
+                                    {v >= 100 ? <><Check className="h-3.5 w-3.5" strokeWidth={2.6} />Done</> : `${v}%`}
+                                  </button>
+                                )
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {/* what's finished in this room: named, nothing to press */}
+                    {done.length > 0 && <div className="border-t border-line-2 px-4 py-2 text-[0.8125rem] text-muted" data-daily-done={rm.name}><Check className="mr-1 inline h-3.5 w-3.5 text-ok-600" strokeWidth={3} />Done: {done.map((x) => x.name).join(', ')}</div>}
+                    {(media[rm.name] || []).length > 0 && (
+                      <div className="grid grid-cols-6 gap-2 border-t border-line-2 px-4 py-2.5 max-md:grid-cols-4 max-sm:grid-cols-3">
+                        {(media[rm.name] || []).map((m) => <MediaTile key={m.id} m={m} onRemove={() => setMedia((p) => ({ ...p, [rm.name]: (p[rm.name] || []).filter((x) => x.id !== m.id) }))} />)}
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
-                <Button size="sm" icon={<ImagePlus className="h-4 w-4" />} onClick={() => fileRef.current?.click()}>Photos</Button>
-                <button onClick={addSample} className="text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700">Sample photo</button>
-                <TextInput value={notes[room] || ''} onChange={(e) => setNotes((p) => ({ ...p, [room]: e.target.value }))} placeholder={`Note about the ${room.toLowerCase()} (optional)`} className="h-9 min-w-[12.5rem] flex-1" />
-              </div>
-              {(media[room] || []).length > 0 && (
-                <div className="mt-3 grid grid-cols-6 gap-2 max-md:grid-cols-4 max-sm:grid-cols-3">
-                  {(media[room] || []).map((m) => (
-                    <MediaTile key={m.id} m={m} onRemove={() => setMedia((p) => ({ ...p, [room]: (p[room] || []).filter((x) => x.id !== m.id) }))} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 1 && (
-        <div key="flags" className="mx-auto flex w-full max-w-[56.25rem] animate-fade-up flex-col gap-7">
-          <section className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
-            {[
-              { l: 'Anything blocking tomorrow?', icon: Ban, v: blocked, set: setBlocked, tone: 'bad' },
-              { l: 'Short on material?', icon: Package, v: shortage, set: setShortage, tone: 'warn' },
-              { l: 'Client asked for a change?', icon: ArrowLeftRight, v: change, set: setChange, tone: 'vio' },
-            ].map((q) => (
-              <div key={q.l} className={cn('rounded-2xl border p-4 transition', q.v ? 'border-warn-300 bg-warn-50/60' : 'border-line bg-white')}>
-                <div className="flex items-center gap-2.5 text-[0.9375rem] font-semibold text-ink">
-                  <span className={cn('inline-flex h-9 w-9 items-center justify-center rounded-xl', q.tone === 'bad' ? 'bg-bad-50 text-bad-600' : q.tone === 'warn' ? 'bg-warn-50 text-warn-600' : 'bg-vio-50 text-vio-600')}><q.icon className="h-[1.125rem] w-[1.125rem]" /></span>
-                  {q.l}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Chip on={!q.v} onClick={() => q.set(false)} className="h-10 flex-1 justify-center">No</Chip>
-                  <Chip on={q.v} onClick={() => q.set(true)} className="h-10 flex-1 justify-center">Yes</Chip>
-                </div>
-              </div>
-            ))}
-          </section>
-          {change && <div className="-mt-3 flex items-center gap-2 rounded-xl bg-warn-50 px-3.5 py-2.5 text-[0.84375rem] text-warn-700"><ArrowLeftRight className="h-4 w-4 shrink-0" />The change opens right after you send.</div>}
-          <Field label="Tomorrow the crew works in">
-            <div className="flex flex-wrap gap-2">
-              {rooms.map((rm) => <Chip key={rm.name} on={tomorrow.includes(rm.name)} onClick={() => setTomorrow((p) => (p.includes(rm.name) ? p.filter((x) => x !== rm.name) : [...p, rm.name]))} className="h-9 px-3 text-[0.84375rem]">{rm.name}</Chip>)}
-            </div>
-          </Field>
-          <Field label="Note for the office (optional)">
-            <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything the office should know" />
-          </Field>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div key="send" className="mx-auto flex w-full max-w-[56.25rem] animate-fade-up flex-col gap-5">
-          <section className="overflow-hidden rounded-2xl border border-line">
-            <div className="flex items-center gap-4 bg-wash px-5 py-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-[0.78125rem] font-semibold text-muted">{job.name} · today</div>
-                <div className="mt-1.5 flex items-center gap-3">
-                  <Bar pct={projected} className="flex-1" h={8} />
-                  <span className="shrink-0 text-[0.9375rem] font-bold tnum text-ink">{projected}%{projected !== before ? <span className="ml-1.5 text-[0.8125rem] font-medium text-muted">was {before}%</span> : null}</span>
-                </div>
-              </div>
-            </div>
-            {lines.length ? (
-              lines.map((l) => (
-                <div key={l.k} className="flex items-center gap-4 border-t border-line-2 px-5 py-3">
-                  <span className="w-[9.375rem] shrink-0 truncate text-[0.8125rem] font-semibold text-muted max-sm:w-[6rem]">{l.room}</span>
-                  <span className="min-w-0 flex-1 truncate text-[0.90625rem] font-medium text-ink">{l.surface}</span>
-                  <span className={cn('inline-flex h-7 items-center rounded-full px-2.5 text-[0.78125rem] font-semibold tnum', l.to >= 100 ? 'bg-ok-50 text-ok-700' : 'bg-brand-50 text-brand-700')}>{l.from}% → {l.to >= 100 ? 'done' : `${l.to}%`}</span>
-                </div>
-              ))
-            ) : (
-              <div className="border-t border-line-2 px-5 py-4 text-[0.875rem] text-muted" data-daily-nothing>{noRooms && notes[room]?.trim() ? <span className="text-ink">{notes[room].trim()}</span> : 'Nothing marked today. It goes as the crew being there.'}</div>
-            )}
-            {(mediaCount > 0 || blocked || shortage || change || tomorrow.length > 0) && (
-              <div className="flex flex-wrap gap-2 border-t border-line-2 px-5 py-3">
-                {mediaCount > 0 && <Pill tone="neutral">{mediaCount} photo{mediaCount > 1 ? 's' : ''}</Pill>}
-                {blocked && <Pill tone="bad">Blocks tomorrow</Pill>}
-                {shortage && <Pill tone="warn">Short on material</Pill>}
-                {change && <Pill tone="vio">Client change</Pill>}
-                {tomorrow.length > 0 && <Pill tone="info">Tomorrow: {tomorrow.join(', ')}</Pill>}
-              </div>
-            )}
-          </section>
-
-          {s.role !== 'crew' && (
-            <section className={cn('rounded-2xl border p-4 transition', gc ? 'border-brand-200 bg-brand-50/50' : 'border-line')}>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setGc((v) => !v)} className={cn('inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition', gc ? 'bg-brand-600' : 'bg-[#D5DBE4]')} role="switch" aria-checked={gc} aria-label="Also send the GC a progress report">
-                  <span className={cn('h-5 w-5 rounded-full bg-white shadow transition', gc && 'translate-x-5')} />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[0.90625rem] font-semibold text-ink">Also send {job.client} a progress report</div>
-                  <div className="text-[0.8125rem] text-muted">Today’s progress and photos, from Cobblestone</div>
-                </div>
-              </div>
-              {gc && (
-                <div className="mt-4 rounded-xl border border-line bg-white p-5">
-                  <div className="text-[0.75rem] font-semibold text-muted">Progress report · {dayShort(TODAY)}</div>
-                  <div className="mt-1 text-[1.125rem] font-bold tracking-[-0.01em] text-ink">{job.name}</div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <Bar pct={projected} className="flex-1" h={8} />
-                    <span className="text-[0.84375rem] font-semibold tnum text-ink">{projected}% installed</span>
+                    )}
                   </div>
-                  <div className="mt-3 flex flex-col gap-1 text-[0.84375rem] text-ink-2">
-                    {lines.map((l) => <div key={l.k}>{l.room} · {l.surface.toLowerCase()} {l.to >= 100 ? 'finished' : `now ${l.to}%`}</div>)}
-                  </div>
-                  {mediaCount > 0 && (
-                    <div className="mt-3 grid grid-cols-6 gap-2 max-sm:grid-cols-4">
-                      {Object.values(media).flat().slice(0, 6).map((m) => <MediaTile key={m.id} m={m} />)}
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
-        </div>
-      )}
+                )
+              })}
+              {doneRooms.length > 0 && <div className="border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-muted" data-daily-done-rooms><Check className="mr-1 inline h-3.5 w-3.5 text-ok-600" strokeWidth={3} />Finished rooms: {doneRooms.map((x) => x.name).join(', ')}</div>}
+              {!openRooms.length && !doneRooms.length && <div className="px-4 py-3 text-[0.875rem] text-muted">No walls or floors on this project yet.</div>}
+            </div>
+          </section>
+        )}
+        <section>
+          <div className="mb-2 text-[0.9375rem] font-semibold text-ink">Anything to flag?</div>
+          <div className="flex flex-wrap gap-1.5" data-daily-flags>
+            {flag(blocked, setBlocked, 'Something blocks tomorrow', 'data-flag-blocked')}
+            {flag(shortage, setShortage, 'Short on material', 'data-flag-short')}
+            {flag(change, setChange, 'Client asked for a change', 'data-flag-change')}
+          </div>
+          {change && <div className="mt-2 text-[0.8125rem] text-warn-700">The change opens right after you send.</div>}
+          <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="A note for the office (optional)" className="mt-3" aria-label="A note for the office" />
+        </section>
+        {s.role !== 'crew' && (
+          <button type="button" role="switch" aria-checked={gc} onClick={() => setGc((v) => !v)} className="flex items-center gap-3 text-left" data-daily-gc>
+            <span className={cn('inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition', gc ? 'bg-brand-600' : 'bg-[#D5DBE4]')}><span className={cn('h-5 w-5 rounded-full bg-white shadow transition', gc && 'translate-x-5')} /></span>
+            <span className="min-w-0 text-[0.875rem] text-ink-2">Also send {job.client} a progress report: today’s progress and photos</span>
+          </button>
+        )}
+      </div>
     </Modal>
   )
 }
@@ -687,100 +571,79 @@ function useSiteChange({ jobId, room: r0, surface: s0, by: by0 = 'Homeowner', me
     siteChange({ jobId, room, surface, label, from, to: toLabel, by, note: note.trim() || undefined, sfDelta, tileTag, tileSF: tileOn ? tileSF : 0, ipoQty, ipoAmount, doIPO: ipoOn, doTile: tileOn, meeting })
     onDone?.()
   }
+  /* short and simple, one column: where, what changes, who asked — then, in a few plain lines, what starting it does
+     (the installer's PO and the tile can be left out with their tick) */
+  const tickBox = (on: boolean) => <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border-2', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9c2b7] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3} />}</span>
   const body = !job ? null : (
-    <div className={cn('grid gap-8 max-lg:grid-cols-1 max-lg:gap-6', compact ? 'grid-cols-1 gap-5' : 'grid-cols-[minmax(0,1fr)_23.75rem]')} data-change-form>
-      <div className="flex min-w-0 flex-col gap-6">
-        <Field label="Where?">
-          <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-            <SearchSelect label="Room" value={room} onChange={setRoom} options={rooms.map((x) => ({ key: x.name, label: x.name }))} placeholder="Which room" width={300} />
-            {rm && <SearchSelect label="Wall or floor" value={surface} onChange={setSurface} options={rm.surfaces.map((x) => ({ key: x.name, label: x.name, hint: tileOf(jobId, x.tile) ? tileLine(tileOf(jobId, x.tile)) : undefined }))} placeholder="Which wall or floor" width={320} search={false} />}
-          </div>
-        </Field>
-        {sf && (
-          <div className="flex items-center gap-4 rounded-2xl border border-line bg-wash/60 p-4">
-            <TileImg tile={tile} size={56} />
-            <div className="min-w-0">
-              <div className="text-[0.78125rem] font-semibold text-muted">What was planned</div>
-              <div className="text-[0.9375rem] font-semibold text-ink">{room} · {sf.name}</div>
-              <div className="text-[0.8125rem] text-ink-2">{[tile ? `${tile.tag} ${tile.name} ${tile.size}` : '', sf.layout, sf.height, sf.sf ? `${sf.sf} SF` : ''].filter(Boolean).join(' · ')}</div>
-              <div className="mt-0.5 text-[0.78125rem] text-muted">{surfacePct(sf)}% installed{sf.pending ? ` · ${sf.pending.co} already pending` : ''}</div>
-            </div>
-          </div>
-        )}
-        <Field label="What do they want now?">
-          <div className="flex flex-wrap gap-2">
-            {(['Height', 'Tile', 'Layout', 'Add area', 'Leave it out'] as CType[]).map((x) => <Chip key={x} on={type === x} onClick={() => setType(x)}>{x === 'Height' ? 'Different height' : x === 'Tile' ? 'Different tile' : x === 'Layout' ? 'Different layout' : x}</Chip>)}
-          </div>
-          <div className="mt-3">
-            {type === 'Height' && (
-              <div className="flex flex-wrap gap-2">
-                {HEIGHTS.filter((h) => feet(h) !== feet(sf?.height)).map((h) => <Chip key={h} on={to === h} onClick={() => setTo(h)} className="h-9 px-3 text-[0.84375rem]">{h}</Chip>)}
-              </div>
-            )}
-            {type === 'Tile' && (
-              <div className="flex flex-wrap gap-2">
-                {tilesOf(jobId).filter((t) => t.tag !== sf?.tile).map((t) => (
-                  <Chip key={t.tag} on={tileTo === t.tag} onClick={() => setTileTo(t.tag)} className="h-10 px-3 text-[0.84375rem]" icon={<TileImg tile={t} size={20} radius={5} />}>{t.tag} {t.name}{tilesUsed.includes(t.tag) ? '' : ' · new'}</Chip>
-                ))}
-              </div>
-            )}
-            {type === 'Layout' && (
-              <div className="flex flex-wrap gap-2">
-                {LAYOUTS.filter((l) => !sf?.layout?.toLowerCase().startsWith(l.toLowerCase())).map((l) => <Chip key={l} on={to === l} onClick={() => setTo(l)} className="h-9 px-3 text-[0.84375rem]">{l}</Chip>)}
-              </div>
-            )}
-            {type === 'Add area' && (
-              <div className="flex flex-wrap items-center gap-3">
-                <TextInput value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. A border, tub deck, bench, window sill" className="max-w-[20rem] max-sm:max-w-none" />
-                <NumStepper value={areaSF} onChange={setAreaSF} min={1} max={500} suffix="SF" />
-              </div>
-            )}
-            {type === 'Leave it out' && <div className="rounded-xl bg-wash px-3.5 py-2.5 text-[0.84375rem] text-ink-2">The {sf?.name.toLowerCase()} comes out of the scope. What’s already installed stays billed.</div>}
-          </div>
-        </Field>
-        <div className="grid grid-cols-2 gap-5 max-sm:grid-cols-1">
-          <Field label="Who asked?">
-            <div className="flex flex-wrap gap-2">
-              {['Homeowner', 'GC', 'Designer'].map((x) => <Chip key={x} on={by === x} onClick={() => setBy(x)} className="h-9 px-3 text-[0.84375rem]">{x}</Chip>)}
-            </div>
-          </Field>
-          <Field label="Note (optional)">
-            <TextInput mic value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was actually said" />
-          </Field>
+    <div className="flex flex-col gap-5" data-change-form>
+      <ChangeRow label="Where">
+        <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+          <SearchSelect label="Room" value={room} onChange={setRoom} options={rooms.map((x) => ({ key: x.name, label: x.name }))} placeholder="Which room" width={300} />
+          {rm && <SearchSelect label="Wall or floor" value={surface} onChange={setSurface} options={rm.surfaces.map((x) => ({ key: x.name, label: x.name, hint: tileOf(jobId, x.tile) ? tileLine(tileOf(jobId, x.tile)) : undefined }))} placeholder="Which wall or floor" width={320} search={false} />}
         </div>
+        {sf && <div className="mt-1.5 text-[0.8125rem] text-muted" data-change-planned>Planned: {[tile ? `${tile.tag} ${tile.name} ${tile.size}` : '', sf.layout, sf.height, sf.sf ? `${sf.sf} SF` : '', `${surfacePct(sf)}% installed`].filter(Boolean).join(' · ')}{sf.pending ? ` · ${sf.pending.co} already pending` : ''}</div>}
+      </ChangeRow>
+      <ChangeRow label="What changes">
+        <div className="flex flex-wrap gap-1.5">
+          {(['Height', 'Tile', 'Layout', 'Add area', 'Leave it out'] as CType[]).map((x) => <Chip key={x} on={type === x} onClick={() => setType(x)} className="h-9 px-3 text-[0.84375rem]">{x === 'Height' ? 'Height' : x === 'Tile' ? 'Tile' : x === 'Layout' ? 'Layout' : x}</Chip>)}
+        </div>
+        <div className="mt-2.5">
+          {type === 'Height' && (
+            <div className="flex flex-wrap gap-1.5">
+              {HEIGHTS.filter((h) => feet(h) !== feet(sf?.height)).map((h) => <Chip key={h} on={to === h} onClick={() => setTo(h)} className="h-9 px-3 text-[0.84375rem]">{h}</Chip>)}
+            </div>
+          )}
+          {type === 'Tile' && (
+            <SearchSelect label="The new tile" value={tileTo} onChange={setTileTo} placeholder="Pick the new tile" width={340} options={tilesOf(jobId).filter((t) => t.tag !== sf?.tile).map((t) => ({ key: t.tag, label: `${t.tag} ${t.name}`, hint: tilesUsed.includes(t.tag) ? t.size : `${t.size} · new`, lead: <TileImg tile={t} size={20} radius={5} /> }))} />
+          )}
+          {type === 'Layout' && (
+            <div className="flex flex-wrap gap-1.5">
+              {LAYOUTS.filter((l) => !sf?.layout?.toLowerCase().startsWith(l.toLowerCase())).map((l) => <Chip key={l} on={to === l} onClick={() => setTo(l)} className="h-9 px-3 text-[0.84375rem]">{l}</Chip>)}
+            </div>
+          )}
+          {type === 'Add area' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <TextInput value={area} onChange={(e) => setArea(e.target.value)} placeholder="e.g. A border, tub deck, bench, window sill" className="max-w-[20rem] max-sm:max-w-none" />
+              <NumStepper value={areaSF} onChange={setAreaSF} min={1} max={500} suffix="SF" />
+            </div>
+          )}
+          {type === 'Leave it out' && <div className="text-[0.84375rem] text-ink-2">The {sf?.name.toLowerCase()} comes out of the scope. What’s already installed stays billed.</div>}
+        </div>
+      </ChangeRow>
+      <ChangeRow label="Who asked">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {['Homeowner', 'GC', 'Designer'].map((x) => <Chip key={x} on={by === x} onClick={() => setBy(x)} className="h-9 px-3 text-[0.84375rem]">{x}</Chip>)}
+        </div>
+        <TextInput mic value={note} onChange={(e) => setNote(e.target.value)} placeholder="A note · what was actually said (optional)" className="mt-2" />
+      </ChangeRow>
+      {/* what starting it does — plain lines, not boxes */}
+      <div className="rounded-xl bg-wash/70 px-4 py-3 text-[0.84375rem] leading-snug text-ink-2" data-change-effects>
+        <div className="mb-1.5 font-semibold text-ink">Starting {co}:</div>
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+          <li className="flex gap-2"><span className="mt-[0.4375rem] h-1.5 w-1.5 shrink-0 rounded-full bg-faint" />{ready ? `${from} → ${toLabel}. ` : ''}The estimator prices it, the {meeting ? 'client' : 'GC'} approves it, then it’s billed.</li>
+          {!!crew && ipoAmount !== 0 && (
+            <li><button type="button" role="checkbox" aria-checked={ipoOn} onClick={() => setDoIPO((v) => !v)} className="flex w-full gap-2 text-left" data-change-ipo>{tickBox(ipoOn)}<span>{s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}, once it’s approved.` : `${PEOPLE[crew].name}’s PO gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}), sent when approved.`}</span></button></li>
+          )}
+          {tileSF > 0 && (
+            <li><button type="button" role="checkbox" aria-checked={tileOn} onClick={() => setDoTile((v) => !v)} className="flex w-full gap-2 text-left" data-change-tile>{tickBox(tileOn)}<span>Tile: about {tileNeed} SF of {tileTag} {tileOf(jobId, tileTag)?.name || ''}, with {waste}% for cuts. {supplier === 'GC' ? 'The GC is asked to order it once approved.' : 'We order it once approved.'}</span></button></li>
+          )}
+          <li className="flex gap-2"><span className="mt-[0.4375rem] h-1.5 w-1.5 shrink-0 rounded-full bg-faint" />{sf ? `${meeting ? 'The' : crew ? `${PEOPLE[crew].name}’s` : 'The crew’s'} ${meeting ? `${room.toLowerCase()} ${sf.name.toLowerCase()} waits` : `phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()}`} until it’s approved. Everything else keeps going.` : 'Only that wall or floor waits.'}</li>
+        </ul>
       </div>
-
-      <aside className={cn('self-start rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/70 to-white', compact ? 'p-4' : 'p-5')}>
-        <div className="flex items-center gap-2.5">
-          <IconCircle tone="info" size={34}><Sparkles className="h-4 w-4" /></IconCircle>
-          <div className="text-[0.96875rem] font-semibold text-ink">One click starts all of this</div>
-        </div>
-        <div className={cn('mt-4 grid gap-3', compact ? 'grid-cols-2 max-md:grid-cols-1' : 'grid-cols-1')}>
-          <Effect on icon={<Receipt className="h-4 w-4" />} title={`Change order ${co}`} sub={ready ? `${from} → ${toLabel}. The estimator prices it, it goes to the ${meeting ? 'client' : 'GC'}, and it becomes billable the moment it’s approved.` : `Priced by the estimator, approved by the ${meeting ? 'client' : 'GC'}, then billed.`} />
-          <Effect
-            on={ipoOn}
-            disabled={!crew || ipoAmount === 0}
-            onToggle={() => setDoIPO((v) => !v)}
-            icon={<HardHat className="h-4 w-4" />}
-            title={crew ? `${PEOPLE[crew].name}’s installer PO` : 'Installer PO'}
-            sub={!crew ? 'No installer yet. His PO is made from the new scope.' : ipoAmount === 0 ? 'No change to the installer’s work.' : s.role === 'crew' ? `Your PO gets a change line: ${ipoQty}. You’ll get it once it’s approved.` : `${ipo?.id || 'New PO'} gets a change line: ${ipoQty} (${ipoAmount > 0 ? '+' : '−'}${fmtMoney(Math.abs(ipoAmount))}). Sent to ${PEOPLE[crew].name} when approved.`}
-          />
-          <Effect
-            on={tileOn}
-            disabled={tileSF <= 0}
-            onToggle={() => setDoTile((v) => !v)}
-            icon={<Package className="h-4 w-4" />}
-            title="Tile"
-            sub={tileSF <= 0 ? 'No extra tile needed.' : `About ${tileNeed} SF of ${tileTag} ${tileOf(jobId, tileTag)?.name || ''} with ${waste}% waste. ${supplier === 'GC' ? 'The GC supplies it. They’re asked to order it once approved.' : 'We order it once approved.'}`}
-          />
-          <Effect on icon={<PauseCircle className="h-4 w-4" />} title={meeting ? 'That surface waits' : 'The crew holds'} sub={sf ? `${crew ? PEOPLE[crew].name + '’s' : 'The crew’s'} phone shows “do not start” on the ${room.toLowerCase()} ${sf.name.toLowerCase()} until it’s approved. Everything else keeps moving.` : 'Only that surface waits.'} />
-        </div>
-      </aside>
     </div>
   )
   return { body, ready, start, co, count, job }
 }
 
+/** one line of the change: its name on the left, what to pick on the right */
+function ChangeRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-x-4 max-sm:grid-cols-1 max-sm:gap-y-1.5">
+      <span className="flex min-h-9 items-center text-[0.84375rem] font-semibold text-ink-2">{label}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
 export function SiteChangeModal({ jobId, room, surface, level }: { jobId: string; room?: string; surface?: string; level: number }) {
   const s = useStore()
   const f = useSiteChange({ jobId, room, surface, onDone: () => s.close() })
@@ -798,13 +661,13 @@ export function SiteChangeModal({ jobId, room, surface, level }: { jobId: string
   return (
     <Modal
       level={level}
-      size="xl"
+      size="md"
       onClose={s.close}
       header={header}
       title="Change on site"
       footer={
         <>
-          <span className="text-[0.84375rem] text-muted">{f.ready ? `One click starts ${f.count} things. Nobody has to remember the rest.` : 'Pick what they want now.'}</span>
+          <span className="text-[0.84375rem] text-muted">{f.ready ? '' : 'Pick what changes.'}</span>
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
         </>
@@ -823,7 +686,7 @@ export function SiteChangeForm({ jobId, by, meeting, onDone, onCancel }: { jobId
     <section className="rounded-xl border border-line bg-white p-4 max-sm:p-3" data-change-inline>
       {f.body}
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-2 pt-3">
-        <span className="mr-auto text-[0.8125rem] text-muted">{f.ready ? `One click starts ${f.count} things.` : 'Pick what they want now.'}</span>
+        <span className="mr-auto text-[0.8125rem] text-muted">{f.ready ? '' : 'Pick what changes.'}</span>
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button variant="primary" disabled={!f.ready} icon={<ArrowLeftRight className="h-[1.125rem] w-[1.125rem]" />} onClick={f.start}>Start {f.co}</Button>
       </div>

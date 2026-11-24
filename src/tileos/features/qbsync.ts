@@ -400,7 +400,10 @@ export function remindLate() {
   if ((s.rules.autoOff || []).includes('inv-remind')) return
   const days = Math.max(1, s.rules.reminderDays || 3)
   const books = s.team.find((m) => m.role === 'accounting' && m.status !== 'off')
-  const owner = (books?.key as PersonKey) || meOf('owner')
+  /* whoever the admin picked for it (Settings → Automations), else whoever does the books */
+  const picked = s.rules.autoWho?.['inv-remind']
+  const pickedRole = picked ? s.team.find((m) => m.key === picked)?.role : undefined
+  const owner = picked || (books?.key as PersonKey) || meOf('owner')
   const add = s.money.filter((m) => m.state !== 'paid' && m.qb?.id && !m.qb.gone && m.qb.emailed && (m.qb.balance ?? 1) > 0.005 && Date.now() - Date.parse(m.qb.emailed) >= days * 86_400_000)
     .filter((m) => !s.tasks.some((t) => t.id === `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`))
   if (!add.length) return
@@ -408,7 +411,7 @@ export function remindLate() {
     for (const m of add) {
       const j = st.jobs[m.jobId]
       const open = (m.amount || 0) - (m.paid || 0)
-      newTask(st, { id: `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`, jobId: m.jobId, title: `Remind ${billTo(st, m.jobId).name} · invoice ${m.ref || ''} has ${fmtMoney(open)} open`, type: 'Money', owner, for: [books ? 'accounting' : 'owner'], state: 'now', due: 'Today', tone: 'warn', where: `${j?.name || ''} · ${m.title}`, action: { label: 'Remind', kind: 'money:' + m.id } })
+      newTask(st, { id: `remind-${m.id}-${m.qb!.emailed!.slice(0, 10)}`, jobId: m.jobId, title: `Remind ${billTo(st, m.jobId).name} · invoice ${m.ref || ''} has ${fmtMoney(open)} open`, type: 'Money', owner, for: [pickedRole || (books ? 'accounting' : 'owner')] as any, state: 'now', due: 'Today', tone: 'warn', where: `${j?.name || ''} · ${m.title}`, action: { label: 'Remind', kind: 'money:' + m.id } })
     }
   })
 }

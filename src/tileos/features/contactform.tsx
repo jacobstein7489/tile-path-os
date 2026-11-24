@@ -9,6 +9,7 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import type { Reach } from '@/tileos/data/model'
 import { MoreReach, cleanReach, reachOk, isEmail } from './reach'
+import { PhoneInput, EmailInput } from './reach'
 
 const field = (label: string, el: React.ReactNode) => (
   <label className="block min-w-0"><span className="mb-1.5 block text-[0.8125rem] font-medium text-ink-2">{label}</span>{el}</label>
@@ -65,8 +66,8 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
           {field('What they do', <TextInput aria-label="What they do" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Project manager" className="h-10" />)}
         </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {field('Phone', <TextInput aria-label="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(718) 555-0100" className="h-10" />)}
-          {field('Email', <TextInput aria-label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="h-10" />)}
+          {field('Phone', <PhoneInput value={phone} onChange={setPhone} />)}
+          {field('Email', <EmailInput value={email} onChange={setEmail} />)}
         </div>
         {badMain && <div className="-mt-2 text-[0.75rem] font-medium text-bad-600">That isn’t an email address</div>}
         <div>

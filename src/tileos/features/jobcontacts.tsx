@@ -7,6 +7,7 @@ import { Button, Field, TextInput, Chip } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import type { JobContact } from '@/tileos/data/model'
 import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
+import { fmtPhone } from './reach'
 
 const S = () => useStore.getState()
 /** the project's designer: one from Designers (id), or none on it ('' or "none") — written in What happened */
@@ -103,8 +104,8 @@ export function JobContactModal({ jobId, index, level }: { jobId: string; index?
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-          <Field label="Phone"><TextInput type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="732-555-0101" autoComplete="off" data-contact-phone /></Field>
-          <Field label="Email (optional)"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" data-contact-email /></Field>
+          <Field label="Phone"><TextInput type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => setPhone(fmtPhone(phone))} placeholder="(732) 555-0101" autoComplete="off" data-contact-phone /></Field>
+          <Field label="Email (optional)"><TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setEmail(email.trim().toLowerCase())} autoComplete="off" data-contact-email /></Field>
         </div>
         <button type="submit" className="hidden" aria-hidden tabIndex={-1} />
       </form>

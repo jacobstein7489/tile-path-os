@@ -39,6 +39,11 @@ export const TRACKS: { key: TrackKey; label: string; /** where room is tight (th
   /* the tile delivery: when the store brings it — then it's received: counted, so we know what we got */
   { key: 'delivery', label: 'Tile delivery', short: 'Delivery', steps: ['order', 'delivered'] },
 ]
+/** a part's steps in the company's order (Who does what: Move up / down) — or the usual one */
+export function partOrder(s: { rules: { stepOrder?: Record<string, string[]> } }, key: string, base: string[] = TRACKS.find((t) => t.key === key)?.steps || []): string[] {
+  const o = s.rules.stepOrder?.[key]
+  return o?.length ? [...o, ...base.filter((k) => !o.includes(k))] : base
+}
 /** a question added on one project sits in the track of the part it was added to */
 const GROUP_TRACK: Record<string, TrackKey> = { estimate: 'estimate', design: 'scope', scope: 'scope', tile: 'tile', site: 'site', installer: 'installer', materials: 'materials', delivery: 'delivery' }
 /** each step's name on its track's path — what has to happen, said plainly */
@@ -98,7 +103,7 @@ export function tracksFor(s: Store, job: Job, all: StepView[] = stepsFor(s, job)
   const lists: Record<TrackKey, StepView[]> = { estimate: [], tile: [], scope: [], site: [], installer: [], materials: [], delivery: [], other: [] }
   all.forEach((v) => { const k = trackOf(v); if (k) lists[k].push(v) })
   /* in the track's own order; a question added on this project goes at the end of its track */
-  TRACKS.forEach((t) => lists[t.key].sort((a, b) => (t.steps.indexOf(a.key) + 1 || 99) - (t.steps.indexOf(b.key) + 1 || 99)))
+  TRACKS.forEach((t) => { const o = partOrder(s, t.key); lists[t.key].sort((a, b) => (o.indexOf(a.key) + 1 || 99) - (o.indexOf(b.key) + 1 || 99)) })
   const view = (key: TrackKey, label: string): TrackView | null => {
     const steps = lists[key]
     if (!steps.length) return null

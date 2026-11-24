@@ -63,7 +63,7 @@ export function Page({
   React.useLayoutEffect(() => {
     const el = topRef.current
     if (!el) { setPtop(0); return }
-    const set = () => setPtop(el.offsetHeight)
+    const set = () => setPtop(Math.floor(el.getBoundingClientRect().height))
     set()
     const ro = new ResizeObserver(set)
     ro.observe(el)
@@ -72,7 +72,8 @@ export function Page({
   React.useLayoutEffect(() => {
     const el = headRef.current
     if (!el) { setHead(0); return }
-    const set = () => setHead(el.offsetHeight)
+    /* rounded down: what pins under it then tucks a hair under its edge, never leaving a thin slit the list shows through */
+    const set = () => setHead(Math.floor(el.getBoundingClientRect().height))
     set()
     const ro = new ResizeObserver(set)
     ro.observe(el)
@@ -81,7 +82,7 @@ export function Page({
   React.useLayoutEffect(() => {
     const el = barRef.current
     if (!el) { setBar(0); return }
-    const set = () => setBar(el.offsetHeight)
+    const set = () => setBar(Math.floor(el.getBoundingClientRect().height))
     set()
     const ro = new ResizeObserver(set)
     ro.observe(el)

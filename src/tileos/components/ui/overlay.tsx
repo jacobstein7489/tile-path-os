@@ -273,7 +273,7 @@ export function Pop({ trigger, children, align = 'start', side = 'bottom', width
     <PO.Root open={open} onOpenChange={onOpenChange}>
       <PO.Trigger asChild>{trigger}</PO.Trigger>
       <PO.Portal>
-        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} className={cn('z-[300] rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in', className)} style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} className={cn('scroll-soft z-[300] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in', className)} style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </PO.Content>
       </PO.Portal>

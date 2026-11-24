@@ -9,7 +9,7 @@ import { Modal } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { CUSTOMERS } from '@/tileos/data/jobs'
 import { FormHead, FormRow } from './formkit'
-import { MoreReach, cleanReach, reachOk } from './reach'
+import { MoreReach, cleanReach, reachOk, PhoneInput, EmailInput, isEmail, isPhone, fmtPhone } from './reach'
 import type { Reach } from '@/tileos/data/model'
 
 export function NewClientModal({ level, id: editId }: { level: number; id?: string }) {
@@ -31,7 +31,17 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
   const [card, setCard] = React.useState(!was)
   const person = [first.trim(), last.trim()].filter(Boolean).join(' ')
   const name = kind === 'company' ? company.trim() : person
-  const ok = (editId ? !!name : !!name && !!first.trim() && /\S+@\S+\.\S+/.test(email)) && reachOk(more)
+  /* what has to be there to save: the name (a company's, or the person's first and last), an email and a phone —
+     each one a real one. What's still missing is said next to Save */
+  const missing = [
+    kind === 'company' && !company.trim() ? 'the company name' : '',
+    !first.trim() ? 'a first name' : '',
+    kind === 'person' && !last.trim() ? 'a last name' : '',
+    !isEmail(email) ? (email.trim() ? 'a real email' : 'an email') : '',
+    !isPhone(phone) ? (phone.trim() ? 'a whole phone number' : 'a phone') : '',
+    !reachOk(more) ? 'the extra phones and emails fixed' : '',
+  ].filter(Boolean)
+  const ok = !missing.length
   /* changing a client that's there: the details change everywhere it shows (its projects too) */
   const update = () => {
     if (!editId) return
@@ -41,16 +51,16 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       c.name = name
       c.kind = kind === 'company' ? (/home|owner/i.test(c.kind) ? 'General contractor' : c.kind) : 'Homeowner'
       c.address = [street.trim(), city.trim(), zip.trim()].filter(Boolean).join(', ')
-      c.phone = phone.trim()
-      c.email = email.trim()
+      c.phone = fmtPhone(phone)
+      c.email = email.trim().toLowerCase()
       c.notes = comment.trim()
       c.more = cleanReach(more)
       c.city = city.trim() || undefined
       c.zip = zip.trim() || undefined
       c.country = country
       if (person) {
-        if (c.contacts?.length) c.contacts[0] = { ...c.contacts[0], name: person, phone: phone.trim(), email: email.trim() }
-        else c.contacts = [{ name: person, role: kind === 'company' ? 'Main contact' : 'Owner', phone: phone.trim(), email: email.trim() }]
+        if (c.contacts?.length) c.contacts[0] = { ...c.contacts[0], name: person, phone: fmtPhone(phone), email: email.trim().toLowerCase() }
+        else c.contacts = [{ name: person, role: kind === 'company' ? 'Main contact' : 'Owner', phone: fmtPhone(phone), email: email.trim().toLowerCase() }]
       }
       if (card && !c.card) c.card = { status: 'link-sent', sent: NOW }
       Object.values(st.jobs).forEach((j) => { if (j.clientId === editId) j.client = name })
@@ -61,8 +71,8 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
     const id = 'c' + Date.now().toString(36)
     const client = {
       id, name, kind: kind === 'company' ? 'General contractor' : 'Homeowner', address: [street.trim(), city.trim(), zip.trim()].filter(Boolean).join(', '),
-      phone: phone.trim(), email: email.trim(), more: cleanReach(more), notes: comment.trim(), city: city.trim() || undefined, zip: zip.trim() || undefined, country,
-      contacts: [{ name: person, role: kind === 'company' ? 'Main contact' : 'Owner', phone: phone.trim(), email: email.trim() }],
+      phone: fmtPhone(phone), email: email.trim().toLowerCase(), more: cleanReach(more), notes: comment.trim(), city: city.trim() || undefined, zip: zip.trim() || undefined, country,
+      contacts: [{ name: person, role: kind === 'company' ? 'Main contact' : 'Owner', phone: fmtPhone(phone), email: email.trim().toLowerCase() }],
       card: card ? { status: 'link-sent', sent: NOW } : undefined,
     }
     s.commit(
@@ -79,7 +89,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       title={editId ? 'Client details' : 'New client'}
       header={<FormHead k="newclient" kicker={editId ? 'Client details' : 'Start something new'} title={editId ? was?.name : 'New client'} right={editId ? undefined : <span className="hidden text-[0.8125rem] text-muted sm:inline">QuickBooks gets the same client by itself</span>} />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={<><div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
+      footer={<>{missing.length > 0 && <span className="min-w-0 text-[0.8125rem] text-muted" data-client-missing>To save, add {missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]}</span>}<div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
     >
       <FormRow label="Who they are">
         <Segmented value={kind} onChange={setKind} items={[{ key: 'company', label: 'A company · GC, developer' }, { key: 'person', label: 'A person · homeowner' }]} />
@@ -97,8 +107,8 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       </FormRow>
       <FormRow label="Reach them">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <TextInput type="email" aria-label="Email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email · name@company.com" />
-          <TextInput aria-label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone · (718) 555-0100" />
+          <EmailInput value={email} onChange={setEmail} placeholder="Email · name@company.com" required />
+          <PhoneInput value={phone} onChange={setPhone} placeholder="Phone · (718) 555-0100" required />
         </div>
         <MoreReach className="mt-2" value={more} onChange={setMore} />
       </FormRow>

@@ -31,7 +31,8 @@ import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, togg
 import { StepButton } from './steps-ui'
 import { todoOf } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow, daysBetween, pickedLabel } from '@/tileos/lib/today'
-import { REAL, awayFromMe } from '@/tileos/lib/save'
+import { REAL, awayFromMe, PUBLISHED } from '@/tileos/lib/save'
+import { crewMailPeople, crewMailWords, crewMailTo } from './mailout'
 import { checkIns, checkInDays, reportOn, handledOf, workdaysBetween, type CheckItem } from './teamreport'
 import { SuggestInput } from '@/tileos/components/ui/suggest'
 import { insidePeople, fieldPeople } from './steps-ui'
@@ -49,6 +50,7 @@ import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords,
 import { TouchupLine } from './touchups'
 import { holdWords } from './common'
 import { tagOfTask, plainTodo, todosOf, touchupsWords } from './todokinds'
+import { autoWho } from './autowho'
 import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 
 const TODAY_ISO = TODAY
@@ -57,7 +59,7 @@ const ASSIGNABLE: PersonKey[] = ['ys', 'yakov', 'office', 'estimator', 'takeoff'
 const ROLE_OF: Partial<Record<PersonKey, Role[]>> = { ys: ['owner', 'pm'], yakov: ['site'], office: ['office'], estimator: ['estimator'], takeoff: ['takeoff'], materials: ['materials'], accounting: ['accounting'] }
 const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setup: ClipboardList, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt }
 /** what kind of thing a task is, in its window's top line — so you know what you opened */
-const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'On site', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
+const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'Task', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
 export function taskKind(t: Task): WinKind {
   if (isGcWait(t)) return { icon: <Hourglass />, label: 'Waiting on the GC' }
   if (isRequest(t)) return { icon: <Truck />, label: 'Bring to the job' }
@@ -76,23 +78,40 @@ function setFollowUp(id: string, label: string) {
 /** a daily update that's due today: one per project a crew is working on (the site manager sends them) — every work
  *  day, no skipping: the one for the last work day that wasn't sent is still there the next morning, late */
 export type DailyItem = { kind: 'daily'; jobId: string; crew: PersonKey; workers?: number; missed?: string }
-/** where the crews work on a day: every project with a crew on the calendar that day — and a project that's
- *  installing with its installer on it but no days on the calendar (brought in, or gone through by hand), every work
- *  day from its start date to its finish, when they're set */
+/** where the crews work on a day: every project in progress (being installed, not on hold) — with the crew on the
+ *  calendar that day, or, when its days on the calendar ran out (running late) or it never had any (brought in, gone
+ *  through by hand), its last crew or its installer, every work day */
 export function workingOn(s: Store, iso: string): { jobId: string; crew: string; start: string; workers?: number; booked: boolean }[] {
-  /* only the jobs in progress — being installed, not on hold (getting ready, the touch-ups: not asked about) */
-  const booked = s.bookings.filter((b) => b.start <= iso && b.end >= iso && s.jobs[b.jobId] && s.jobs[b.jobId].stage === 'installation' && !s.jobs[b.jobId].hold).map((b) => ({ jobId: b.jobId, crew: b.crew as string, start: b.start, workers: b.workers, booked: true }))
+  const live = (j?: Job) => !!j && j.stage === 'installation' && !j.hold
+  const booked = s.bookings.filter((b) => b.start <= iso && b.end >= iso && live(s.jobs[b.jobId]) && b.label !== 'Return visit').map((b) => ({ jobId: b.jobId, crew: b.crew as string, start: b.start, workers: b.workers, booked: true }))
+  const have = new Set(booked.map((b) => b.jobId))
   const workDay = ![0, 6].includes(new Date(iso + 'T12:00:00').getDay())
   /* (no start date: no "yesterday's is late" — it isn't known when they started) */
-  const installing = !workDay ? [] : Object.values(s.jobs).filter((j) => {
-    if (j.stage !== 'installation' || j.hold || s.bookings.some((b) => b.jobId === j.id)) return false
-    const crew = j.crew || (s.prep[j.id]?.installer !== 'tbd' ? s.prep[j.id]?.installer : undefined)
-    if (!crew) return false
-    const start = j.dates?.start ? isoFromLabel(j.dates.start) : undefined
-    const finish = j.dates?.finish ? isoFromLabel(j.dates.finish) : undefined
-    return (!start || start <= iso) && (!finish || finish >= iso)
-  }).map((j) => ({ jobId: j.id, crew: (j.crew || s.prep[j.id]?.installer) as string, start: (j.dates?.start && isoFromLabel(j.dates.start)) || '9999-12-31', workers: j.onSite?.workers, booked: false }))
+  const installing = !workDay ? [] : Object.values(s.jobs).filter((j) => live(j) && !have.has(j.id)).flatMap((j) => {
+    const last = s.bookings.filter((b) => b.jobId === j.id && b.label !== 'Return visit').sort((a, b) => b.start.localeCompare(a.start))[0]
+    /* its days on the calendar haven't come yet: not there that day */
+    if (last && last.start > iso) return []
+    const start = last?.start || (j.dates?.start ? isoFromLabel(j.dates.start) : undefined)
+    if (!last && start && start > iso) return []
+    const crew = (last?.crew || j.crew || (s.prep[j.id]?.installer !== 'tbd' ? s.prep[j.id]?.installer : undefined) || '') as string
+    return [{ jobId: j.id, crew, start: start || '9999-12-31', workers: last?.workers ?? j.onSite?.workers, booked: false }]
+  })
   return [...booked, ...installing]
+}
+/** touch-ups on the crew list: a job with touch-ups still open whose crew goes back that day (a return visit), or that
+ *  are due by then — with what needs fixing */
+export function touchupsOn(s: Store, iso: string): { jobId: string; crew: string; start: string; workers?: number; booked: boolean; fix: string[] }[] {
+  if ([0, 6].includes(new Date(iso + 'T12:00:00').getDay())) return []
+  return Object.values(s.jobs).filter((j) => j.stage === 'punch' && !j.hold).flatMap((j) => {
+    const open = s.punch.filter((p) => p.jobId === j.id && p.status === 'open')
+    if (!open.length) return []
+    const back = s.bookings.find((b) => b.jobId === j.id && b.start <= iso && b.end >= iso)
+    const due = open.some((p) => { const d = p.due ? isoFromLabel(p.due) : undefined; return !d || d <= iso })
+    if (!back && !due) return []
+    const owners = open.map((p) => p.owner).filter(Boolean) as string[]
+    const most = owners.sort((a, b) => owners.filter((x) => x === b).length - owners.filter((x) => x === a).length)[0]
+    return [{ jobId: j.id, crew: (back?.crew || most || j.crew || '') as string, start: back?.start || iso, workers: back?.workers ?? 1, booked: !!back, fix: open.map((p) => p.text) }]
+  })
 }
 /** the crew list: where the crews are and how many people. Until 3 in the afternoon it's today's; after, it's the
  *  next work day's (Friday: Monday's) — planned the night before, while there's still time to sort a problem out */
@@ -107,7 +126,8 @@ export const crewEvening = () => {
 export const nextWorkDay = (iso: string) => workday(addDays(iso, 1))
 /** the day the crew list is for right now */
 export const crewDay = () => (crewEvening() ? nextWorkDay(TODAY_ISO) : TODAY_ISO)
-export const crewsOn = (s: Store, day: string) => workingOn(s, day)
+/** the crew list: every job in progress — and the touch-ups going on that day */
+export const crewsOn = (s: Store, day: string) => { const w = workingOn(s, day); const have = new Set(w.map((c) => c.jobId)); return [...w, ...touchupsOn(s, day).filter((c) => !have.has(c.jobId))] }
 export const crewsToday = (s: Store) => workingOn(s, TODAY_ISO)
 /** in for that day: every project on it has its people — sent the night before, or that morning */
 export const crewSentFor = (s: Store, day: string) => { const l = workingOn(s, day); return l.length > 0 && l.every((c) => { const j = s.jobs[c.jobId]; return j?.onSite?.day === day || j?.crewPlan?.day === day }) }
@@ -266,9 +286,11 @@ export function stepWaitOn(on?: string, note?: string): string {
 }
 /** whose turn, in its column: the circle(s) and the name — "You" when it's yours (like Estimates' Whose turn) */
 function TurnCell({ turn, viewer, children }: { turn: Turn; viewer: PersonKey; children?: React.ReactNode }) {
-  const ks = (turn.keys || []).filter(Boolean)
-  /* "You" is always whoever is looking — on Yakov's list his own lines say Yakov (quiet: it's his list) */
+  /* "You" is always whoever is looking — on Yakov's list his own lines say Yakov (quiet: it's his list). You first,
+     always: the circles in the same order as the names */
   const me = meOf(useStore((x) => x.role))
+  const k0 = (turn.keys || []).filter(Boolean)
+  const ks = k0.includes(me) ? [me, ...k0.filter((p) => p !== me)] : k0
   return (
     <span className="flex min-w-0 items-center gap-2" {...(ks.length ? { 'data-row-doer': ks.join(',') } : { 'data-row-turn-name': turn.name || '' })} data-row-turn>
       {ks.length ? <span className="flex shrink-0 gap-0.5">{ks.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : turn.name ? <NameDot name={turn.name} /> : null}
@@ -351,7 +373,7 @@ function TodoRow({ when, whenTone, title, detail, project, action, onClick, done
   /* a phone: the same as a computer's columns, short — who does it (their circle, yours too), who's watching (the eye
      and their circles), and the time at the end of the line */
   /* (a phone: your own line doesn't show your own circle — the list is yours; someone else's, or a shared one, does) */
-  const phoneDoers = turnKeys.length === 1 && turnKeys[0] === viewer && !multi ? [] : turnKeys
+  const phoneDoers = turnKeys.length === 1 && turnKeys[0] === viewer && !multi ? [] : turnKeys.includes(me) ? [me, ...turnKeys.filter((p) => p !== me)] : turnKeys
   const phoneTurn = !!t0.name || phoneDoers.length > 0
   const dots = phoneTurn || watchers.length ? (
     <span className="inline-flex h-[1.375rem] shrink-0 items-center gap-2" data-row-people>
@@ -547,7 +569,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
   const job = s.jobs[d.jobId]
   return (
     <TodoRow
-      kind="On site"
+      kind="Daily update"
       onClick={() => s.open({ t: 'daily', jobId: d.jobId })}
       icon={<ClipboardList />}
       /* yesterday's not sent: its day is on the right, in red — not twice on one line */
@@ -576,9 +598,10 @@ function TodosRow({ x, showOwner, overdue }: { x: PlateItem; showOwner?: boolean
   const late = overdue ? lateBy(x.iso) : ''
   return (
     <TodoRow
-      kind="To-dos"
+      kind="To do"
       onClick={open}
-      title={`${done} of ${all} done`}
+      /* the to-dos themselves, so you read them right here — and how many are done, once some are */
+      title={<span data-todos-words>{(l.open.length ? l.open : ts).map((t) => t.title.replace(/\.$/, '')).join(' · ')}{done > 0 && <span className="text-muted"> · {done} of {all} done</span>}</span>}
       detail={ts.map((t) => t.title).join(' · ')}
       owner={who}
       project={job?.name || 'Company'}
@@ -599,7 +622,7 @@ function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   const open = () => s.open({ t: 'dailies', who: x.who, jobs })
   return (
     <TodoRow
-      kind="On site"
+      kind="Daily update"
       onClick={open}
       title="Daily updates"
       detail={jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(' · ')}
@@ -642,7 +665,7 @@ function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   const open = () => s.open({ t: 'trips', who: x.who, day: isNow(x.b) ? 'now' : x.b })
   return (
     <TodoRow
-      kind="Bring to the job"
+      kind="To bring"
       onClick={open}
       title={`Bring to the ${jobs.length > 1 ? 'jobs' : 'job'}: ${ts.map((t) => t.req?.what || t.title.replace(/^Bring to [^:]+:\s*/i, '')).join(', ')}`}
       detail={ts.map((t) => t.req?.what || t.title).join(' · ')}
@@ -664,7 +687,7 @@ function CheckinRow({ x }: { x: PlateItem }) {
   const open = () => s.open({ t: 'checkin', who: g.who })
   return (
     <TodoRow
-      kind="Team"
+      kind="Check-in"
       onClick={open}
       title={`Check in with ${PEOPLE[g.who]?.short || 'them'}`}
       detail={g.items.map((c) => c.title).join(' · ')}
@@ -686,7 +709,7 @@ function CrewRow() {
   const whose = day === TODAY_ISO ? 'today’s' : day === TOMORROW ? 'tomorrow’s' : `${crewWhen(day)}’s`
   return (
     <TodoRow
-      kind="On site"
+      kind="Crew list"
       onClick={go}
       icon={<HardHat />}
       title={`Send ${whose} crew list`}
@@ -703,7 +726,7 @@ function RoundsRow() {
   const go = () => s.open({ t: 'rounds' })
   return (
     <TodoRow
-      kind="On site"
+      kind="Site visit"
       onClick={go}
       icon={<MapPinned />}
       title="Visit the jobs"
@@ -724,7 +747,7 @@ function PayRow() {
   const go = () => s.open({ t: 'payweek' })
   return (
     <TodoRow
-      kind="Billing"
+      kind="Installer pay"
       onClick={go}
       icon={<HandCoins />}
       title={`Installer pay · week of ${PAY_WEEKS[0].label}`}
@@ -873,14 +896,20 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   const last = addDays(TODAY, AHEAD)
   s.events.filter((e) => !e.done && e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
   /* the site manager's crew list, until it's sent: tomorrow's after 3 in the afternoon, today's first thing */
-  if (role === 'site' && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : crewHour(s) * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
+  /* (or whoever the admin picked for it — Settings → Automations) */
+  const crewTo = autoWho(s, 'crew-morning')
+  if ((crewTo ? me === crewTo : role === 'site') && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : crewHour(s) * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
   /* the admin's rounds: the job sites with work going on, on a work day, until a video has gone out from each */
-  if (role === 'owner' && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && !roundsSkipped(s, me || meOf('owner')) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
+  const roundsTo = autoWho(s, 'rounds')
+  if ((roundsTo ? me === roundsTo : role === 'owner') && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && !roundsSkipped(s, me || meOf('owner')) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
   /* each project's daily update is its own site manager's — the real person, never the built-in "Yakov" spot */
-  dailyDue(s, role).forEach((d) => { const who = siteOf(s, s.jobs[d.jobId]); out.push(d.missed ? { key: 'dm' + d.jobId, b: 'overdue', iso: d.missed, time: null, kind: 'daily', d, who } : { key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who }) })
+  const dailyTo = autoWho(s, 'daily-update')
+  ;(dailyTo ? (me === dailyTo ? dailyDue(s, 'site') : []) : dailyDue(s, role)).forEach((d) => { const who = dailyTo || siteOf(s, s.jobs[d.jobId]); out.push(d.missed ? { key: 'dm' + d.jobId, b: 'overdue', iso: d.missed, time: null, kind: 'daily', d, who } : { key: 'd' + d.jobId, b: 'today', iso: TODAY, time: 17 * 60, kind: 'daily', d, who }) })
   /* (whoever's list it is — the same line on the admin's Everyone as on their own phone) */
-  if ((role === 'owner' || (role === 'pm' && (!me || me === meOf('owner')))) && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: me || meOf('owner') })
-  if (role === 'accounting' && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: me || meOf('accounting') })
+  const payTo = autoWho(s, 'pay-review')
+  if ((payTo ? me === payTo : role === 'owner' || (role === 'pm' && (!me || me === meOf('owner')))) && payDue(s)) out.push({ key: 'pay', b: 'today', iso: TODAY, time: null, kind: 'pay', who: me || meOf('owner') })
+  const billTo = autoWho(s, 'billing-day')
+  if ((billTo ? me === billTo : role === 'accounting') && billingOn(s) && billsToMake(s).length) out.push({ key: 'bill', b: 'today', iso: TODAY, time: null, kind: 'bill', who: me || meOf('accounting') })
   /* the admin's: who on the team to check in on — late past the company's line: one line a person */
   if (person === undefined && reportOn(s)) checkIns(s).forEach((g) => out.push({ key: 'ci:' + g.who, b: 'today', iso: TODAY, time: null, kind: 'checkin', ci: g, who: meOf(role) }))
   /* a step's task whose step already happened (the paperwork came in another way) isn't anyone's to do */
@@ -2199,7 +2228,9 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const whoOptions = [me, ...team.filter((p) => p !== me)].map((p) => ({ key: p as string, label: p === me ? 'Me' : PEOPLE[p]?.name || p, hint: p === me ? undefined : PEOPLE[p]?.roleLabel, lead: <Avatar who={p} size={20} /> }))
   /* the whole name, as on the list — two people can share a first name (two Yaakovs) */
   const nameOf = (p: PersonKey) => (p === me ? 'Me' : PEOPLE[p]?.name || p)
-  const whoWord = owners.map(nameOf).join(' and ')
+  /* you first, always — "Me and Yaakov", never "Yaakov and Me" */
+  const shownOwners = owners.includes(me) ? [me, ...owners.filter((p) => p !== me)] : owners
+  const whoWord = shownOwners.map(nameOf).join(' and ')
   /* when: a day, or every day / week / month (then the time beside it) */
   const days: [string, string][] = [...WHEN, ...(WHEN.some(([k]) => k === due) ? [] : [[due, DAY_NAME[due] || due] as [string, string]])]
   const whenOptions = [...days.map(([k, l]) => ({ key: k, label: l })), ...(Object.keys(REPEAT_LABEL) as NonNullable<Task['repeat']>[]).map((r) => ({ key: 'r:' + r, label: REPEAT_LABEL[r], hint: 'Comes back by itself' }))]
@@ -2207,9 +2238,9 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const whenWord = repeat ? REPEAT_LABEL[repeat] : WHEN.find(([k]) => k === due)?.[1] || DAY_NAME[due] || due
   const pickWhen = (k: string) => { if (k.startsWith('r:')) setRepeat(k.slice(2) as NonNullable<Task['repeat']>); else { setRepeat(''); setDue(k); setPicked(true) } }
   const whoChip = (
-    <button type="button" aria-label="Who does it" className={cn(PICK_CHIP, 'pl-1.5', owner !== me && 'text-ink')}>
-      <span className="flex gap-0.5">{owners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>
-      <span className="min-w-0 truncate">{whoWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+    <button type="button" aria-label="Who does it" className={cn(PICK_CHIP, 'h-auto min-h-9 py-1 pl-1.5 text-left', owner !== me && 'text-ink')}>
+      <span className="flex shrink-0 gap-0.5">{shownOwners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>
+      <span className="min-w-0 break-words">{whoWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
     </button>
   )
   return (
@@ -2240,9 +2271,15 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       <div className="mt-3 flex flex-wrap items-center gap-2" data-task-chips>
         <ProjectChip value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} />
         <span className="contents" data-task-who={owners.join(',')}>
-          {several
-            ? <MultiSelect label="Who does it" values={owners} options={whoOptions} onChange={(ks) => { setWhoPicked(true); setOwners((ks.length ? ks : [me]) as PersonKey[]) }} autoOpen width={340} trigger={whoChip} />
-            : <SearchSelect label="Who does it" value={owner} options={whoOptions} onChange={(p) => { setWhoPicked(true); setOwners([p as PersonKey]) }} search={whoOptions.length > 8} width={340} trigger={whoChip} footer={{ label: 'More than one person. Whoever gets to it first', onClick: () => setSeveral(true) }} />}
+          {/* the same Who as on Today and in a task: one person, or the switch under it for more than one */}
+          <WhoMenu
+            pick={{
+              people: team, me, current: owner, also: owners.slice(1),
+              onPick: (p) => { setWhoPicked(true); setOwners((os) => [p, ...os.slice(1).filter((x) => x !== p)]) },
+              onAlso: (p) => { setWhoPicked(true); setOwners((os) => (os.includes(p) ? os.filter((x) => x !== p) : [...os, p])) },
+            }}
+            trigger={whoChip}
+          />
         </span>
         <span className="contents" data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
@@ -2299,14 +2336,22 @@ export function CrewWatcher() {
 export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string; level: number; day?: string }) {
   const s = useStore()
   const small = useSmall()
-  const boss = PEOPLE[meOf('owner')]?.short || 'the office'
+  /* who gets it: the people it's emailed to (Settings → Automations → Crew list), else the office */
+  const mailed = s.rules.crewMail?.off ? [] : crewMailPeople(s).filter((p) => p !== meOf(s.role))
+  const goesTo = mailed.length > 3 ? `${mailed.slice(0, 2).map((p) => PEOPLE[p]?.short || p).join(', ')} and ${mailed.length - 2} more`
+    : mailed.length ? namesOf(mailed) : PEOPLE[meOf('owner')]?.short || 'the office'
   /* the day it's for: the one it was opened for, else today's until 3 and the next work day's after */
   const [day] = React.useState(() => day0 || crewDay())
   const today = day === TODAY_ISO
   /* filled in: that day's booking, else what was planned for it, else the last report — 2 when nothing's known */
-  const [rows, setRows] = React.useState(() => crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? (j?.crewPlan?.day === day ? j.crewPlan.workers : undefined) ?? j?.onSite?.workers ?? 2, note: '' } }))
+  const [rows, setRows] = React.useState(() => crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; const fix = (c as { fix?: string[] }).fix; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? (j?.crewPlan?.day === day ? j.crewPlan.workers : undefined) ?? j?.onSite?.workers ?? 2, note: fix?.length ? `Touch-ups: ${fix.join('; ')}` : '' } })
+    /* by crew, the same order as the email: each crew's jobs together */
+    .sort((a, b) => (PEOPLE[a.crew]?.name || '~').localeCompare(PEOPLE[b.crew]?.name || '~') || (s.jobs[a.jobId]?.name || '').localeCompare(s.jobs[b.jobId]?.name || '')))
   const [adding, setAdding] = React.useState(false)
   const [addJob, setAddJob] = React.useState('')
+  /* before it goes: the email itself, as everyone will get it — Back to change a number, Send */
+  const [look, setLook] = React.useState(false)
+  const mail = look ? crewMailWords(s, rows, day) : null
   const people = rows.reduce((n, r) => n + r.workers, 0)
   const on = rows.filter((r) => r.workers > 0).length
   const set = (i: number, p: Partial<(typeof rows)[number]>) => setRows((x) => x.map((r, k) => (k === i ? { ...r, ...p } : r)))
@@ -2324,15 +2369,25 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
       onClose={s.close}
       title={`Where the crews are ${crewWhen(day)}`}
       inlineClose
-      header={<ListHead kind={{ icon: <HardHat />, label: 'Crew report' }} title={`Where the crews are ${crewWhen(day)}`} sub={`How many people on each project. It goes to ${boss}`} who={meOf(s.role)} me={meOf(s.role)} when={dayShort(day)} attrs={{ 'data-crew-head': '' }} />}
+      header={<ListHead kind={{ icon: <HardHat />, label: 'Crew list' }} title={`Where the crews are ${crewWhen(day)}`} sub={`How many people on each project. It goes to ${goesTo}.`} who={meOf(s.role)} me={meOf(s.role)} when={dayShort(day)} attrs={{ 'data-crew-head': '' }} />}
       footer={
         <>
           <span className="text-[0.84375rem] text-muted max-sm:hidden">{on} {on === 1 ? 'project' : 'projects'} · {people} {people === 1 ? 'person' : 'people'}</span>
-          <Button className="ml-auto max-sm:hidden" variant="ghost" onClick={s.close}>Later</Button>
-          <Button variant="primary" className={cn(small && 'h-12 flex-1 text-[1rem]')} disabled={!rows.length} onClick={() => { sendCrewReport(taskId, rows, day); s.close() }} data-crew-send>{small ? `Send · ${people} ${people === 1 ? 'person' : 'people'}` : 'Send'}</Button>
+          {look
+            ? <Button className="ml-auto" variant="ghost" icon={<ChevronLeft className="h-4 w-4" />} onClick={() => setLook(false)} data-crew-back>Back</Button>
+            : <Button className="ml-auto max-sm:hidden" variant="ghost" onClick={s.close}>Later</Button>}
+          {look
+            ? <Button variant="primary" className={cn(small && 'h-12 flex-1 text-[1rem]')} disabled={!rows.length} icon={<Send className="h-4 w-4" />} onClick={() => { sendCrewReport(taskId, rows, day); s.close() }} data-crew-send>Send it</Button>
+            : <Button variant="primary" className={cn(small && 'h-12 flex-1 text-[1rem]')} disabled={!rows.length} onClick={() => setLook(true)} data-crew-preview>{small ? `See it · ${people} ${people === 1 ? 'person' : 'people'}` : 'See it before it goes'}</Button>}
         </>
       }
     >
+      {look && mail ? (
+        <div className="-mx-6 -my-5 max-sm:-mx-4" data-crew-look>
+          <div className="border-b border-line-2 bg-wash px-6 py-2.5 text-[0.8125rem] text-muted max-sm:px-4">{crewMailTo(s).length ? <>Emailed to {crewMailTo(s).length} {crewMailTo(s).length === 1 ? 'person' : 'people'} · </> : null}<b className="font-semibold text-ink">{mail.subject}</b></div>
+          <div className="px-6 py-4 max-sm:px-4 [&_img]:max-w-[110px]" dangerouslySetInnerHTML={{ __html: mail.html.split(`${PUBLISHED}/`).join('/') }} />
+        </div>
+      ) : (
       <div className="-mx-6 -my-5 max-sm:-mx-4" data-crew-report>
         {rows.map((r, i) => {
           const j = s.jobs[r.jobId]
@@ -2342,6 +2397,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[0.9375rem] font-semibold text-ink">{j?.name}</div>
                 <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? (today ? 'Nobody there today' : 'Nobody there') : `${PEOPLE[r.crew]?.name || 'The crew'}`}</div>
+                {r.note && <div className="break-words text-[0.78125rem] leading-snug text-muted" data-crew-note>{r.note}</div>}
               </div>
               <div className={cn(small && 'w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>
             </div>
@@ -2360,6 +2416,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
           )}
         </div>
       </div>
+      )}
     </Modal>
   )
 }

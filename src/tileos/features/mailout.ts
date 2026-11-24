@@ -291,25 +291,44 @@ export const crewMailTo = (s: Pick<Store, 'rules' | 'team'>) => clean(crewMailPe
 /** the email, word for word: "Crews for Tue, Nov 24" — each project (its address), the crew, how many, the note */
 export function crewMailWords(s: Store, rows: CrewLine[], day: string): { subject: string; html: string; text: string } {
   const on = rows.filter((r) => r.workers > 0)
+  const off = rows.filter((r) => !(r.workers > 0))
   const people = on.reduce((n, r) => n + r.workers, 0)
   const d = new Date(day + 'T12:00:00')
   const dayWords = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   const subject = `Crews for ${dayWords} · ${on.length} ${on.length === 1 ? 'job' : 'jobs'}, ${people} ${people === 1 ? 'person' : 'people'}`
   const by = PEOPLE[meOf(s.role)]?.name || 'the site manager'
-  const lines = rows.map((r) => {
-    const j = s.jobs[r.jobId]
-    return [j?.name || 'A project', j?.address && j.address !== j.name ? j.address : '', PEOPLE[r.crew]?.name || 'Crew', r.workers ? String(r.workers) : 'Nobody', r.note]
-  })
-  const head = ['Job', 'Crew', 'People']
-  const tbl = `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px">
-<tr>${head.map((h, i) => `<th style="text-align:${i === 2 ? 'right' : 'left'};padding:8px 6px;border-bottom:1px solid #d9d3c9;color:#5b5f68;font-weight:600">${esc(h)}</th>`).join('')}</tr>
-${lines.map(([job, addr, crew, n, note]) => `<tr><td style="padding:8px 6px;border-bottom:1px solid #ece8e1"><b>${esc(job)}</b>${addr ? `<br><span style="color:#7a7569;font-size:13px">${esc(addr)}</span>` : ''}${note ? `<br><span style="color:#7a7569;font-size:13px">${esc(note)}</span>` : ''}</td><td style="padding:8px 6px;border-bottom:1px solid #ece8e1">${esc(crew)}</td><td style="text-align:right;padding:8px 6px;border-bottom:1px solid #ece8e1">${esc(n)}</td></tr>`).join('\n')}
-<tr><td colspan="2" style="text-align:right;padding:10px 6px;font-weight:700">Total</td><td style="text-align:right;padding:10px 6px;font-weight:700">${people}</td></tr>
+  const crewName = (r: CrewLine) => PEOPLE[r.crew]?.name || 'No crew set'
+  const jobName = (r: CrewLine) => s.jobs[r.jobId]?.name || 'A project'
+  const addrOf = (r: CrewLine) => { const j = s.jobs[r.jobId]; return j?.address && j.address !== j.name ? j.address : '' }
+  /* by crew: each crew once, its jobs under it (A to Z) — who's where at a glance */
+  const crews = Array.from(new Set(on.map(crewName))).sort((a, b) => a.localeCompare(b))
+  const groups = crews.map((c) => { const list = on.filter((r) => crewName(r) === c).sort((a, b) => jobName(a).localeCompare(jobName(b))); return { c, list, n: list.reduce((k, r) => k + r.workers, 0) } })
+  const cell = 'padding:7px 6px;border-bottom:1px solid #ece8e1;vertical-align:top'
+  const small = (t: string) => `<br><span style="color:#7a7569;font-size:13px">${esc(t)}</span>`
+  const crewTbl = `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:14px">
+${groups.map((g) => `<tr><td style="padding:10px 6px 6px;background:#f6f5f2;font-weight:700">${esc(g.c)} <span style="color:#7a7569;font-weight:400">· ${g.list.length} ${g.list.length === 1 ? 'job' : 'jobs'}</span></td><td style="padding:10px 6px 6px;background:#f6f5f2;text-align:right;font-weight:700">${g.n}</td></tr>
+${g.list.map((r) => `<tr><td style="${cell};padding-left:16px"><b>${esc(jobName(r))}</b>${addrOf(r) ? small(addrOf(r)) : ''}${r.note ? small(r.note) : ''}</td><td style="${cell};text-align:right;white-space:nowrap">${r.workers}</td></tr>`).join('\n')}`).join('\n')}
+<tr><td style="text-align:right;padding:10px 6px;font-weight:700">Total</td><td style="text-align:right;padding:10px 6px;font-weight:700">${people}</td></tr>
 </table>`
+  const nobody = off.length ? `<p style="margin:10px 0 4px;font-weight:700">Nobody there ${esc(dayWords)}</p><p style="margin:0;color:#5b5f68">${off.map((r) => `${esc(jobName(r))} (${esc(crewName(r))})`).join(' · ')}</p>` : ''
+  /* everyone in the loop: the touch-ups still open, and the jobs on hold — what has to happen on each */
+  const tu = Object.values(s.jobs).filter((j) => j.stage === 'punch' && !j.hold).map((j) => ({ j, open: s.punch.filter((p) => p.jobId === j.id && p.status !== 'verified') })).filter((x) => x.open.length)
+  const held = Object.values(s.jobs).filter((j) => j.hold && !['complete', 'closeout'].includes(j.stage))
+  const tuHtml = tu.length ? `<p style="margin:22px 0 6px;font-size:16px;font-weight:700">Touch-ups still open</p>
+<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${tu.map(({ j, open }) => `<tr><td style="${cell}"><b>${esc(j.name)}</b> <span style="color:#7a7569">· ${open.length} ${open.length === 1 ? 'thing' : 'things'}</span>${open.map((p) => small(`• ${p.text}${p.status === 'verify' ? ' (fixed, to check)' : ''}${p.owner ? ` · ${PEOPLE[p.owner]?.short || ''}` : ''}`)).join('')}</td></tr>`).join('')}</table>` : ''
+  const heldHtml = held.length ? `<p style="margin:22px 0 6px;font-size:16px;font-weight:700">On hold</p>
+<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${held.map((j) => `<tr><td style="${cell}"><b>${esc(j.name)}</b>${small([j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason || 'On hold', j.hold?.until ? `until ${j.hold.until}` : ''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</table>` : ''
   const html = frame(`<p style="margin:0 0 4px;font-size:18px;font-weight:700">Where the crews are ${esc(dayWords)}</p>
 <p style="margin:0;color:#5b5f68">${on.length} ${on.length === 1 ? 'job' : 'jobs'} · ${people} ${people === 1 ? 'person' : 'people'} · from ${esc(by)}</p>
-${tbl}`)
-  const text = [`Where the crews are ${dayWords}`, `${on.length} jobs · ${people} people · from ${by}`, '', ...lines.map(([job, addr, crew, n, note]) => `${job}${addr ? ` (${addr})` : ''} · ${crew} · ${n}${note ? ` · ${note}` : ''}`), '', `Total: ${people}`].join('\n')
+${crewTbl}${nobody}${tuHtml}${heldHtml}`)
+  const text = [
+    `Where the crews are ${dayWords}`, `${on.length} jobs · ${people} people · from ${by}`, '',
+    ...groups.flatMap((g) => [`${g.c} · ${g.n}`, ...g.list.map((r) => `   ${jobName(r)}${addrOf(r) ? ` (${addrOf(r)})` : ''} · ${r.workers}${r.note ? ` · ${r.note}` : ''}`)]),
+    '', `Total: ${people}`,
+    ...(off.length ? ['', `Nobody there: ${off.map((r) => `${jobName(r)} (${crewName(r)})`).join(', ')}`] : []),
+    ...(tu.length ? ['', 'Touch-ups still open', ...tu.flatMap(({ j, open }) => [`${j.name}`, ...open.map((p) => `   • ${p.text}`)])] : []),
+    ...(held.length ? ['', 'On hold', ...held.map((j) => `${j.name} · ${j.hold?.reason || 'on hold'}${j.hold?.until ? ` until ${j.hold.until}` : ''}`)] : []),
+  ].join('\n')
   return { subject, html, text }
 }
 /** send it: to everyone it goes to (a test: only to you) */

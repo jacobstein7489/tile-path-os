@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { Plus, Wrench, CircleCheckBig, Building2, HardHat, ClipboardList, Sparkles, PauseCircle, Layers } from 'lucide-react'
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
-import { Button, Avatar, TextInput, Field, Chip } from '@/tileos/components/ui/core'
+import { Button, Avatar, TextInput, Field, Chip, Segmented } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, BAND_STRONG, bandStyle, bandLabel, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
@@ -455,6 +455,9 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
   /* what's done already — nothing picked: it starts from the beginning. Picked: those are checked off ("done before
      Tile OS"); only what's left goes on people's lists */
   const [doneKeys, setDoneKeys] = React.useState<string[]>([])
+  /* already under way (a job that started before Tile OS): next comes the one page where you set where it stands and
+     tick what's done — the same as Set up projects — instead of going step by step */
+  const [under, setUnder] = React.useState(false)
   const steps = companySteps(s).filter((d) => !d.off)
   const [clientId, setClientId] = React.useState('')
   const [name, setName] = React.useState(name0 || '')
@@ -498,7 +501,7 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
       ? { sub: 'Its checklist starts with the office building the rooms.', to: [{ who: 'office', what: `Build the rooms · ${finalName}` }, ...(amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : [])] }
       : { sub: 'What’s done is checked off. Only what’s left is on people’s lists.', to: amount ? [{ who: 'accounting' as PersonKey, what: 'Deposit invoice' }] : undefined })
     s.close()
-    setTimeout(() => s.open({ t: 'job', id }), 60)
+    setTimeout(() => s.open(under ? { t: 'catchup', id } : { t: 'job', id }), 60)
   }
   const days = DAY_OPTIONS()
   const startOpts = [...days.map((d) => ({ key: d.key, label: d.label })), { key: 'Next Mon', label: 'Next Monday' }, { key: 'In 2 weeks', label: 'In 2 weeks' }]
@@ -530,12 +533,12 @@ export function NewProjectModal({ level, name: name0, address: address0 }: { lev
           <Button onClick={() => s.open({ t: 'newclient' })} icon={<Plus />}>New</Button>
         </div>
       </FormRow>
-      {/* where it's at: tick what's done already — nothing ticked, it starts from the beginning */}
-      <FormRow label="What’s done already">
-        <span className="block" data-done-already={doneKeys.join(',')}>
-          <MultiSelect label="What’s done already" values={doneKeys} onChange={setDoneKeys} placeholder="Nothing yet. It starts from the beginning" searchPlaceholder="Find a step" width={360} className="w-full"
-            options={steps.map((d) => ({ key: d.key, label: (d.named ? d.label : TODO[d.key]) || d.label }))}
-            summary={(picked) => picked.length === steps.length ? 'All of getting ready' : `${picked.length} done · ${picked.slice(0, 3).map((o) => o.label.toLowerCase()).join(', ')}${picked.length > 3 ? '…' : ''}`} />
+      {/* where it's at: starting now (its steps one after another), or already under way (next: one page to set where it
+          stands and tick what's done) */}
+      <FormRow label="Where is it up to?">
+        <span className="block" data-new-under={under ? 'yes' : 'no'}>
+          <Segmented value={under ? 'under' : 'new'} onChange={(v) => setUnder(v === 'under')} className="grid w-full grid-cols-2 [&>button]:justify-center" items={[{ key: 'new', label: 'Starting now' }, { key: 'under', label: 'Already under way' }]} />
+          <span className="mt-1.5 block text-[0.8125rem] text-muted">{under ? 'Next: one page to set where it stands and tick what’s done. No going step by step.' : 'Its steps come one after another, starting with the paperwork.'}</span>
         </span>
       </FormRow>
       {!more && (

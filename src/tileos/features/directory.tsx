@@ -19,6 +19,7 @@ import { PAY_WEEKS, PAY_STATE, payRow } from './pay'
 import { TODAY, MONDAY, addDays } from '@/tileos/lib/today'
 import { MoreReach, cleanReach, reachOk } from './reach'
 import type { Reach } from '@/tileos/data/model'
+import { PhoneInput, EmailInput } from './reach'
 
 const DONE = ['complete']
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
@@ -533,9 +534,9 @@ export function SupplierFormModal({ name, level }: { name?: string; level: numbe
         </div>
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
           {formField('Who to call', <TextInput aria-label="Contact name" value={f.contact || ''} onChange={(e) => set({ contact: e.target.value })} placeholder="Name of the rep" className="h-10" />)}
-          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone || ''} onChange={(e) => set({ phone: e.target.value })} placeholder="(732) 555-0100" className="h-10" />)}
+          {formField('Phone', <PhoneInput value={f.phone || ''} onChange={(v) => set({ phone: v })} placeholder="(732) 555-0100" />)}
         </div>
-        {formField('Email. Where POs go', <TextInput aria-label="Email" type="email" value={f.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="orders@supplier.com" className="h-10" />)}
+        {formField('Email. Where POs go', <EmailInput value={f.email || ''} onChange={(v) => set({ email: v })} placeholder="orders@supplier.com" />)}
         <MoreBlock value={f.more} onChange={(more) => set({ more })} />
       </div>
     </Modal>
@@ -578,8 +579,8 @@ export function DesignerFormModal({ id, level }: { id?: string; level: number })
         {clash && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">That designer is already on the list.</div>}
         {formField('Who to talk to', <TextInput aria-label="Contact" value={f.contact} onChange={(e) => set({ contact: e.target.value })} placeholder="Name, or their role" className="h-10" />)}
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
-          {formField('Email', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="studio@designer.com" className="h-10" />)}
+          {formField('Phone', <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />)}
+          {formField('Email', <EmailInput value={f.email} onChange={(v) => set({ email: v })} placeholder="studio@designer.com" />)}
         </div>
         <MoreBlock value={f.more} onChange={(more) => set({ more })} />
         {formField('Notes', <TextInput aria-label="Notes" value={f.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="e.g. Answers by email within a week" className="h-10" />)}
@@ -618,8 +619,8 @@ export function InstallerFormModal({ id, level }: { id?: PersonKey; level: numbe
         {formField('Name', <TextInput data-autofocus aria-label="Installer name" value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Marco" className="h-10" />)}
         {taken && <div className="-mt-2 text-[0.78125rem] font-medium text-bad-600">There’s already an installer with that name.</div>}
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {formField('Phone', <TextInput aria-label="Phone" inputMode="tel" value={f.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="(718) 555-0100" className="h-10" />)}
-          {formField('Email (for his POs)', <TextInput aria-label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} placeholder="name@email.com" className="h-10" />)}
+          {formField('Phone', <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />)}
+          {formField('Email (for his POs)', <EmailInput value={f.email} onChange={(v) => set({ email: v })} placeholder="name@email.com" />)}
         </div>
         <MoreBlock value={f.more} onChange={(more) => set({ more })} />
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">

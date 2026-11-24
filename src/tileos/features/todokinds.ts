@@ -8,22 +8,26 @@ import { TODAY, isoFromLabel } from '@/tileos/lib/today'
 import { isGc } from './gcwait'
 
 /** the kind, in words — the same as a to-do's window says on top */
-const TYPE_TAG: Record<string, string> = { Pricing: 'Estimate', Setup: 'To do', Materials: 'Materials', Field: 'On site', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
+const TYPE_TAG: Record<string, string> = { Pricing: 'Estimate', Setup: 'To do', Materials: 'Materials', Field: 'To do', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
 /** a to-do's kind on a list — its tag: Touch-ups (a checklist), Problem, Materials, Meeting… a plain one: To do */
 export function tagOfTask(s: Pick<Store, 'punch'>, t: Task): string {
-  if (s.punch.some((p) => p.taskId === t.id)) return 'Touch-ups'
+  /* what it is: touch-ups (its checklist, or said so in its words), a problem, the GC, something to bring, waiting on
+     someone, for everyone — else its kind of work (a plain one: To do) */
+  if (s.punch.some((p) => p.taskId === t.id) || /\btouch-?\s?ups?\b/i.test(t.title)) return 'Touch-ups'
   if (t.tone === 'bad' && t.state !== 'done') return 'Problem'
   if (t.state === 'waiting' && isGc(t)) return 'GC'
-  if (isRequest(t)) return 'Bring to the job'
+  if (isRequest(t)) return 'To bring'
   if (t.everyone) return 'For everyone'
+  if (t.state === 'waiting' || /^waiting (for|on)\b/i.test(t.title)) return 'Waiting'
   return TYPE_TAG[t.type] || 'To do'
 }
 /** the day it was done (the day it says, or today for "Just now") */
 export const doneDayOf = (t: Task) => t.doneOn || (t.doneAt === 'Just now' || t.doneAt === 'Today' ? TODAY : isoFromLabel(t.doneAt) || '')
 const dayOf = (t: Task) => (t.state === 'waiting' ? isoFromLabel(t.followUp) : t.state === 'later' ? isoFromLabel(t.laterUntil) : isoFromLabel(t.due))
-/** a plain to-do: one with nothing of its own to press (not a problem, not a pickup, not the GC, not touch-ups, not a
- *  step, not for everyone, not repeating) — several of them on one project fold into one line */
-export const plainKind = (t: Task, touchIds: Set<string>) => !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
+/** a plain to-do: its tag is To do — one with nothing of its own to press (not a problem, not a pickup, not the GC, not
+ *  touch-ups, not waiting, not materials or billing, not a step, not for everyone, not repeating) — several of them on one
+ *  project fold into one line */
+export const plainKind = (t: Task, touchIds: Set<string>) => (t.type === 'Setup' || t.type === 'Field') && !/\btouch-?\s?ups?\b/i.test(t.title) && !/^waiting (for|on)\b/i.test(t.title) && !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
 export const plainTodo = (t: Task, touchIds: Set<string>) => t.state === 'now' && !t.urgent && plainKind(t, touchIds)
 /** one person's plain to-dos on a project: still to do (soonest first), and done today — "2 of 5 done" */
 export function todosOf(s: Pick<Store, 'tasks' | 'punch'>, jobId: string, who: PersonKey) {
