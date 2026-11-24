@@ -341,8 +341,8 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
           <EditText value={edit.sub || ''} onSave={edit.onSub} area label="Details" placeholder="Add details" attrs={{ 'data-win-sub-edit': '', ...(edit.sub ? { 'data-task-detail': '' } : {}) }} />
         </div>
       ) : sub && <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
-      {/* one box of short lines, each with its name on the left */}
-      <div className="mt-4 rounded-2xl bg-[#f8f7f4] p-1.5 ring-1 ring-inset ring-[#efebe4]" data-win-who>
+      {/* one box of short lines, each with its name on the left (nothing to say in it: no box) */}
+      {(lines || whoText || whoPick || state || status || where || watch) && <div className="mt-4 rounded-2xl bg-[#f8f7f4] p-1.5 ring-1 ring-inset ring-[#efebe4]" data-win-who>
         {lines}
         {(whoText || whoPick) && (
           <WinLine k="who" label={whoLabel}>
@@ -386,7 +386,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
             </span>
           </WinLine>
         )}
-      </div>
+      </div>}
       {problem && (
         <div className="mt-3 flex min-w-0 items-start gap-2 rounded-xl bg-bad-50 px-4 py-2.5 text-[0.9375rem] font-medium leading-snug text-bad-700" data-win-problem>
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />

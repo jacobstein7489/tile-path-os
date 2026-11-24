@@ -209,6 +209,14 @@ export function QbConnectCard() {
             </Menu>
           )}
         </div>
+        {/* what we pay each installer: his bills there, turned into his regular prices (looked at before they're saved) */}
+        <div className="mt-1 flex items-center gap-3 rounded-xl border border-line px-4 py-3 max-sm:flex-col max-sm:items-start" data-qb-rates>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.875rem] font-semibold text-ink">Installer prices</span>
+            <span className="block text-[0.8125rem] text-muted">{s.rules.qbRatesAt ? `Read ${new Date(s.rules.qbRatesAt + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. ` : ''}Each installer’s regular prices, from what we paid him. You check them before they’re saved.</span>
+          </span>
+          <Button size="sm" icon={<BookOpen className="h-3.5 w-3.5" />} onClick={() => s.open({ t: 'qbrates' })} data-qb-rates-open>Read them from QuickBooks</Button>
+        </div>
         <div className="mt-1 overflow-hidden rounded-xl border border-line" data-qb-items>
           <div className="bg-wash px-4 py-2 text-[0.78125rem] font-semibold text-muted">Which QuickBooks product each bill goes on</div>
           {KINDS.map((k) => {

@@ -10,7 +10,7 @@ import { seedRefs } from '@/tileos/lib/utils'
 import { TODAY, addDays, dow, labelFromIso } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import type { Role, PersonKey } from '@/tileos/data/model'
-import type { QbStatus, InvoiceIn, InvoiceOut, EstimateIn, EstimateOut } from '@/lib/quickbooks'
+import type { QbStatus, InvoiceIn, InvoiceOut, EstimateIn, EstimateOut, QbPaid, QbBilled } from '@/lib/quickbooks'
 import type { MailStatus, MailIn } from '@/lib/mail'
 
 export type SaveMode = 'sample' | 'fresh'
@@ -73,6 +73,8 @@ export const REAL: {
     estimate: (est: EstimateIn) => Promise<EstimateOut>
     pay: (d: { invoiceId: string; customerId: string; amount: number; date?: string; ref?: string; note?: string }) => Promise<{ ok: true; id: string } | { ok: false; why: string; detail?: string }>
     pull: (ids: string[]) => Promise<{ ok: true; invoices: { id: string; balance: number; total: number; doc?: string; sync: string }[] } | { ok: false; why: string; detail?: string }>
+    /** what we paid each vendor (bills and checks) since a day — read only. Optional: an older server doesn't have it */
+    bills?: (since?: string) => Promise<{ ok: true; since: string; vendors: { id: string; name: string }[]; bills: QbPaid[]; invoices?: QbBilled[] } | { ok: false; why: string; detail?: string }>
   }
   /** email from the app itself (the real app, once it's set up in Lovable): purchase orders to suppliers, a test */
   mail?: {

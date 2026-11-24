@@ -90,6 +90,12 @@ export interface Rules {
   crewRates?: Record<string, Record<string, number>>
   /** what we pay the installer should stay under this share of the estimate — the line on the PO meter (50 = half) */
   laborPct?: number
+  /** each installer's usual share of a job, read from QuickBooks: what we paid him for a project ÷ what its customer pays
+   *  (the middle one of his projects) — and when it was read */
+  crewPct?: Record<string, number>
+  qbRatesAt?: string
+  /** QuickBooks vendors matched to installers by hand: vendor id → installer ('' = not one of ours) */
+  qbVendors?: Record<string, string>
   /** which QuickBooks product or service each kind of bill goes on (Settings → Connections) — none picked: QuickBooks'
    *  own "Services" */
   qbItems?: Partial<Record<'deposit' | 'progress' | 'final' | 'retainage' | 'change', { id: string; name: string }>>

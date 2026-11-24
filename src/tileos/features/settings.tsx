@@ -5,6 +5,7 @@ import { salesPeople, rateOf, pct } from './commissions'
 import { toast } from '@/tileos/lib/pop'
 import { useStore, signInAs, type Rules } from '@/tileos/store'
 import { CardHeader, Button, Segmented, Chip, Avatar, Pill, Stepper as NumStepper, IconCircle, TextInput, TextArea, Field, UnderlineTabs } from '@/tileos/components/ui/core'
+import { LABOR_LINE } from './poratio'
 import { DEPOSIT_WAY, type DepositWay } from './progressbill'
 import { Modal, Menu, MenuItem, MenuLabel, MenuCheck, MenuSep } from '@/tileos/components/ui/overlay'
 import { Page, Card, HEAD_ROW } from '@/tileos/components/ui/page'
@@ -928,6 +929,11 @@ function RulesTab() {
         </Rule>
         <Rule title="Default deposit" sub="Filled in at award; can be changed per project.">
           <div className="flex gap-2">{[0, 10, 20, 30].map((d) => <Chip key={d} on={r.depositPct === d} onClick={() => set((x) => (x.depositPct = d))} className="h-9 px-3">{d ? d + '%' : 'None'}</Chip>)}</div>
+        </Rule>
+        {/* the most an installer can cost: his PO's share of what the customer pays — the line on every PO's meter,
+            and what the installer suggestions are measured against */}
+        <Rule title="Installer budget" sub="The most an installer’s PO can be, out of what we charge the customer. Lower is better.">
+          <span data-rule-labor><NumStepper value={r.laborPct || LABOR_LINE} onChange={(v) => set((x) => (x.laborPct = v))} min={20} max={80} suffix="%" typed /></span>
         </Rule>
         <Rule title="Retainage" sub="Held on progress bills, released at closeout.">
           <div className="flex gap-2">{[0, 5, 10].map((d) => <Chip key={d} on={r.retainage === d} onClick={() => set((x) => (x.retainage = d))} className="h-9 px-3">{d}%</Chip>)}</div>

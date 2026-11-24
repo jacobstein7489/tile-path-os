@@ -12,7 +12,7 @@ import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, fmtMoney, type PersonKey, type Tone } from '@/tileos/data/model'
 import { PO_STEPS, type PO, type POLine } from '@/tileos/data/work'
 import type { IPO, IPOLine } from '@/tileos/data/field'
-import { ipoTotal, poRatio, type Ratio } from './poratio'
+import { ipoTotal, poRatio, crewQuotes, bestQuote, soldOf, LABOR_LINE, type Ratio } from './poratio'
 import { allSubs, kindsOf } from '@/tileos/data/directory'
 import { confirmPO, receivePO, followUpPO, poNext, createPO, matBy, billsUs, cancelPO } from './flows'
 import { mailLive, emailPO, emailIPO, cancelWords, emailCancel, supplierEmails } from './mailout'
@@ -450,28 +450,45 @@ export function BookInstallerModal({ jobId, crew: first, level }: { jobId: strin
   )
   return (
     <Modal level={level} size="lg" onClose={s.close} header={header} footer={footer} title="Book the installer" bodyClass="px-7 py-6 max-sm:px-4">
-      {step === 1 && (
+      {step === 1 && (() => {
+        /* each installer with his price for this project (his own prices × its square feet) and its share of what the
+           customer pays: the lowest first, the lowest within the budget marked, over the budget in red */
+        const quotes = crewQuotes(s, jobId, free.map((f) => f.crew))
+        const best = bestQuote(quotes)
+        const { sold } = soldOf(s, jobId)
+        const line = s.rules.laborPct || LABOR_LINE
+        const order = quotes.map((q) => free.find((f) => f.crew === q.crew)!).filter(Boolean)
+        return (
+        <>
+        {sold > 0 && <div className="mb-3 text-[0.84375rem] text-muted" data-book-budget>Budget: up to {line}% of {fmtMoney(sold)} · <b className="font-semibold text-ink-2">{fmtMoney(Math.round((sold * line) / 100))}</b></div>}
         <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {free.map((f) => {
+          {order.map((f) => {
             const now = s.bookings.find((b) => b.crew === f.crew && b.start <= TODAY && b.end >= TODAY)
             const sub = allSubs().find((x) => x.crew === f.crew)?.region
+            const q = quotes.find((x) => x.crew === f.crew)!
             return (
               <button
                 key={f.crew}
+                data-book-quote={f.crew}
                 onClick={() => { setCrew(f.crew); setStep(2) }}
                 className={cn('flex items-center gap-3.5 rounded-2xl border p-3.5 text-left transition hover:-translate-y-0.5 hover:shadow-lift', crew === f.crew ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-100' : 'border-line bg-white hover:border-brand-300')}
               >
                 <Avatar who={f.crew} size={44} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.96875rem] font-semibold text-ink">{PEOPLE[f.crew].name}</span>
-                  <span className="mt-0.5 block truncate text-[0.8125rem] text-muted">{now ? `On ${s.jobs[now.jobId]?.name}` : 'Not on a job'}{sub ? ` · ${sub}` : ''}</span>
+                  <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[0.96875rem] font-semibold text-ink">{PEOPLE[f.crew].name}</span>{q === best && quotes.length > 1 && <span className="shrink-0 rounded-full bg-ok-50 px-2 py-0.5 text-[0.71875rem] font-semibold text-ok-700" data-book-best>Lowest</span>}</span>
+                  <span className="mt-0.5 block truncate text-[0.8125rem] text-muted"><span className={f.iso === TODAY ? 'font-medium text-ok-700' : undefined}>{f.iso === TODAY ? 'Free now' : `Free from ${new Date(f.iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</span> · {now ? `On ${s.jobs[now.jobId]?.name}` : 'Not on a job'}{sub ? ` · ${sub}` : ''}</span>
                 </span>
-                <Status tone={f.iso === TODAY ? 'ok' : 'neutral'}>{f.iso === TODAY ? 'Free now' : `Free ${new Date(f.iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}</Status>
+                <span className="shrink-0 text-right">
+                  <span className="block text-[0.9375rem] font-semibold tnum text-ink">{q.total ? fmtMoney(q.total) : '–'}</span>
+                  {q.pct != null && <span className={cn('block text-[0.78125rem] tnum', q.over ? 'font-semibold text-bad-600' : q.near ? 'font-medium text-warn-700' : 'text-muted')}>{q.pct}%{q.over ? ' · over' : ''}</span>}
+                </span>
               </button>
             )
           })}
         </div>
-      )}
+        </>
+        )
+      })()}
       {step === 2 && crew && (
         <div>
           {(() => {

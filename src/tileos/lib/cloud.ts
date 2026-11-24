@@ -23,7 +23,7 @@ import { askCompanyAI, hearCompanyAI, type Answer, type Heard } from '@/lib/comp
 import { setHearer } from '@/tileos/components/ui/voice'
 import { streamTalk, TalkStopped } from '@/tileos/lib/talkstream'
 import { inviteLink, inviteStatus, sendInvite, removeAccess } from '@/lib/invite'
-import { qbStatus, qbConnect, qbDisconnect, qbItems, qbPushInvoice, qbSendInvoice, qbPayment, qbPull, qbPushEstimate } from '@/lib/quickbooks'
+import { qbStatus, qbConnect, qbDisconnect, qbItems, qbPushInvoice, qbSendInvoice, qbPayment, qbPull, qbPushEstimate, qbVendorBills } from '@/lib/quickbooks'
 import { mailStatus, sendTileMail } from '@/lib/mail'
 import { startQbSync, stopQbSync } from '@/tileos/features/qbsync'
 import type { Member, Role } from '@/tileos/data/model'
@@ -597,7 +597,7 @@ export async function startCloud(user: User, opts: { admin: boolean; name: strin
   setHearer(hearAI)
   REAL.files = files
   /* QuickBooks: invoices and payments go there, payments made there come back. Email: POs to suppliers, invoices */
-  REAL.qb = { status: () => qbStatus(), connect: () => qbConnect(), disconnect: () => qbDisconnect(), items: () => qbItems(), push: (d) => qbPushInvoice({ data: d }), send: (d) => qbSendInvoice({ data: d }), estimate: (d) => qbPushEstimate({ data: d }), pay: (d) => qbPayment({ data: d }), pull: (ids) => qbPull({ data: { ids } }) }
+  REAL.qb = { status: () => qbStatus(), connect: () => qbConnect(), disconnect: () => qbDisconnect(), items: () => qbItems(), push: (d) => qbPushInvoice({ data: d }), send: (d) => qbSendInvoice({ data: d }), estimate: (d) => qbPushEstimate({ data: d }), pay: (d) => qbPayment({ data: d }), pull: (ids) => qbPull({ data: { ids } }), bills: (since) => qbVendorBills({ data: { since } }) }
   REAL.mail = { status: () => mailStatus(), send: (m) => sendTileMail({ data: m }) }
   REAL.refresh = refreshNow
   setSaveStatus({ where: 'cloud', mode: 'fresh', saving: false, problem: offline ? OFFLINE_WORDS : undefined })

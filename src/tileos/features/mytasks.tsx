@@ -319,7 +319,7 @@ export function TodayHead({ waiting, who, sort, onSort }: { waiting?: boolean; /
   const h = (k: string, label: string, right?: boolean, kind?: SortCol['kind']) => (onSort ? <SortHead k={k} sort={sort || null} onSort={onSort} right={right} kind={kind}>{label}</SortHead> : label)
   return (
     <div className={cn(HEAD_ROW, 'px-5 md:grid md:gap-x-6', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
-      <span className="pl-[2.125rem]">{h('project', 'Project')}</span>
+      <span>{h('project', 'Project')}</span>
       <span>{h('todo', 'To do')}</span>
       {/* waiting: the one you're waiting on; several people's lists: whose it is */}
       {(who || waiting) && <span data-head-turn>{h('who', waiting ? 'Waiting on' : 'Who')}</span>}
@@ -335,12 +335,10 @@ export const TODAY_SORT: SortCol[] = [{ k: 'project', label: 'Project' }, { k: '
 /** a cell's own button on a computer: tap it to change it right there — the row itself still opens the thing */
 const CELL_BTN = '-mx-2 inline-flex max-w-[calc(100%+1rem)] min-w-0 items-center gap-1.5 rounded-md px-2 py-1 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
 const stop = (e: React.SyntheticEvent) => e.stopPropagation()
-function TodoRow({ when, whenTone, title, detail, project, projectId, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, tick }: {
+function TodoRow({ when, whenTone, title, detail, project, projectId, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind }: {
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
   /** the one project it's about: a computer shows its name as a link to it */
   projectId?: string
-  /** a computer: the circle at the start of the line — one click and it's done (a done one: click to undo) */
-  tick?: RowTick
   /** what kind of thing it is — its tag before the words (To do, Touch-ups, Materials, Problem, Meeting…) */
   kind?: string
   /** shared — whoever gets to it first: the others who can do it */
@@ -421,17 +419,16 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action, on
       {star && ownList && !done && <RowStar star={star} />}
       {/* a computer: the project first — its address — then what it is, (who), who's watching, when — each in its
           column; Who, Watching and When tapped right there to change them */}
-      <div className="flex min-w-0 items-start gap-3 max-md:hidden">
-        <RowTickCircle tick={tick || (onClick && !done ? { open: true, run: onClick, label: 'Open' } : undefined)} />
-        <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem]', company ? 'text-muted' : 'text-ink')} data-row-where>
-          {flagged}
-          {projectId && !company && !done
-            ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left font-medium text-brand-700 hover:underline focus-visible:underline focus-visible:outline-none" data-row-project-link={projectId}>{where}</button>
-            : where}
-        </div>
+      {/* (no Done button on the line: what finishes a thing is its own action, in its window — send the update, say
+          what they said, make his PO) */}
+      <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem] max-md:hidden', company ? 'text-muted' : 'text-ink')} data-row-where>
+        {flagged}
+        {projectId && !company && !done
+          ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left font-medium text-brand-700 hover:underline focus-visible:underline focus-visible:outline-none" data-row-project-link={projectId}>{where}</button>
+          : where}
       </div>
       <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
-        {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 md:hidden [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
+        {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
         <div className="min-w-0 flex-1">
           {/* a phone: one quiet line on top — the project and what kind of thing it is (words, not tags), who else
               has it, when — then what to do, bigger and darker: the one thing to read. Nothing boxed, few colors */}
@@ -439,7 +436,10 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action, on
             <div className="flex min-h-5 min-w-0 items-start gap-2 md:hidden" data-row-eyebrow>
               <span className={cn('min-w-0 flex-1 break-words text-[0.84375rem] font-medium leading-5', company ? 'text-faint' : 'text-muted')} data-row-where-phone>
                 {flag ? <span className="text-bad-600" data-row-flag>{flag}{wherePhone || (kind && kind !== flag) ? ' · ' : ''}</span> : null}
-                {wherePhone}
+                {/* the project in blue (it opens the project), what to do under it in black — easy to tell apart at a glance */}
+                {projectId && !company && !done
+                  ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="-my-1 py-1 text-left font-semibold text-brand-700" data-row-project-link-phone={projectId}>{wherePhone}</button>
+                  : wherePhone}
                 {kind && kind !== flag ? <span className={kind === 'Problem' ? 'text-bad-600' : undefined} data-row-kind-phone={kind}>{wherePhone ? ' · ' : ''}{kind}</span> : null}
               </span>
               {phoneDots}
@@ -480,27 +480,6 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action, on
         ) : w ? <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : null}
       </div>
     </div>
-  )
-}
-
-/** the circle at the start of every line (a computer): a to-do, one click and it's done (pointed at: a check); done, a
- *  green check (click: back on the list). A line that's finished in its window — a daily update, a step, a call (it
- *  asks what they said) — the same circle opens it (pointed at: an arrow) */
-export type RowTick = { done?: boolean; open?: boolean; run: () => void; label: string }
-function RowTickCircle({ tick }: { tick?: RowTick }) {
-  if (!tick) return <span className="h-[1.375rem] w-[1.375rem] shrink-0" aria-hidden />
-  return (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); tick.run() }}
-      aria-label={tick.label}
-      title={tick.label}
-      className={cn('relative inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-full border-[1.5px] transition before:absolute before:-inset-2 before:content-[""] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200',
-        tick.done ? 'border-ok-500 bg-ok-500 text-white hover:border-ok-600 hover:bg-ok-600' : 'border-[#c9c2b7] text-transparent hover:border-ok-500 hover:text-ok-500')}
-      data-row-tick={tick.done ? 'done' : tick.open ? 'opens' : 'open'}
-    >
-      {tick.open && !tick.done ? <ArrowRight className="h-3 w-3" strokeWidth={2.75} /> : <Check className="h-3 w-3" strokeWidth={3} />}
-    </button>
   )
 }
 
@@ -556,12 +535,6 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       whoPick={admin && !done ? { people: team, me: me0, current: t.owner, onPick: (p) => s.reassignTask(t.id, p), also: t.also, onAlso: (p) => toggleAlso(t.id, p, true) } : undefined}
       project={job ? job.name : 'Company'}
       projectId={job ? job.id : undefined}
-      /* one click: done (a call opens with "What did they say?"); done: click to undo. Not when it's someone else's,
-         a step, a delivery, or it has its own button (Mark confirmed, Follow up…) */
-      tick={done ? (!theirs ? { done: true, run: () => s.reopenTask(t.id), label: 'Done · click to undo' } : undefined)
-        : !theirs && !stepTask && !act && !follow && !gcw && t.state === 'now' && !isRequest(t) && !touch.length
-          ? (isCallTask(t) ? { run: () => s.open({ t: 'task', id: t.id, call: true }), label: 'Done · what did they say?' } : { run: () => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }, label: 'Done' })
-          : undefined}
       when={w.text}
       whenTone={w.tone}
       action={
@@ -1381,22 +1354,6 @@ function PartBlock({ p, me, showOwner, lateLink = true }: { p: Part; me: PersonK
   )
 }
 
-/** the end of your Today: what you finished today — crossed out, its circle green (click it: back on the list). The
- *  first five; all of them on Done */
-function DoneToday({ role, person, job, me, onAll }: { role: Role; person: PersonKey | null; job: string; me: PersonKey; onAll: () => void }) {
-  const s = useStore()
-  const who = person || meOf(role)
-  const ts = s.tasks.filter((t) => t.state === 'done' && doneDay(t) === TODAY && isMine(t, role, who) && (job === 'all' || t.jobId === job))
-  if (!ts.length) return null
-  const shown = ts.slice(0, 5)
-  return (
-    <section data-part="donetoday">
-      <Group label="Done today" count={ts.length} right={ts.length > shown.length ? <button type="button" onClick={onAll} className="text-[0.8125rem] font-medium text-muted hover:text-brand-700" data-done-all>See all {ts.length}</button> : undefined} />
-      <Lines lines={shown.map((t): Line => ({ k: 'task', key: 'dt:' + t.id, t, as: 'done' }))} me={me} />
-    </section>
-  )
-}
-
 /* ---------------- someone's list, for the admin (Team report → a person) ---------------- */
 const roleOfPerson = (s: Store, p: PersonKey) => (s.team.find((m) => m.key === p)?.role as Role) || 'office'
 /** what's on someone's Today — the number on their own phone */
@@ -1837,8 +1794,7 @@ export function MyTasksPage() {
         {/* one person's list — or Everyone: each person's under their own name, never mixed */}
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
         {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
-        {/* what you finished today: at the end, crossed out */}
-        {view === 'today' && !multi && !q && <DoneToday role={lists[0].role} person={lists[0].person} job={job} me={me} onAll={() => setView('done')} />}
+        {/* (what's done leaves Today right away — it's on Done) */}
       </div>
       </TodaySort.Provider>
       </WaitView.Provider>

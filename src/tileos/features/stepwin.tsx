@@ -35,7 +35,7 @@ import { pickInstaller, pencilInstaller, putOnNoPO, sendDraftIPO, setSurfaceTile
 import { createInvoice, recordPayment, matBy, acceptIPO } from './flows'
 import { addEvent, removeEvent, moveEvent } from './calendar'
 import { isOff } from './active'
-import { poRatio, type Ratio } from './poratio'
+import { poRatio, crewQuotes, bestQuote, soldOf, LABOR_LINE, type Ratio } from './poratio'
 import { PaperRead, useReadBusy, usePaperReview } from './paperread'
 import { AddRoomButton } from './roomedit'
 import { ScopeStart } from './job/scope-tab'
@@ -1442,13 +1442,56 @@ export function RatioMeter({ r, className }: { r: Ratio; className?: string }) {
   )
 }
 const freeWord = (iso?: string) => (!iso || iso <= TODAY ? 'Free now' : `Free from ${labelFromIso(iso)}`)
+/** who installs it, by price: each installer's PO for this project at his own prices, and its share of what the
+ *  customer pays — the lowest first, the lowest within the budget marked; over the budget (Settings → Rules) in red.
+ *  When he's free under it (amber when he's busy past the start) */
+function InstallerChoice({ job, pick, onPick, free }: { job: Job; pick?: PersonKey; onPick: (p: PersonKey) => void; free: { crew: PersonKey; iso: string }[] }) {
+  const s = useStore()
+  const quotes = crewQuotes(s, job.id, free.map((f) => f.crew))
+  const best = bestQuote(quotes)
+  const line = s.rules.laborPct || LABOR_LINE
+  const { sold } = soldOf(s, job.id)
+  const start = s.prep[job.id]?.targetISO
+  return (
+    <div className="min-w-0">
+      {/* the budget on top, where it's seen first: up to 50% of what the customer pays */}
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="text-[0.8125rem] font-medium text-ink-2">Who installs it</span>
+        {sold > 0 && <span className="text-[0.78125rem] text-muted" data-installer-budget>Budget: up to {line}% of {fmtMoney(sold)} · <b className="font-semibold text-ink-2">{fmtMoney(Math.round((sold * line) / 100))}</b></span>}
+      </div>
+      <div role="radiogroup" aria-label="Who installs it" className="overflow-hidden rounded-xl border border-line bg-white" data-installer-quotes>
+        {quotes.map((q) => {
+          const f = free.find((x) => x.crew === q.crew)
+          const on = pick === q.crew
+          const busy = !!f && !!start && f.iso > start
+          return (
+            <button key={q.crew} type="button" role="radio" aria-checked={on} onClick={() => onPick(q.crew)} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left transition first:border-t-0', on ? 'bg-brand-50' : 'hover:bg-wash/60')} data-installer-quote={q.crew} data-over={q.over ? '1' : undefined}>
+              <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border-[1.5px]', on ? 'border-brand-600' : 'border-[#c9c2b7]')}>{on && <span className="h-2 w-2 rounded-full bg-brand-600" />}</span>
+              <Avatar who={q.crew} size={30} />
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-center gap-2"><span className="truncate text-[0.9375rem] font-semibold text-ink">{PEOPLE[q.crew]?.name || q.crew}</span>{q === best && quotes.length > 1 && <span className="shrink-0 rounded-full bg-ok-50 px-2 py-0.5 text-[0.71875rem] font-semibold text-ok-700" data-installer-best>Lowest</span>}</span>
+                <span className="block truncate text-[0.8125rem] text-muted"><span className={cn(busy && 'font-medium text-warn-700')}>{busy ? `Busy until ${labelFromIso(f!.iso)}` : freeWord(f?.iso)}</span>{q.usual ? ` · his usual ${q.usual}%` : !q.own ? ' · standard prices' : ''}</span>
+              </span>
+              <span className="shrink-0 text-right">
+                <span className="block text-[0.9375rem] font-semibold tnum text-ink">{q.total ? fmtMoney(q.total) : '–'}</span>
+                {q.pct != null && <span className={cn('block text-[0.78125rem] tnum', q.over ? 'font-semibold text-bad-600' : q.near ? 'font-medium text-warn-700' : 'text-muted')} data-installer-pct>{q.pct}%{q.over ? ' · over budget' : ''}</span>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      {!sold && <div className="mt-1.5 text-[0.78125rem] text-muted">No price to the customer yet, so no %.</div>}
+    </div>
+  )
+}
 function Installer({ job }: { job: Job }) {
   const s = useStore()
   const crew = installerOf(s, job)
   const ipo = [...s.ipos].reverse().find((p) => p.jobId === job.id)
   const free = crewFree(s).filter((c) => !isOff(s, 'crew', c.crew))
-  const [pick, setPick] = React.useState<PersonKey | undefined>(crew)
   const rooms = (s.rooms[job.id] || []).length
+  /* nobody picked yet: the lowest price within the budget, picked for you (you still press Make his PO) */
+  const [pick, setPick] = React.useState<PersonKey | undefined>(() => crew || (rooms ? bestQuote(crewQuotes(s, job.id, free.map((f) => f.crew)))?.crew : undefined))
   const picker = (
     <Field label="Who installs it">
       <Menu align="start" width={330} trigger={
@@ -1519,7 +1562,8 @@ function Installer({ job }: { job: Job }) {
   return (
     <div className="flex flex-col gap-4">
       {ipo?.status === 'Rejected' && <div className="rounded-xl bg-bad-50 px-4 py-3 text-[0.84375rem] font-medium text-bad-700">{PEOPLE[ipo.crew].short} turned it down{ipo.reason ? ` · ${ipo.reason.toLowerCase()}` : ''}. Pick someone else.</div>}
-      {picker}
+      {/* the project has its square feet: each installer with his price for it, the lowest first */}
+      <InstallerChoice job={job} pick={pick} onPick={setPick} free={free} />
       {/* a job already going, or done on a handshake: he's on it without a PO here */}
       <Actions>
         {ipo?.status !== 'Rejected' && <Button disabled={!pick} onClick={() => pick && putOnNoPO(job.id, pick)} data-installer-no-po>Put him on · no PO</Button>}

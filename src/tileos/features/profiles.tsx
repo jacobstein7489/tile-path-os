@@ -20,6 +20,8 @@ import { jobMoney } from './job/money-tab'
 import { crewFree } from './upcoming'
 import { PAY_WEEKS, THIS_WEEK, PAY_STATE, PAID_EARLIER, payRow } from './pay'
 import { TODAY } from '@/tileos/lib/today'
+import { useQb } from './qbsync'
+import { LABOR_LINE } from './poratio'
 import { reachLines, ReachRows } from './reach'
 
 const PRICING = ['request', 'estimating', 'proposal', 'followup']
@@ -630,12 +632,21 @@ export function setCrewRate(crew: string, itemId: string, rate: number | null) {
  *  a line left empty is paid at the standard price (Items). */
 function CrewPrices({ crew, canEdit }: { crew: PersonKey; canEdit: boolean }) {
   const s = useStore()
+  const qb = useQb()
   const labor = s.items.filter((i) => i.type === 'labor')
   const his = s.rules.crewRates?.[crew] || {}
   const set = Object.keys(his).length
+  const usual = s.rules.crewPct?.[crew]
+  const line = s.rules.laborPct || LABOR_LINE
   return (
     <div className="flex flex-col gap-3" data-crew-prices>
-      <p className="text-[0.84375rem] leading-snug text-muted">His POs are drafted at these prices. Leave one empty and it’s the standard price (Items).{set ? ` ${set} of his own.` : ''}</p>
+      <div className="flex items-start gap-3 max-sm:flex-col">
+        <p className="min-w-0 flex-1 text-[0.84375rem] leading-snug text-muted">His POs are drafted at these prices. Leave one empty and it’s the standard price (Items).{set ? ` ${set} of his own.` : ''}
+          {/* his usual share of a job, from QuickBooks — against the budget */}
+          {usual != null && <span className={cn('mt-1 block', usual > line ? 'font-semibold text-bad-600' : 'text-ink-2')} data-crew-usual>Usually {usual}% of the job, from QuickBooks{usual > line ? ` · over the ${line}% budget` : ''}.</span>}
+        </p>
+        {canEdit && qb.connected && <Button size="sm" className="shrink-0" onClick={() => s.open({ t: 'qbrates', crew })} data-crew-qb>From QuickBooks</Button>}
+      </div>
       <div className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
         <div className="grid h-9 grid-cols-[minmax(0,1fr)_6.5rem_8rem] items-center gap-x-4 border-b border-line-2 px-4 text-[0.75rem] font-medium text-faint max-sm:grid-cols-[minmax(0,1fr)_7rem]"><span>Work</span><span className="text-right max-sm:hidden">Standard</span><span className="text-right">His price</span></div>
         {labor.map((it) => <PriceRow key={it.id} crew={crew} it={it} his={his[it.id]} canEdit={canEdit} />)}
