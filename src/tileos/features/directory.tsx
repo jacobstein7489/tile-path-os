@@ -8,6 +8,7 @@ import { Button, Avatar, TextInput, Chip } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem } from '@/tileos/components/ui/overlay'
 import { isOff, setActive, type DirKind } from './active'
 import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow, Status, Bubbles, type BubbleColor } from '@/tileos/components/ui/page'
+import { useSort, sortRows, type SortCol } from '@/tileos/components/ui/sort'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, roleDef, type PersonKey } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -76,7 +77,11 @@ export function ClientsPage() {
   const estOut = (id: string) => s.estimates.filter((e) => e.status === 'sent' && s.jobs[e.jobId]?.clientId === id).length
   const inTab = (id: string) => tab === 'all' || tab === 'off' || (tab === 'active' ? active(id) : tab === 'estimates' ? estOut(id) > 0 : owed(id) > 0)
   /* simple: the company and its main contact — no type, phone or email on the list (they're in the client's window) */
-  const list = all.filter((c) => inTab(c.id) && (!q || `${c.name} ${c.contacts.map((p) => p.name).join(' ')}`.toLowerCase().includes(q.toLowerCase())))
+  const so = useSort('clients')
+  const list = sortRows(all.filter((c) => inTab(c.id) && (!q || `${c.name} ${c.contacts.map((p) => p.name).join(' ')}`.toLowerCase().includes(q.toLowerCase()))), so.sort, {
+    name: (c) => c.name, contact: (c) => c.contacts[0]?.name, projects: (c) => jobsOf(c.id).filter((j) => !DONE.includes(j.stage)).length || undefined, owed: (c) => owed(c.id) || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   const pick = (k: typeof tab) => () => setTab(tab === k ? 'all' : k)
   const live = every.filter((c) => !isOff(s, 'client', c.id))
   const owedAll = live.reduce((n, c) => n + owed(c.id), 0)
@@ -106,10 +111,10 @@ export function ClientsPage() {
       <Table minWidth={820}>
         <thead>
           <tr>
-            <Th className="xl:w-[16rem]">Client</Th>
-            <Th w="13rem" className="max-lg:hidden">Main contact</Th>
-            <Th w="11rem" className="max-md:hidden">Projects</Th>
-            <Th w="8rem" right className="max-lg:hidden">Open to collect</Th>
+            <Th className="xl:w-[16rem]" sort={th('name')}>Client</Th>
+            <Th w="13rem" className="max-lg:hidden" sort={th('contact')}>Main contact</Th>
+            <Th w="11rem" className="max-md:hidden" sort={th('projects', 'num')}>Projects</Th>
+            <Th w="8rem" right className="max-lg:hidden" sort={th('owed', 'num')}>Open to collect</Th>
             <Th w="3.25rem" />
           </tr>
         </thead>
@@ -122,10 +127,10 @@ export function ClientsPage() {
             return (
               <Tr key={c.id} onClick={() => s.open({ t: 'customer', id: c.id })}>
                 <Td>
-                  <div className="truncate text-[0.9375rem] text-ink">{c.name}</div>
-                  {live.length > 0 && <div className="truncate text-[0.8125rem] text-muted md:hidden">{live.length} open</div>}
+                  <div className="break-words text-[0.9375rem] text-ink">{c.name}</div>
+                  {live.length > 0 && <div className="break-words text-[0.8125rem] text-muted md:hidden">{live.length} open</div>}
                 </Td>
-                <Td className="truncate text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint"></span>}</Td>
+                <Td className="break-words text-[0.875rem] text-ink-2 max-lg:hidden">{c.contacts[0]?.name || <span className="text-faint"></span>}</Td>
                 <Td className="text-[0.875rem] max-md:hidden">{live.length ? `${live.length - pricing} active${pricing ? ` · ${pricing} pricing` : ''}` : <span className="text-muted">None open</span>}</Td>
                 <Td right className={cn('tnum max-lg:hidden', o ? 'text-ink' : 'text-faint')}>{o ? fmtMoney(o) : ''}</Td>
                 <Td><ActiveMenu kind="client" id={c.id} name={c.name} /></Td>
@@ -148,7 +153,11 @@ export function DesignersPage() {
   const activeOf = (d: (typeof s.designers)[number]) => Object.values(s.jobs).some((j) => designerOf(s.designers, j)?.id === d.id && !DONE.includes(j.stage) && !PRICING.includes(j.stage))
   const live = s.designers.filter((d) => !isOff(s, 'designer', d.id))
   const offList = s.designers.filter((d) => isOff(s, 'designer', d.id))
-  const list = (tab === 'off' ? offList : live).filter((d) => (tab === 'all' || tab === 'off' || (tab === 'waiting' ? waitsOf(d) > 0 : activeOf(d))) && (!q || `${d.name} ${d.contact}`.toLowerCase().includes(q.toLowerCase())))
+  const so = useSort('designers')
+  const list = sortRows((tab === 'off' ? offList : live).filter((d) => (tab === 'all' || tab === 'off' || (tab === 'waiting' ? waitsOf(d) > 0 : activeOf(d))) && (!q || `${d.name} ${d.contact}`.toLowerCase().includes(q.toLowerCase()))), so.sort, {
+    name: (d) => d.name, phone: (d) => d.phone, clients: (d) => d.clients.map((c) => CUSTOMERS[c]?.name).filter(Boolean).join(', '), waits: (d) => waitsOf(d) || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   return (
     <Page
       title="Designers"
@@ -173,10 +182,10 @@ export function DesignersPage() {
       <Table minWidth={760}>
         <thead>
           <tr>
-            <Th className="xl:w-[16rem]">Designer</Th>
-            <Th w="9.5rem" className="max-md:hidden">Phone</Th>
-            <Th w="15rem" className="max-lg:hidden">Clients</Th>
-            <Th w="14.5rem" className="max-md:hidden">Waiting on them</Th>
+            <Th className="xl:w-[16rem]" sort={th('name')}>Designer</Th>
+            <Th w="9.5rem" className="max-md:hidden" sort={th('phone')}>Phone</Th>
+            <Th w="15rem" className="max-lg:hidden" sort={th('clients')}>Clients</Th>
+            <Th w="14.5rem" className="max-md:hidden" sort={th('waits', 'num')}>Waiting on them</Th>
             <Th w="3.25rem" />
           </tr>
         </thead>
@@ -186,11 +195,11 @@ export function DesignersPage() {
             return (
               <Tr key={d.id} onClick={() => s.open({ t: 'designer', id: d.id })}>
                 <Td>
-                  <div className="truncate text-[0.9375rem] text-ink">{d.name}</div>
-                  <div className="truncate text-[0.8125rem] text-muted">{d.contact} · {d.email}</div>
+                  <div className="break-words text-[0.9375rem] text-ink">{d.name}</div>
+                  <div className="break-words text-[0.8125rem] text-muted">{d.contact} · {d.email}</div>
                 </Td>
                 <Td className="text-[0.875rem] tnum max-md:hidden">{d.phone}</Td>
-                <Td className="truncate text-[0.875rem] max-lg:hidden">{d.clients.map((c) => CUSTOMERS[c]?.name).join(', ')}</Td>
+                <Td className="break-words text-[0.875rem] max-lg:hidden">{d.clients.map((c) => CUSTOMERS[c]?.name).join(', ')}</Td>
                 <Td className="max-md:hidden">{waits ? <Status tone="warn">{waits} open item{waits > 1 ? 's' : ''}</Status> : <span className="text-[0.875rem] text-faint">Nothing</span>}</Td>
                 <Td><ActiveMenu kind="designer" id={d.id} name={d.name} /></Td>
               </Tr>
@@ -215,7 +224,12 @@ export function SubsPage() {
   const subs = allSubs()
   const live = subs.filter((x) => !isOff(s, 'crew', x.crew))
   const offList = subs.filter((x) => isOff(s, 'crew', x.crew))
-  const list = (tab === 'off' ? offList : live).filter((x) => inTab(x.crew as PersonKey) && (!q || PEOPLE[x.crew as PersonKey].name.toLowerCase().includes(q.toLowerCase())))
+  const so = useSort('installers')
+  const list = sortRows((tab === 'off' ? offList : live).filter((x) => inTab(x.crew as PersonKey) && (!q || PEOPLE[x.crew as PersonKey].name.toLowerCase().includes(q.toLowerCase()))), so.sort, {
+    name: (x) => PEOPLE[x.crew as PersonKey]?.name, now: (x) => { const b = s.bookings.find((y) => y.crew === x.crew && y.start <= TODAY && y.end >= TODAY); return b ? s.jobs[b.jobId]?.name : undefined },
+    free: (x) => free.find((y) => y.crew === x.crew)?.iso, pos: (x) => s.ipos.filter((p) => p.crew === x.crew).length || undefined, pay: (x) => payRow(s, x.crew as PersonKey, PAY_WEEKS[0])?.calc.total || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   const pick = (k: typeof tab) => () => setTab(tab === k ? 'all' : k)
   return (
     <Page
@@ -242,11 +256,11 @@ export function SubsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th className="xl:w-[12rem]">Installer</Th>
-            <Th w="14.5rem" className="max-md:hidden">Working now</Th>
-            <Th w="7.5rem" className="max-lg:hidden">Free from</Th>
-            <Th w="10.5rem" className="max-md:hidden">Installer POs</Th>
-            <Th w="13rem" className="max-xl:hidden">Last week’s pay</Th>
+            <Th className="xl:w-[12rem]" sort={th('name')}>Installer</Th>
+            <Th w="14.5rem" className="max-md:hidden" sort={th('now')}>Working now</Th>
+            <Th w="7.5rem" className="max-lg:hidden" sort={th('free', 'date')}>Free from</Th>
+            <Th w="10.5rem" className="max-md:hidden" sort={th('pos', 'num')}>Installer POs</Th>
+            <Th w="13rem" className="max-xl:hidden" sort={th('pay', 'num')}>Last week’s pay</Th>
             <Th w="3.25rem" />
           </tr>
         </thead>
@@ -263,8 +277,8 @@ export function SubsPage() {
                   <div className="flex items-center gap-3">
                     <Avatar who={crew} size={28} />
                     <div className="min-w-0">
-                      <div className="truncate text-[0.9375rem] text-ink">{PEOPLE[crew].name}</div>
-                      <div className="truncate text-[0.8125rem] text-muted">{x.trade}{x.region ? ` · ${x.region}` : ''}</div>
+                      <div className="break-words text-[0.9375rem] text-ink">{PEOPLE[crew].name}</div>
+                      <div className="break-words text-[0.8125rem] text-muted">{x.trade}{x.region ? ` · ${x.region}` : ''}</div>
                     </div>
                   </div>
                 </Td>
@@ -291,7 +305,11 @@ export function SuppliersPage() {
   const lateOf = (n: string) => s.pos.filter((p) => p.supplier === n && p.late).length
   const live = s.suppliers.filter((x) => !isOff(s, 'supplier', x.name))
   const offList = s.suppliers.filter((x) => isOff(s, 'supplier', x.name))
-  const list = (tab === 'off' ? offList : live).filter((x) => (tab === 'all' || tab === 'off' || (tab === 'open' ? openOf(x.name) > 0 : lateOf(x.name) > 0)) && (!q || `${x.name} ${x.supplies}`.toLowerCase().includes(q.toLowerCase())))
+  const so = useSort('suppliers')
+  const list = sortRows((tab === 'off' ? offList : live).filter((x) => (tab === 'all' || tab === 'off' || (tab === 'open' ? openOf(x.name) > 0 : lateOf(x.name) > 0)) && (!q || `${x.name} ${x.supplies}`.toLowerCase().includes(q.toLowerCase()))), so.sort, {
+    name: (x) => x.name, contact: (x) => x.contact, open: (x) => s.pos.filter((p) => p.supplier === x.name && p.step >= 1 && p.step < 3).length || undefined, late: (x) => lateOf(x.name) || undefined, spent: (x) => s.pos.filter((p) => p.supplier === x.name).reduce((n, p) => n + (p.amount || 0), 0) || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   return (
     <Page
       title="Suppliers"
@@ -316,11 +334,11 @@ export function SuppliersPage() {
       <Table minWidth={760}>
         <thead>
           <tr>
-            <Th className="xl:w-[13rem]">Supplier</Th>
-            <Th w="16.25rem" className="max-lg:hidden">Who to call</Th>
-            <Th w="8rem" className="max-md:hidden">Open POs</Th>
-            <Th w="8rem" className="max-md:hidden">Late</Th>
-            <Th w="9.5rem" right className="max-lg:hidden">Spent this year</Th>
+            <Th className="xl:w-[13rem]" sort={th('name')}>Supplier</Th>
+            <Th w="16.25rem" className="max-lg:hidden" sort={th('contact')}>Who to call</Th>
+            <Th w="8rem" className="max-md:hidden" sort={th('open', 'num')}>Open POs</Th>
+            <Th w="8rem" className="max-md:hidden" sort={th('late', 'num')}>Late</Th>
+            <Th w="9.5rem" right className="max-lg:hidden" sort={th('spent', 'num')}>Spent this year</Th>
             <Th w="3.25rem" />
           </tr>
         </thead>
@@ -333,14 +351,14 @@ export function SuppliersPage() {
             return (
               <Tr key={x.name} onClick={() => s.open({ t: 'supplier', id: x.name })}>
                 <Td>
-                  <div className="truncate text-[0.9375rem] text-ink">{x.name}</div>
-                  <div className="truncate text-[0.8125rem] text-muted">{kindsOf(x).length ? kindsText(kindsOf(x)) : x.supplies}</div>
+                  <div className="break-words text-[0.9375rem] text-ink">{x.name}</div>
+                  <div className="break-words text-[0.8125rem] text-muted">{kindsOf(x).length ? kindsText(kindsOf(x)) : x.supplies}</div>
                 </Td>
                 <Td className="max-lg:hidden">
                   {x.contact || x.phone ? (
                     <>
-                      <div className="truncate text-[0.875rem] font-medium text-ink-2">{x.contact || 'Office'}</div>
-                      <div className="truncate text-[0.8125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || ''}</div>
+                      <div className="break-words text-[0.875rem] font-medium text-ink-2">{x.contact || 'Office'}</div>
+                      <div className="break-words text-[0.8125rem] text-muted">{[x.phone, x.email].filter(Boolean).join(' · ') || ''}</div>
                     </>
                   ) : <button onClick={(e) => { e.stopPropagation(); s.open({ t: 'supplierform', name: x.name }) }} className="text-[0.8125rem] font-semibold text-brand-600 hover:underline">Add a contact</button>}
                 </Td>
@@ -365,7 +383,11 @@ export function ItemsPage() {
   const [q, setQ] = React.useState('')
   const [synced, setSynced] = React.useState('5 min ago')
   const items = s.items.filter((i) => i.id !== 'o-room')
-  const list = items.filter((i) => (tab === 'all' || i.type === tab) && (vendor === 'all' || i.vendor === vendor) && (!q || `${i.name} ${i.qb}`.toLowerCase().includes(q.toLowerCase())))
+  const so = useSort('items')
+  const list = sortRows(items.filter((i) => (tab === 'all' || i.type === tab) && (vendor === 'all' || i.vendor === vendor) && (!q || `${i.name} ${i.qb}`.toLowerCase().includes(q.toLowerCase()))), so.sort, {
+    name: (i) => i.name, unit: (i) => i.unit, price: (i) => i.price || undefined, cost: (i) => i.cost || undefined, margin: (i) => (i.price && i.cost ? Math.round(((i.price - i.cost) / i.price) * 100) : undefined), vendor: (i) => (i.type === 'labor' ? 'Installer' : i.vendor),
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   const vendors = Array.from(new Set(items.map((i) => i.vendor).filter(Boolean))) as string[]
   return (
     <Page
@@ -394,12 +416,12 @@ export function ItemsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th className="xl:w-[18rem]">Item</Th>
-            <Th w="4.5rem" className="max-md:hidden">Unit</Th>
-            <Th w="7rem" right className="max-md:hidden">We charge</Th>
-            <Th w="7rem" right className="max-md:hidden">We pay</Th>
-            <Th w="5.5rem" right className="max-lg:hidden">Margin</Th>
-            <Th w="10.5rem" className="max-xl:hidden">Paid to</Th>
+            <Th className="xl:w-[18rem]" sort={th('name')}>Item</Th>
+            <Th w="5.5rem" className="max-md:hidden" sort={th('unit')}>Unit</Th>
+            <Th w="8rem" right className="max-md:hidden" sort={th('price', 'num')}>We charge</Th>
+            <Th w="7.5rem" right className="max-md:hidden" sort={th('cost', 'num')}>We pay</Th>
+            <Th w="6.5rem" right className="max-lg:hidden" sort={th('margin', 'num')}>Margin</Th>
+            <Th w="10.5rem" className="max-xl:hidden" sort={th('vendor')}>Paid to</Th>
           </tr>
         </thead>
         <tbody>
@@ -408,14 +430,14 @@ export function ItemsPage() {
             return (
               <Tr key={i.id} onClick={() => s.open({ t: 'item', id: i.id })}>
                 <Td>
-                  <div className="truncate text-[0.9375rem] text-ink">{i.name}</div>
-                  <div className="truncate text-[0.8125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
+                  <div className="break-words text-[0.9375rem] text-ink">{i.name}</div>
+                  <div className="break-words text-[0.8125rem] text-muted">{ITEM_TYPE_LABEL[i.type]} · QuickBooks {i.qb}</div>
                 </Td>
                 <Td className="text-[0.875rem] text-muted max-md:hidden">{i.unit}</Td>
                 <Td right className="tnum text-ink max-md:hidden">{fmtMoney(i.price, { cents: i.price % 1 !== 0 })}</Td>
                 <Td right className="tnum max-md:hidden">{i.cost ? fmtMoney(i.cost, { cents: i.cost % 1 !== 0 }) : ''}</Td>
                 <Td right className="tnum text-muted max-lg:hidden">{i.cost ? `${margin}%` : ''}</Td>
-                <Td className="truncate text-[0.875rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || ''}</Td>
+                <Td className="break-words text-[0.875rem] max-xl:hidden">{i.type === 'labor' ? 'Installer' : i.vendor || ''}</Td>
               </Tr>
             )
           })}

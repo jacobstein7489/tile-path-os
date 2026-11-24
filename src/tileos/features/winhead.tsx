@@ -22,7 +22,8 @@ import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 export type WinTone = 'late' | 'warn' | 'ok' | 'quiet'
 
 /** who it can be given to: you first ("Me"), then the rest */
-export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void; /** more than one can do it — whoever gets to it first (a task; a step has one) */ also?: PersonKey[]; onAlso?: (p: PersonKey) => void }
+export type WhoPick = { people: PersonKey[]; me: PersonKey; current?: PersonKey; onPick: (p: PersonKey) => void; /** more than one can do it — whoever gets to it first (a task; a step has one) */ also?: PersonKey[]; onAlso?: (p: PersonKey) => void
+  /** nobody yet is a choice too ("Not decided yet" — a touch-up) */ onNone?: () => void; noneLabel?: string }
 /** the day it's on: tap it, pick another */
 export type WhenPick = {
   value?: string
@@ -55,15 +56,21 @@ export type WinKind = { icon?: React.ReactNode; label: string }
  *  getting ready green, a meeting indigo, the money green, a problem red (red only for problems) */
 const KIND_TONES: [RegExp, { background: string; color: string }][] = [
   [/problem/i, { background: '#fdecea', color: '#c4311f' }],
-  [/waiting/i, { background: '#fcf1de', color: '#9c5c0b' }],
+  [/waiting|^gc$/i, { background: '#fcf1de', color: '#9c5c0b' }],
   [/bring|on site|touch|site visit|daily update|crew/i, { background: '#fdf0e6', color: '#b0521b' }],
   [/getting ready/i, { background: '#e6f4f1', color: '#12766a' }],
   [/meeting|walkthrough|schedule/i, { background: '#eeeffc', color: '#3f46c2' }],
   [/material|tile|\bpo\b|order|delivery/i, { background: '#e7f4f8', color: '#13768f' }],
   [/change|everyone/i, { background: '#f3effd', color: '#6449cc' }],
-  [/billing|pay|invoice|money|check-in/i, { background: '#e6f4ec', color: '#1b7443' }],
+  [/billing|pay|invoice|money|check-in|^team$/i, { background: '#e6f4ec', color: '#1b7443' }],
 ]
-const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(label))?.[1] || { background: '#ebf1fd', color: '#2c53c0' }
+export const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(label))?.[1] || { background: '#ebf1fd', color: '#2c53c0' }
+/** what kind of thing a line is — a small tag in its own soft color, the same as its window says on top (To do,
+ *  Touch-ups, Materials, Problem, Meeting…): you know right away what it's about */
+export function KindTag({ label, className }: { label: string; className?: string }) {
+  const c = kindTone(label)
+  return <span className={cn('inline-flex h-[1.25rem] shrink-0 items-center rounded-[0.3125rem] px-1.5 text-[0.71875rem] font-semibold leading-none tracking-[0.01em]', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
+}
 
 export const CHIP = 'inline-flex min-h-8 min-w-0 items-center gap-2 rounded-full border border-[#e9e5de] bg-white px-3 py-1 text-left shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3] hover:shadow-[0_2px_6px_-2px_rgba(20,26,36,.15)] focus-visible:border-brand-300 focus-visible:outline-none'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
@@ -121,6 +128,14 @@ export function WhoMenu({ pick, trigger }: { pick: WhoPick; trigger: React.React
     <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={trigger}>
       <PeopleHead title="Who does it" sub={many ? 'Each one ticked has it. Whoever gets to it first.' : 'One person. It’s on their Today.'} />
       <div className="-mx-1 flex flex-col" role={many ? 'group' : 'radiogroup'} data-who-options>
+        {/* nobody yet — when that's a choice */}
+        {pick.onNone && !many && (
+          <button type="button" role="radio" aria-checked={!pick.current} onClick={() => { setOpen(false); if (pick.current) pick.onNone!() }} className={cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', !pick.current && 'bg-brand-50/60 hover:bg-brand-50')} data-who-option="none">
+            <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-full border', !pick.current ? 'border-brand-600 bg-brand-600' : 'border-[#c9ced6] bg-white')}>{!pick.current && <span className="h-[0.4375rem] w-[0.4375rem] rounded-full bg-white" />}</span>
+            <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 rounded-full border border-dashed border-[#bdb6aa]" aria-hidden />
+            <span className={cn('min-w-0 flex-1 truncate', !pick.current && 'font-medium')}>{pick.noneLabel || 'Nobody yet'}</span>
+          </button>
+        )}
         {[pick.me, ...pick.people.filter((p) => p !== pick.me)].map((p) => (
           <PersonOption key={p} p={p} me={pick.me} on={p === pick.current || (many && also.includes(p))} round={!many} lock={many && p === pick.current} onClick={() => tap(p)} attrs={{ 'data-who-option': p }} />
         ))}

@@ -212,7 +212,7 @@ function InstallerSheet({ job }: { job: Job }) {
     <header className="flex min-h-12 items-center gap-x-3 gap-y-0.5 border-b border-line-2 bg-[#f6f6f4] px-5 py-2 max-sm:px-4" data-band>
       <span className="flex min-w-0 flex-1 items-center gap-2.5 max-sm:flex-wrap max-sm:gap-y-0.5">
         <span className={BAND_LABEL}>Installer PO</span>
-        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 truncate"><b className="font-medium text-ink">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Accepted' ? 'font-medium text-[#2c8a5b]' : ipo.status === 'Sent' ? 'font-medium text-warn-700' : 'text-muted'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
+        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 break-words"><b className="font-medium text-ink">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Accepted' ? 'font-medium text-[#2c8a5b]' : ipo.status === 'Sent' ? 'font-medium text-warn-700' : 'text-muted'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
       </span>
       {right && <span className="flex shrink-0 items-center gap-2">{right}</span>}
     </header>
@@ -261,9 +261,9 @@ function InstallerSheet({ job }: { job: Job }) {
   const row = (k: string, what: React.ReactNode, sold: number | null, his: number | null, pct?: number, sub?: string) => (
     <div key={k} className={cn(IPO_COLS, 'min-h-[2.75rem] border-t border-line-2 px-5 py-2 text-[0.875rem] max-sm:px-4')} data-ipo-line={k}>
       <span className="min-w-0">
-        <span className="block truncate text-ink">{what}</span>
-        {sub && <span className="block truncate text-[0.75rem] text-muted">{sub}</span>}
-        <span className="block truncate text-[0.75rem] text-muted sm:hidden">{[sold != null ? `We sell it for ${fmtMoney(sold)}` : '', his != null ? `his PO ${fmtMoney(his)}` : ''].filter(Boolean).join(' · ')}</span>
+        <span className="block break-words text-ink">{what}</span>
+        {sub && <span className="block break-words text-[0.75rem] text-muted">{sub}</span>}
+        <span className="block break-words text-[0.75rem] text-muted sm:hidden">{[sold != null ? `We sell it for ${fmtMoney(sold)}` : '', his != null ? `his PO ${fmtMoney(his)}` : ''].filter(Boolean).join(' · ')}</span>
       </span>
       <span className="text-right tnum text-ink-2 max-sm:hidden">{sold != null ? fmtMoney(sold) : ''}</span>
       <span className="text-right tnum text-ink max-sm:hidden">{his != null ? fmtMoney(his) : ''}</span>

@@ -178,8 +178,9 @@ function OrderedBox({ jobId, tag, have, unit }: { jobId: string; tag: string; ha
     </div>
   )
 }
-/* A tile's count, how it adds up: every wall and floor it goes on with its square feet (one without any said plainly —
- * tap it to put them in), the extra for cuts, our takeoff; their order; the difference. Short: how to settle it. */
+/* A tile's count, how it adds up: every wall and floor in Scope of work it goes on, with its square feet (one without
+ * any said plainly — tap it to put them in), the extra for cuts, what's needed; their order; the difference. Short: how
+ * to settle it. (Not called a takeoff: most projects never had one — it's the scope's walls and floors.) */
 const sfWords = (n: number) => `${(Math.round(n * 10) / 10).toLocaleString('en-US')} SF`
 export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; level: number }) {
   const s = useStore()
@@ -190,7 +191,7 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
   const live = lines.reduce((n, l) => n + l.sf, 0)
   const none = lines.filter((l) => !l.sf)
   if (!c && !lines.length) return null
-  /* our takeoff: the walls and floors as they are now, with the extra for cuts (none with square feet yet: what was
+  /* what's needed: the walls and floors as they are now, with the extra for cuts (none with square feet yet: what was
      counted when their order was checked) — the same numbers the tile's line goes by */
   const boxes = !!c && /box/i.test(c.unit)
   const measured = live > 0 || !c ? live : c.measured
@@ -201,7 +202,7 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
   /* the walls and floors changed since their order was checked (square feet only — boxes are counted their own way) */
   const moved = !!c && !boxes && live > 0 && Math.abs(live - c.measured) >= 1
   const unit = c?.unit || 'SF'
-  const title = short ? `Their order is ${short} ${unit} short of our takeoff` : c ? 'Their order covers our takeoff' : 'Our takeoff'
+  const title = short ? `Their order is ${short} ${unit} short` : c ? 'Their order covers it' : 'What the walls and floors need'
   const row = 'flex min-h-10 items-center gap-3 border-t border-line-2 px-4 py-2 first:border-t-0 max-sm:px-3'
   return (
     <Modal
@@ -219,12 +220,12 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
       ) : <><div className="ml-auto" aria-hidden /><Button variant="primary" onClick={s.close}>Done</Button></>}
     >
       <div className="flex flex-col gap-5" data-qty-breakdown>
-        {/* where our takeoff comes from: each wall and floor, tap one to change its square feet */}
+        {/* where the number comes from: each wall and floor in Scope of work, tap one to change its square feet */}
         <section>
           <div className="mb-2 flex items-center gap-3">
             <TileImg tile={t} size={40} />
             <div className="min-w-0">
-              <div className="text-[0.9375rem] font-semibold text-ink">Where our takeoff comes from</div>
+              <div className="text-[0.9375rem] font-semibold text-ink" data-qty-source>From Scope of work</div>
               <div className="text-[0.8125rem] text-muted">Every wall and floor {tag} goes on. Tap one to change its square feet.</div>
             </div>
           </div>
@@ -236,11 +237,11 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
               </button>
             ))}
             {!lines.length && <div className={row}><span className="text-[0.875rem] text-muted">It isn’t on a wall or floor anymore.</span></div>}
-            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Measured</span><span className="text-[0.9375rem] font-semibold tnum text-ink" data-qty-measured>{boxes && live <= 0 ? `${measured} ${unit}` : sfWords(measured)}</span></div>
+            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Walls and floors</span><span className="text-[0.9375rem] font-semibold tnum text-ink" data-qty-measured>{boxes && live <= 0 ? `${measured} ${unit}` : sfWords(measured)}</span></div>
             <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Extra for cuts · {pct}%</span><span className="text-[0.9375rem] tnum text-ink">+ {boxes && live <= 0 ? `${Math.round(measured * pct) / 100} ${unit}` : sfWords((measured * pct) / 100)}</span></div>
-            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] font-semibold text-ink">Our takeoff</span><span className="text-[1.0625rem] font-bold tnum text-ink" data-qty-need>{need.toLocaleString('en-US')} {unit}</span></div>
+            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] font-semibold text-ink">Needed</span><span className="text-[1.0625rem] font-bold tnum text-ink" data-qty-need>{need.toLocaleString('en-US')} {unit}</span></div>
           </div>
-          {none.length > 0 && <div className="mt-2 text-[0.8125rem] font-medium text-warn-700" data-qty-none>{none.length} {none.length === 1 ? 'wall or floor has' : 'walls and floors have'} no square feet yet, so our takeoff is low. Tap {none.length === 1 ? 'it' : 'each one'} to put them in.</div>}
+          {none.length > 0 && <div className="mt-2 text-[0.8125rem] font-medium text-warn-700" data-qty-none>{none.length} {none.length === 1 ? 'wall or floor has' : 'walls and floors have'} no square feet yet, so what’s needed is low. Tap {none.length === 1 ? 'it' : 'each one'} to put them in.</div>}
           {moved && <div className="mt-2 text-[0.8125rem] text-muted" data-qty-moved>When their order went in, the walls and floors came to {sfWords(c!.measured)}. They’re {sfWords(live)} now, and that’s what it goes by.</div>}
         </section>
         {/* their order and the difference */}
@@ -260,7 +261,7 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
           <div className="flex flex-col gap-2.5">
             <OptionCard on={pick === 'askgc'} onClick={() => setPick('askgc')} icon={<Building2 className="h-5 w-5" />} title={`Ask the GC to add ${short} ${unit} to their order`} sub="They supply the tile. It waits on the GC and comes back Wednesday." />
             <OptionCard on={pick === 'order'} onClick={() => setPick('order')} icon={<Package className="h-5 w-5" />} title="We order the short tile ourselves" sub="A PO to the tile store from here. Billed back to the GC if agreed." />
-            <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="Their number is right. Accept it" sub="Use it if our takeoff was high. It’s logged with your name." />
+            <OptionCard on={pick === 'accept'} onClick={() => setPick('accept')} icon={<CheckCircle2 className="h-5 w-5" />} title="Their number is right. Accept it" sub="Use it if the walls and floors are counted high. It’s logged with your name." />
           </div>
         )}
       </div>

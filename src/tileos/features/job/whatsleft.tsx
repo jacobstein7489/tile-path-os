@@ -19,11 +19,14 @@ import { tracksFor, issuesOf, problemsOf, leadWords, phaseOf, bookingOf, type Tr
 import { readyForCrew, startProject } from '../flows'
 import { firstName } from './kit'
 import { installerOf } from '../upcoming'
-import { TouchupsList } from '../touchups'
+import { KindTag } from '../winhead'
+import { tagOfTask, plainTodo, todosOf, touchupsWords } from '../todokinds'
 
 export type LeftRow = {
   key: string
   what: string
+  /** what kind of thing it is — its tag (To do, Problem, Getting ready, Touch-ups…) */
+  kind?: string
   who?: PersonKey
   when?: string
   /** the day, to sort by */
@@ -48,11 +51,11 @@ export function nextRow(s: Store, job: Job): LeftRow | null {
   const booked = job.stage === 'scheduled' || !!b
   const pm = 'ys' as PersonKey
   const noop = () => {}
-  if (phase === 'crew' && !booked) return { key: 'next:crew', what: 'Schedule the crew', who: pm, when: 'Getting ready is done', tone: 'now', next: true, noCheck: true, open: () => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }, done: noop }
-  if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
-  if (phase === 'punch') return { key: 'next:return', what: 'Book the return visit', who: pm, when: 'For the touch-ups', tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: noop }
+  if (phase === 'crew' && !booked) return { key: 'next:crew', kind: 'Schedule', what: 'Schedule the crew', who: pm, when: 'Getting ready is done', tone: 'now', next: true, noCheck: true, open: () => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }, done: noop }
+  if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', kind: 'On site', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
+  if (phase === 'punch') return { key: 'next:return', kind: 'Touch-ups', what: 'Book the return visit', who: pm, when: 'For the touch-ups', tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: noop }
   const fin = s.money.find((m) => m.jobId === job.id && m.kind === 'final')
-  if (job.stage === 'closeout' && fin) return { key: 'next:final', what: 'Send the final invoice', who: pm, tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'money', id: fin.id }), done: noop }
+  if (job.stage === 'closeout' && fin) return { key: 'next:final', kind: 'Billing', what: 'Send the final invoice', who: pm, tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'money', id: fin.id }), done: noop }
   return null
 }
 
@@ -64,7 +67,7 @@ export function Whose({ who, size = 20, className }: { who?: PersonKey; size?: n
   return (
     <span className={cn('flex min-w-0 items-center gap-2', className)} data-whose={who}>
       <Avatar who={who} size={size} />
-      <span className={cn('min-w-0 truncate text-[0.875rem]', who === me ? 'font-medium text-ink' : 'text-ink-2')} data-who-name>{who === me ? 'You' : PEOPLE[who].short || firstName(who)}</span>
+      <span className={cn('min-w-0 break-words text-[0.875rem] leading-tight', who === me ? 'font-medium text-ink' : 'text-ink-2')} data-who-name>{who === me ? 'You' : PEOPLE[who].short || firstName(who)}</span>
     </span>
   )
 }
@@ -104,7 +107,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     if (v) used.add('s:' + v.key)
     const due = t ? taskIso(t.due) : v?.due
     const late = !!due && due < TODAY
-    rows.push({ key: p.key, what: cap(p.text), who: (t?.owner || v?.owner) as PersonKey | undefined, iso: due, when: due ? (late ? `Was due ${labelFromIso(due)}` : labelFromIso(due)) : sinceWords(t ? sinceTask(t.log) : v ? sinceStep(v, steps, job) : undefined), late, tone: 'bad', open: t ? openTask(t.id) : openStep(v!.key), done: t ? doneTask(t.id) : doneStep(v!.key) })
+    rows.push({ key: p.key, kind: 'Problem', what: cap(p.text), who: (t?.owner || v?.owner) as PersonKey | undefined, iso: due, when: due ? (late ? `Was due ${labelFromIso(due)}` : labelFromIso(due)) : sinceWords(t ? sinceTask(t.log) : v ? sinceStep(v, steps, job) : undefined), late, tone: 'bad', open: t ? openTask(t.id) : openStep(v!.key), done: t ? doneTask(t.id) : doneStep(v!.key) })
   })
   /* each part of getting ready that's going: where it is now. For one person: their step on it, if they have one */
   tracks.forEach((t) => {
@@ -117,11 +120,11 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     if (v.state === 'wait') {
       const w = leadWords(s, job, { ...t, lead: v0 })
       const what = ['delivered', 'matin', 'design', 'walk'].includes(v.key) ? (v.named ? v.label : TITLE[v.key] || todoOf(v)) : `${todoOf(v)} · ${w.top.replace(/^./, (c) => c.toLowerCase())}`
-      rows.push({ key: 's:' + v.key, what, who: v.owner, iso: v.due, when: v.due ? labelFromIso(v.due) : sinceWords(sinceStep(v, steps, job)), tone: 'wait', open: openStep(v.key), done: doneStep(v.key) })
+      rows.push({ key: 's:' + v.key, kind: 'Getting ready', what, who: v.owner, iso: v.due, when: v.due ? labelFromIso(v.due) : sinceWords(sinceStep(v, steps, job)), tone: 'wait', open: openStep(v.key), done: doneStep(v.key) })
       return
     }
     const late = !!v.due && v.due < TODAY
-    rows.push({ key: 's:' + v.key, what: stepWords(s, job, v), who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : sinceWords(sinceStep(v, steps, job)), late, tone: 'now', open: openStep(v.key), done: doneStep(v.key) })
+    rows.push({ key: 's:' + v.key, kind: 'Getting ready', what: stepWords(s, job, v), who: v.owner, iso: v.due, when: v.due ? (late ? `Was due ${labelFromIso(v.due)}` : labelFromIso(v.due)) : sinceWords(sinceStep(v, steps, job)), late, tone: 'now', open: openStep(v.key), done: doneStep(v.key) })
   })
   /* the project's own tasks */
   issuesOf(s, job).forEach((t) => {
@@ -130,7 +133,7 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
     const day = waiting ? t.followUp || t.due : t.due
     const iso = taskIso(day)
     const late = !waiting && (iso ? iso < TODAY : /late/i.test(day || ''))
-    rows.push({ key: t.id, what: t.title, who: t.owner as PersonKey, iso: iso || (late ? TODAY : undefined), when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : day || sinceWords(sinceTask(t.log)), late, tone: t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now', open: openTask(t.id), done: doneTask(t.id) })
+    rows.push({ key: t.id, kind: tagOfTask(s, t), what: t.title, who: t.owner as PersonKey, iso: iso || (late ? TODAY : undefined), when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : day || sinceWords(sinceTask(t.log)), late, tone: t.tone === 'bad' ? 'bad' : waiting ? 'wait' : 'now', open: openTask(t.id), done: doneTask(t.id) })
   })
   const mine = (r: LeftRow) => (who === 'all' ? true : r.who === who)
   /* a problem first; then by the day (what has none after); what waits on someone outside sorts by its day too */
@@ -138,90 +141,95 @@ export function leftRows(s: Store, job: Job, who: PersonKey | 'all' = 'all'): Le
   return rows.filter(mine).sort((a, b) => order(a) - order(b) || (a.iso || '9999').localeCompare(b.iso || '9999'))
 }
 
-const ROW = 'grid min-h-[3rem] w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto_1rem] items-center gap-x-3.5 border-t border-line-2 py-2 pl-5 pr-5 text-left transition row-hover focus-visible:outline-none max-sm:grid-cols-[minmax(0,1fr)_1rem] max-sm:gap-x-3 max-sm:gap-y-0.5 max-sm:py-2.5 max-sm:pl-4 max-sm:pr-4'
 
 /* Where it stands' To do: by person (you first), one line each — the same as Today: no tick boxes; tap the line and
  * its window has the exact button (Done, He said yes, Received…) — a tick can't say which. + Add at the bottom puts one more on the project —
  * the same choices as + New (a to do, a meeting, a problem, something for the GC…), already for this project. To take one off: its window, ··· */
 export function WhatsLeft({ job }: { job: Job }) {
   const s = useStore()
-  const me = meOf(s.role)
-  const admin = s.role === 'owner' || s.role === 'pm'
-  /* the next big thing first (schedule the crew, start the job…), then what's left. The touch-ups have their own part
-     of the list — booking the return visit is its first line, and the to-do that checks them is the list itself */
+  /* the next big thing first (schedule the crew, start the job, the return visit…), then everything else in order:
+     a problem first, then by its day — one list, each line with its kind, who has it and when (the same as Today) */
   const nx = nextRow(s, job)
   const punch = s.punch.filter((p) => p.jobId === job.id)
   const punchOpen = punch.filter((p) => p.status !== 'verified')
   const left = leftRows(s, job)
   /* the return visit: a to-do of its own that books it (Schedule the return) is that line — not a second one */
   const retTask = nx?.key === 'next:return' ? left.find((r) => s.tasks.find((t) => t.id === r.key)?.action?.kind === 'assign') : undefined
-  const ret = nx?.key === 'next:return' ? retTask || nx : null
+  const ret: LeftRow | null = nx?.key === 'next:return' ? { ...(retTask || nx), kind: 'Touch-ups', next: true } : null
+  const touchIds = new Set(punch.map((p) => p.taskId).filter(Boolean) as string[])
+  /* the touch-ups: one line — how far along ("1 of 4 done"), whose, when; tap it: the checklist */
+  const touchRow: LeftRow | null = punchOpen.length ? (() => {
+    const owners = punchOpen.map((p) => p.owner).filter(Boolean) as PersonKey[]
+    const who = owners.sort((a, b) => owners.filter((x) => x === b).length - owners.filter((x) => x === a).length)[0]
+    /* some with nobody yet: say so — whoever logged them picks */
+    const noOne = punchOpen.filter((p) => !p.owner).length
+    const days = punchOpen.map((p) => (p.due ? isoFromLabel(p.due) : undefined)).filter(Boolean).sort() as string[]
+    const iso = days[0]
+    const late = !!iso && iso < TODAY
+    return { key: 'touchups', kind: 'Touch-ups', what: noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} not decided yet` : touchupsWords(punch), who, iso, when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : undefined, late, tone: 'now' as const, open: () => s.open({ t: 'touchups', jobId: job.id }), done: () => {}, noCheck: true }
+  })() : null
+  /* plain to-dos, one person's: one line — "To-dos · 2 of 5 done"; tap it: the checklist */
+  const plain = new Set(s.tasks.filter((t) => t.jobId === job.id && plainTodo(t, touchIds)).map((t) => t.id))
+  const byWho = new Map<string, LeftRow[]>()
+  left.forEach((r) => { if (plain.has(r.key) && r.who) byWho.set(r.who, [...(byWho.get(r.who) || []), r]) })
+  const folded = new Set<string>()
+  const todoRows: LeftRow[] = []
+  byWho.forEach((rs, who) => {
+    if (rs.length < 2) return
+    rs.forEach((r) => folded.add(r.key))
+    const l = todosOf(s, job.id, who as PersonKey)
+    const first = rs.reduce((a, r) => ((r.iso || '9999') < (a.iso || '9999') ? r : a))
+    todoRows.push({ key: 'todos:' + who, kind: 'To-dos', what: `${l.done.length} of ${l.open.length + l.done.length} done`, who: who as PersonKey, iso: first.iso, when: first.when, late: rs.some((r) => r.late), tone: 'now', open: () => s.open({ t: 'todos', jobId: job.id, who }), done: () => {}, noCheck: true })
+  })
   const touchTask = (k: string) => punch.some((p) => p.taskId === k)
-  const rows = [...(nx && nx.key !== 'next:return' ? [nx] : []), ...left.filter((r) => !touchTask(r.key) && r !== retTask)]
-  const touchups = punchOpen.length > 0 || !!ret
-  /* by person: you first, then whoever has the most urgent thing (the list is in order of urgency already) */
-  const people = Array.from(new Set(rows.map((r) => r.who || ''))).sort((a, b) => Number(b === me) - Number(a === me))
+  const rest = [...(touchRow && !ret ? [touchRow] : []), ...todoRows, ...left.filter((r) => !touchTask(r.key) && r !== retTask && !folded.has(r.key))]
+    .sort((a, b) => Number(b.tone === 'bad') - Number(a.tone === 'bad') || (a.iso || '9999').localeCompare(b.iso || '9999'))
+  /* at the touch-ups, they're the next big thing: the return visit, then the touch-ups, first */
+  const rows = [...(nx && nx.key !== 'next:return' ? [nx] : []), ...(ret ? [ret] : []), ...(ret && touchRow ? [touchRow] : []), ...rest]
   const canAdd = !['crew', 'client', 'accounting'].includes(s.role)
-  /* the touch-ups: their own part of the list — the return visit first, then each one with its tick */
-  const touchBlock = (
-    <div className="border-t border-line" data-left-touchups>
-      <div className="flex min-w-0 items-center gap-2 bg-[#fafaf9] px-5 py-2.5 max-sm:px-4">
-        <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center rounded-full bg-[#fdeee4] text-[#b4541f]"><Sparkles className="h-3 w-3" /></span>
-        <span className="text-[0.875rem] font-semibold text-ink">Touch-ups</span>
-        <span className="text-[0.8125rem] tnum text-faint">{punchOpen.length}</span>
-        {canAdd && <button type="button" onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50" data-left-touchups-add><Plus className="h-3.5 w-3.5" />Add</button>}
-      </div>
-      {ret && (
-        <div role="button" tabIndex={0} onClick={ret.open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) ret.open() }} className={ROW} data-left-row={ret.key} data-tone={ret.tone} data-who={ret.who}>
-          <span className="min-w-0 truncate text-[0.9375rem] font-semibold text-ink max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-snug" data-left-what data-left-next={ret.key}>{ret.what}</span>
-          <span className="min-w-0 truncate text-right text-[0.875rem] text-muted max-sm:col-start-1 max-sm:row-start-2 max-sm:text-left max-sm:text-[0.8125rem]" data-left-when>{ret.when}</span>
-          <ChevronRight className="h-4 w-4 text-faint max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1" aria-hidden />
-        </div>
-      )}
-      <TouchupsList job={job} bare />
-    </div>
-  )
   return (
     <section data-whats-left className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex min-h-[3.25rem] min-w-0 items-center gap-3 px-5 py-2 max-sm:px-4">
         <h3 className="text-[1.0625rem] font-semibold text-ink">To do</h3>
-        <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length + punchOpen.length + (ret ? 1 : 0)}</span>
+        <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length}</span>
+        {canAdd && punch.length === 0 && job.stage === 'punch' && <button type="button" onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50" data-left-touchups-add><Plus className="h-3.5 w-3.5" />Add touch-ups</button>}
       </header>
       <div data-left-rows>
-        {/* at the touch-ups, they're the next big thing: first */}
-        {touchups && ret && touchBlock}
-        {people.map((p) => {
-          const mine = rows.filter((r) => (r.who || '') === p)
-          const person = p ? PEOPLE[p as PersonKey] : undefined
-          return (
-            <div key={p || 'nobody'} className="border-t border-line" data-left-person={p || 'nobody'}>
-              <div className="flex min-w-0 items-center gap-2 bg-[#fafaf9] px-5 py-2.5 max-sm:px-4" data-left-who>
-                {person && <Avatar who={p as PersonKey} size={22} />}
-                <span className="truncate text-[0.875rem] font-semibold text-ink" data-who-name>{p === me ? 'You' : person ? person.short || firstName(p as PersonKey) : 'Nobody yet'}</span>
-                <span className="text-[0.8125rem] tnum text-faint">{mine.length}</span>
-              </div>
-              {mine.map((r) => {
-                const off = false
-                return (
-                  <div key={r.key} role="button" tabIndex={0} onClick={r.open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) r.open() }} className={cn(ROW, off && 'row-out')} data-left-row={r.key} data-tone={r.tone} data-who={r.who}>
-                    <span className={cn('min-w-0 truncate text-[0.9375rem] max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:leading-snug', off ? 'text-muted line-through decoration-faint' : r.tone === 'bad' ? 'text-bad-600' : r.tone === 'wait' ? 'text-muted' : r.next ? 'font-semibold text-ink' : 'text-ink')} title={r.what} data-left-what {...(r.next ? { 'data-left-next': r.key } : {})}>{r.what}</span>
-                    <span className={cn('min-w-0 truncate text-right text-[0.875rem] tnum max-sm:col-start-1 max-sm:row-start-2 max-sm:text-left max-sm:text-[0.8125rem]', r.late ? 'font-medium text-bad-600' : 'text-muted', !r.when && 'max-sm:hidden')} data-left-when>{r.when || ''}</span>
-                    <ChevronRight className="h-4 w-4 text-faint max-sm:col-start-2 max-sm:row-span-2 max-sm:row-start-1" aria-hidden />
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
-        {/* touch-ups logged while it's still being installed: after the rest */}
-        {touchups && !ret && touchBlock}
-        {!rows.length && !touchups && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
+        {rows.map((r) => <LeftLine key={r.key} r={r} />)}
+        {!rows.length && <div className="border-t border-line-2 px-5 py-6 text-center text-[0.9375rem] text-muted max-sm:px-4" data-left-none>Nothing left to do right now.</div>}
         {canAdd && (
           <button type="button" onClick={() => s.open({ t: 'new', jobId: job.id })} className="flex min-h-[3rem] w-full items-center gap-3.5 border-t border-line px-4 text-left text-[0.9375rem] font-medium text-brand-700 transition hover:bg-brand-50/50 max-sm:px-3.5" data-left-add>
-            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> · a to do, a meeting, a problem, something for the GC</span></span>
+            <span className="inline-flex h-[1.375rem] w-[1.375rem] items-center justify-center"><Plus className="h-4 w-4" /></span><span className="min-w-0">Add<span className="font-normal text-muted max-sm:hidden"> · a to do, touch-ups, a meeting, a problem, something for the GC</span></span>
           </button>
         )}
       </div>
     </section>
+  )
+}
+
+/** one line of a project's To do: its kind, what it is, who has it (their circle and name), when — a computer in
+ *  straight columns; a phone: what it is on top (whole), who and when under it */
+const LINE = 'flex w-full min-w-0 cursor-pointer items-center gap-3 border-t border-line-2 py-2.5 pl-5 pr-4 text-left transition row-hover focus-visible:outline-none md:grid md:min-h-[3rem] md:grid-cols-[minmax(0,1fr)_9.5rem_8rem_1rem] md:gap-x-4 md:py-1.5 max-sm:pl-4 max-sm:pr-3'
+function LeftLine({ r }: { r: LeftRow }) {
+  const whenCls = r.late ? 'font-medium text-bad-600' : 'text-muted'
+  return (
+    <div role="button" tabIndex={0} onClick={r.open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) r.open() }} className={LINE} data-left-row={r.key} data-tone={r.tone} data-who={r.who} data-kind={r.kind}>
+      <div className="min-w-0 flex-1 md:contents">
+        <span className="flex min-w-0 items-start gap-2">
+          {r.kind && <KindTag label={r.kind} className="mt-px" />}
+          <span className={cn('min-w-0 break-words text-[0.9375rem] leading-snug', r.tone === 'wait' ? 'text-muted' : 'text-ink', r.next && 'font-semibold')} title={r.what} data-left-what {...(r.next ? { 'data-left-next': r.key } : {})}>{r.what}</span>
+        </span>
+        {/* a phone: who has it, and when — under it */}
+        {(r.who || r.when) && (
+          <span className="mt-1 flex min-w-0 items-center gap-2 text-[0.8125rem] md:hidden">
+            {r.who && <Whose who={r.who} size={18} />}
+            {r.when && <span className={cn('min-w-0 tnum', whenCls)} data-left-when-phone>{r.who ? '· ' : ''}{r.when}</span>}
+          </span>
+        )}
+      </div>
+      <span className="min-w-0 max-md:hidden" data-left-who>{r.who ? <Whose who={r.who} /> : null}</span>
+      <span className={cn('min-w-0 break-words text-right text-[0.875rem] tnum max-md:hidden', whenCls)} data-left-when>{r.when || ''}</span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-faint" aria-hidden />
+    </div>
   )
 }

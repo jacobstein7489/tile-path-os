@@ -352,7 +352,7 @@ export function NewTaskModal({ level, jobId }: { level: number; jobId?: string }
   const [q, setQ] = React.useState('')
   const [type, setType] = React.useState<TaskType>('Setup')
   const [owner, setOwner] = React.useState<PersonKey>(meOf(role))
-  const [due, setDue] = React.useState('Tomorrow')
+  const [due, setDue] = React.useState('Today')
   const matches = Object.values(jobs).filter((j) => !q || `${j.name} ${j.client}`.toLowerCase().includes(q.toLowerCase())).slice(0, 5)
   return (
     <Modal

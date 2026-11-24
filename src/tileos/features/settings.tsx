@@ -926,7 +926,7 @@ function RulesTab() {
         <Rule title="Retainage" sub="Held on progress bills, released at closeout.">
           <div className="flex gap-2">{[0, 5, 10].map((d) => <Chip key={d} on={r.retainage === d} onClick={() => set((x) => (x.retainage = d))} className="h-9 px-3">{d}%</Chip>)}</div>
         </Rule>
-        <Rule stack title="Waste on the quantity check" sub="Added to our takeoff before comparing with the store’s order.">
+        <Rule stack title="Waste on the quantity check" sub="Added to the walls and floors’ square feet before comparing with the store’s order.">
           <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 max-sm:grid-cols-1">
             {(['floors', 'walls', 'mosaic', 'large'] as const).map((k) => (
               <div key={k} className="flex items-center justify-between gap-3">

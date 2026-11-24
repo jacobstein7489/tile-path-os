@@ -29,7 +29,7 @@ const S119: Record<string, Story> = shiftDeep({
       '9 rooms and 31 surfaces. Only what actually applies to this project.',
       '7 finish records assigned to exact surfaces. T-03 Toscana Ivory goes on the master shower and tub walls.',
       'Finish tile supplied and ordered by the GC from Best Tile. Installation materials by Cobblestone.',
-      'Tile quantities checked against our takeoff: every tile covered our need plus waste.',
+      'Tile quantities checked against the scope of work: every tile covered the walls and floors plus waste.',
       '4 unknowns flagged for the site manager instead of guessed at.',
     ],
     factsTitle: 'Finish record T-03', facts: [['Product', 'Toscana Ivory 24 × 48 matte'], ['Manufacturer', 'Marca Corona'], ['Supplier', 'Best Tile'], ['Ordered by', 'The GC']],
@@ -75,7 +75,7 @@ const S119: Record<string, Story> = shiftDeep({
 
 const GENERIC: Record<string, string[]> = {
   won: ['Approved revision recorded', 'Deposit sent to accounting', 'Client PO recorded', 'Project manager assigned'],
-  setup: ['Rooms and surfaces built from the paperwork', 'Tile records assigned to exact surfaces', 'Store quantities checked against our takeoff', 'Unknowns flagged for the walkthrough'],
+  setup: ['Rooms and surfaces built from the paperwork', 'Tile records assigned to exact surfaces', 'Store quantities checked against the scope of work', 'Unknowns flagged for the walkthrough'],
   verification: ['Site walkthrough done', 'Field measurements confirmed', 'Open design details decided', 'Remaining questions tracked on their surface'],
   ready: ['Scope and documents current', 'Critical decisions made', 'Enough tile and materials to start', 'Site access, water and power', 'Deposit received (or warned)'],
   scheduled: ['Crew and dates booked', 'Starting areas set', 'Each role’s pre-start check', 'Installer package sent to the crew'],

@@ -6,6 +6,7 @@ import { RefreshCw, Send, Hourglass, CalendarClock, CircleCheckBig, Building2, L
 import { useStore } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Page, Filter, ToolbarSearch, ClearFilters, Table, Th, Tr, Td, EmptyRow, Status, Bubbles } from '@/tileos/components/ui/page'
+import { useSort, sortRows, type SortCol } from '@/tileos/components/ui/sort'
 import { cn } from '@/tileos/lib/utils'
 import { fmtMoney, type Tone } from '@/tileos/data/model'
 import { MONEY_STEPS, MONEY_KIND_LABEL, type MoneyItem, type MoneyKind } from '@/tileos/data/work'
@@ -41,7 +42,11 @@ export function BillingPage() {
   const scoped = s.money.filter((m) => (kind === 'all' || m.kind === kind) && (job === 'all' || m.jobId === job) && (!q || `${m.title} ${s.jobs[m.jobId]?.name} ${m.ref || ''}`.toLowerCase().includes(q.toLowerCase())))
   const by = (st: MoneyItem['state']) => scoped.filter((m) => m.state === st)
   const open = (l: MoneyItem[]) => l.reduce((n, m) => n + (m.amount ? m.amount - (m.paid || 0) : 0), 0)
-  const list = tab === 'jobs' || tab === 'progress' ? [] : by(tab)
+  const so = useSort('billing')
+  const list = sortRows(tab === 'jobs' || tab === 'progress' ? [] : by(tab), so.sort, {
+    ref: (m) => m.ref, project: (m) => s.jobs[m.jobId]?.name, client: (m) => s.jobs[m.jobId]?.client, amount: (m) => m.amount || undefined, status: (m) => (m.state === 'paid' ? 'Paid' : statusOf(m)), when: (m) => m.due || m.date,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   const jobs = Array.from(new Set(s.money.map((m) => m.jobId))).filter((id) => s.jobs[id])
   const sub: Record<BTab, string> = {
     progress: 'What got installed each week, and what to bill for it',
@@ -89,12 +94,12 @@ export function BillingPage() {
         <Table minWidth={900}>
           <thead>
             <tr>
-              <Th w="6.5rem" className="max-md:hidden">Invoice</Th>
-              <Th className="xl:w-[16rem]">Project · bill</Th>
-              <Th w="12.5rem" className="max-xl:hidden">Client · PO · estimate</Th>
-              <Th w="8rem" right className="max-md:hidden">Amount</Th>
-              <Th w="10.5rem" className="max-md:hidden">Status</Th>
-              <Th w="11.25rem" className="max-lg:hidden">When</Th>
+              <Th w="7rem" className="max-md:hidden" sort={th('ref')}>Invoice</Th>
+              <Th className="xl:w-[16rem]" sort={th('project')}>Project · bill</Th>
+              <Th w="12.5rem" className="max-xl:hidden" sort={th('client')}>Client · PO · estimate</Th>
+              <Th w="8.5rem" right className="max-md:hidden" sort={th('amount', 'num')}>Amount</Th>
+              <Th w="10.5rem" className="max-md:hidden" sort={th('status')}>Status</Th>
+              <Th w="11.25rem" className="max-lg:hidden" sort={th('when')}>When</Th>
               {tab === 'todo' && <Th w="9.5rem" className="max-lg:hidden" />}
             </tr>
           </thead>
@@ -111,12 +116,12 @@ export function BillingPage() {
                     )}
                   </Td>
                   <Td>
-                    <div className="truncate text-[0.875rem] font-medium text-ink">{j?.name}</div>
-                    <div className="truncate text-[0.78125rem] text-muted">{m.title}<span className="md:hidden"> · {m.amount ? fmtMoney(m.amount) : ''}</span></div>
+                    <div className="break-words text-[0.875rem] font-medium text-ink">{j?.name}</div>
+                    <div className="break-words text-[0.78125rem] text-muted">{m.title}<span className="md:hidden"> · {m.amount ? fmtMoney(m.amount) : ''}</span></div>
                   </Td>
                   <Td className="max-xl:hidden">
-                    <div className="truncate text-[0.84375rem] text-ink-2">{j?.client}</div>
-                    <div className="truncate text-[0.75rem] text-muted">{[j?.clientPO ? `PO ${j.clientPO}` : '', s.estimates.find((e) => e.jobId === m.jobId && e.status === 'approved')?.id].filter(Boolean).join(' · ') || 'No client PO yet'}</div>
+                    <div className="break-words text-[0.84375rem] text-ink-2">{j?.client}</div>
+                    <div className="break-words text-[0.75rem] text-muted">{[j?.clientPO ? `PO ${j.clientPO}` : '', s.estimates.find((e) => e.jobId === m.jobId && e.status === 'approved')?.id].filter(Boolean).join(' · ') || 'No client PO yet'}</div>
                   </Td>
                   <Td right className="max-md:hidden">
                     <div className="text-[0.90625rem] font-semibold tnum text-ink">{m.amount ? fmtMoney(m.amount) : ''}</div>
@@ -144,17 +149,21 @@ export function BillingPage() {
 
 function ByProject() {
   const s = useStore()
-  const rows = Object.values(s.jobs).filter((j) => billingOf(j).contract > 0)
+  const so = useSort('billing-projects')
+  const rows = sortRows(Object.values(s.jobs).filter((j) => billingOf(j).contract > 0), so.sort, {
+    name: (j) => j.name, contract: (j) => billingOf(j).contract + billingOf(j).changes, installed: (j) => billingOf(j).installedPct, billed: (j) => billingOf(j).billedPct, paid: (j) => billingOf(j).paidPct, retainage: (j) => billingOf(j).retainage || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   return (
     <Table minWidth={860}>
       <thead>
         <tr>
-          <Th className="xl:w-[14rem]">Project</Th>
-          <Th w="8rem" right className="max-md:hidden">Contract</Th>
-          <Th w="7rem" right className="max-md:hidden">Installed</Th>
-          <Th w="6.25rem" right className="max-md:hidden">Billed</Th>
-          <Th w="6.25rem" right className="max-lg:hidden">Paid</Th>
-          <Th w="7.5rem" right className="max-lg:hidden">Retainage</Th>
+          <Th className="xl:w-[14rem]" sort={th('name')}>Project</Th>
+          <Th w="8.5rem" right className="max-md:hidden" sort={th('contract', 'num')}>Contract</Th>
+          <Th w="7.5rem" right className="max-md:hidden" sort={th('installed', 'num')}>Installed</Th>
+          <Th w="6.75rem" right className="max-md:hidden" sort={th('billed', 'num')}>Billed</Th>
+          <Th w="6.75rem" right className="max-lg:hidden" sort={th('paid', 'num')}>Paid</Th>
+          <Th w="8rem" right className="max-lg:hidden" sort={th('retainage', 'num')}>Retainage</Th>
           <Th w="12rem" className="max-xl:hidden" />
         </tr>
       </thead>
@@ -164,8 +173,8 @@ function ByProject() {
           return (
             <Tr key={j.id} onClick={() => s.open({ t: 'job', id: j.id, tab: 'money' })}>
               <Td>
-                <div className="truncate text-[0.875rem] font-medium text-ink">{j.name}</div>
-                <div className="truncate text-[0.78125rem] text-muted">{j.client}<span className="md:hidden"> · {b.installedPct}% in · {b.billedPct}% billed</span></div>
+                <div className="break-words text-[0.875rem] font-medium text-ink">{j.name}</div>
+                <div className="break-words text-[0.78125rem] text-muted">{j.client}<span className="md:hidden"> · {b.installedPct}% in · {b.billedPct}% billed</span></div>
               </Td>
               <Td right className="tnum text-ink max-md:hidden">{fmtMoney(b.contract + b.changes)}</Td>
               <Td right className="tnum max-md:hidden">{b.installedPct}%</Td>

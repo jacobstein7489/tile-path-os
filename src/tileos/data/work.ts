@@ -181,7 +181,7 @@ export const TASKS0: Task[] = [
 
   /* ---- back office ---- */
   {
-    id: 't-qty114', jobId: '114', step: '114:order',  title: 'Wall tile 60 SF short of our takeoff', type: 'Materials', owner: 'office', for: ['office'], watch: ['materials', 'owner', 'pm'],
+    id: 't-qty114', jobId: '114', step: '114:order',  title: 'Wall tile 60 SF short of what the walls and floors need', type: 'Materials', owner: 'office', for: ['office'], watch: ['materials', 'owner', 'pm'],
     state: 'now', due: 'Today', dueTone: 'warn', tone: 'bad', blocks: 'Master bath walls', where: 'Master Bath · walls · T-04',
     detail: 'Best Tile ordered 500 SF. Our takeoff with 12% waste needs 560 SF.',
     action: { label: 'Settle it', kind: 'qty114' },
@@ -598,7 +598,7 @@ export const READY0: ReadyItem[] = [
 
 /* ================= punch ================= */
 export type PunchStatus = 'open' | 'working' | 'verify' | 'verified'
-export interface PunchItem { id: string; jobId: string; text: string; where: string; owner: PersonKey; status: PunchStatus; note?: string; taskId?: string; /** photos and videos of it (kept with the project's files) */ media?: string[]; /** the day it's due ("Fri", "Nov 28") — older ones said it in their note ("Due Fri") */ due?: string }
+export interface PunchItem { id: string; jobId: string; text: string; where: string; /** who does it — none yet: not decided (the touch-ups' to-do asks whoever logged them to pick) */ owner?: PersonKey; status: PunchStatus; note?: string; taskId?: string; /** photos and videos of it (kept with the project's files) */ media?: string[]; /** the day it's due ("Fri", "Nov 28") — older ones said it in their note ("Due Fri") */ due?: string }
 export const PUNCH0: PunchItem[] = [
   { id: 'pu1', jobId: '828', text: 'Lobby grout cleanup', where: 'Lobby · floor', owner: 'philip', status: 'verify', note: 'Before/after photos attached', taskId: 't-grout828' },
   { id: 'pu2', jobId: '828', text: 'Replace 2 cracked lobby tiles', where: 'Lobby · floor', owner: 'philip', status: 'open', note: 'Waiting on the thinset' },

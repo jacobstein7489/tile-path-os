@@ -318,8 +318,8 @@ function MatchRow({ job, t }: { job: Job; t: Tile }) {
     <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,22rem)] items-center gap-x-3 gap-y-2 border-t border-line-2 px-4 py-2.5 max-md:grid-cols-[2.5rem_minmax(0,1fr)]" data-paper-tile={t.tag} data-loose={loose || undefined}>
       <button type="button" onClick={() => s.open({ t: 'tile', jobId: job.id, tag: t.tag })} aria-label={`${t.tag} ${t.name}`} className="shrink-0"><TileImg tile={t} size={40} radius={8} /></button>
       <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[0.875rem] text-ink"><b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}{t.trim ? <span className="text-muted"> · trim</span> : null}</span>
-        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.78125rem] text-muted">{g ? <><GroutDot grout={t.grout} size={12} /><span className="truncate">{g.name} grout</span></> : <span className="truncate">{t.note || 'No grout on the paperwork'}</span>}</span>
+        <span className="block break-words text-[0.875rem] text-ink"><b className="font-semibold tnum">{t.tag}</b> {t.name}{t.size ? <span className="text-muted"> · {t.size}</span> : null}{t.trim ? <span className="text-muted"> · trim</span> : null}</span>
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.78125rem] text-muted">{g ? <><GroutDot grout={t.grout} size={12} /><span className="min-w-0 break-words">{g.name} grout</span></> : <span className="min-w-0 break-words">{t.note || 'No grout on the paperwork'}</span>}</span>
       </span>
       <MultiSelect
         values={vals}

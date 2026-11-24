@@ -167,11 +167,12 @@ function ScopePart({ job }: { job: Job; open: (v: BoardView) => void }) {
   const floors = groups.length > 1 || (groups[0] && groups[0].floor !== 'Rooms')
   const viewOf = (name: string) => rooms.find((r) => r.room.name === name)!
   /* a short list of rooms: each one a line with where it's up to — open one to see (and tick) its walls and floors.
-     A few rooms: all open. Which are open is kept for next time (on this computer or phone) */
+     A few rooms: all open. More: the rooms the crew is working in open by themselves (a stopped one too — its problem
+     shows), the rest one line each. Which are open is kept for next time (on this computer or phone) */
   const openKey = `tileos-scope-open:${job.id}`
   const [opened, setOpened] = React.useState<string[] | 'all'>(() => {
     try { const v = localStorage.getItem(openKey); if (v) return v === 'all' ? 'all' : (JSON.parse(v) as string[]) } catch { /* none kept */ }
-    return rooms.length > 4 ? [] : 'all'
+    return rooms.length > 4 ? rooms.filter((r) => r.state === 'installing' || r.state === 'stopped').map((r) => r.room.name) : 'all'
   })
   const keepOpen = (v: string[] | 'all') => { setOpened(v); try { localStorage.setItem(openKey, v === 'all' ? 'all' : JSON.stringify(v)) } catch { /* not kept */ } }
   const isOpen = (name: string) => opened === 'all' || opened.includes(name)
@@ -321,7 +322,7 @@ function tileWordsOf(jobId: string, x: Surface): { words: React.ReactNode; tile?
 const LINE_GRID = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.35fr)_minmax(0,1fr)_4.5rem] lg:items-center lg:gap-x-5'
 /** the same, with the ticks (Tile · Grout · Later) before the square feet — the same width on every line, so the tiles
  *  and the ticks line up down the room */
-const LINE_GRID_TICKS = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.5fr)_minmax(0,1fr)_17.5rem_4.5rem] lg:items-center lg:gap-x-5'
+const LINE_GRID_TICKS = 'lg:grid lg:grid-cols-[2.5rem_minmax(0,1.5fr)_minmax(0,1fr)_18.25rem_4.5rem] lg:items-center lg:gap-x-5'
 
 /** one room, always open: its band (tap it for the room — its daily log and photos), then each wall and floor in plain
  *  words, with its tile's picture. Its notes (a niche, a saddle — what isn't a wall or floor) under them. */
@@ -379,7 +380,7 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
           const openLine = () => s.open({ t: 'surface', jobId: job.id, room: room.name, surface: x.name })
           return (
             <div key={x.name} role="button" tabIndex={0} onClick={openLine} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openLine() }} data-surface-line={x.name}
-              className={cn('flex w-full min-w-0 cursor-pointer items-start gap-3 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3', ticks ? LINE_GRID_TICKS : LINE_GRID)}>
+              className={cn('flex w-full min-w-0 cursor-pointer flex-wrap items-start gap-x-3 gap-y-2 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3 lg:flex-nowrap', ticks ? LINE_GRID_TICKS : LINE_GRID)}>
               {/* its tile's picture */}
               {tile ? <TileImg tile={tile} size={36} radius={5} className="max-lg:hidden" /> : <span className={cn('h-9 w-9 shrink-0 rounded-[5px] max-lg:hidden', takes ? 'border border-dashed border-[#cfc8bc] bg-[#faf9f6]' : 'bg-[#f3f1ec]')} />}
               {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} className="lg:hidden" />
@@ -395,9 +396,10 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
                 <span className="block text-[0.875rem] leading-snug text-ink-2" data-surface-under>{doing || (!takes ? 'Not tiled' : isWall(x.name) && x.state !== 'done' ? <span className="text-muted">Its height isn’t set</span> : '')}{x.later && !isGrouted(x) && <span className="font-medium text-warn-700" data-surface-later>{doing ? ' · ' : ''}Left for later</span>}</span>
                 {/* a phone: its tile and grout under the words */}
                 <span className="mt-0.5 block text-[0.8125rem] leading-snug text-muted lg:hidden" data-surface-tile-phone>{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : '')}{grout ? ` · ${GROUTS[grout]?.name || grout} grout` : ''}</span>
-                {/* a phone: the ticks under it */}
-                {tickable && <span className="mt-2 flex flex-wrap gap-1.5 lg:hidden"><LineTicks job={job} room={room.name} x={x} /></span>}
               </span>
+              {/* a phone: the ticks on their own line under the picture and the words — in the same place on every line,
+                  so they stand in straight columns */}
+              {tickable && <span className="flex basis-full flex-wrap gap-1.5 lg:hidden" data-line-ticks-phone><LineTicks job={job} room={room.name} x={x} /></span>}
               {/* a computer: its tile, and the grout under it */}
               <span className="min-w-0 max-lg:hidden" data-surface-tile>
                 <span className="block text-[0.875rem] leading-snug text-ink-2">{words || (takes ? <span className="font-medium text-warn-700">{canEdit ? 'Pick its tile' : 'No tile yet'}</span> : <span className="text-faint">Not tiled</span>)}</span>
@@ -427,7 +429,9 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
 }
 
 /** a wall's or floor's ticks: the tile is in, the grout is done — and Later (a niche waiting on its shelf). One tap each,
- *  nothing pops up; tap again to take it back */
+ *  nothing pops up; tap again to take it back. Each one the same width on every line, so they stand in straight
+ *  columns down the room (a line that's grouted keeps Later's place empty) */
+const TICK_W = { tile: 'w-[7.5rem]', grout: 'w-[5.5rem]', later: 'w-[4.5rem]' }
 function LineTicks({ job, room, x }: { job: Job; room: string; x: Surface }) {
   const tiled = isTiled(x)
   const grouted = isGrouted(x)
@@ -435,20 +439,20 @@ function LineTicks({ job, room, x }: { job: Job; room: string; x: Surface }) {
   const stop = (e: React.SyntheticEvent) => e.stopPropagation()
   const tick = (on: boolean, label: string, part2: 'tile' | 'grout', extra?: string) => (
     <button type="button" onClick={(e) => { stop(e); tickSurface(job.id, room, x.name, part2) }} onKeyDown={stop} aria-pressed={on} aria-label={`${label} · ${x.name}`}
-      className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border pl-1.5 pr-3 text-[0.84375rem] font-semibold transition', on ? 'border-[#2c8a5b] bg-[#eef7f1] text-[#226b47]' : 'border-line bg-white text-ink-2 hover:border-[#c9c2b6] hover:bg-wash')}
+      className={cn('inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 text-[0.84375rem] font-semibold transition', TICK_W[part2], on ? 'border-[#2c8a5b] bg-[#eef7f1] text-[#226b47]' : 'border-line bg-white text-ink-2 hover:border-[#c9c2b6] hover:bg-wash')}
       data-tick={part2} data-tick-on={on ? '' : undefined}>
-      <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full', on ? 'bg-[#2c8a5b] text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
-      {label}{extra && <span className="font-medium text-muted">{extra}</span>}
+      <span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full', on ? 'bg-[#2c8a5b] text-white' : 'border-[0.09375rem] border-[#cfc9be]')}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}</span>
+      <span className="min-w-0 truncate">{label}{extra && <span className="font-medium text-muted">{extra}</span>}</span>
     </button>
   )
   return (
     <>
       {tick(tiled, 'Tile', 'tile', part ? ` ${part}%` : undefined)}
       {tick(grouted, 'Grout', 'grout')}
-      {!grouted && (
+      {!grouted ? (
         <button type="button" onClick={(e) => { stop(e); tickSurface(job.id, room, x.name, 'later') }} onKeyDown={stop} aria-pressed={!!x.later} title="Leave it for later. It doesn’t hold the room up"
-          className={cn('inline-flex h-9 items-center rounded-full px-3 text-[0.84375rem] font-semibold transition', x.later ? 'bg-warn-50 text-warn-700 ring-1 ring-inset ring-warn-200' : 'text-muted hover:bg-wash hover:text-ink')} data-tick="later" data-tick-on={x.later ? '' : undefined}>Later</button>
-      )}
+          className={cn('inline-flex h-9 shrink-0 items-center justify-center rounded-full border text-[0.84375rem] font-semibold transition', TICK_W.later, x.later ? 'border-warn-300 bg-warn-50 text-warn-700' : 'border-dashed border-[#d9d3c9] bg-white text-muted hover:border-[#c9c2b6] hover:bg-wash hover:text-ink')} data-tick="later" data-tick-on={x.later ? '' : undefined}>Later</button>
+      ) : <span className={cn('shrink-0', TICK_W.later)} aria-hidden />}
     </>
   )
 }
@@ -518,7 +522,7 @@ function ChangeOrders({ job }: { job: Job }) {
         const where = m.meta ? [m.meta.room, m.meta.surface].filter(Boolean).join(' · ') : ''
         return (
           <button key={m.id} data-change={m.id} onClick={() => (money ? s.open({ t: 'money', id: m.id }) : undefined)} disabled={!money} title={[m.ref, where, m.meta?.from && m.meta?.to ? `${m.meta.from} → ${m.meta.to}` : ''].filter(Boolean).join(' · ') || undefined} className="flex w-full min-w-0 items-center gap-4 border-t border-line-2 px-5 py-2.5 text-left transition enabled:row-hover max-sm:px-3">
-            <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink">{m.title}</span>
+            <span className="min-w-0 flex-1 break-words text-[0.875rem] text-ink">{m.title}</span>
             <span className={cn('shrink-0 text-[0.8125rem]', words.c)}>{words.t}</span>
           </button>
         )
@@ -556,13 +560,13 @@ function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, n
       <span className="flex min-w-0 flex-1 items-center gap-3">
         {who ? <Avatar who={who} size={30} /> : <span className={cn('inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
         <span className="min-w-0 leading-snug">
-          {onName ? <button onClick={onName} className="block max-w-full truncate text-left text-[0.9375rem] text-ink hover:text-brand-700">{name}</button> : <span className="block max-w-full truncate text-[0.9375rem] text-ink">{name}</span>}
-          {/* a phone: what they are, and what they have on this job, under the name */}
-          <span className="flex min-w-0 items-baseline gap-1.5 text-[0.8125rem] text-muted md:hidden"><span className="shrink-0">{role}</span>{sub && <><span className="shrink-0 text-faint">·</span><span className="min-w-0 truncate">{sub}</span></>}</span>
+          {onName ? <button onClick={onName} className="block max-w-full break-words text-left text-[0.9375rem] text-ink hover:text-brand-700">{name}</button> : <span className="block max-w-full break-words text-[0.9375rem] text-ink">{name}</span>}
+          {/* a phone: what they are, and what they have on this job, under the name — whole */}
+          <span className="block min-w-0 break-words text-[0.8125rem] text-muted md:hidden">{role}{sub && <><span className="text-faint"> · </span>{sub}</>}</span>
         </span>
       </span>
-      <span className="min-w-0 truncate text-[0.875rem] text-muted max-md:hidden" data-person-role>{role}</span>
-      <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:truncate" data-person-on>{sub || <span className="text-faint"></span>}</span>
+      <span className="min-w-0 break-words text-[0.875rem] text-muted max-md:hidden" data-person-role>{role}</span>
+      <span className="flex min-w-0 text-[0.875rem] text-ink-2 max-md:hidden [&>*]:min-w-0 [&>*]:break-words" data-person-on>{sub || <span className="text-faint"></span>}</span>
       <span className="flex shrink-0 items-center justify-end gap-1">{!noReach && <ReachButtons r={r} who={name} onMessage={onMessage} />}{menu}</span>
     </div>
   )
@@ -587,17 +591,17 @@ function InstallerPO({ job }: { job: Job }) {
   const money = !['site', 'crew', 'client'].includes(s.role)
   const b = s.bookings.find((x) => x.jobId === job.id && x.label !== 'Return visit')
   /* on the job without a PO (his PO steps marked "no PO") — said plainly */
-  if (!ipo && s.stepRecs[job.id]?.installer?.done) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left text-muted hover:text-brand-700">No PO</button>
-  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="truncate text-left font-medium text-warn-700 hover:underline">No PO yet · send it</button>
+  if (!ipo && s.stepRecs[job.id]?.installer?.done) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="text-left text-muted hover:text-brand-700">No PO</button>
+  if (!ipo) return <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} data-installer-po="none" className="text-left font-medium text-warn-700 hover:underline">No PO yet · send it</button>
   const r = poRatio(s, ipo)
   const word = ipo.status === 'Accepted' ? 'accepted' : ipo.status === 'Sent' ? 'waiting for his yes' : ipo.status === 'Rejected' ? 'turned down' : 'not sent'
   return (
-    <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} data-installer-po={ipo.id} title={[money && r.total && r.sold ? `${r.pct}% of our estimate` : '', b ? `${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''].filter(Boolean).join(' · ') || undefined} className="max-w-full truncate text-left text-ink-2 hover:text-brand-700">
+    <button onClick={() => s.open({ t: 'ipo', id: ipo.id })} data-installer-po={ipo.id} title={[money && r.total && r.sold ? `${r.pct}% of our estimate` : '', b ? `${labelFromIso(b.start)} – ${labelFromIso(b.end)}` : ''].filter(Boolean).join(' · ') || undefined} className="max-w-full break-words text-left text-ink-2 hover:text-brand-700">
       PO {ipo.id} · {word}{money && r.total ? <> · <span className={r.over ? 'font-semibold text-bad-600' : ''}>{fmtMoney(r.total)}</span></> : null}
     </button>
   )
 }
-const initialsOf = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+const initialsOf = (n: string) => n.split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => void; onStep?: (k: string) => void }) {
   const s = useStore()
   const me = meOf(s.role)

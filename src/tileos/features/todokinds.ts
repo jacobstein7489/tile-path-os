@@ -1,0 +1,47 @@
+/* What kind of thing a to-do is, on a list — and which to-dos are plain (nothing of their own to press), so several of
+ * them on one project fold into one line ("To-dos · 2 of 5 done"). Used by Today and by a project's To do. */
+import type { Store } from '@/tileos/store'
+import { isRequest } from '@/tileos/store'
+import type { PersonKey } from '@/tileos/data/model'
+import type { Task } from '@/tileos/data/work'
+import { TODAY, isoFromLabel } from '@/tileos/lib/today'
+import { isGc } from './gcwait'
+
+/** the kind, in words — the same as a to-do's window says on top */
+const TYPE_TAG: Record<string, string> = { Pricing: 'Estimate', Setup: 'To do', Materials: 'Materials', Field: 'On site', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
+/** a to-do's kind on a list — its tag: Touch-ups (a checklist), Problem, Materials, Meeting… a plain one: To do */
+export function tagOfTask(s: Pick<Store, 'punch'>, t: Task): string {
+  if (s.punch.some((p) => p.taskId === t.id)) return 'Touch-ups'
+  if (t.tone === 'bad' && t.state !== 'done') return 'Problem'
+  if (t.state === 'waiting' && isGc(t)) return 'GC'
+  if (isRequest(t)) return 'Bring to the job'
+  if (t.everyone) return 'For everyone'
+  return TYPE_TAG[t.type] || 'To do'
+}
+/** the day it was done (the day it says, or today for "Just now") */
+export const doneDayOf = (t: Task) => t.doneOn || (t.doneAt === 'Just now' || t.doneAt === 'Today' ? TODAY : isoFromLabel(t.doneAt) || '')
+const dayOf = (t: Task) => (t.state === 'waiting' ? isoFromLabel(t.followUp) : t.state === 'later' ? isoFromLabel(t.laterUntil) : isoFromLabel(t.due))
+/** a plain to-do: one with nothing of its own to press (not a problem, not a pickup, not the GC, not touch-ups, not a
+ *  step, not for everyone, not repeating) — several of them on one project fold into one line */
+export const plainKind = (t: Task, touchIds: Set<string>) => !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
+export const plainTodo = (t: Task, touchIds: Set<string>) => t.state === 'now' && !t.urgent && plainKind(t, touchIds)
+/** one person's plain to-dos on a project: still to do (soonest first), and done today — "2 of 5 done" */
+export function todosOf(s: Pick<Store, 'tasks' | 'punch'>, jobId: string, who: PersonKey) {
+  const touchIds = new Set(s.punch.map((p) => p.taskId).filter(Boolean) as string[])
+  const mine = (t: Task) => t.jobId === jobId && (t.owner === who || (t.also || []).includes(who))
+  const open = s.tasks.filter((t) => mine(t) && plainTodo(t, touchIds)).sort((a, b) => (dayOf(a) || '9999').localeCompare(dayOf(b) || '9999'))
+  const done = s.tasks.filter((t) => mine(t) && t.state === 'done' && doneDayOf(t) === TODAY && plainKind(t, touchIds))
+  return { open, done }
+}
+
+/** touch-ups, counted the same everywhere: "1 of 4 done"; every one fixed but some still to be checked: "All fixed · 2
+ *  to check"; all checked: "All done". (Fixed: the crew says it's done. Checked: the site manager or the office saw it.)
+ *  With the word (the Projects list): "1 of 4 touch-ups done" */
+export function touchupsWords(items: { status: string }[], noun?: boolean): string {
+  const n = items.length
+  const fixed = items.filter((p) => p.status === 'verify' || p.status === 'verified').length
+  const toCheck = items.filter((p) => p.status === 'verify').length
+  const word = noun ? ` ${n === 1 ? 'touch-up' : 'touch-ups'}` : ''
+  if (fixed < n) return `${fixed} of ${n}${word} done`
+  return toCheck ? `All fixed · ${toCheck} to check` : n === 1 ? `Done` : `All ${n}${word} done`
+}

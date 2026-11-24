@@ -225,11 +225,12 @@ export function MenuItem({ icon, children, onSelect, hint, danger, checked, ...r
       )}
     >
       {icon && <span className="inline-flex w-5 justify-center text-muted">{icon}</span>}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">{children}</span>
-        {hint && <span className="block truncate text-[0.78125rem] font-normal text-muted">{hint}</span>}
+      {/* the words whole — a long one takes a second line, never cut off */}
+      <span className="min-w-0 flex-1 leading-snug">
+        <span className="block break-words">{children}</span>
+        {hint && <span className="block break-words text-[0.78125rem] font-normal text-muted">{hint}</span>}
       </span>
-      {checked && <Check className="h-4 w-4 text-brand-600" strokeWidth={2.5} />}
+      {checked && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
     </DM.Item>
   )
 }

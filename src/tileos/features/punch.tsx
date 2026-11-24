@@ -27,53 +27,59 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
   const s = useStore()
   const [jobId, setJobId] = React.useState(jobId0 || '')
   const job = s.jobs[jobId]
-  /* one line per touch-up — each with its own photos; Enter adds the next line */
-  const [rows, setRows] = React.useState<Line[]>([{ id: 1, text: '', files: [] }, { id: 2, text: '', files: [] }, { id: 3, text: '', files: [] }])
-  const next = React.useRef(4)
+  /* one line per touch-up — each with its own photos; it starts with one, Enter (or Another one) adds the next */
+  const [rows, setRows] = React.useState<Line[]>([{ id: 1, text: '', files: [] }])
+  const next = React.useRef(2)
   const inputs = React.useRef<Record<number, HTMLInputElement | null>>({})
   /* the project's installer does them, its site manager checks them — the next project picked, its own */
   const crew0 = (job ? installerOf(s, job) || job.crew : undefined) as PersonKey | undefined
   const checkers = fieldPeople(s, job)
-  const [who, setWho] = React.useState<PersonKey | ''>(crew0 || '')
-  const [due, setDue] = React.useState('Fri')
+  /* who does them: the project's installer — or not decided yet (then it's on your Today to pick). Due today unless
+     it's moved — like everything new */
+  const [who, setWho] = React.useState<PersonKey | 'none'>(crew0 || 'none')
+  const [due, setDue] = React.useState('Today')
   const [checker, setChecker] = React.useState<PersonKey>(checkers[0] || meOf(s.role))
   const first = React.useRef(true)
   React.useEffect(() => {
     if (first.current) { first.current = false; return }
-    setWho(crew0 || '')
+    setWho(crew0 || 'none')
     setChecker(checkers[0] || meOf(s.role))
   }, [jobId])
   const filled = rows.filter((r) => r.text.trim())
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage))
   const setText = (id: number, text: string) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, text } : r)))
+  const focusNext = React.useRef<number | null>(null)
   const addRow = (after?: number) => {
     const id = next.current++
     setRows((rs) => { const i = after == null ? rs.length : rs.findIndex((r) => r.id === after) + 1; return [...rs.slice(0, i), { id, text: '', files: [] }, ...rs.slice(i)] })
-    setTimeout(() => inputs.current[id]?.focus(), 30)
+    /* the new line takes the typing the moment it's there — nothing typed right after Enter is lost */
+    focusNext.current = id
   }
   const removeRow = (id: number) => setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.id !== id) : rs))
   const addFiles = (id: number, list: FileList | null) => { if (list?.length) setRows((rs) => rs.map((r) => (r.id === id ? { ...r, files: [...r.files, ...Array.from(list)] } : r))) }
   const save = async () => {
-    const owner = who as PersonKey
+    const owner = who === 'none' ? undefined : who
+    const me = meOf(s.role)
     const items = filled.map((r) => ({ ...split(r.text), files: r.files }))
     const stamp = Date.now()
     const ids = items.map((_, i) => `pu${stamp}${i}`)
     s.commit((st) => {
       const tid = 't' + stamp.toString(36)
       items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', due, taskId: tid }))
-      const crewDoes = !!PEOPLE[owner]?.crew
+      const crewDoes = !!owner && !!PEOPLE[owner]?.crew
+      /* not decided yet: on your own Today — pick who does them, then it goes to them */
       newTask(st, {
-        id: tid, jobId, title: crewDoes ? `Check the touch-ups when ${PEOPLE[owner].short} is done` : `Fix the touch-ups`,
-        type: 'Field', owner: crewDoes ? checker : owner, for: crewDoes ? ['site'] : ['site', 'owner'], state: 'now', due, tone: 'warn',
-        where: `${items.length} item${items.length > 1 ? 's' : ''}${crewDoes ? ` · ${PEOPLE[owner].name}’s crew` : ''}`,
+        id: tid, jobId, title: !owner ? 'Pick who does the touch-ups' : crewDoes ? `Check the touch-ups when ${PEOPLE[owner].short} is done` : `Fix the touch-ups`,
+        type: 'Field', owner: !owner ? me : crewDoes ? checker : owner, for: !owner ? [st.role] : crewDoes ? ['site'] : ['site', 'owner'], state: 'now', due, tone: 'warn',
+        where: `${items.length} item${items.length > 1 ? 's' : ''}${crewDoes ? ` · ${PEOPLE[owner!].name}’s crew` : ''}`,
         detail: items.map((it) => `• ${it.where !== 'To place' ? it.where + ' · ' : ''}${it.text}`).join('\n'),
-        action: { label: 'Open the list', kind: 'tab:touchups' }, followers: crewDoes ? [] : [checker],
+        action: { label: 'Open the list', kind: 'tab:touchups' }, followers: crewDoes || !owner ? [] : [checker],
         log: [{ date: NOW, who: meOf(st.role), text: `${items.length} touch-up${items.length > 1 ? 's' : ''} logged · due ${due}` }],
       } as any)
-      addHist(st, jobId, { who: meOf(st.role), kind: 'field', title: `${items.length} touch-up${items.length > 1 ? 's' : ''} logged`, detail: `${PEOPLE[owner].name} · due ${due}` })
+      addHist(st, jobId, { who: meOf(st.role), kind: 'field', title: `${items.length} touch-up${items.length > 1 ? 's' : ''} logged`, detail: `${owner ? PEOPLE[owner].name : 'Who does them not decided yet'} · due ${due}` })
     }, `${items.length} touch-up${items.length > 1 ? 's' : ''} logged`, {
-      sub: PEOPLE[owner]?.crew ? `${PEOPLE[owner].name}’s crew does them by ${due}; ${PEOPLE[checker].short} checks each one.` : `${PEOPLE[owner].short} has them, due ${due}.`,
-      to: PEOPLE[owner]?.crew ? [{ who: owner, what: `${items.length} touch-ups · ${due}` }, { who: checker, what: 'Check them when fixed' }] : [{ who: owner, what: `${items.length} touch-ups · ${due}` }],
+      sub: !owner ? 'On your Today to pick who does them.' : PEOPLE[owner]?.crew ? `${PEOPLE[owner].name}’s crew does them by ${due === 'Today' ? 'today' : due}; ${PEOPLE[checker].short} checks each one.` : `${PEOPLE[owner].short} has them, due ${due === 'Today' ? 'today' : due}.`,
+      to: !owner ? [{ who: me, what: `Pick who does the ${items.length} touch-up${items.length > 1 ? 's' : ''}` }] : PEOPLE[owner]?.crew ? [{ who: owner, what: `${items.length} touch-ups · ${due}` }, { who: checker, what: 'Check them when fixed' }] : [{ who: owner, what: `${items.length} touch-ups · ${due}` }],
       close: true,
     })
     /* the photos go with each line, kept with the project's files */
@@ -93,9 +99,9 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <span className="truncate text-[0.8125rem] text-muted max-sm:hidden">{who && PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : filled.length ? `${filled.length} on the list` : 'Each line its own touch-up, with its own photos'}</span>
+          <span className="min-w-0 text-[0.8125rem] text-muted max-sm:hidden">{who === 'none' ? 'Not decided yet: it goes on your Today to pick' : PEOPLE[who]?.crew ? `${PEOPLE[who].short}’s crew sees them on the phone · ${PEOPLE[checker].short} checks` : filled.length ? `${filled.length} on the list` : 'Enter adds the next one'}</span>
           <div className="ml-auto" aria-hidden />
-          <Button variant="primary" icon={<Sparkles />} disabled={!jobId || !filled.length || !who} onClick={save}>Log {filled.length || ''} touch-up{filled.length === 1 ? '' : 's'}</Button>
+          <Button variant="primary" icon={<Sparkles />} disabled={!jobId || !filled.length} onClick={save}>Log {filled.length || ''} touch-up{filled.length === 1 ? '' : 's'}</Button>
         </>
       }
     >
@@ -106,13 +112,13 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
           <div key={r.id} role="listitem" className="flex items-center gap-2 border-t border-line-2 py-1.5 pl-3 pr-2 first:border-t-0">
             <span className="w-5 shrink-0 text-center text-[0.78125rem] font-semibold tnum text-faint">{i + 1}</span>
             <input
-              ref={(el) => { inputs.current[r.id] = el }}
+              ref={(el) => { inputs.current[r.id] = el; if (el && focusNext.current === r.id) { focusNext.current = null; el.focus() } }}
               data-autofocus={i === 0 ? true : undefined}
               aria-label={`Touch-up ${i + 1}`}
               value={r.text}
               onChange={(e) => setText(r.id, e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (r.text.trim()) addRow(r.id) } else if (e.key === 'Backspace' && !r.text && rows.length > 1) { e.preventDefault(); removeRow(r.id); const prev = rows[i - 1]; if (prev) setTimeout(() => inputs.current[prev.id]?.focus(), 20) } }}
-              placeholder={i === 0 ? 'Master bath. Caulk around the tub' : i === 1 ? 'Hall bath. Replace 2 chipped tiles' : 'Next one…'}
+              placeholder={i === 0 ? 'Master bath. Caulk around the tub' : 'Next one…'}
               className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-faint"
             />
             {r.files.length > 0 && <span className="shrink-0 text-[0.78125rem] font-semibold text-brand-700">{r.files.length} {r.files.length === 1 ? 'photo' : 'photos'}</span>}
@@ -129,11 +135,11 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       {/* who does them and by when — the same two dropdowns as every form; who checks, when a crew does them */}
       <FormRow label="Who does them">
         <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
-          <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey)} options={[...CREWS.filter((c) => !isOff(s, 'crew', c)).sort((a, b) => Number(b === crew0) - Number(a === crew0)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'The installer on this project' : 'Installer', lead: <Avatar who={c} size={22} /> })), ...checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))]} placeholder="Who does them" width={280} plain />
+          <SearchSelect label="Who does them" value={who} onChange={(k) => setWho(k as PersonKey | 'none')} options={[{ key: 'none', label: 'Not decided yet', hint: 'On your Today to pick', lead: <span className="inline-flex h-[1.375rem] w-[1.375rem] rounded-full border border-dashed border-[#bdb6aa]" /> }, ...CREWS.filter((c) => !isOff(s, 'crew', c)).sort((a, b) => Number(b === crew0) - Number(a === crew0)).map((c) => ({ key: c, label: PEOPLE[c].name, hint: c === crew0 ? 'The installer on this project' : 'Installer', lead: <Avatar who={c} size={22} /> })), ...checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))]} placeholder="Who does them" width={280} plain />
           <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={220} icon={<CalendarDays />} />
         </div>
       </FormRow>
-      {who && PEOPLE[who]?.crew && (
+      {who !== 'none' && PEOPLE[who]?.crew && (
         <FormRow label="Who checks them">
           <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: p === checkers[0] && job?.site ? `${PEOPLE[p].roleLabel || 'Site manager'} on this project` : PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))} search={false} width={300} icon={<CheckCheck />} plain />
         </FormRow>

@@ -94,7 +94,7 @@ export function planCells(s: Store, j: Job): Record<CellKey, Cell> {
   const openOrders = () => s.open({ t: 'job', id: j.id, tab: 'orders' })
   const got = checks.reduce((n, c) => n + Math.min(1, c.received / Math.max(1, c.ordered)), 0)
   const onsite: Cell = short
-    ? { state: 'bad', label: `${Math.ceil(short.measured * (1 + short.wastePct / 100)) - short.ordered} ${short.unit} short`, hint: `${short.tag}: the store’s order doesn’t cover our takeoff`, run: () => s.open({ t: 'qty', jobId: j.id, tag: short.tag }) }
+    ? { state: 'bad', label: `${Math.ceil(short.measured * (1 + short.wastePct / 100)) - short.ordered} ${short.unit} short`, hint: `${short.tag}: the store’s order doesn’t cover the walls and floors`, run: () => s.open({ t: 'qty', jobId: j.id, tag: short.tag }) }
     : checks.length
       ? got >= checks.length
         ? { state: 'yes', label: 'On site', hint: 'All finish tile delivered', run: openOrders }

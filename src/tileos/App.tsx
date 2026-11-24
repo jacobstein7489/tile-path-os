@@ -51,6 +51,7 @@ import { FollowUpModal, AwardModal } from '@/tileos/features/pricing'
 import { RecordModal } from '@/tileos/features/record'
 import { ProblemModal } from '@/tileos/features/problem'
 import { TouchupsModal, NoteModal } from '@/tileos/features/touchups'
+import { TodosModal } from '@/tileos/features/todos'
 import { ChecklistModal, InstallerModal } from '@/tileos/features/job/checklist'
 import { DailyModal, MediaModal, SiteChangeModal, ChangeApproveModal, MeetingModal } from '@/tileos/features/field'
 import { FileModal } from '@/tileos/features/docview'
@@ -122,6 +123,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'newtask': return <NewTaskModal jobId={m.jobId} fromMsg={m.fromMsg} level={level} />
     case 'problem': return <ProblemModal jobId={m.jobId} level={level} />
     case 'touchups': return <TouchupsModal jobId={m.jobId} level={level} />
+    case 'todos': return <TodosModal jobId={m.jobId} who={m.who} level={level} />
     case 'note': return <NoteModal jobId={m.jobId} level={level} />
     case 'invite': return <InviteModal k={m.key} level={level} />
     case 'checklist': return <ChecklistModal jobId={m.jobId} level={level} />

@@ -56,7 +56,7 @@ export const PROCESS: ProcStep[] = [
     stage: 'awarded', title: 'Award. One click, every department',
     happens: 'The biggest trigger in the company. Awarding tells every person what they now owe the project.',
     who: [{ role: 'owner', buttons: ['Make it a project'], note: 'Approved revision, deposit %, client PO, start window, PM' }],
-    auto: ['Accounting: deposit invoice', 'Back office: setup package', 'Materials: tile order vs our takeoff, our materials', 'Scheduling: heads-up with the start window', 'PM: review the setup'],
+    auto: ['Accounting: deposit invoice', 'Back office: setup package', 'Materials: tile order vs the scope of work, our materials', 'Scheduling: heads-up with the start window', 'PM: review the setup'],
     demo: { label: 'Award the pool house', modal: { t: 'award', jobId: 'b7' } },
   },
   {
@@ -68,7 +68,7 @@ export const PROCESS: ProcStep[] = [
       { role: 'accounting', buttons: ['Create deposit invoice', 'Record payment'] },
       { role: 'pm', buttons: ['Review setup'] },
     ],
-    auto: ['Store quantity vs our takeoff + waste. A shortage becomes an action', 'Unpaid deposit stays visible as a warning with reminders'],
+    auto: ['Store quantity vs the scope of work + waste. A shortage becomes an action', 'Unpaid deposit stays visible as a warning with reminders'],
     demo: { label: 'Open 114 Park Place', modal: { t: 'job', id: '114' } },
   },
   {

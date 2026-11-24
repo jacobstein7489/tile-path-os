@@ -319,7 +319,7 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
     j.headline = 'Awarded today · setup starts'
     closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.state !== 'done').map((t) => t.id), 'Awarded')
     newTask(s, { jobId, step: `${jobId}:rooms`, title: `Check the ${j.name} paperwork and quantities`, type: 'Setup', owner: 'estimator', for: ['estimator'], watch: ['owner', 'pm'], state: 'now', due: 'Today', tone: 'info', where: 'Paperwork', detail: 'The rooms and square feet came from the estimate. Check them against the final plans and finish schedule, then say they check out.', action: { label: 'Open the project', kind: 'open-job' }, log: [L('system', 'Created at award')] })
-    newTask(s, { jobId, step: `${jobId}:order`, title: `Check the ${j.name} tile order against our takeoff`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'When paperwork arrives', tone: 'info', where: 'Quantity check', log: [L('system', 'Created at award')] })
+    newTask(s, { jobId, step: `${jobId}:order`, title: `Check the ${j.name} tile order against the scope of work`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'now', due: 'When paperwork arrives', tone: 'info', where: 'Quantity check', log: [L('system', 'Created at award')] })
     newTask(s, { jobId, step: `${jobId}:materials`, title: `Plan the materials for ${j.name}`, type: 'Materials', owner: matBy(s), for: matFor(s), state: 'later', laterUntil: md(addDays(MONDAY, 7)), tone: 'neutral', where: 'Installation materials', log: [L('system', 'Created at award')] })
     if (o.depositPct) {
       const amt = Math.round((o.amount * o.depositPct) / 100)
@@ -337,7 +337,7 @@ export function award(jobId: string, o: { rev: string; amount: number; depositPc
     to: [
       { who: 'office', what: 'Build the project from the paperwork' },
       ...(o.depositPct ? [{ who: 'accounting' as PersonKey, what: `Send the deposit invoice · ${fmtMoney(Math.round((o.amount * o.depositPct) / 100))}` }] : []),
-      { who: matBy(S()), what: 'Check the tile order against our takeoff' },
+      { who: matBy(S()), what: 'Check the tile order against the scope of work' },
       { who: o.pm, what: 'Review the setup and plan the start' },
     ],
   })
@@ -378,7 +378,7 @@ export function newRequest(d: { name: string; address: string; clientId: string;
 export function settleQty(jobId: string, tag: string, choice: 'askgc' | 'order' | 'accept') {
   const c0 = S().checks.find((x) => x.jobId === jobId && x.tag === tag)
   if (!c0) return
-  /* the real difference, against our takeoff as it is now */
+  /* the real difference, against the walls and floors as they are now */
   const short = shortNow(S().rooms[jobId], jobId, c0)
   const amount = `${short.toLocaleString('en-US')} ${/box/i.test(c0.unit) ? (short === 1 ? 'box' : 'boxes') : 'SF'}`
   if (choice === 'order') {
@@ -1418,10 +1418,41 @@ export function setPunch(id: string, status: 'open' | 'working' | 'verify' | 've
     if (status === 'verified' && p.taskId && s.punch.every((x) => x.taskId !== p.taskId || x.status === 'verified')) closeTasks(s, [p.taskId], 'Verified')
     /* the crew says it's done — the site manager gets it to check, once per project */
     if (status === 'verify' && !s.tasks.some((t) => t.jobId === p.jobId && t.state !== 'done' && /check/i.test(t.title) && /touch-?up/i.test(t.title))) {
-      newTask(s, { jobId: p.jobId, title: `Check the touch-ups at ${s.jobs[p.jobId]?.name || 'the project'}`, type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: `${PEOPLE[p.owner]?.short || 'The crew'} marked “${p.text}” done`, action: { label: 'Check them', kind: 'tab:touchups' } })
+      newTask(s, { jobId: p.jobId, title: `Check the touch-ups at ${s.jobs[p.jobId]?.name || 'the project'}`, type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: `${(p.owner && PEOPLE[p.owner]?.short) || 'The crew'} marked “${p.text}” done`, action: { label: 'Check them', kind: 'tab:touchups' } })
     }
     addHist(s, p.jobId, { who: me(), kind: 'field', title: `Punch · ${p.text} · ${({ open: 'reopened', working: 'crew working', verify: 'ready to verify', verified: 'verified' } as any)[status]}` })
   }, allChecked ? 'All the touch-ups are checked' : allDone ? 'All done!' : undefined, allChecked || allDone ? { tone: 'done', sub: allDone ? 'The site manager checks them next.' : undefined } : undefined)
+}
+/** who does a touch-up — picked right on its line (or not decided yet). Its to-do follows: once every touch-up on it
+ *  has someone, "Pick who does the touch-ups" becomes the crew's ("Check the touch-ups when Leo is done", for whoever
+ *  checks them) or that person's ("Fix the touch-ups") */
+export function setPunchOwner(id: string | string[], who?: PersonKey) {
+  const ids = Array.isArray(id) ? id : [id]
+  const p0 = S().punch.find((x) => ids.includes(x.id) && x.owner !== who)
+  if (!p0) return
+  S().commit((s) => {
+    s.punch.forEach((x) => { if (ids.includes(x.id)) x.owner = who })
+    const p = s.punch.find((x) => x.id === p0.id)
+    if (!p) return
+    const t = p.taskId ? s.tasks.find((x) => x.id === p.taskId && x.state !== 'done') : undefined
+    if (!t) return
+    const items = s.punch.filter((x) => x.taskId === t.id && x.status !== 'verified')
+    const owners = Array.from(new Set(items.map((x) => x.owner)))
+    if (owners.some((o) => !o)) return
+    const one = owners.length === 1 ? owners[0] as PersonKey : undefined
+    const crewDoes = !!one && !!PEOPLE[one]?.crew
+    const picking = /^pick who does the touch-?ups/i.test(t.title)
+    if (!picking && !/^check the touch-?ups when /i.test(t.title)) return
+    if (crewDoes) {
+      t.title = `Check the touch-ups when ${PEOPLE[one!].short} is done`
+      if (picking) { const job = s.jobs[p.jobId]; const site = (job?.site || 'yakov') as PersonKey; t.owner = site; t.for = ['site'] }
+      t.where = `${items.length} item${items.length === 1 ? '' : 's'} · ${PEOPLE[one!].name}’s crew`
+    } else if (picking && one) {
+      t.title = 'Fix the touch-ups'
+      t.owner = one
+    }
+    ;(t.log ||= []).push({ date: NOW, who: me(), text: one ? `${PEOPLE[one]?.short || 'Someone'} does the touch-ups` : 'Touch-ups split between people' })
+  }, who ? `${PEOPLE[who]?.short || 'They'} has it` : 'Not decided yet')
 }
 export function addPunch(jobId: string, text: string, where: string) {
   S().commit((s) => {

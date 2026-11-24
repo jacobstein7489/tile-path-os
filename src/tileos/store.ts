@@ -60,6 +60,12 @@ export interface Rules {
   autoOff?: string[]
   /** an every-day to-do someone skipped for a day ("rounds:ys" → that day): off their Today until the next one */
   skipped?: Record<string, string>
+  /** the crew list for the next work day: from this hour (18 = 6 PM) on the site manager's Today */
+  crewAt?: number
+  /** an estimate that went out: the follow-up comes this many days later (3 unless he changes it) */
+  followDays?: number
+  /** the crew list, emailed when it's sent: to these people (none set: everyone on the team but estimating), or off */
+  crewMail?: { off?: boolean; to?: PersonKey[] }
   /** who does each estimate step by default — new estimates start with these people */
   estTeam?: EstTeam
   /** who does each estimate step, one or more people (the first leads) — the standard steps and the company's own;

@@ -18,11 +18,13 @@ import { tracksFor, bookingOf, problemsOf, gateOpen, leadWords } from './tracks'
 import { stepWords } from './job/whatsleft'
 import { NewProjectKind } from './estnew'
 import { installerOf } from './upcoming'
-import { TODAY, md, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
+import { TODAY, md, isoFromLabel, labelFromIso, daysBetween } from '@/tileos/lib/today'
+import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { TODO } from './stepwin'
 import { isOff } from './active'
 import { allowedFor } from './newpicker'
+import { touchupsWords } from './todokinds'
 import { FormHead, FormRow, DAY_OPTIONS } from './formkit'
 
 const PRICING: Stage[] = ['request', 'estimating', 'proposal', 'followup']
@@ -84,6 +86,9 @@ export function ProjectsPage() {
   const rank = (j: Job) => (problemsOf(s, j).length ? 0 : 1)
   const startOf = (j: Job) => bookingOf(s, j)?.start || s.prep[j.id]?.targetISO || '9999'
   list.sort((a, b) => PROJ_TYPES.findIndex((t) => t.key === typeOf(a)) - PROJ_TYPES.findIndex((t) => t.key === typeOf(b)) || rank(a) - rank(b) || (typeOf(a) === 'coming' ? startOf(a).localeCompare(startOf(b)) : 0) || TONE_ORDER[a.status] - TONE_ORDER[b.status])
+  /* sorted by a column (tap its name; a phone: Sort) — inside each group */
+  const sorter = useSort('projects')
+  const shown = sortRows(list, sorter.sort, { name: (j) => j.name, client: (j) => j.client, stands: (j) => standOf(s, j).text, date: (j) => dateKeyOf(s, j) })
   const n = (k: ProjType) => won.filter((j) => typeOf(j) === k).length
   const pick = (k: View) => () => setView(view === k ? 'active' : k)
   const clients = Array.from(new Set(won.map((j) => j.clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || won.find((j) => j.clientId === id)!.client }))
@@ -115,15 +120,16 @@ export function ProjectsPage() {
             <ClearFilters show={client !== 'all' || crew !== 'all' || att !== 'all' || !!q} onClear={() => { setClient('all'); setCrew('all'); setAtt('all'); setQ('') }} />
             {/* on a phone the search on top finds a project — the filters fit on one line, nothing slides sideways */}
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search projects" className="max-md:hidden" />
+            <SortMenu sort={sorter.sort} set={sorter.set} cols={PROJECT_SORT} className="ml-auto md:hidden" />
           </div>
         </>
       }
     >
       <div style={{ '--list': listCols(when, false), '--list-xl': listCols(when, true) } as React.CSSProperties} data-even-list>
-        {!!list.length && <ListHead when={when} />}
+        {!!list.length && <ListHead when={when} sort={sorter.sort} onSort={sorter.toggle} />}
         {view === 'active'
           ? PROJ_TYPES.filter((t) => t.key !== 'done').map((t) => {
-              const rows = list.filter((j) => typeOf(j) === t.key)
+              const rows = shown.filter((j) => typeOf(j) === t.key)
               if (!rows.length) return null
               return (
                 <section key={t.key} data-project-group={t.key}>
@@ -132,7 +138,7 @@ export function ProjectsPage() {
                 </section>
               )
             })
-          : list.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
+          : shown.map((j) => <ProjectRow key={j.id} j={j} when={when} />)}
         {!list.length && <EmptyState icon={<Building2 />} title="No projects here" sub={view === 'repairs' ? 'Repair jobs and callbacks land here.' : 'Try another filter.'} action={view === 'repairs' && allowedFor(s.role, 'newrepair') ? <Button icon={<Wrench />} onClick={() => s.open({ t: 'newrepair' })}>New repair</Button> : undefined} />}
       </div>
     </Page>
@@ -166,13 +172,24 @@ const COLS = 'grid items-center gap-x-6 max-md:block'
  *  short, so nothing runs into the next column. Date is a column only when a project on the list has one */
 const listCols = (when: boolean, xl: boolean) => [xl ? 'minmax(0,0.9fr) minmax(0,1fr)' : 'minmax(0,1fr)', 'minmax(0,1.5fr)', when ? 'max-content' : ''].filter(Boolean).join(' ')
 
-function ListHead({ when }: { when: boolean }) {
+/** the columns a project list sorts by */
+const PROJECT_SORT: SortCol[] = [{ k: 'name', label: 'Project' }, { k: 'client', label: 'Client' }, { k: 'stands', label: 'Where it stands' }, { k: 'date', label: 'Date', kind: 'date' }]
+/** its date, to sort by: the day it starts — or ends, or the installer is back */
+function dateKeyOf(s: Store, j: Job): string {
+  const t = typeOf(j)
+  const b = bookingOf(s, j)
+  if (t === 'coming') return b?.start || s.prep[j.id]?.targetISO || ''
+  if (t === 'progress') return b?.end || isoFromLabel(j.dates?.finish || '') || ''
+  if (t === 'touchups' || t === 'repairs') return s.bookings.filter((x) => x.jobId === j.id && x.end >= TODAY).sort((a, c) => a.start.localeCompare(c.start))[0]?.start || ''
+  return ''
+}
+function ListHead({ when, sort, onSort }: { when: boolean; sort: Sort; onSort: (k: string) => void }) {
   return (
     <div className={cn(HEAD_ROW, 'px-5', COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
-      <span>Project</span>
-      <span className="max-xl:hidden">Client</span>
-      <span>Where it stands</span>
-      {when && <span className="text-right" data-when-head>Date</span>}
+      <span><SortHead k="name" sort={sort} onSort={onSort}>Project</SortHead></span>
+      <span className="max-xl:hidden"><SortHead k="client" sort={sort} onSort={onSort}>Client</SortHead></span>
+      <span><SortHead k="stands" sort={sort} onSort={onSort}>Where it stands</SortHead></span>
+      {when && <span className="text-right" data-when-head><SortHead k="date" sort={sort} onSort={onSort} right kind="date">Date</SortHead></span>}
     </div>
   )
 }
@@ -185,15 +202,28 @@ export function howFar(s: Store, j: Job): { pct: number; text: string; tone?: 'o
   if (j.stage === 'installation') { const p = j.pct ?? 0; return { pct: p, text: `${p}% installed` } }
   if (j.stage === 'punch' || (j.kind === 'repair' && !['closeout', 'complete'].includes(j.stage))) {
     const all = s.punch.filter((p) => p.jobId === j.id)
-    if (!all.length) return { pct: 0, text: j.kind === 'repair' ? 'Repair' : 'No touch-ups yet' }
+    /* none logged yet: what's holding it — its first open to-do ("Walk the job with Charlie · Today") */
+    if (!all.length) return { pct: 0, text: j.kind === 'repair' ? 'Repair' : holdingTouchups(s, j) || 'No touch-ups yet' }
+    /* the same count as its line in To do: done is fixed (checked or waiting to be checked) */
+    const done = all.filter((p) => p.status === 'verify' || p.status === 'verified').length
     const checked = all.filter((p) => p.status === 'verified').length
-    const toCheck = all.filter((p) => p.status === 'verify').length
-    const toFix = all.length - checked - toCheck
-    const text = toFix ? `${toFix} to fix${toCheck ? ` · ${toCheck} to check` : ''}` : toCheck ? `${toCheck} to check` : 'All checked'
-    return { pct: Math.round((checked / all.length) * 100), text, tone: toFix || toCheck ? undefined : 'ok' }
+    return { pct: Math.round((done / all.length) * 100), text: touchupsWords(all, true), tone: checked === all.length ? 'ok' : undefined }
   }
   const pic = pictureOf(s, j.id)
   return pic.paidPct >= 100 ? { pct: 100, text: 'Paid in full', tone: 'ok' } : { pct: pic.paidPct, text: `${pic.billedPct}% billed · ${pic.paidPct}% paid` }
+}
+
+/** a project in touch-ups with none logged yet: what's holding it — its first open to-do, and when ("Walk the job with
+ *  Charlie · Today"); nothing open: nothing */
+export function holdingTouchups(s: Store, j: Job): string {
+  const t = s.tasks
+    .filter((t) => t.jobId === j.id && t.state !== 'done' && !t.repeat && !t.paused)
+    .map((t) => ({ t, iso: isoFromLabel(t.due || t.followUp || '') || '9999' }))
+    .sort((a, b) => (a.t.tone === 'bad' ? 0 : 1) - (b.t.tone === 'bad' ? 0 : 1) || a.iso.localeCompare(b.iso))[0]
+  if (!t) return ''
+  const late = t.iso < TODAY ? daysBetween(t.iso, TODAY) : 0
+  const when = t.iso === '9999' ? '' : late ? `${late} ${late === 1 ? 'day' : 'days'} late` : t.iso === TODAY ? 'Today' : labelFromIso(t.iso)
+  return `${t.t.title.replace(/\.$/, '')}${when ? ` · ${when}` : ''}`
 }
 
 /** the project's date: the day it starts (amber once it's passed and no crew is booked) — or the day it's to be done,
@@ -229,7 +259,7 @@ export function standOf(s: Store, j: Job): { text: string; quiet?: boolean } {
   const cap = (x: string) => x.replace(/^./, (c) => c.toUpperCase())
   if (t === 'hold') return { text: `${j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason ? cap(j.hold.reason) : 'On hold'}${j.hold?.until ? ` · until ${j.hold.until}` : ''}`, quiet: true }
   if (t === 'progress') return { text: `${j.pct ?? 0}% installed${who}` }
-  if (t === 'touchups' || t === 'repairs') return { text: s.punch.some((p) => p.jobId === j.id) ? cap(howFar(s, j).text) : t === 'repairs' ? j.scope || 'Repair' : 'No touch-ups yet' }
+  if (t === 'touchups' || t === 'repairs') return { text: s.punch.some((p) => p.jobId === j.id) ? cap(howFar(s, j).text) : t === 'repairs' ? j.scope || 'Repair' : holdingTouchups(s, j) || 'No touch-ups yet' }
   if (t === 'done') { const bl = billingOf(j); return bl.paidPct >= 100 ? { text: 'Paid in full', quiet: true } : bl.billedPct >= 100 ? { text: 'Waiting to be paid', quiet: true } : { text: 'Bill the rest' } }
   /* getting ready: how many of its parts are done (the same count as on the project) — then the crew */
   const tracks = tracksFor(s, j)
@@ -302,7 +332,7 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
   const waits = waitingOn(s, j)
   const stand = (cls: string) => (
     <span className={cn('min-w-0', cls)} data-stand={st.text} title={probs.length ? probs.map((p) => p.text).join('\n') : undefined}>
-      <span className="block truncate">
+      <span className="block break-words">
         <span className={st.quiet ? 'text-muted' : 'text-ink-2'}>{st.text}</span>
         {probs.length > 0 && <span className="font-medium text-bad-600" data-problems={probs.length}> · {probWords(probs.length)}</span>}
       </span>
@@ -323,17 +353,17 @@ function ProjectRow({ j, when: hasWhen }: { j: Job; when: boolean }) {
       {/* a computer: one line, each thing in its column */}
       <div className="flex min-w-0 items-center gap-2 max-md:hidden">
         {/* the name the same as every list's — Today's size and weight; the client next to it gray */}
-        <span className="truncate text-[0.9375rem] text-ink" data-project-name>{j.name}</span>
+        <span className="min-w-0 break-words text-[0.9375rem] text-ink" data-project-name>{j.name}</span>
         {j.kind === 'repair' && <span className="shrink-0 text-[0.8125rem] text-muted">Repair</span>}
       </div>
-      <span className="min-w-0 truncate text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
+      <span className="min-w-0 break-words text-[0.875rem] text-muted max-xl:hidden">{j.client}</span>
       <div className="flex min-w-0 items-center text-[0.875rem] max-md:hidden" data-now>{stand('')}</div>
       {hasWhen && (w.text ? date('text-right text-[0.875rem] max-md:hidden', w.text) : <span className="text-right text-[0.875rem] text-faint max-md:hidden" data-when></span>)}
       {/* a phone: like Today — every row the same two lines: the name (and its date on the right), and under it where it
           stands (its problems in red); the same weight, nothing wrapping */}
       <div className="hidden min-w-0 max-md:block">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
+          <span className="min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] text-ink" data-project-name>{j.name}</span>
           {!!w.text && date('shrink-0 text-[0.8125rem]', whenShort(w.text))}
         </div>
         <div className="min-w-0 text-[0.875rem] leading-5" data-now>{stand('block')}</div>

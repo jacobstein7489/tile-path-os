@@ -30,7 +30,8 @@ import { ItemThumb } from './items'
 import { FormHead, FormRow, ProjectField, DAY_OPTIONS, byDay } from './formkit'
 import { CalcHow } from './calc'
 import { PAY_WEEKS, PAY_STATE, PAID_EARLIER, payRow } from './pay'
-import { shiftText, TODAY } from '@/tileos/lib/today'
+import { shiftText, TODAY, isoFromLabel } from '@/tileos/lib/today'
+import { useSort, sortRows, type SortCol } from '@/tileos/components/ui/sort'
 
 type Row = { kind: 'material'; po: PO } | { kind: 'installer'; po: IPO }
 const matStatus = (p: PO): { tone: Tone; label: string; open: boolean } =>
@@ -64,7 +65,12 @@ export function POsPage() {
   const st = (r: Row) => (r.kind === 'material' ? matStatus(r.po) : ipoStatus(r.po))
   const typeOf = (r: Row) => (r.kind === 'material' && r.po.kind === 'tile' ? 'tile' : r.kind)
   const scoped = rows.filter((r) => (type === 'all' || typeOf(r) === type) && (vendor === 'all' || vendorOf(r) === vendor) && (job === 'all' || r.po.jobId === job) && (!q || `${r.po.id} ${vendorOf(r)} ${s.jobs[r.po.jobId]?.name} ${r.kind === 'material' ? `${r.po.storeRef || ''} ${r.po.what}` : ''}`.toLowerCase().includes(q.toLowerCase())))
-  const list = scoped.filter((r) => tab === 'all' || (tab === 'open' ? bucketOfPO(r) !== 'done' : bucketOfPO(r) === tab))
+  const so = useSort('pos')
+  const list = sortRows(scoped.filter((r) => tab === 'all' || (tab === 'open' ? bucketOfPO(r) !== 'done' : bucketOfPO(r) === tab)), so.sort, {
+    po: (r) => r.po.id, vendor: vendorOf, project: (r) => s.jobs[r.po.jobId]?.name, amount: (r) => (r.kind === 'material' ? r.po.amount : ipoTotal(r.po)) || undefined, status: (r) => st(r).label,
+    date: (r) => isoFromLabel((r.kind === 'material' ? r.po.date || r.po.log[0]?.date : r.po.date) || '') || undefined,
+  })
+  const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   const nB = (b: POBucket) => scoped.filter((r) => bucketOfPO(r) === b).length
   const pick = (b: POBucket | 'calc') => () => setTab(tab === b ? 'open' : b)
   /* what each project still needs, worked out from its scope — waiting for someone to send the PO */
@@ -136,12 +142,12 @@ export function POsPage() {
       <Table minWidth={860}>
         <thead>
           <tr>
-            <Th className="xl:w-[16rem]">PO</Th>
-            <Th w="12rem" className="max-md:hidden">Vendor</Th>
-            <Th w="12rem" className="max-lg:hidden">Project</Th>
-            <Th w="7.5rem" right className="max-md:hidden">Amount</Th>
-            <Th w="13rem" className="max-md:hidden">Status</Th>
-            <Th w="7rem" className="max-xl:hidden">Date</Th>
+            <Th className="xl:w-[16rem]" sort={th('po')}>PO</Th>
+            <Th w="12rem" className="max-md:hidden" sort={th('vendor')}>Vendor</Th>
+            <Th w="12rem" className="max-lg:hidden" sort={th('project')}>Project</Th>
+            <Th w="8rem" right className="max-md:hidden" sort={th('amount', 'num')}>Amount</Th>
+            <Th w="13rem" className="max-md:hidden" sort={th('status')}>Status</Th>
+            <Th w="7.5rem" className="max-xl:hidden" sort={th('date', 'date')}>Date</Th>
           </tr>
         </thead>
         <tbody>
@@ -153,14 +159,14 @@ export function POsPage() {
                 <Td>
                   <div className="flex min-w-0 items-baseline gap-2">
                     <span className="shrink-0 text-[0.8125rem] tnum text-muted">{r.po.id}</span>
-                    <span className="truncate text-[0.9375rem] text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
+                    <span className="min-w-0 break-words text-[0.9375rem] text-ink">{r.kind === 'material' ? r.po.what : 'Installation'}</span>
                   </div>
-                  <div className="truncate text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `${r.po.more ? 'More tile' : 'Tile'}${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
+                  <div className="break-words text-[0.78125rem] text-muted">{r.kind === 'material' ? (r.po.kind === 'tile' ? `${r.po.more ? 'More tile' : 'Tile'}${r.po.storeRef ? ` · their order ${r.po.storeRef}` : ''}` : 'Materials') : 'Installer PO'}<span className="md:hidden"> · {vendorOf(r)}{r.kind === 'material' && !billsUs(r.po) ? '' : ` · ${fmtMoney(amount)}`}</span></div>
                 </Td>
                 <Td className="max-md:hidden">
                   {r.kind === 'installer' ? <span className="inline-flex items-center gap-2 text-[0.84375rem]"><Avatar who={r.po.crew} size={20} />{PEOPLE[r.po.crew].name}</span> : <span className="text-[0.84375rem]">{r.po.supplier}</span>}
                 </Td>
-                <Td className="truncate text-[0.875rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
+                <Td className="break-words text-[0.875rem] max-lg:hidden">{s.jobs[r.po.jobId]?.name}</Td>
                 <Td right className="tnum text-ink max-md:hidden">
                   {r.kind === 'material' && !billsUs(r.po) ? <span className="text-muted">No prices</span> : fmtMoney(amount)}
                   {r.kind === 'installer' && (() => { const ra = poRatio(s, r.po); return ra.sold && ra.total ? <div className={cn('text-[0.75rem] font-semibold', ra.over ? 'text-bad-600' : 'text-muted')}>{ra.pct}% of estimate</div> : null })()}

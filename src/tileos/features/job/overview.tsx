@@ -274,8 +274,8 @@ function useSetupChecks(job: Job): Check[] {
     { n: 2, title: 'Finish records on surfaces', state: rooms.length ? 'ok' : 'todo', detail: rooms.length ? 'Each tile assigned to the exact surfaces it goes on' : 'After the rooms are built' },
     { n: 3, title: 'Tile store paperwork', state: checks.length ? 'ok' : 'todo', detail: checks.length ? 'Best Tile order entered' : 'Waiting for the store paperwork', blocking: false },
     {
-      n: 4, title: 'Quantity check. Their order vs our takeoff', state: !checks.length ? 'todo' : short.length ? 'bad' : 'ok', blocking: short.length > 0,
-      detail: short.length ? `${short.map((c) => `${c.tag} ${shortNow(s.rooms[job.id], job.id, c)} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers our takeoff + waste' : 'Runs when the paperwork is in',
+      n: 4, title: 'Quantity check. Their order vs the scope of work', state: !checks.length ? 'todo' : short.length ? 'bad' : 'ok', blocking: short.length > 0,
+      detail: short.length ? `${short.map((c) => `${c.tag} ${shortNow(s.rooms[job.id], job.id, c)} ${c.unit} short`).join(' · ')}` : checks.length ? 'Every tile ordered covers the walls and floors + extra for cuts' : 'Runs when the paperwork is in',
       action: short.length ? { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short[0].tag }) } : undefined,
     },
     { n: 5, title: 'Who supplies what', state: rooms.length ? 'ok' : 'todo', detail: 'Finish tile: GC via Best Tile · materials & metal edges: Cobblestone' },

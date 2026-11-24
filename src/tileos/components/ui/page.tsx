@@ -12,6 +12,7 @@ import { cn } from '@/tileos/lib/utils'
 import { SearchField, Avatar } from './core'
 import type { Tone, PersonKey } from '@/tileos/data/model'
 import { scrollHere } from './overlay'
+import { SortHead, type Sort, type SortCol } from './sort'
 
 /** side padding inside a card; rows line up with it */
 export const PX = 'px-5 max-sm:px-4'
@@ -654,11 +655,13 @@ export function Table({ children, minWidth, className, auto }: { children: React
   )
 }
 const EDGE = 'first:pl-5 last:pr-5 max-sm:first:pl-4 max-sm:last:pr-4'
-export function Th({ children, className, w, right, title }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string }) {
+export function Th({ children, className, w, right, title, sort }: { children?: React.ReactNode; className?: string; w?: number | string; right?: boolean; title?: string
+  /** tap the name: the table sorts by this column (again: the other way; a third time: its own order) */
+  sort?: { k: string; on: Sort; onSort: (k: string) => void; kind?: SortCol['kind'] } }) {
   return (
     /* the same column names as every list (Projects, Estimates): dark gray, semibold, near the size of the rows */
-    <th title={title} style={w !== undefined ? { width: w } : undefined} className={cn('h-10 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.875rem] font-semibold text-[#363b45] xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
-      {children}
+    <th title={title} style={w !== undefined ? { width: w } : undefined} aria-sort={sort && sort.on?.k === sort.k ? (sort.on.dir === 1 ? 'ascending' : 'descending') : undefined} className={cn('h-10 whitespace-nowrap border-b border-line-2 bg-white px-3 text-[0.875rem] font-semibold text-[#363b45] xl:sticky xl:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px))] xl:z-[5]', EDGE, right && 'text-right', className)}>
+      {sort && children ? <SortHead k={sort.k} sort={sort.on} onSort={sort.onSort} right={right} kind={sort.kind}>{children}</SortHead> : children}
     </th>
   )
 }

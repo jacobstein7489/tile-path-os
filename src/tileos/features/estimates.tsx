@@ -25,6 +25,7 @@ import { TeamSlots, SurfaceAdd } from './estnew'
 import { ITEM_TYPE_LABEL } from '@/tileos/data/items'
 import { estEditLines, newLine, estSend, estRevise, estLost, estFollowUp } from './flows2'
 import { TODAY, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
+import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 import { peopleOn, turnOn, namesOf, stepLabel, estSteps, stepAfter, setEstimatePeople } from './estpeople'
 import { setEstimateDue, estStartTakeoff, estHandOff, estSendBack, estAddNote, estToggleNote, estRemoveNote, aiDraftFor, applyAiDraft, plansUploaded, docUploaded, estAddArea, estAddSurface, estSetArea, estRemoveArea, setEstTeam, companyAreas, companySurfaces, addCompanyArea, surfaceOf, EST_PEOPLE, sameJobCandidates, moveEstimateTo, TEAM_KEYS, TEAM_LABEL } from './estflow'
 import { insidePeople } from './steps-ui'
@@ -84,6 +85,14 @@ const whenOf = (e: Estimate) => {
   return e.due ? `Due ${e.due}` : ''
 }
 
+/** its date, to sort by: approved, sent or due — as a day */
+const dateKeyOf = (e: Estimate) => {
+  const sent = [...e.revs].reverse().find((r) => r.sentOn)
+  const l = e.status === 'approved' ? e.approvedOn : e.status === 'sent' && sent ? sent.sentOn : e.due
+  return l ? isoFromLabel(l) || '' : ''
+}
+const EST_SORT: SortCol[] = [{ k: 'name', label: 'Estimate' }, { k: 'who', label: 'Who' }, { k: 'date', label: 'Date', kind: 'date' }, { k: 'amount', label: 'Amount', kind: 'num' }]
+
 type EstView = 'open' | EstCat
 export function EstimatesPage() {
   const s = useStore()
@@ -106,6 +115,9 @@ export function EstimatesPage() {
   const clients = Array.from(new Set(list.map((e) => s.jobs[e.jobId].clientId))).map((id) => ({ key: id, label: CUSTOMERS[id]?.name || s.jobs[list.find((e) => s.jobs[e.jobId].clientId === id)!.jobId].client }))
   const pick = (v: EstView) => () => setView(view === v ? 'open' : v)
   const me = meOf(s.role)
+  /* sorted by a column (tap its name; a phone: Sort) — inside each group */
+  const sorter = useSort('estimates')
+  const sortBy = (rows: Estimate[]) => sortRows(rows, sorter.sort, { name: (e) => s.jobs[e.jobId]?.name, who: (e) => namesOf(turnOn(s, e), me), date: dateKeyOf, amount: (e) => (insideOf(e) ? revTotal(curRev(e)) : estAmount(e)) || undefined })
   const mine = of('estimating').concat(of('revision')).filter((e) => turnOn(s, e).includes(me)).length
   return (
     <Page
@@ -136,6 +148,7 @@ export function EstimatesPage() {
             <Filter icon={<UserRound />} label="Who" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
             <ClearFilters show={client !== 'all' || who !== 'all' || !!q} onClear={() => { setClient('all'); setWho('all'); setQ('') }} />
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search estimates" />
+            <SortMenu sort={sorter.sort} set={sorter.set} cols={EST_SORT} className="md:hidden" />
           </div>
         </>
       }
@@ -143,10 +156,10 @@ export function EstimatesPage() {
       {/* the name and whose turn share the width; the date and the amount sit together on the right, both lined up on
           their right edge — no wide gap between them */}
       <div style={{ '--list': 'minmax(0,1.6fr) minmax(0,1fr) 6.5rem', '--list-lg': 'minmax(0,1.6fr) minmax(0,1fr) 8.5rem 6.5rem' } as React.CSSProperties} data-even-list>
-        {(shown.length > 0 || lostOld.length > 0) && <EstHead />}
+        {(shown.length > 0 || lostOld.length > 0) && <EstHead sort={sorter.sort} onSort={sorter.toggle} />}
         {view === 'open' &&
           (['request', 'estimating', 'sent', 'revision'] as EstCat[]).map((k) => {
-            const rows = open.filter((e) => catOf(e) === k).sort((a, b) => STEP_RANK(a) - STEP_RANK(b))
+            const rows = sortBy(open.filter((e) => catOf(e) === k).sort((a, b) => STEP_RANK(a) - STEP_RANK(b)))
             if (!rows.length) return null
             return (
               <section key={k} data-est-group={k}>
@@ -155,7 +168,7 @@ export function EstimatesPage() {
               </section>
             )
           })}
-        {view !== 'open' && shown.map((e) => <EstRow key={e.id} e={e} />)}
+        {view !== 'open' && sortBy(shown).map((e) => <EstRow key={e.id} e={e} />)}
         {lostOld.map((l) => (
           <div key={l.name} title={l.reason} data-subrow className={cn(ROW_H, 'border-t border-line-2 py-1.5 pl-5 pr-5 opacity-70 max-md:px-4', EST_COLS)}>
             <div className="min-w-0 truncate text-[0.90625rem] font-medium text-ink">{l.name}</div>
@@ -178,14 +191,14 @@ export function EstimatesPage() {
 /** Estimate · Whose turn · Date · Amount — the four share the width evenly (on a smaller screen, without the date) */
 const EST_COLS = 'grid items-center gap-x-6 max-md:block'
 /** on a wide screen: Estimate · Whose turn · Date · Amount, each with its room and the rest shared evenly */
-function EstHead() {
+function EstHead({ sort, onSort }: { sort: Sort; onSort: (k: string) => void }) {
   return (
     <div className={cn(HEAD_ROW, 'px-5', EST_COLS, STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
-      <span>Estimate</span>
+      <span><SortHead k="name" sort={sort} onSort={onSort}>Estimate</SortHead></span>
       {/* the same word as Today: who does the next thing on it */}
-      <span>Who</span>
-      <span className="text-right max-lg:hidden">Date</span>
-      <span className="text-right">Amount</span>
+      <span><SortHead k="who" sort={sort} onSort={onSort}>Who</SortHead></span>
+      <span className="text-right max-lg:hidden"><SortHead k="date" sort={sort} onSort={onSort} right kind="date">Date</SortHead></span>
+      <span className="text-right"><SortHead k="amount" sort={sort} onSort={onSort} right kind="num">Amount</SortHead></span>
     </div>
   )
 }
@@ -207,7 +220,7 @@ function EstRow({ e }: { e: Estimate }) {
   const who = turn ? (
     <span className="flex min-w-0 items-center gap-2" data-turn={turns.join(',')}>
       <span className="flex shrink-0 -space-x-1.5">{turns.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} ring={turns.length > 1} />)}</span>
-      <span className={cn('truncate text-[0.8125rem]', turns.includes(me) ? 'font-medium text-ink' : 'text-ink-2')}>{namesOf(turns, me)}</span>
+      <span className={cn('min-w-0 break-words text-[0.8125rem] leading-tight', turns.includes(me) ? 'font-medium text-ink' : 'text-ink-2')}>{namesOf(turns, me)}</span>
     </span>
   ) : <span className="text-[0.8125rem] text-faint"></span>
   const money = <span className={cn('text-[0.8125rem] tnum', amt ? 'font-medium text-ink' : 'text-faint')}>{amt ? fmtMoney(amt) : ''}</span>
@@ -222,13 +235,13 @@ function EstRow({ e }: { e: Estimate }) {
       onKeyDown={(ev) => { if (ev.key === 'Enter') s.open({ t: 'estimate', id: e.id }) }}
       className={cn(ROW_H, 'cursor-pointer border-t border-line-2 py-1.5 pl-5 pr-5 transition-colors row-hover focus-visible:outline-none max-md:px-4 max-md:py-2.5', EST_COLS, c === 'lost' && 'opacity-70')}
     >
-      <span className="min-w-0 truncate text-[0.9375rem] text-ink max-md:hidden">{j.name}</span>
+      <span className="min-w-0 break-words text-[0.9375rem] text-ink max-md:hidden">{j.name}</span>
       <span className="min-w-0 max-md:hidden">{who}</span>
       <span className={cn('truncate text-right text-[0.8125rem] max-lg:hidden', late ? 'font-medium text-warn-700' : 'text-muted')} data-est-date>{date}</span>
       <span className="text-right max-md:hidden">{money}</span>
       {/* a phone: two short lines */}
       <div className="hidden min-w-0 max-md:block">
-        <div className="flex min-w-0 items-center gap-3"><span className="min-w-0 flex-1 truncate text-[0.9375rem] text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
+        <div className="flex min-w-0 items-start gap-3"><span className="min-w-0 flex-1 break-words text-[0.9375rem] text-ink">{j.name}</span><span className="shrink-0">{amt ? money : null}</span></div>
         <div className="mt-1 flex min-w-0 items-center gap-2">{turn && <span className="min-w-0">{who}</span>}<span className={cn('ml-auto shrink-0 text-[0.75rem]', late ? 'font-medium text-warn-700' : 'text-muted')}>{date}</span></div>
       </div>
     </div>

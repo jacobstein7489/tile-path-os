@@ -109,8 +109,8 @@ export function SearchSelect({
               >
                 {o.lead && <span className="inline-flex shrink-0">{o.lead}</span>}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate">{o.label}</span>
-                  {o.hint && <span className="block truncate text-[0.78125rem] text-muted">{o.hint}</span>}
+                  <span className="block break-words leading-snug">{o.label}</span>
+                  {o.hint && <span className="block break-words text-[0.78125rem] leading-snug text-muted">{o.hint}</span>}
                 </span>
                 {o.key === value && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
               </button>
@@ -164,7 +164,8 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
       <PO.Trigger asChild>
         {trigger || <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
-          <span className={cn('min-w-0 flex-1 truncate', !picked.length && 'text-faint')}>{picked.length ? (summary ? summary(picked) : picked.map((o) => o.label).join(', ')) : placeholder}</span>
+          {/* what's picked, whole — a long list takes a second line rather than being cut off */}
+          <span className={cn('min-w-0 flex-1 whitespace-normal break-words text-left leading-snug', !picked.length && 'text-faint')}>{picked.length ? (summary ? summary(picked) : picked.map((o) => o.label).join(', ')) : placeholder}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
         </button>}
       </PO.Trigger>
@@ -188,8 +189,8 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
                   <span className={cn('inline-flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] border', on ? 'border-brand-600 bg-brand-600 text-white' : 'border-[#c9ced6] bg-white')}>{on && <Check className="h-3 w-3" strokeWidth={3.2} />}</span>
                   {o.lead}
                   <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate', on && 'font-semibold text-ink')}>{o.label}</span>
-                    {o.hint && <span className="block truncate text-[0.78125rem] text-muted">{o.hint}</span>}
+                    <span className={cn('block break-words leading-snug', on && 'font-semibold text-ink')}>{o.label}</span>
+                    {o.hint && <span className="block break-words text-[0.78125rem] leading-snug text-muted">{o.hint}</span>}
                   </span>
                 </button>
                 </React.Fragment>

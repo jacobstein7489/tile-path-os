@@ -14,7 +14,8 @@ import { nextPO } from '@/tileos/lib/utils'
 import { giveTo } from './estflow'
 import { peopleOn, namesOf, rolesOf, estSteps } from './estpeople'
 import { matBy, matFor } from './flows'
-import { mailLive, emailIPO } from './mailout'
+import { mailLive, emailIPO, emailCrewList } from './mailout'
+import { showPop } from '@/tileos/lib/pop'
 import { qbLive, pushEstimate } from './qbsync'
 import { shiftText, labelFromIso, workday, addDays, dayShort, TODAY } from '@/tileos/lib/today'
 
@@ -68,7 +69,7 @@ export function estSend(estId: string) {
   const fols = peopleOn(S(), e0, 'follow')
   const fol = fols[0] || team.follow
   /* the follow-up lands a few work days out */
-  const fu = labelFromIso(workday(addDays(TODAY, 3)))
+  const fu = labelFromIso(workday(addDays(TODAY, S().rules.followDays ?? 3)))
   S().commit((s) => {
     const e = s.estimates.find((x) => x.id === estId)!
     e.revs.forEach((r) => {
@@ -476,6 +477,14 @@ export function sendCrewReport(taskId: string | undefined, rows: { jobId: string
       if (t.repeat) repeatTask(s, t)
     }
   }, `Sent · ${rows.filter((r) => r.workers > 0).length} projects, ${people} people`, { sub: ahead ? `The office has ${when === 'tomorrow' ? 'tomorrow’s' : `${dayShort(day)}’s`} crews.` : 'The office has it.' })
+  /* emailed right away to whoever gets it (Settings → Automations → Crew list) — the real app, with email set up */
+  const st = S()
+  if (mailLive() && !st.rules.crewMail?.off) {
+    void emailCrewList(rows, day).then((r) => {
+      if (r.ok) showPop({ title: `Sent and emailed · ${people} ${people === 1 ? 'person' : 'people'}`, sub: `To ${r.to.join(', ')}.` })
+      else showPop({ title: 'Sent. The email didn’t go out', sub: `${r.why}.`, tone: 'warn' })
+    })
+  }
 }
 
 export function estFollowUp(estId: string, o: { how: string; outcome: string; next: string }) {
@@ -553,6 +562,6 @@ export function logTileOrder(jobId: string, tag: string, o: { sf: number; where:
   S().commit((s) => {
     if (s.checks.some((c) => c.jobId === jobId && c.tag === tag)) return
     s.checks.push({ jobId, tag, where: o.where, unit: 'SF', measured, wastePct: waste, ordered: need, received: 0, supplier: t?.supplier || 'Best Tile', suppliedBy: t?.suppliedBy || 'GC', eta: 'TBD' })
-    addHist(s, jobId, { who: me(), kind: 'material', title: `${tag} ordered by the ${t?.suppliedBy || 'GC'} · ${need} SF`, detail: `Covers our takeoff of ${Math.round(measured)} SF + ${waste}% waste` })
-  }, `${tag} logged · ${need} SF, matches our takeoff`)
+    addHist(s, jobId, { who: me(), kind: 'material', title: `${tag} ordered by the ${t?.suppliedBy || 'GC'} · ${need} SF`, detail: `Covers the walls and floors: ${Math.round(measured)} SF + ${waste}% for cuts` })
+  }, `${tag} logged · ${need} SF, covers the walls and floors`)
 }

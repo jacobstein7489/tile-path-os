@@ -210,7 +210,9 @@ function applyTeamNames(team: Member[]) {
   team.forEach((m, i) => {
     const name = [m.first, m.last].filter(Boolean).join(' ').trim() || 'New person'
     const words = name.split(' ').filter(Boolean)
-    const initials = (words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)).toUpperCase()
+    /* initials from letters only — "Manuel (helper)" is MH, not "M(" */
+    const lw = name.split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean)
+    const initials = (lw.length > 1 ? lw[0][0] + lw[1][0] : (lw[0] || name).slice(0, 2)).toUpperCase()
     const cur = PEOPLE[m.key]
     /* a person goes by their first name ("Mordcha", even when the whole name was typed as the first); a role-type
      * login nobody has taken yet ("Back office") keeps its whole name */

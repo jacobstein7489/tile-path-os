@@ -275,3 +275,50 @@ export async function emailText(o: { to: string; subject: string; text: string }
   const html = frame(o.text.split(/\n{2,}/).map((para) => `<p>${esc(para).replace(/\n/g, '<br>')}</p>`).join('\n'))
   return go({ to, subject: o.subject, html, text: o.text }, useStore.getState())
 }
+
+/* ---------------- the crew list: where every crew works that day — to the office, when the site manager sends it ---------------- */
+export type CrewLine = { jobId: string; crew: PersonKey; workers: number; note: string }
+const NOT_TO = ['estimator', 'takeoff', 'crew', 'client']
+/** who gets the crew list: the people picked (Settings → Automations → Crew list) — none picked: everyone on the team
+ *  but estimating (the admin, the office, the site manager, materials, the books) */
+export function crewMailPeople(s: Pick<Store, 'rules' | 'team'>): PersonKey[] {
+  const picked = s.rules.crewMail?.to
+  if (picked) return picked
+  return s.team.filter((m) => m.status !== 'off' && !NOT_TO.includes(m.role as string) && PEOPLE[m.key as PersonKey]).map((m) => m.key as PersonKey)
+}
+/** their emails (a person with no email on the team isn't on it — the window says so) */
+export const crewMailTo = (s: Pick<Store, 'rules' | 'team'>) => clean(crewMailPeople(s).map((p) => s.team.find((m) => m.key === p)?.email))
+/** the email, word for word: "Crews for Tue, Nov 24" — each project (its address), the crew, how many, the note */
+export function crewMailWords(s: Store, rows: CrewLine[], day: string): { subject: string; html: string; text: string } {
+  const on = rows.filter((r) => r.workers > 0)
+  const people = on.reduce((n, r) => n + r.workers, 0)
+  const d = new Date(day + 'T12:00:00')
+  const dayWords = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const subject = `Crews for ${dayWords} · ${on.length} ${on.length === 1 ? 'job' : 'jobs'}, ${people} ${people === 1 ? 'person' : 'people'}`
+  const by = PEOPLE[meOf(s.role)]?.name || 'the site manager'
+  const lines = rows.map((r) => {
+    const j = s.jobs[r.jobId]
+    return [j?.name || 'A project', j?.address && j.address !== j.name ? j.address : '', PEOPLE[r.crew]?.name || 'Crew', r.workers ? String(r.workers) : 'Nobody', r.note]
+  })
+  const head = ['Job', 'Crew', 'People']
+  const tbl = `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px">
+<tr>${head.map((h, i) => `<th style="text-align:${i === 2 ? 'right' : 'left'};padding:8px 6px;border-bottom:1px solid #d9d3c9;color:#5b5f68;font-weight:600">${esc(h)}</th>`).join('')}</tr>
+${lines.map(([job, addr, crew, n, note]) => `<tr><td style="padding:8px 6px;border-bottom:1px solid #ece8e1"><b>${esc(job)}</b>${addr ? `<br><span style="color:#7a7569;font-size:13px">${esc(addr)}</span>` : ''}${note ? `<br><span style="color:#7a7569;font-size:13px">${esc(note)}</span>` : ''}</td><td style="padding:8px 6px;border-bottom:1px solid #ece8e1">${esc(crew)}</td><td style="text-align:right;padding:8px 6px;border-bottom:1px solid #ece8e1">${esc(n)}</td></tr>`).join('\n')}
+<tr><td colspan="2" style="text-align:right;padding:10px 6px;font-weight:700">Total</td><td style="text-align:right;padding:10px 6px;font-weight:700">${people}</td></tr>
+</table>`
+  const html = frame(`<p style="margin:0 0 4px;font-size:18px;font-weight:700">Where the crews are ${esc(dayWords)}</p>
+<p style="margin:0;color:#5b5f68">${on.length} ${on.length === 1 ? 'job' : 'jobs'} · ${people} ${people === 1 ? 'person' : 'people'} · from ${esc(by)}</p>
+${tbl}`)
+  const text = [`Where the crews are ${dayWords}`, `${on.length} jobs · ${people} people · from ${by}`, '', ...lines.map(([job, addr, crew, n, note]) => `${job}${addr ? ` (${addr})` : ''} · ${crew} · ${n}${note ? ` · ${note}` : ''}`), '', `Total: ${people}`].join('\n')
+  return { subject, html, text }
+}
+/** send it: to everyone it goes to (a test: only to you) */
+export async function emailCrewList(rows: CrewLine[], day: string, o: { test?: boolean } = {}): Promise<{ ok: true; to: string[] } | { ok: false; why: string }> {
+  const s = useStore.getState()
+  const me = s.team.find((m) => m.key === meOf(s.role))
+  const to = o.test ? clean([REAL.email, me?.email]) : crewMailTo(s)
+  if (!to.length) return { ok: false, why: o.test ? 'There’s no email for you on the team' : 'Nobody to send it to. Pick who gets it in Settings → Automations → Crew list' }
+  const m = crewMailWords(s, rows, day)
+  const r = await go({ to, subject: o.test ? `Test · ${m.subject}` : m.subject, html: m.html, text: m.text }, s)
+  return r.ok ? { ok: true, to } : r
+}

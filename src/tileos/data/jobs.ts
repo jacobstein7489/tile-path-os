@@ -75,9 +75,9 @@ export const JOBS0: Record<string, Job> = {
   /* ---------------- getting ready ---------------- */
   '114': {
     id: '114', name: '114 Park Place', client: 'Park Place Development', clientId: 'parkplace', address: '114 Park Place, Brooklyn NY',
-    stage: 'setup', status: 'bad', headline: 'Wall tile 60 SF short of our takeoff',
+    stage: 'setup', status: 'bad', headline: 'Wall tile 60 SF short of what the walls and floors need',
     issues: [
-      { tone: 'bad', text: 'Wall tile 60 SF short of our takeoff' },
+      { tone: 'bad', text: 'Wall tile 60 SF short of what the walls and floors need' },
       { tone: 'warn', text: 'Deposit not invoiced · 7 days' },
       { tone: 'warn', text: 'Client PO not received' },
       { tone: 'warn', text: 'Supplier has not confirmed PO-1045' },

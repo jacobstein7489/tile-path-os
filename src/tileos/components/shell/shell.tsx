@@ -4,7 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 
 import { RotateCw, Inbox, MessageCircle, CircleCheck, Building2, Building, Boxes, CalendarDays, Workflow, Settings, Bell, Plus, Search, ChevronsUpDown, Table2, PackageCheck, PenTool, Truck, Ellipsis, Smartphone, Repeat, FileText, Package, HardHat, Receipt, ArrowRight, CornerDownLeft, CalendarCheck, ChevronDown, ContactRound, LayoutList, HandCoins, ListTodo, Sparkles, Wrench, MessageCircleQuestion, ArrowLeftRight, PackageX, CalendarPlus, ClipboardList, Wallet, X, LogOut, ListChecks } from 'lucide-react'
-import { REAL, awayFromMe, backToMe, leaveSample, lookAtSample } from '@/tileos/lib/save'
+import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { updateReady, watchUpdateReady, updateNow, checkNow } from '@/tileos/lib/device'
 import { toast } from '@/tileos/lib/pop'
@@ -18,7 +18,7 @@ import { cn } from '@/tileos/lib/utils'
 import { TOPBAR_MAX } from '@/tileos/components/ui/page'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users, Gauge, FlaskConical, Undo2, Percent, UserPen } from 'lucide-react'
+import { Eraser, Users, Gauge, Undo2, Percent, UserPen } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { setupOn, setupLeft } from '@/tileos/features/setup'
 import { Swatch } from '@/tileos/components/ui/swatch'
@@ -232,7 +232,6 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {!away && <MenuItem icon={<UserPen className="h-4 w-4" />} onSelect={() => open({ t: 'myname' })} data-my-name>Your name</MenuItem>}
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="The team, the steps, the rules">Settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
-      {REAL.cloud && REAL.admin && !away && <MenuItem icon={<FlaskConical className="h-4 w-4" />} onSelect={lookAtSample} hint="Made-up projects to test · nothing saved">Try it with sample projects</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
       <MenuSep />
       {withPages &&

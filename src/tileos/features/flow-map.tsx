@@ -233,7 +233,7 @@ function WhereThingsLive() {
           {[
             { icon: Calculator, title: 'Materials', what: 'Sand, Portland, thinset, board, grout. From the square feet and how each wall and floor is set. The PO fills itself.' },
             { icon: HardHat, title: 'Installer PO', what: 'Drafted from the rooms and square feet the moment you pick the installer.' },
-            { icon: Ruler, title: 'Tile order check', what: 'The GC’s tile order against our takeoff plus waste. A shortage shows up before the crew does.' },
+            { icon: Ruler, title: 'Tile order check', what: 'The GC’s tile order against the walls and floors in the scope of work, plus waste. A shortage shows up before the crew does.' },
             { icon: Receipt, title: 'Progress bills', what: 'Filled in from the daily updates, room by room.' },
             { icon: BellRing, title: 'Follow-ups', what: 'Waiting items and unpaid invoices come back on their day.' },
           ].map((x) => (

@@ -44,8 +44,8 @@ export function nowItems(s: Store, job: Job, setTab: SetTab): { heading: string;
         : { key: 'rooms', title: 'Rooms and surfaces', status: 'todo', note: 'Not built yet', action: { label: 'Build rooms', run: () => s.open({ t: 'buildrooms', jobId: job.id }) } },
       { key: 'tile', title: 'Tile entered for every surface', status: !flat.length ? 'todo' : picked === flat.length ? 'done' : 'part', note: flat.length ? `${picked} of ${flat.length} entered` : 'After the rooms', action: flat.length && picked < flat.length ? { label: 'Enter tiles', run: () => setTab('scope') } : undefined },
       short
-        ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${shortNow(s.rooms[job.id], job.id, short)} ${short.unit} short of our takeoff`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
-        : { key: 'qty', title: 'Tile quantity', status: checks.length ? 'done' : 'wait', note: checks.length ? 'Covers our takeoff and waste' : 'Waiting for the store’s order' },
+        ? { key: 'qty', title: 'Tile quantity', status: 'bad', note: `${short.tag} is ${shortNow(s.rooms[job.id], job.id, short)} ${short.unit} short of what the walls and floors need`, action: { label: 'Settle it', run: () => s.open({ t: 'qty', jobId: job.id, tag: short.tag }) } }
+        : { key: 'qty', title: 'Tile quantity', status: checks.length ? 'done' : 'wait', note: checks.length ? 'Covers the walls and floors and the extra for cuts' : 'Waiting for the store’s order' },
       (() => {
         const st = settingStatus(s, job.id)
         if (!st.total) return null
@@ -134,7 +134,7 @@ function sameThing(it: NowItem, t: Task, depId?: string): boolean {
   switch (it.key) {
     case 'dep':
     case 'deposit': return (!!depId && kind === 'money:' + depId) || /deposit/.test(title)
-    case 'qty': return kind.startsWith('qty') || /short of our takeoff/.test(title)
+    case 'qty': return kind.startsWith('qty') || /short of (our takeoff|what the walls and floors need)/.test(title)
     case 'cpo': return /client po/.test(title)
     case 'daily': return /daily update/.test(title)
     case 'walk': return kind.startsWith('walk-done') || /^walk /.test(title)
