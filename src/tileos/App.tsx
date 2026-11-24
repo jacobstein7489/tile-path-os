@@ -113,7 +113,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
       const t = useStore.getState().tasks.find((x) => x.id === m.id)
       const [jobId, k] = (t?.step || '').split(':')
       if (t && jobId && jobId !== '*' && k && useStore.getState().jobs[jobId]) return <StepModal jobId={jobId} k={k} level={level} />
-      return <TaskModal id={m.id} level={level} />
+      return <TaskModal id={m.id} level={level} call={!!m.call} />
     }
     case 'step': return <StepModal jobId={m.jobId} k={m.k} level={level} />
     case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
