@@ -349,7 +349,7 @@ export function TodayHead({ waiting, sort, onSort }: { /** Waiting on others: Wh
   return (
     <div className={cn(HEAD_ROW, 'flex gap-3 px-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span className="min-w-0 flex-1">{h('todo', 'To do')}</span>
-      <span className="flex w-[6.75rem] shrink-0 justify-end" data-head-when>{h('when', 'When', true, 'date')}</span>
+      <span className="flex w-[7.5rem] shrink-0 justify-end" data-head-when>{h('when', 'When', true, 'date')}</span>
       {who && <span className="flex w-[3.75rem] shrink-0 justify-center" data-head-turn>{h('who', waiting ? 'With' : 'Who')}</span>}
       <span className="w-[7.75rem] shrink-0" aria-hidden data-head-next />
     </div>
@@ -450,6 +450,8 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
   const urgent = !problem && flag === 'Urgent' && part !== 'urgent'
   const before = problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || (kind === 'For everyone' && part !== 'pinned') ? kind : ''
   const isNew = latest?.tone === 'new'
+  /* on the line only what matters at a glance: new to you, or not seen yet (on someone else's list) */
+  const seenOrNew = latest && (latest.tone === 'new' || latest.tone === 'warn') ? latest : null
   const tip = typeof detail === 'string' && detail ? detail : ''
   const whereLine = ownWhere ? (
     projectId && !done
@@ -465,11 +467,13 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
          only a click on the line itself opens it */
       onClick={onClick ? (e) => { if ((e.currentTarget as HTMLElement).contains(e.target as Node)) onClick() } : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
-      title={tip || undefined}
+      /* pointing at it says what's happened with it (created, updated) — it isn't on the line */
+      title={[tip, latest && !seenOrNew ? latest.text : ''].filter(Boolean).join(' · ') || undefined}
       data-todo
       {...(card && !card.first ? { 'data-same-project': '' } : {})}
       /* a line between every two, the same as Estimates' and Projects' lists */
-      className={cn('group/row relative flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors focus-visible:outline-none max-sm:gap-2.5 max-sm:px-4 max-sm:py-3', onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      /* one line, the height of an Estimates line (what's happened with it — created, updated — is in its window) */
+      className={cn('group/row relative flex min-h-[3rem] items-center gap-3 border-t border-line-2 px-5 py-1 transition-colors focus-visible:outline-none max-sm:gap-2.5 max-sm:px-4 max-sm:py-3', onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
       data-starred={star?.on && ownList ? '' : undefined}
     >
       {/* its star, in the margin at the left — nothing on the line moves */}
@@ -479,27 +483,29 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
       {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
       <div className="min-w-0 flex-1">
         {whereLine && <div className="mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5" data-row-where>{whereLine}</div>}
-        {/* what to do — whole, never cut off (a long one takes a second line) */}
-        <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
-          {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
-          {title}
+        {/* what to do — whole, never cut off (a long one takes a second line); on a computer who's watching sits at the
+            end of the same line (tap the circles to add or take someone off), so the line stays one line */}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
+            {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
+            {title}
+          </div>
+          {watchers.length > 0 && <span className="shrink-0 max-md:hidden">{watchPick
+            ? <WatchPop pick={watchPick} trigger={<button type="button" onClick={stop} className="-mx-1 inline-flex items-center rounded-md px-1 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none" aria-label="Who’s watching. Add or take off" data-row-watch-pick><WatchDots who={watchers} eye size={18} /></button>} />
+            : <WatchDots who={watchers} eye size={18} />}</span>}
         </div>
-        {/* the small gray line: (a phone) when · what's happened with it lately · (a computer) who's watching · (a phone)
-            who. A phone's line is kept calm: who's watching is in its window */}
-        {((w && phoneWhen) || latest || circles || watchers.length > 0) && (
-          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !latest && !watchers.length && 'md:hidden', !(w && phoneWhen) && !latest && !circles && 'max-md:hidden')} data-row-meta>
+        {/* the small line under it, only when there's something to see: (a phone) when and who · what's new — "New from
+            Yaakov" (blue), "Not seen yet" (amber). Created and updated are in its window */}
+        {((w && phoneWhen) || seenOrNew || circles) && (
+          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !seenOrNew && 'md:hidden', !(w && phoneWhen) && !seenOrNew && !circles && 'max-md:hidden')} data-row-meta>
             {w && phoneWhen && <span className={cn('tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
-            {latest && <span title={latest.tip} className={cn(latest.tone === 'new' ? 'font-medium text-brand-700' : latest.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')} data-row-latest={latest.tone || ''}>{w && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{latest.text}</span>}
-            {/* who's watching: tap the circles to add or take someone off right there (none yet: its window) */}
-            {watchers.length > 0 && <span className="max-md:hidden">{watchPick
-              ? <WatchPop pick={watchPick} trigger={<button type="button" onClick={stop} className="-mx-1 inline-flex items-center rounded-md px-1 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none" aria-label="Who’s watching. Add or take off" data-row-watch-pick><WatchDots who={watchers} eye size={18} /></button>} />
-              : <WatchDots who={watchers} eye size={18} />}</span>}
+            {seenOrNew && <span title={seenOrNew.tip} className={cn('font-medium', seenOrNew.tone === 'new' ? 'text-brand-700' : 'text-warn-700')} data-row-latest={seenOrNew.tone || ''}>{w && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{seenOrNew.text}</span>}
             {circles && <span className="md:hidden">{circles}</span>}
           </div>
         )}
       </div>
       {/* a computer: when · who · its next step — the same widths on every line */}
-      <div className="flex w-[6.75rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
+      <div className="flex w-[7.5rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
         {whenPick ? (
           <WhenPop pick={whenPick} trigger={
             <button type="button" onClick={stop} className={cn(CELL_BTN, '-mr-2 justify-end', !w && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="When · move it" data-row-when-pick>
@@ -515,7 +521,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         </div>
       )}
       {/* its next step — a soft pill, the same size on every line; none: the line opens it (a quiet arrow says so) */}
-      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
         {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
@@ -1941,6 +1947,15 @@ export function MyTasksPage() {
   const found = q ? n(view) : 0
   /* sorted by a column (tap its name; a phone: Sort) — inside each part */
   const sorter = useSort('today')
+  /* All jobs, Mine, the search (and a phone's Sort): on a computer the list's own top line, as on Estimates; on a phone
+     one line under the boxes on top, pinned with them — the width of the screen, so it's always one line */
+  const small = useSmall()
+  const filters = (
+    <div className="flex w-full min-w-0 flex-1 items-center" data-today-filters>
+      {/* (a computer sorts by tapping a column's name; a phone: Sort) */}
+      <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" className="md:hidden" />} />
+    </div>
+  )
   /* what you finished: its own tab — its number is today's */
   const doneN = lists.reduce((k, l) => k + doneTodayN(s, l.role, l.person, job), 0)
   const empty: Record<'today' | 'coming' | 'waiting' | 'done', { title: string; sub: string }> = {
@@ -1958,7 +1973,7 @@ export function MyTasksPage() {
       phoneTitle
       sub={<span data-today-sub>{TODAY_LABEL}{n('today') ? <> · {n('today')} to do</> : null}{lateN ? <> · <button type="button" onClick={() => s.open({ t: 'late' })} className="font-medium text-bad-600 hover:underline" data-today-late>{lateN} late</button></> : null}</span>}
       top={
-        <div data-today-top>
+        <div className="flex flex-col gap-3 max-md:gap-2.5" data-today-top>
           {/* the same boxes on top as every page (Projects, Estimates, POs…): the number, its name, the picked one soft */}
           <div data-today-switch>
             <Bubbles row soft items={[
@@ -1970,16 +1985,12 @@ export function MyTasksPage() {
               { key: 'done', label: 'Done', count: doneN, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
             ]} />
           </div>
+          {small && filters}
         </div>
       }
       /* the list in one box, the same as Estimates and Projects: All jobs, Mine and the search on its top line, the
          column names under it, then each project under its address — a line between every two */
-      toolbar={
-        <div className="flex w-full min-w-0 items-center" data-today-filters>
-          {/* (a computer sorts by tapping a column's name; a phone: Sort) */}
-          <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" className="md:hidden" />} />
-        </div>
-      }
+      toolbar={small ? undefined : filters}
     >
       <WhoCol.Provider value={true}>
       <InJob.Provider value={!!picked}>

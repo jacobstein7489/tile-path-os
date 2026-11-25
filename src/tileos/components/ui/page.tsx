@@ -523,6 +523,24 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
+/** a status group's band, under the boxes (Projects, Estimates): in the soft color of its own box on top, with that
+ *  box's mark and its name in that color, and how many — so the list reads with the boxes over it, and you see where
+ *  one group ends and the next starts. Pinned while its rows scroll by. (A list grouped by address or day — Today —
+ *  keeps the plain gray band: an address isn't one of the boxes) */
+const BAND_TINT: Record<BubbleColor, string> = {
+  blue: '#f4f7fd', indigo: '#f6f7fd', violet: '#f8f6fd', green: '#f4faf6', amber: '#fdf8f0', red: '#fdf5f4',
+  rose: '#fdf5f8', teal: '#f3f9f8', slate: '#f6f4f1', orange: '#fdf7f2', cyan: '#f2f9fb',
+}
+export function StatusBand({ color, icon, label, count, sticky = true, attrs }: { color: BubbleColor; icon?: React.ReactNode; label: string; count?: number; sticky?: boolean; attrs?: Record<string, string> }) {
+  const c = BC[color]
+  return (
+    <div className={cn(BAND_STRONG, PX, sticky && GROUP_STICKY)} style={{ background: BAND_TINT[color] }} data-band data-strong data-band-color={color} {...attrs}>
+      {icon && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4" style={{ color: c.solid }} aria-hidden>{icon}</span>}
+      <span className="truncate text-[0.875rem] font-bold uppercase tracking-[0.06em]" style={{ color: c.solid }}>{label}</span>
+      {count !== undefined && <BandCount n={count} />}
+    </div>
+  )
+}
 /** a little color, not a lot: each status its own soft color — its icon on a computer, a small dot on a phone, and the
  *  picked one in its own soft shade */
 const QUIET = { tint: '#f1efea', solid: '#646a74' }

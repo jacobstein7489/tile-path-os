@@ -11,7 +11,7 @@ import { useStore, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Chip, Field, Segmented } from '@/tileos/components/ui/core'
 import { RevisionsPanel, diffRevs, type LineDiff } from './revisions'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, Tip, DatePresets } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, type CircleState } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, Row, Col, Meta, IconTile, EmptyState, Status, Circles, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, StatusBand, type CircleState, type BubbleColor } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, PRICING_STAGES, type PersonKey, type Tone } from '@/tileos/data/model'
 import { CUSTOMERS, tileOf, tileLine } from '@/tileos/data/jobs'
@@ -91,6 +91,9 @@ const dateKeyOf = (e: Estimate) => {
   const l = e.status === 'approved' ? e.approvedOn : e.status === 'sent' && sent ? sent.sentOn : e.due
   return l ? isoFromLabel(l) || '' : ''
 }
+/** each group's color: the same as its box on top (New request violet, Estimating blue, Pending approval cyan, Revision
+ *  needed amber) */
+const EST_COLOR: Record<string, BubbleColor> = { request: 'violet', estimating: 'blue', sent: 'cyan', revision: 'amber', approved: 'green', lost: 'slate' }
 const EST_SORT: SortCol[] = [{ k: 'name', label: 'Estimate' }, { k: 'who', label: 'Who' }, { k: 'date', label: 'Date', kind: 'date' }, { k: 'amount', label: 'Amount', kind: 'num' }]
 
 type EstView = 'open' | EstCat
@@ -163,7 +166,7 @@ export function EstimatesPage() {
             if (!rows.length) return null
             return (
               <section key={k} data-est-group={k}>
-                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} sticky />
+                <StatusBand color={EST_COLOR[k]} icon={CAT[k].icon} label={CAT[k].label} count={rows.length} attrs={{ 'data-group-tone': CAT[k].tone, 'data-group-head': k }} />
                 {rows.map((e) => <EstRow key={e.id} e={e} />)}
               </section>
             )
