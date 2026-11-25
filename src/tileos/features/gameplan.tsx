@@ -1,11 +1,13 @@
 /* Schedule — the calendar, and only the calendar (the game plan lives in Projects → Getting ready):
- *   week: one row per crew — who's working where — each bar just the project's name, all in one calm color (dashed
- *     while it waits for his OK or is only planned; gray with a pause mark when the project is on hold).
- *   Month: the whole month, Sunday to Saturday (like Google Calendar), the same bars — what's ready to book is in the list
- *   beside it, not on the days. The week runs Sunday to Saturday too, the weekend a little shaded.
+ *   week: one row per installer — who's working where — each bar just the project's name, in his color (dashed while
+ *     it waits for his OK; gray with a pause mark when the project is on hold). A job being worked on with no days
+ *     booked is there too, under its installer, from where its days left off.
+ *   Month: the whole month, Sunday to Saturday (like Google Calendar), and on the days only the days really booked —
+ *     a job being worked on with no days booked would be a bar with no end on every week, so it's in a short list
+ *     beside the month instead ("In progress, no days booked"), one line each.
  *   Beside it, the projects ready to book — one line each; tap one to pick the installer.
- * No legend, no counts on top, no second line on the bars. On a phone the same week (a row per crew, a column per
- * day) and the same month; what's ready to book is its own tab, so the calendar isn't followed by a long list. */
+ * One installer is one name: the same man twice on the team ("Leo", and "LEO" from a vendor list) is one row, one
+ * color. On a phone the same week and month; what's ready to book is its own tab. */
 import * as React from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays, Plus, TriangleAlert, PauseCircle, CalendarX2, Users, HardHat, CalendarCheck2, CalendarPlus } from 'lucide-react'
 import { useStore, type Store } from '@/tileos/store'
@@ -61,6 +63,28 @@ export function itemsOf(s: Store): Item[] {
 }
 /** on the calendar as work going on: booked, waiting for his OK, or in progress with no days booked */
 const onCal = (it: Item) => it.kind === 'booked' || it.kind === 'pending' || it.kind === 'ongoing'
+/** days really booked (or waiting for his OK) — what the month puts on its days */
+const onDays = (it: Item) => it.kind === 'booked' || it.kind === 'pending'
+
+/** one installer, one name: the same man twice on the team ("Leo", and "LEO" brought in again from a vendor list) is one
+ *  row, one color, one name on the key. The same whole name, or the same first name when one of the two goes by just
+ *  that. The one that stays: an active one first, then the first on the list (the standing crews come first). */
+export function oneCrew(s: Pick<Store, 'inactive'>): (c?: PersonKey) => PersonKey | undefined {
+  const low = (x?: string) => (x || '').trim().toLowerCase()
+  const seen: { key: PersonKey; name: string; first: string }[] = []
+  const to = new Map<string, PersonKey>()
+  const list = [...CREWS].sort((a, b) => Number(isOff(s, 'crew', a)) - Number(isOff(s, 'crew', b)))
+  list.forEach((c) => {
+    const p = PEOPLE[c]
+    if (!p) return
+    const name = low(p.name)
+    const first = low(p.short) || name
+    const twin = seen.find((x) => (!!name && x.name === name) || (!!first && x.first === first && (x.name === x.first || name === first)))
+    if (twin) to.set(c, twin.key)
+    else seen.push({ key: c, name, first })
+  })
+  return (c) => (c ? to.get(c) || c : c)
+}
 /** kept for the pages that still ask for crew bars */
 export const barsOf = (s: Store) => itemsOf(s).filter((i) => i.crew)
 /** ready projects with no start date yet — nothing to put on a day */
@@ -99,15 +123,15 @@ function look(it: Item, clash: boolean) {
   /* booked: his color, with a solid edge on the left */
   return { className: cn('border', ring), style: { background: c.bg, borderColor: c.bg, boxShadow: `inset 0.1875rem 0 0 ${c.bar}`, color: c.text } as React.CSSProperties }
 }
-/** who's which color — the installers on the schedule in view */
-function CrewKey({ crews }: { crews: string[] }) {
-  if (!crews.length) return null
+/** who's which color — the installers with days booked in view (and On hold, only when something on hold is) */
+function CrewKey({ crews, hold }: { crews: string[]; hold: boolean }) {
+  if (!crews.length && !hold) return null
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-line-2 px-4 py-2 text-[0.78125rem] text-ink-2" data-crew-key>
       {crews.map((c) => (
         <span key={c} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[0.1875rem]" style={{ background: crewColor(c).bar }} />{PEOPLE[c as PersonKey]?.short || c}</span>
       ))}
-      <span className="inline-flex items-center gap-1.5 text-muted"><span className="h-2.5 w-2.5 rounded-[0.1875rem] border border-[#d6d0c6] bg-[#f3f1ec]" />On hold</span>
+      {hold && <span className="inline-flex items-center gap-1.5 text-muted"><span className="h-2.5 w-2.5 rounded-[0.1875rem] border border-[#d6d0c6] bg-[#f3f1ec]" />On hold</span>}
     </div>
   )
 }
@@ -129,11 +153,16 @@ export function GamePlanPage() {
     if (view === 'month') { const d = new Date(anchor.slice(0, 7) + '-15T12:00:00'); d.setMonth(d.getMonth() + n); setAnchor(d.toISOString().slice(0, 10)) }
     else setAnchor(addDays(sundayOf(anchor), n * 7))
   }
-  const items = itemsOf(s)
+  /* each installer once: "LEO" (the same Leo, brought in twice) is Leo's row and Leo's color */
+  const one = oneCrew(s)
+  const items = itemsOf(s).map((it) => (it.crew ? { ...it, crew: one(it.crew) } : it))
+  const crews = Array.from(new Set(CREWS.map((c) => one(c)!)))
   const toBook = readyRows(s).length
   const fill = useFill<HTMLDivElement>()
   /* two bookings at once (a job in progress with no days booked doesn't count: his crews can be on more than one) */
-  const clashes = CREWS.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY && b.kind !== 'ongoing')).length > 1)
+  const clashes = crews.filter((c) => lanesOf(items.filter((b) => b.crew === c && b.end >= TODAY && b.kind !== 'ongoing')).length > 1)
+  /* the month: what's being worked on with no days booked is a short list beside it, not a bar with no end */
+  const working = items.filter((i) => i.kind === 'ongoing')
   const days = view === 'month' ? [] : Array.from({ length: 7 }, (_, i) => addDays(sundayOf(anchor), i))
   const range = view === 'month' ? fmt(anchor.slice(0, 7) + '-01', { month: 'long', year: 'numeric' }) : `${fmt(days[0], { month: 'short', day: 'numeric' })} – ${fmt(days[days.length - 1], { month: days[0].slice(5, 7) === days[days.length - 1].slice(5, 7) ? undefined : 'short', day: 'numeric' })}`
   return (
@@ -163,9 +192,13 @@ export function GamePlanPage() {
           {clashes.length > 0 && <div className="flex items-center gap-1.5 border-b border-line-2 px-5 py-2 text-[0.8125rem] font-medium text-bad-600 max-sm:px-3"><TriangleAlert className="h-3.5 w-3.5" />{clashes.map((c) => PEOPLE[c].short).join(', ')} booked in two places</div>}
           {view === 'month'
             ? <MonthGrid anchor={anchor} items={items} clashes={clashes} />
-            : <div className="flex min-h-0 flex-1 flex-col"><CrewRows days={days} items={items} clashes={clashes} /></div>}
+            : <div className="flex min-h-0 flex-1 flex-col"><CrewRows days={days} items={items} crews={crews} clashes={clashes} /></div>}
         </section>
-        <div className={cn('contents', !booking && 'max-md:hidden')}><ReadyList /></div>
+        {/* beside it: what's ready to book — and, with the month, what's being worked on with no days booked */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className={cn('flex min-w-0 flex-col', view !== 'month' || !working.length ? 'xl:flex-1' : '', !booking && 'max-md:hidden')}><ReadyList /></div>
+          {view === 'month' && working.length > 0 && <div className={cn('flex min-w-0 flex-col xl:flex-1', booking && 'max-md:hidden')}><WorkingList items={working} /></div>}
+        </div>
       </div>
     </Page>
   )
@@ -182,7 +215,7 @@ function ReadyList() {
   const s = useStore()
   const rows = readyRows(s)
   return (
-    <section data-ready-list className="flex min-w-0 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
+    <section data-ready-list className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
       <header className="flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-line-2 px-5">
         <h2 className="text-[0.9375rem] font-semibold text-ink">Ready to book</h2>
         <span className="text-[0.8125rem] font-medium tnum text-faint">{rows.length}</span>
@@ -202,6 +235,32 @@ function ReadyList() {
   )
 }
 
+/** beside the month: the jobs being worked on with no days booked — one line each, whose they are on the right (or
+ *  On hold); tap one: the project. In the installers' order, then no installer yet, on hold last. */
+function WorkingList({ items }: { items: Item[] }) {
+  const s = useStore()
+  const at = (c?: PersonKey) => { const i = c ? CREWS.indexOf(c) : -1; return i < 0 ? 999 : i }
+  const rows = [...items].filter((i) => s.jobs[i.jobId]).sort((a, b) => Number(!!a.hold) - Number(!!b.hold) || at(a.crew) - at(b.crew) || (s.jobs[a.jobId].name || '').localeCompare(s.jobs[b.jobId].name || ''))
+  return (
+    <section data-working-list className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card">
+      <header className="flex h-[3.25rem] shrink-0 items-center gap-2 border-b border-line-2 px-5">
+        <h2 className="text-[0.9375rem] font-semibold text-ink">In progress, no days booked</h2>
+        <span className="text-[0.8125rem] font-medium tnum text-faint">{rows.length}</span>
+      </header>
+      {rows.map((it) => {
+        const j = s.jobs[it.jobId]
+        return (
+          <button key={it.id} onClick={() => openItem(s, it)} data-working-row={it.jobId} title={sub(it)} className="flex min-h-[2.75rem] w-full min-w-0 items-center gap-3 border-b border-line-2 px-5 py-2 text-left transition row-hover">
+            <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{j.name}</span>
+            <span className={cn('shrink-0 text-[0.8125rem]', it.crew && !it.hold ? 'text-ink-2' : 'text-muted')}>{it.hold ? 'On hold' : it.crew ? PEOPLE[it.crew]?.short : 'No installer yet'}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-faint" />
+          </button>
+        )
+      })}
+    </section>
+  )
+}
+
 /** tap something on the calendar: its booking — or, when it isn't booked yet, the way to book it */
 function openItem(s: Store, it: Item) {
   const sh = s.jobs[it.jobId]?.hold?.shortage
@@ -214,15 +273,15 @@ function openItem(s: Store, it: Item) {
 }
 
 /* ================= week / two weeks: one row per crew (on a phone too) ================= */
-function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; clashes: PersonKey[] }) {
+function CrewRows({ days, items, crews, clashes }: { days: string[]; items: Item[]; crews: PersonKey[]; clashes: PersonKey[] }) {
   const s = useStore()
   const cols = days.length
   const first = days[0]
   const last = days[cols - 1]
   /* only who's on a job in these days (being worked on, or on hold) — not every installer; what's only planned or
-     still to book is under To book */
+     still to book is under To book. Each installer once. */
   const inView = (i: Item) => onCal(i) && i.end >= first && i.start <= last
-  const rows: { key: string; crew?: PersonKey; items: Item[] }[] = CREWS.map((c) => ({ key: c, crew: c as PersonKey | undefined, items: items.filter((i) => i.crew === c && inView(i)) })).filter((r) => r.items.length)
+  const rows: { key: string; crew?: PersonKey; items: Item[] }[] = crews.map((c) => ({ key: c, crew: c as PersonKey | undefined, items: items.filter((i) => i.crew === c && inView(i)) })).filter((r) => r.items.length)
   /* in progress with no installer picked yet: their own row at the end, so every job being worked on is here */
   const none = items.filter((i) => !i.crew && inView(i))
   if (none.length) rows.push({ key: 'none', crew: undefined, items: none })
@@ -300,9 +359,9 @@ function CrewRows({ days, items, clashes }: { days: string[]; items: Item[]; cla
 }
 
 /* ================= month: the whole month, Sunday to Saturday ================= */
-/* The same bars as the week: each installer in his own color (dashed while it waits for his OK or is only planned),
- * gray on hold, a key on top — and a job that runs on into next week keeps going there. Ready-to-book projects aren't on
- * the days — they're in the list beside it, with their dates. */
+/* The days really booked, as bars: each installer in his own color (dashed while it waits for his OK), gray on hold,
+ * a key on top with only who's on it — and a job that runs on into next week keeps going there. Ready to book, and
+ * in progress with no days booked, aren't on the days: they're in the lists beside it. */
 function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; clashes: PersonKey[] }) {
   const s = useStore()
   const m = anchor.slice(0, 7)
@@ -314,20 +373,22 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
     const wk = Array.from({ length: 7 }, (_, i) => addDays(sun, i))
     if (wk.some((d) => d.slice(0, 7) === m)) weeks.push(wk)
   }
-  /* (the jobs being worked on, or on hold — what's only planned is under To book) */
-  const onDays = items.filter(onCal)
-  const MAX = 5
-  const inView = Array.from(new Set(onDays.filter((it) => !it.hold && it.crew && it.end >= weeks[0]?.[0] && it.start <= (weeks[weeks.length - 1]?.[6] || '')).map((it) => it.crew!)))
+  /* only the days really booked (or waiting for his OK) — what's only planned is under To book, what's being worked
+     on with no days booked is beside the month */
+  const booked = items.filter(onDays)
+  const MAX = 4
+  const shown = booked.filter((it) => it.end >= (weeks[0]?.[0] || '') && it.start <= (weeks[weeks.length - 1]?.[6] || ''))
+  const inView = Array.from(new Set(shown.filter((it) => !it.hold && it.crew).map((it) => it.crew!)))
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-month>
-      <CrewKey crews={inView} />
+      <CrewKey crews={inView} hold={shown.some((it) => it.hold)} />
       <div className="grid grid-cols-7 border-b border-line-2">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <div key={d} className={cn('py-2 text-center text-[0.75rem] font-semibold text-muted', i > 0 && 'border-l border-line-2', (i === 0 || i === 6) && WEEKEND)} data-month-dow={d}>{d}</div>)}
       </div>
       {weeks.map((wk) => {
         const a = wk[0]
         const z = wk[6]
-        const segs = onDays.filter((it) => it.end >= a && it.start <= z).map((it) => ({ it, start: it.start < a ? a : it.start, end: it.end > z ? z : it.end })).filter((x) => x.start <= x.end && wk.includes(x.start) && wk.includes(x.end))
+        const segs = booked.filter((it) => it.end >= a && it.start <= z).map((it) => ({ it, start: it.start < a ? a : it.start, end: it.end > z ? z : it.end })).filter((x) => x.start <= x.end && wk.includes(x.start) && wk.includes(x.end))
         const lanes = lanesOf(segs)
         const shownLanes = lanes.slice(0, MAX)
         const hidden = lanes.slice(MAX).flat()
@@ -349,7 +410,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                       )}
                     </div>
                     {more.length > 0 && (
-                      <Pop width={300} trigger={<button className="absolute bottom-1 left-2 text-[0.75rem] font-semibold text-muted hover:text-brand-600">+{more.length} more</button>}>
+                      <Pop width={300} trigger={<button data-month-more className="absolute bottom-1 left-2 whitespace-nowrap text-[0.75rem] font-semibold text-muted hover:text-brand-600 max-sm:left-1">+{more.length}<span className="max-sm:hidden"> more</span></button>}>
                         <div className="text-[0.8125rem] font-semibold text-ink">{fmt(d, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
                         <div className="mt-2 flex flex-col gap-1">{segs.filter((x) => x.start <= d && x.end >= d).map((x) => <Chip key={x.it.id} it={x.it} clash={!!x.it.crew && clashes.includes(x.it.crew)} />)}</div>
                       </Pop>
@@ -396,8 +457,10 @@ export function ReadyToBookModal({ level }: { level: number }) {
   const s = useStore()
   const items = itemsOf(s).filter((i) => i.kind === 'tobook').sort((a, b) => a.start.localeCompare(b.start))
   const noDate = undated(s)
-  const busyThisWeek = new Set(s.bookings.filter((b) => b.start <= addDaysT(MONDAY, 4) && b.end >= TODAY).map((b) => b.crew))
-  const free = CREWS.filter((c) => !busyThisWeek.has(c))
+  /* each installer once ("LEO" is Leo) */
+  const one = oneCrew(s)
+  const busyThisWeek = new Set(s.bookings.filter((b) => b.start <= addDaysT(MONDAY, 4) && b.end >= TODAY).map((b) => one(b.crew as PersonKey)))
+  const free = Array.from(new Set(CREWS.map((c) => one(c)!))).filter((c) => !busyThisWeek.has(c))
   return (
     <Modal level={level} size="lg" onClose={s.close} title="Ready to book" sub="Won and ready, no installer yet. Pick one and it lands on the calendar.">
       {free.length > 0 && (
