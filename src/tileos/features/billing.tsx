@@ -70,7 +70,7 @@ export function BillingPage() {
             { key: 'progress', label: 'Progress to bill', count: toMake.length, sub: toMake.length ? fmtMoney(toMake.reduce((n, r) => n + billTotal(r), 0)) : undefined, icon: <TrendingUp />, color: 'teal', on: tab === 'progress', onClick: () => setTab('progress') },
             { key: 'upcoming', label: 'Coming up', count: by('upcoming').length, icon: <CalendarClock />, color: 'slate', on: tab === 'upcoming', onClick: () => setTab('upcoming') },
             { key: 'todo', label: 'To invoice', count: by('todo').length, sub: fmtMoney(open(by('todo'))), icon: <Send />, color: 'amber', on: tab === 'todo', onClick: () => setTab('todo') },
-            { key: 'waiting', label: 'Waiting for payment', count: by('waiting').length, sub: fmtMoney(open(by('waiting'))), icon: <Hourglass />, color: 'blue', on: tab === 'waiting', onClick: () => setTab('waiting') },
+            { key: 'waiting', label: 'Not paid yet', count: by('waiting').length, sub: fmtMoney(open(by('waiting'))), icon: <Hourglass />, color: 'blue', on: tab === 'waiting', onClick: () => setTab('waiting') },
             { key: 'paid', label: 'Paid', count: by('paid').length, icon: <CircleCheckBig />, color: 'green', on: tab === 'paid', onClick: () => setTab('paid') },
             { key: 'jobs', label: 'By project', count: Object.values(s.jobs).filter((j) => billingOf(j).contract > 0).length, icon: <Building2 />, color: 'violet', on: tab === 'jobs', onClick: () => setTab('jobs'), gapBefore: true },
           ]}
@@ -79,7 +79,7 @@ export function BillingPage() {
       toolbar={
         tab === 'progress' ? <ProgressToolbar week={week} onWeek={setWeek} /> : tab === 'jobs' ? <span className="bar-title text-[0.9375rem] font-semibold text-ink">Installed, billed and paid · per project</span> : (
           <>
-            <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ progress: '', todo: 'To invoice', waiting: 'Waiting for payment', upcoming: 'Coming up', paid: 'Paid', jobs: '' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
+            <span className="bar-title mr-2 text-[0.9375rem] font-semibold text-ink">{{ progress: '', todo: 'To invoice', waiting: 'Not paid yet', upcoming: 'Coming up', paid: 'Paid', jobs: '' }[tab]} <span className="ml-1 text-[0.8125rem] font-semibold text-faint">{list.length}</span></span>
             <Filter icon={<Layers />} label="Type" value={kind} options={(Object.keys(MONEY_KIND_LABEL) as MoneyKind[]).map((k) => ({ key: k, label: MONEY_KIND_LABEL[k] }))} onChange={setKind} />
             <Filter icon={<Building2 />} label="Project" value={job} options={jobs.map((id) => ({ key: id, label: s.jobs[id].name }))} onChange={setJob} width={260} />
             <ClearFilters show={kind !== 'all' || job !== 'all' || !!q} onClear={() => { setKind('all'); setJob('all'); setQ('') }} />

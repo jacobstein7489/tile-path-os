@@ -122,13 +122,17 @@ function BillLine({ r, only }: { r: WeekBill; only?: boolean }) {
     <div role="button" aria-label={`${job.name}. Open the week`} tabIndex={0} onClick={open} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }} className={cn(COLS, 'min-h-[3rem] cursor-pointer border-t border-line-2 bg-white py-1.5 transition-colors first:border-t-0 row-hover', PX)}>
       <span className="min-w-0">
         <span className="block truncate text-[0.9375rem] text-ink">{job.name}</span>
+        {/* the client; how many days and rooms moved go under the week's amount (a phone: here, it has no column) */}
         <span className="block truncate text-[0.8125rem] text-muted">
           {job.client}
-          {r.days ? ` · ${r.days} ${r.days === 1 ? 'day' : 'days'} · ${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : ' · nothing moved'}
+          <span className="lg:hidden">{r.days ? ` · ${r.days} ${r.days === 1 ? 'day' : 'days'} · ${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : ' · nothing moved'}</span>
           <span className="lg:hidden"> · {st.label}</span>
         </span>
       </span>
-      <span className="text-right text-[0.875rem] tnum text-ink-2 max-lg:hidden">{r.weekAmount ? fmtMoney(r.weekAmount) : ''}</span>
+      <span className="text-right tnum max-lg:hidden" data-week-work>
+        {r.weekAmount ? <span className="block text-[0.875rem] text-ink-2">{fmtMoney(r.weekAmount)}</span> : null}
+        <span className="block whitespace-nowrap text-[0.75rem] text-muted">{r.days ? `${r.days} ${r.days === 1 ? 'day' : 'days'} · ${rooms} ${rooms === 1 ? 'room' : 'rooms'}` : 'Nothing moved'}</span>
+      </span>
       <span className="min-w-0 max-lg:hidden">
         <span className="flex h-1.5 overflow-hidden rounded-full bg-wash-2">
           <span className="h-full bg-brand-500" style={{ width: `${billedPct}%` }} />
