@@ -52,6 +52,12 @@ export interface Task {
   /** someone else who can do it too (two people on an estimate step): it's on their Today as well, and whoever does it
    *  first closes it for both */
   also?: PersonKey[]
+  /** when it became its person's (made for them, or handed to them — ISO), and who gave it: until they open it, it's
+   *  "Not seen yet" on the list (for them: New) */
+  given?: string
+  givenBy?: PersonKey
+  /** when each person last opened it after it was given (ISO) */
+  seen?: Partial<Record<PersonKey, string>>
   /** someone reminded the owner it's late (the admin's "Remind") — it pops up on the owner's screen */
   nudge?: { by: PersonKey; at: string; day: string }
   /** shows at the top of everyone's Today until it's done */

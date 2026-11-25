@@ -8,6 +8,8 @@ import { REAL, awayFromMe, backToMe, leaveSample } from '@/tileos/lib/save'
 import { BUILT } from '@/tileos/lib/version'
 import { updateReady, watchUpdateReady, updateNow, checkNow } from '@/tileos/lib/device'
 import { toast } from '@/tileos/lib/pop'
+import { useNotifyState } from '@/tileos/lib/notify'
+import { notifyHint } from '@/tileos/features/notify'
 import { Helper } from '@/tileos/features/helper'
 import { useStore, meOf, type Page, homeOf } from '@/tileos/store'
 import { todayCount } from '@/tileos/features/mytasks'
@@ -18,7 +20,7 @@ import { cn } from '@/tileos/lib/utils'
 import { TOPBAR_MAX } from '@/tileos/components/ui/page'
 import { Avatar, Kbd, Button, Count } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep, MenuLabel, Pop } from '@/tileos/components/ui/overlay'
-import { Eraser, Users, Gauge, Undo2, Percent, UserPen } from 'lucide-react'
+import { Eraser, Users, Gauge, Undo2, Percent, UserPen, BellRing } from 'lucide-react'
 import { reportOn } from '@/tileos/features/teamreport'
 import { setupOn, setupLeft } from '@/tileos/features/setup'
 import { Swatch } from '@/tileos/components/ui/swatch'
@@ -226,10 +228,13 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
   const open = useStore((s) => s.open)
   const away = useStore((s) => awayFromMe(s))
   const nav = useNav()
+  const notify = useNotifyState()
   return (
     <>
       {/* your own name, the way the team sees it — not while looking at someone else's login */}
       {!away && <MenuItem icon={<UserPen className="h-4 w-4" />} onSelect={() => open({ t: 'myname' })} data-my-name>Your name</MenuItem>}
+      {/* what's due, on this phone even with the app closed */}
+      {!away && <MenuItem icon={notify === 'on' ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />} onSelect={() => open({ t: 'notify' })} hint={notifyHint(notify)} data-notify-menu={notify || ''}>Notifications</MenuItem>}
       {role === 'owner' && <MenuItem icon={<Settings className="h-4 w-4" />} onSelect={() => go({ page: 'settings', tab: 'team' } as any)} hint="The team, the steps, the rules">Settings</MenuItem>}
       {REAL.admin && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={() => open({ t: 'roles' })} hint="Try any login type">See what each login sees</MenuItem>}
       {away && <MenuItem icon={<Repeat className="h-4 w-4" />} onSelect={backToMe} hint="Your own login">Back to me</MenuItem>}
@@ -359,10 +364,13 @@ export function TopBar() {
         <Logo size={30} />
       </button>
       <span className="ml-1 min-w-0 flex-1 truncate text-[1rem] font-bold text-ink">{title}</span>
-      <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-wash px-3 text-[0.875rem] font-medium text-ink-2 hover:bg-wash-2">
-        <Search className="h-4 w-4" />
-        Search
-      </button>
+      {/* Today has its search in the line with All jobs and Mine (it finds everything else too) — not up here as well */}
+      {!['today', 'tasks'].includes(route.page) && (
+        <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-wash px-3 text-[0.875rem] font-medium text-ink-2 hover:bg-wash-2">
+          <Search className="h-4 w-4" />
+          Search
+        </button>
+      )}
       <Menu
         align="end"
         width={260}

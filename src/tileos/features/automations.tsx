@@ -18,7 +18,7 @@ import { setCompanyPeople } from './estpeople'
 import { insidePeople } from './steps-ui'
 import { matBy } from './flows'
 import { crewMailPeople, crewMailWords, emailCrewList, mailLive, type CrewLine } from './mailout'
-import { crewsOn, nextWorkDay } from './mytasks'
+import { crewLines, nextWorkDay } from './mytasks'
 import { showPop } from '@/tileos/lib/pop'
 import { PUBLISHED } from '@/tileos/lib/save'
 import { autoWho } from './autowho'
@@ -323,7 +323,7 @@ function CrewMailSettings() {
   const setOff = (v: boolean) => s.commit((st) => { st.rules.crewMail = { ...(st.rules.crewMail || {}), off: v } }, v ? 'Not emailed' : 'Emailed when it’s sent')
   /* what it looks like: tomorrow's list as it stands now */
   const day = nextWorkDay(TODAY)
-  const rows: CrewLine[] = crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; const fix = (c as { fix?: string[] }).fix; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? j?.crewPlan?.workers ?? j?.onSite?.workers ?? 2, note: fix?.length ? `Touch-ups: ${fix.join('; ')}` : '' } })
+  const rows: CrewLine[] = crewLines(s, day)
   const preview = crewMailWords(s, rows, day)
   const test = async () => {
     if (!mailLive()) { showPop({ title: 'Email isn’t on in this copy', sub: 'In your real app, “Send me a test” emails it to you.', tone: 'warn' }); return }

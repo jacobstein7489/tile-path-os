@@ -30,7 +30,7 @@ import { followersOf, toggleFollow, toggleAlso, setEveryone, removeTask, editTas
 import { Notes } from './notes'
 import { stepTodos, stepsFor, isGettingReady, realOwner, siteOf, emptySpot, toggleStepFollow, setStepDue, setStepOwner, type StepView } from './steps'
 import { StepButton } from './steps-ui'
-import { todoOf } from './stepwin'
+import { todoOf, remindStep } from './stepwin'
 import { TODAY, TOMORROW, dayShort, dayLongFull, isoFromLabel, labelFromIso, addDays, md, workday, dow, daysBetween, pickedLabel } from '@/tileos/lib/today'
 import { REAL, awayFromMe, PUBLISHED } from '@/tileos/lib/save'
 import { crewMailPeople, crewMailWords, crewMailTo } from './mailout'
@@ -41,16 +41,19 @@ import { isOff } from './active'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { offerNotify } from '@/tileos/lib/notify'
+import { latestOf, markTaskSeen, type Latest } from './latest'
 import { namesOf } from './estpeople'
 import { useSmall } from '@/tileos/lib/phone'
+import { mapsTo } from '@/tileos/lib/route'
 import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 /** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
  *  text) gives each switch its own line rather than cut a word */
 import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 import { TouchupLine, StrayLine } from './touchups'
 import { holdWords } from './common'
-import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
+import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS, CALL_RE, ORDER_RE } from './todokinds'
 import { autoWho } from './autowho'
 import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 
@@ -127,11 +130,32 @@ export const crewEvening = () => {
 export const nextWorkDay = (iso: string) => workday(addDays(iso, 1))
 /** the day the crew list is for right now */
 export const crewDay = () => (crewEvening() ? nextWorkDay(TODAY_ISO) : TODAY_ISO)
-/** the crew list: every job in progress — and the touch-ups going on that day */
-export const crewsOn = (s: Store, day: string) => { const w = workingOn(s, day); const have = new Set(w.map((c) => c.jobId)); return [...w, ...touchupsOn(s, day).filter((c) => !have.has(c.jobId))] }
+/** in progress: the same projects Projects counts there (being installed, not on hold, not a repair) */
+export const inProgressJob = (j: Job) => j.stage === 'installation' && !j.hold && j.kind !== 'repair'
+/** the crew list: every project in progress, whatever its calendar says (working today, most likely working tomorrow).
+ *  The touch-ups and what's on hold go along in the email, with nothing to fill in; another project can be added */
+export const crewsOn = (s: Store, day: string): { jobId: string; crew: string; booked: boolean }[] =>
+  Object.values(s.jobs).filter(inProgressJob).map((j) => {
+    const bk = s.bookings.filter((b) => b.jobId === j.id && b.label !== 'Return visit')
+    const that = bk.find((b) => b.start <= day && b.end >= day)
+    const last = [...bk].sort((a, b) => b.start.localeCompare(a.start))[0]
+    const crew = (that?.crew || j.crew || last?.crew || (s.prep[j.id]?.installer !== 'tbd' ? s.prep[j.id]?.installer : undefined) || '') as string
+    return { jobId: j.id, crew, booked: !!that }
+  })
+/** how many people a job starts with on the crew list: what was sent for that day already (opened again), else the
+ *  last number sent for that job (so only what's different gets changed) — never a made-up number: 0 when it isn't known */
+export const crewStart = (s: Store, jobId: string, day: string): number => {
+  const j = s.jobs[jobId]
+  if (j?.crewPlan?.day === day) return j.crewPlan.workers
+  if (j?.onSite?.day === day) return j.onSite.workers
+  const last = [j?.onSite, j?.crewPlan].filter((x): x is NonNullable<typeof x> => !!x && x.day < day).sort((a, b) => b.day.localeCompare(a.day))[0]
+  return last?.workers ?? 0
+}
+/** the crew list's lines, as the window and the email start them */
+export const crewLines = (s: Store, day: string) => crewsOn(s, day).map((c) => ({ jobId: c.jobId, crew: c.crew as PersonKey, workers: crewStart(s, c.jobId, day), note: '' }))
 export const crewsToday = (s: Store) => workingOn(s, TODAY_ISO)
 /** in for that day: every project on it has its people — sent the night before, or that morning */
-export const crewSentFor = (s: Store, day: string) => { const l = workingOn(s, day); return l.length > 0 && l.every((c) => { const j = s.jobs[c.jobId]; return j?.onSite?.day === day || j?.crewPlan?.day === day }) }
+export const crewSentFor = (s: Store, day: string) => { const l = crewsOn(s, day); return l.length > 0 && l.every((c) => { const j = s.jobs[c.jobId]; return j?.onSite?.day === day || j?.crewPlan?.day === day }) }
 export const crewSentToday = (s: Store) => crewSentFor(s, TODAY_ISO)
 export const crewReportOn = (s: Pick<Store, 'rules'>) => !(s.rules.autoOff || []).includes('crew-morning')
 /** "today", "tomorrow", or the day's name (Friday night: "Monday") */
@@ -241,13 +265,13 @@ const WaitView = React.createContext(false)
 /** the one button on a row (requests.tsx keeps it, for the On my way / Dropped off pair too) */
 const TBTN = ROW_BTN
 /** Today's columns on a computer — the same kind of list as Estimates and Projects: one line a thing, straight columns,
- *  a name on top of each: To do · Project · Watching · When. Your own list doesn't say who does it — it's all yours;
- *  several people's lists add Who, and Waiting adds Waiting on (the one it waits on). What to do and the project share
- *  the width; the rest as wide as they need. Watching and When are tapped right there to change them. */
-/* (a tablet or a small computer: no Watching column — who's watching is in each one's window — so the words have room) */
-export const todoList = (who?: boolean, _inJob?: boolean) => (who ? 'minmax(0,0.8fr) minmax(0,1.6fr) 7rem 6.5rem' : 'minmax(0,0.8fr) minmax(0,1.6fr) 6.5rem')
-export const todoListLg = (who?: boolean) => todoList(who)
-export const todoListXl = (who?: boolean) => (who ? 'minmax(0,0.8fr) minmax(0,1.8fr) 8rem 5.5rem 7rem' : 'minmax(0,0.8fr) minmax(0,1.8fr) 5.5rem 7rem')
+ *  a name on top of each: Project · To do · Who · Latest · When · its button. Who only on lists that have it (and from
+ *  1024 wide); Latest (new, seen, updated) from 1280 wide — a smaller screen has it in each one's window. Who's watching
+ *  is in each one's window, not on the line. The button is the real next step (Called, Ordered, Send, Remind). */
+const COLS_MD = 'minmax(0,0.8fr) minmax(0,1.7fr) 6rem 8.25rem'
+export const todoList = (_who?: boolean, _inJob?: boolean) => COLS_MD
+export const todoListLg = (who?: boolean) => (who ? 'minmax(0,0.75fr) minmax(0,1.7fr) 5.75rem 6rem 8.25rem' : COLS_MD)
+export const todoListXl = (who?: boolean) => (who ? 'minmax(0,0.7fr) minmax(0,1.75fr) 5.75rem 8.25rem 6rem 8.25rem' : 'minmax(0,0.7fr) minmax(0,1.75fr) 8.25rem 6rem 8.25rem')
 /** the Project column of a line about several projects: one or two → by name; more → how many */
 export const projectsWord = (s: Store, ids: (string | undefined)[], names?: string[]) => {
   const u = Array.from(new Set(names || ids.filter((x): x is string => !!x).map((id) => s.jobs[id]?.name || id)))
@@ -294,22 +318,23 @@ function TurnCell({ turn, viewer, children }: { turn: Turn; viewer: PersonKey; c
   const me = meOf(useStore((x) => x.role))
   const k0 = (turn.keys || []).filter(Boolean)
   const ks = k0.includes(me) ? [me, ...k0.filter((p) => p !== me)] : k0
+  /* names only — no circles next to them (saying it twice); two people on one line: "You, Yaakov" */
+  const names = ks.length ? ks.map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)) : []
   return (
     <span className="flex min-w-0 items-center gap-2" {...(ks.length ? { 'data-row-doer': ks.join(',') } : { 'data-row-turn-name': turn.name || '' })} data-row-turn>
-      {ks.length ? <span className="flex shrink-0 gap-0.5">{ks.slice(0, 2).map((p) => <Avatar key={p} who={p} size={20} />)}</span> : turn.name ? <NameDot name={turn.name} /> : null}
-      {/* on Today almost every line is yours — "You" stays quiet; someone else's name stands out */}
-      <span className={cn('min-w-0 break-words text-[0.8125rem] leading-tight', ks.length === 1 && ks[0] === viewer ? 'text-muted' : 'font-medium text-ink')}>{ks.length ? namesOf(ks, me) : turn.name}</span>
+      {/* the list's own person's stays quiet; someone else's name stands out */}
+      <span className={cn('min-w-0 break-words text-[0.8125rem] leading-tight', ks.length === 1 && ks[0] === viewer ? 'text-muted' : 'font-medium text-ink')} title={ks.length ? namesOf(ks, me, true) : undefined}>{ks.length ? (names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`) : turn.name}</span>
       {children}
     </span>
   )
 }
 /** who's watching: their circles, side by side (more than three: +N) */
-function WatchDots({ who, eye }: { who: PersonKey[]; eye?: boolean }) {
+function WatchDots({ who, eye, size = 20 }: { who: PersonKey[]; eye?: boolean; size?: number }) {
   if (!who.length) return null
   return (
-    <span className="inline-flex shrink-0 items-center gap-1" title={`Watching: ${who.map((p) => PEOPLE[p]?.name || p).join(', ')}`} data-row-watch={who.join(',')}>
+    <span className="inline-flex shrink-0 items-center gap-1" title={`Watching: ${who.map((p) => PEOPLE[p]?.name || p).join(', ')}`} aria-label={`Watching: ${who.map((p) => PEOPLE[p]?.name || p).join(', ')}`} data-row-watch={who.join(',')}>
       {eye && <Eye className="h-3.5 w-3.5 text-faint" />}
-      <span className="flex gap-0.5">{who.slice(0, 3).map((p) => <Avatar key={p} who={p} size={20} />)}</span>
+      <span className="flex gap-0.5">{who.slice(0, 3).map((p) => <Avatar key={p} who={p} size={size} />)}</span>
       {who.length > 3 && <span className="text-[0.75rem] font-medium tnum text-muted">+{who.length - 3}</span>}
     </span>
   )
@@ -318,13 +343,15 @@ function WatchDots({ who, eye }: { who: PersonKey[]; eye?: boolean }) {
 export function TodayHead({ waiting, who, sort, onSort }: { waiting?: boolean; /** several people's lists, or Waiting: who it's with */ who?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void }) {
   const h = (k: string, label: string, right?: boolean, kind?: SortCol['kind']) => (onSort ? <SortHead k={k} sort={sort || null} onSort={onSort} right={right} kind={kind}>{label}</SortHead> : label)
   return (
-    <div className={cn(HEAD_ROW, 'px-5 md:grid md:gap-x-6', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
+    <div className={cn(HEAD_ROW, 'px-5 md:grid md:gap-x-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span>{h('project', 'Project')}</span>
       <span>{h('todo', 'To do')}</span>
       {/* waiting: the one you're waiting on; several people's lists: whose it is */}
-      {(who || waiting) && <span data-head-turn>{h('who', waiting ? 'Waiting on' : 'Who')}</span>}
-      <span className="max-xl:hidden">Watching</span>
+      {(who || waiting) && <span className="max-lg:hidden" data-head-turn>{h('who', waiting ? 'Waiting on' : 'Who')}</span>}
+      {/* new to you, not seen yet, seen, updated — and how old */}
+      <span className="max-xl:hidden" data-head-latest>Latest</span>
       <span className="text-right">{h('when', 'When', true, 'date')}</span>
+      <span className="text-right" data-head-next>Next step</span>
     </div>
   )
 }
@@ -335,38 +362,56 @@ export const TODAY_SORT: SortCol[] = [{ k: 'project', label: 'Project' }, { k: '
 /** a cell's own button on a computer: tap it to change it right there — the row itself still opens the thing */
 const CELL_BTN = '-mx-2 inline-flex max-w-[calc(100%+1rem)] min-w-0 items-center gap-1.5 rounded-md px-2 py-1 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none'
 const stop = (e: React.SyntheticEvent) => e.stopPropagation()
-function TodoRow({ when, whenTone, title, detail, project, projectId, action, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind }: {
-  when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string; action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
-  /** the one project it's about: a computer shows its name as a link to it */
+/** the card a line is in — its address on top (a line in it doesn't say it again) and whether it's the card's first
+ *  line. A sorted list is one card with no address on top: each line says its own */
+const InCard = React.createContext<{ label: string; first: boolean } | null>(null)
+/** a line on Today: a dot when it's new to you · what to do (a small gray line under it: when, seen, updated) · on a
+ *  computer when, who (circles) and its next step, each the same width on every line so they line up down the page;
+ *  a phone: when and who in the small line, its button at the end. Every button the same size: a soft pill */
+function TodoRow({ when, whenTone, title, detail, project, projectId, action: own, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, latest, forOthers, remind }: {
+  when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string
+  /** its next step, as a button: Called, Ordered, Send, Remind… (none: the line itself opens it) */
+  action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
+  /** the one project it's about (its card's address opens it) */
   projectId?: string
-  /** what kind of thing it is — its tag before the words (To do, Touch-ups, Materials, Problem, Meeting…) */
+  /** what kind of thing it is — only a problem and a meeting say so, before the words */
   kind?: string
   /** shared — whoever gets to it first: the others who can do it */
   also?: PersonKey[]
-  /** a word in red before the job — "Problem" */
+  /** a word in red before it — "Problem" */
   flag?: string
-  /** who's watching it — their circles */
+  /** who's watching it: their circles after an eye, in the small line under it */
   watch?: PersonKey[]
   /** whose turn it is, when it isn't whoever does it — waiting: the one it waits on (Alex, the GC) */
   turn?: Turn
-  /** a computer: Watching, When and Who are tapped right on the row to change them */
+  /** a computer: When and Who are tapped right on the line to change them */
   watchPick?: WatchPick
   whenPick?: WhenPick
   whoPick?: WhoPick
-  /** a phone shows the when too (false: only a computer — a phone's line is short) */
+  /** a phone shows the when too (false: only a computer) */
   phoneWhen?: boolean
   /** its star — the ones that matter to you go on top of your list (only on your own list) */
   star?: StarPick
+  /** what's happened with it lately: new to you, not seen yet, seen, updated, how old */
+  latest?: Latest | null
+  /** the admin looking at someone else's list: the button there is this (Remind them) — not their own next step */
+  forOthers?: React.ReactNode
+  /** a line with no reminder of its own (the crew list, the daily updates…): on someone else's list, Remind sends them
+   *  this — to their phone and their Messages */
+  remind?: { what: string; open?: { t: string; [k: string]: any }; jobId?: string }
 }) {
   const who = React.useContext(WhoCol)
+  const card = React.useContext(InCard)
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
-  /* whose turn: whoever does it (a row that doesn't say — a meeting, the crew list — is the list's own person's; on
-     several lists, whose list it's on), or, waiting, the one it waits on. Who's watching: everyone watching it (you too —
-     that's why it's on your Waiting) */
+  /* whose turn: whoever does it (a line that doesn't say — a meeting, the crew list — is the list's own person's; on
+     several lists, whose list it's on), or, waiting, the one it waits on */
   const viewer = React.useContext(Viewer) || me
   const multi = React.useContext(Multi)
+  /* someone else's list (the admin looking): Remind them where it can — never their own button pressed for them */
+  const remindBtn = remind && !forOthers && !done ? <Button size="sm" className={TBTN} onClick={() => remindLine(viewer, remind.what, remind.open, remind.jobId)} data-row-act="remind">Remind</Button> : undefined
+  const action = !multi && viewer !== me ? forOthers || remindBtn : own
   const onLists = React.useContext(LineOn)
   const sharers = owner ? [owner, ...(also || []).filter((p) => p !== owner)] : multi && onLists ? onLists : []
   /* Who is who does it — the same as its window says. Only on Waiting on others is it who it's with (Alex, the GC) */
@@ -375,109 +420,100 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action, on
   const t0: Turn = waitTurn || { keys: sharers.length ? sharers : [viewer] }
   const turnKeys = t0.keys || []
   const watchers = (watch || []).filter((p) => !sharers.includes(p) && !turnKeys.includes(p))
-  /* the line is just yours (on your own list): the Who column stays empty — the list is yours */
-  const justYou = !t0.name && turnKeys.length === 1 && turnKeys[0] === viewer && viewer === me
-  /* a phone: the same as a computer's columns, short — who does it (their circle, yours too), who's watching (the eye
-     and their circles), and the time at the end of the line */
-  /* (a phone: your own line doesn't show your own circle — the list is yours; someone else's, or a shared one, does) */
-  const phoneDoers = turnKeys.length === 1 && turnKeys[0] === viewer && !multi ? [] : turnKeys.includes(me) ? [me, ...turnKeys.filter((p) => p !== me)] : turnKeys
-  const phoneTurn = !!t0.name || phoneDoers.length > 0
-  /* a phone: only who does it, when it isn't just you (a shared one, someone else's) — who's watching is in its
-     window, not on the line */
-  const phoneDots = phoneTurn ? (
-    <span className="inline-flex h-5 shrink-0 items-center" data-row-people>
-      {phoneDoers.length ? <span className="flex gap-0.5" data-row-doer={phoneDoers.join(',')}>{phoneDoers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={18} />)}</span> : t0.name ? <span data-row-turn-name={t0.name}><NameDot name={t0.name} /></span> : null}
+  /* the line is just the list's own person's (yours, or the one whose list the admin is looking at): no circle — the
+     list is theirs. Shared, someone else's, who it waits on: their circles */
+  const justYou = !t0.name && turnKeys.length === 1 && turnKeys[0] === viewer && !multi
+  const doers = turnKeys.includes(me) ? [me, ...turnKeys.filter((p) => p !== me)] : turnKeys
+  const names = turnKeys.length ? namesOf(turnKeys, me, true) : t0.name || ''
+  const circles = justYou ? null : (
+    /* whole circles side by side, never one over another: two at most, a third and more as "+2" */
+    <span className="flex shrink-0 items-center gap-0.5" title={names} aria-label={names} data-row-people {...(turnKeys.length ? { 'data-row-doer': turnKeys.join(',') } : { 'data-row-turn-name': t0.name || '' })} data-row-turn>
+      {turnKeys.length
+        ? <>
+            {(doers.length > 2 ? doers.slice(0, 1) : doers).map((p) => <Avatar key={p} who={p} size={24} />)}
+            {doers.length > 2 && <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-wash-2 px-1 text-[0.6875rem] font-semibold text-muted tnum" data-row-more>+{doers.length - 1}</span>}
+          </>
+        : t0.name ? <NameDot name={t0.name} /> : null}
     </span>
-  ) : null
-  /* the job, first — its address; no project: "Company", quiet. A phone with one job picked doesn't say it again under
-     each row (the bar on top says it) */
+  )
+  /* in a card its address is the card's; a line says its own only when it's another (in the Company card: "3 job
+     sites"), and on a sorted list, where every line says its own */
   const company = project === 'Company'
   const where = project || ''
-  /* a phone: the project always says on the line — with one job picked too, so every line says what it's for */
-  const wherePhone = where
-  const phoneTop = !!wherePhone
-  const flagged = flag ? <span className="font-medium text-bad-600" data-row-flag>{flag}{where ? ' · ' : ''}</span> : null
+  const ownWhere = !!where && !company && where !== card?.label
   /* the star is yours: on your own list only — not on someone else's you're looking at */
   const ownList = viewer === me && !multi
+  /* no tags: the words say what it is. Only two get a word before them — a problem (red: it comes first) and a meeting
+     (its words don't always say it's one) */
+  const problem = flag === 'Problem' || kind === 'Problem'
+  const before = problem ? 'Problem' : kind === 'Meeting' || kind === 'Walkthrough' ? kind : ''
+  const isNew = latest?.tone === 'new'
+  const tip = typeof detail === 'string' && detail ? detail : ''
+  const whereLine = ownWhere ? (
+    projectId && !done
+      ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left font-semibold text-ink-2 hover:underline" data-row-project-link={projectId}>{where}</button>
+      : <span className="font-semibold text-ink-2">{where}</span>
+  ) : null
+  const whenEl = w ? <span className={cn('text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : null
   return (
     <div
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      /* a click in a cell's little list (Who, Watching, When — it opens over the page) isn't a click on the line: only
-         a click on the line itself opens it */
+      /* a click in a cell's little list (Who, When — it opens over the page) or on its button isn't a click on the line:
+         only a click on the line itself opens it */
       onClick={onClick ? (e) => { if ((e.currentTarget as HTMLElement).contains(e.target as Node)) onClick() } : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick() } : undefined}
-      title={typeof detail === 'string' && detail ? detail : undefined}
+      title={tip || undefined}
       data-todo
-      data-subrow
-      /* a computer: one line, the list's straight columns. A phone: two lines — what to do, the job under it — every row
-         the same height */
-      className={cn('group/row relative items-center border-t border-line-2 transition-colors focus-visible:outline-none max-md:flex max-md:gap-3 max-md:py-3 md:grid md:min-h-[3.25rem] md:gap-x-6 md:py-2', PX, onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
+      {...(card && !card.first ? { 'data-same-project': '' } : {})}
+      className={cn('group/row relative flex min-h-[3.25rem] items-center gap-3 px-5 py-2.5 transition-colors focus-visible:outline-none max-sm:gap-2.5 max-sm:px-4 max-sm:py-3', (!card || !card.first) && 'border-t border-[#f0ebe3]', card?.first && 'pt-1.5 max-sm:pt-2', onClick && 'cursor-pointer hover:bg-[#fbf9f6]', leaving && 'row-out')}
       data-starred={star?.on && ownList ? '' : undefined}
     >
       {/* its star, in the margin at the left — nothing on the line moves */}
       {star && ownList && !done && <RowStar star={star} />}
-      {/* a computer: the project first — its address — then what it is, (who), who's watching, when — each in its
-          column; Who, Watching and When tapped right there to change them */}
-      {/* (no Done button on the line: what finishes a thing is its own action, in its window — send the update, say
-          what they said, make his PO) */}
-      <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem] max-md:hidden', company ? 'text-muted' : 'text-ink')} data-row-where>
-        {flagged}
-        {projectId && !company && !done
-          ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left font-medium text-brand-700 hover:underline focus-visible:underline focus-visible:outline-none" data-row-project-link={projectId}>{where}</button>
-          : where}
-      </div>
-      <div className="flex min-w-0 items-center gap-2.5 max-md:flex-1">
-        {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
-        <div className="min-w-0 flex-1">
-          {/* a phone: one quiet line on top — the project and what kind of thing it is (words, not tags), who else
-              has it, when — then what to do, bigger and darker: the one thing to read. Nothing boxed, few colors */}
-          {(phoneTop || kind || flag || phoneTurn || (w && phoneWhen)) && (
-            <div className="flex min-h-5 min-w-0 items-start gap-2 md:hidden" data-row-eyebrow>
-              <span className={cn('min-w-0 flex-1 break-words text-[0.84375rem] font-medium leading-5', company ? 'text-faint' : 'text-muted')} data-row-where-phone>
-                {flag ? <span className="text-bad-600" data-row-flag>{flag}{wherePhone || (kind && kind !== flag) ? ' · ' : ''}</span> : null}
-                {/* the project in blue (it opens the project), what to do under it in black — easy to tell apart at a glance */}
-                {projectId && !company && !done
-                  ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="-my-1 py-1 text-left font-semibold text-brand-700" data-row-project-link-phone={projectId}>{wherePhone}</button>
-                  : wherePhone}
-                {kind && kind !== flag ? <span className={kind === 'Problem' ? 'text-bad-600' : undefined} data-row-kind-phone={kind}>{wherePhone ? ' · ' : ''}{kind}</span> : null}
-              </span>
-              {phoneDots}
-              {w && phoneWhen && <span className={cn('shrink-0 text-[0.84375rem] leading-5 tnum', whenCls)} data-todo-when-phone>{w}</span>}
-            </div>
-          )}
-          {/* what it is: on a computer its kind, then the words — whole, never cut off (a long one takes a second line) */}
-          <div className="flex min-w-0 items-start gap-3 max-md:mt-1">
-            <span className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-md:text-[1rem] max-md:font-medium max-md:leading-[1.375rem]', done ? 'text-muted line-through decoration-faint max-md:font-normal' : 'text-ink')} data-row-title>{title}</span>
-            {/* a computer: its kind at the end of the words — the tags make one straight column, the words start even */}
-            {kind && <KindTag label={kind} className="mt-[0.0625rem] max-md:hidden" />}
+      {/* new to you: a blue dot in the margin, like an unread email — the words stay lined up with the address */}
+      {isNew && <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-brand-600 max-sm:left-1.5" aria-hidden data-row-dot="new" />}
+      {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
+      <div className="min-w-0 flex-1">
+        {whereLine && <div className="mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5" data-row-where>{whereLine}</div>}
+        {/* what to do — whole, never cut off (a long one takes a second line) */}
+        <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
+          {before && <span className={problem ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
+          {title}
+        </div>
+        {/* the small gray line: (a phone) when · what's happened with it lately · (a computer) who's watching · (a phone)
+            who. A phone's line is kept calm: who's watching is in its window */}
+        {((w && phoneWhen) || latest || circles || watchers.length > 0) && (
+          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !latest && !watchers.length && 'md:hidden', !(w && phoneWhen) && !latest && !circles && 'max-md:hidden')} data-row-meta>
+            {w && phoneWhen && <span className={cn('tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
+            {latest && <span title={latest.tip} className={cn(latest.tone === 'new' ? 'font-medium text-brand-700' : latest.tone === 'warn' ? 'font-medium text-warn-700' : 'text-muted')} data-row-latest={latest.tone || ''}>{w && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{latest.text}</span>}
+            {/* who's watching: tap the circles to add or take someone off right there (none yet: its window) */}
+            {watchers.length > 0 && <span className="max-md:hidden">{watchPick
+              ? <WatchPop pick={watchPick} trigger={<button type="button" onClick={stop} className="-mx-1 inline-flex items-center rounded-md px-1 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none" aria-label="Who’s watching. Add or take off" data-row-watch-pick><WatchDots who={watchers} eye size={18} /></button>} />
+              : <WatchDots who={watchers} eye size={18} />}</span>}
+            {circles && <span className="md:hidden">{circles}</span>}
           </div>
-        </div>
+        )}
       </div>
-      {who && (
-        <div className="min-w-0 max-md:hidden">
-          {/* only when it isn't just yours — shared, someone else's, who it waits on. Yours: nothing (the admin can
-              still give it to someone: it shows when the line is pointed at) */}
-          {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={cn(CELL_BTN, justYou && 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who does it · change it" data-row-who-pick><TurnCell turn={t0} viewer={viewer} /></button>} /> : justYou ? null : <TurnCell turn={t0} viewer={viewer} />}
-        </div>
-      )}
-      <div className="min-w-0 max-xl:hidden">
-        {watchPick ? (
-          <WatchPop pick={watchPick} trigger={
-            <button type="button" onClick={stop} className={cn(CELL_BTN, !watchers.length && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who’s watching. Add or take off" data-row-watch-pick>
-              {watchers.length > 0 ? <WatchDots who={watchers} /> : <><Plus className="h-3.5 w-3.5" /><Eye className="h-3.5 w-3.5" /></>}
-            </button>
-          } />
-        ) : watchers.length > 0 && <WatchDots who={watchers} />}
-      </div>
-      <div className="flex min-w-0 items-center justify-end max-md:hidden" onClick={onClick ? undefined : stop} data-todo-next>
-        {!onClick ? action : whenPick ? (
+      {/* a computer: when · who · its next step — the same widths on every line */}
+      <div className="flex w-[6.75rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
+        {whenPick ? (
           <WhenPop pick={whenPick} trigger={
             <button type="button" onClick={stop} className={cn(CELL_BTN, '-mr-2 justify-end', !w && 'text-faint opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="When · move it" data-row-when-pick>
-              {w ? <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : <CalendarDays className="h-3.5 w-3.5" />}
+              {whenEl || <CalendarDays className="h-3.5 w-3.5" />}
             </button>
           } />
-        ) : w ? <span className={cn('truncate text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : null}
+        ) : whenEl}
+      </div>
+      {who && (
+        <div className="flex w-[3.75rem] shrink-0 items-center justify-center max-md:hidden" data-row-who>
+          {/* the admin can still give it to someone: a faint person shows when the line is pointed at */}
+          {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={cn(CELL_BTN, 'justify-center px-1', justYou && 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who does it · change it" data-row-who-pick>{circles || <UserRound className="h-4 w-4 text-faint" />}</button>} /> : circles}
+        </div>
+      )}
+      {/* its next step — a soft pill, the same size on every line; none: the line opens it (a quiet arrow says so) */}
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next>
+        {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
   )
@@ -486,6 +522,28 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action, on
 /** "4 PM", "10:30 AM" — the hour a thing happens */
 const hourLabel = (min: number) => timeLabel(min).replace(/^(\d+) /, '$1:00 ')
 function taskTime(t: Task): number | null { return t.at ? parseTime(t.at) : t.repeatAt ? parseTime(t.repeatAt) : null }
+
+/* ---------------- a line's button: the real next step, in its own word ---------------- */
+/** a call, a text, a question: the button says it was done, and asks what they said */
+const CALL_WORDS: [RegExp, string][] = [[/^\s*(call|phone|ring)\b/i, 'Called'], [/^\s*text\b/i, 'Texted'], [/^\s*(ask|find out|check with)\b/i, 'Asked'], [/^\s*follow up with\b/i, 'Followed up'], [/^\s*reach out to\b/i, 'Reached out'], [/^\s*(speak|talk)\b/i, 'Talked']]
+/** something to order: the button says it's ordered, and asks who brings it and when (then it waits for it) */
+export const isOrderTask = (t: Pick<Task, 'title' | 'state'>) => t.state === 'now' && ORDER_RE.test(t.title)
+/** any other to-do: the word for having done it (Sent, Fixed, Picked up…) — else Done */
+const DONE_WORDS: [RegExp, string][] = [
+  [/^\s*(send|email|e-mail|mail)\b/i, 'Sent'], [/^\s*(pick\s*up|pickup|collect)\b/i, 'Picked up'], [/^\s*(drop\s*off|deliver|bring)\b/i, 'Dropped off'],
+  [/^\s*(fix|repair|patch)\b/i, 'Fixed'], [/^\s*install\b/i, 'Installed'], [/^\s*(check|inspect|verify)\b/i, 'Checked'], [/^\s*confirm\b/i, 'Confirmed'],
+  [/^\s*(book|schedule)\b/i, 'Booked'], [/^\s*set up\b/i, 'Set up'], [/^\s*pay\b/i, 'Paid'], [/^\s*measure\b/i, 'Measured'], [/^\s*upload\b/i, 'Uploaded'],
+  [/^\s*print\b/i, 'Printed'], [/^\s*(clean|clear)\b/i, 'Cleaned'], [/^\s*sign\b/i, 'Signed'], [/^\s*price\b/i, 'Priced'],
+]
+export const doneWordOf = (title: string) => DONE_WORDS.find(([re]) => re.test(title))?.[1] || 'Done'
+export const callWordOf = (title: string) => CALL_WORDS.find(([re]) => re.test(title))?.[1] || 'Called'
+/** a step's own button, short enough for the line's button (the whole words in its window) */
+const SHORT_ACTION: Record<string, string> = { 'Set the meeting': 'Set meeting', 'Chase or reorder': 'Chase it', 'Send the report': 'Send report', 'Order materials': 'Order', 'Decide the setup': 'Decide', 'Send updates': 'Send updates', 'Enter heights': 'Enter heights', 'Send revised quantities': 'Send', 'Fixed. Check it again': 'Check again', 'The PO came · file it': 'File the PO', 'Print the room sheets': 'Print sheets', 'Enter the high and low': 'Enter heights', 'Report what’s short': 'Report short', 'Open the project': 'Open project', 'Start walkthrough': 'Walkthrough', 'Record follow-up': 'Followed up', 'Add the estimate': 'Add estimate', 'Add to next bill': 'Add to bill' }
+/** a step's "open…" button that is really its next step, said as one */
+const OPEN_AS: Record<string, string> = { 'Open it': 'Chase it', 'Open the first': 'Chase it', 'Open scope': 'Fill in scope' }
+/** a step's own button for the line — none when it only opens something (the line itself does that) */
+export const lineAction = (l?: string) => (l && OPEN_AS[l] ? OPEN_AS[l] : l && !/^open\b/i.test(l.trim()) ? shortAction(l) : undefined)
+export const shortAction = (l: string) => SHORT_ACTION[l] || (l.length <= 13 ? l : l.split(' ')[0])
 
 function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolean; followed?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' } }) {
   const s = useStore()
@@ -508,11 +566,29 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const me0 = meOf(s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
   const team = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
-  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? { text: askLabel(t), tone: 'warn' as const } : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? { text: 'Follow up', tone: 'warn' as const } : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? (t.hold ? { text: holdWords(t.laterUntil), tone: holdUp(t) ? 'warn' as const : undefined } : { text: `Back ${t.laterUntil}` }) : { text: 'Anytime', tone: 'quiet' as const })
+  /* time to follow up: When says since when (the button says what to do) */
+  const fu = t.followUp ? isoFromLabel(t.followUp) : undefined
+  const followWhen = fu && fu < TODAY ? { text: lateBy(fu), tone: 'bad' as const } : { text: 'Today', tone: 'warn' as const }
+  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? followWhen : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? followWhen : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? (t.hold ? { text: holdWords(t.laterUntil), tone: holdUp(t) ? 'warn' as const : undefined } : { text: `Back ${t.laterUntil}` }) : { text: 'Anytime', tone: 'quiet' as const })
   /* touch-ups: the checklist, how far along — "1 of 4 done" (tap it: the four) */
   const touch = s.punch.filter((p) => p.taskId === t.id)
   const noOne = touch.filter((p) => !p.owner && p.status !== 'verified').length
   const touchWords = !touch.length ? '' : noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} ${noOne === 1 ? 'touch-up' : 'touch-ups'}` : touchupsWords(touch)
+  /* its next step, in its own word: a call → Called (what did they say?), an order → Ordered (who brings it, when —
+     then it waits for it), waiting → Follow up, someone else's → Remind them; anything else → the word for doing it */
+  const rowAct =
+        done ? ((!theirs || admin) ? <Button size="sm" className={TBTN} onClick={() => s.reopenTask(t.id)} data-row-act="reopen">Reopen</Button> : undefined)
+        /* someone else's: remind them (pinned for everyone: only the admin reminds its person — for the rest it's to know) */
+        : theirs ? (t.state === 'now' && !isRequest(t) && (!t.everyone || admin) ? <Button size="sm" className={TBTN} onClick={() => remindTask(t)} data-row-act="remind">Remind</Button> : undefined)
+          : follow ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, follow: true })} data-row-act="follow">{isGcWait(t) ? askLabel(t) : 'Follow up'}</Button>
+          : stepTask ? undefined
+          : act && lineAction(t.action!.label) ? <Button size="sm" className={TBTN} onClick={() => runTaskAction(t)} data-row-act="own">{lineAction(t.action!.label)}</Button>
+            : isRequest(t) && t.state === 'now' ? (t.owner === me0 ? <TripButtons t={t} onDone={() => setLeaving(true)} /> : undefined)
+            : t.state === 'now' && isCallTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, call: true })} data-row-act="call">{callWordOf(t.title)}</Button>
+            : isOrderTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, ordered: true })} data-row-act="ordered">Ordered</Button>
+            : t.state === 'now' && !touch.length ? <Button size="sm" className={TBTN} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }} data-row-act="done">{doneWordOf(t.title)}</Button>
+              : touch.length ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })} data-row-act="list">Open list</Button>
+              : undefined
   return (
     <TodoRow
       kind={tagOfTask(s, t)}
@@ -537,21 +613,14 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       projectId={job ? job.id : undefined}
       when={w.text}
       whenTone={w.tone}
-      action={
-        theirs && !(done && (s.role === 'owner' || s.role === 'pm')) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-        : done ? <Button size="sm" className={TBTN} icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)}>Reopen</Button>
-          : follow ? <Button size="sm" className={TBTN} icon={<Hourglass />} onClick={() => s.open({ t: 'task', id: t.id })}>{isGcWait(t) ? askLabel(t) : 'Follow up'}</Button>
-          : stepTask ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-          : act ? <Button size="sm" className={cn(TBTN, 'max-w-full')} onClick={() => runTaskAction(t)}><span className="truncate">{t.action!.label}</span></Button>
-            : isRequest(t) && t.state === 'now' && t.owner !== meOf(s.role) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>{t.req?.trip === 'onway' ? 'On the way' : `${PEOPLE[t.owner]?.short || 'They'} has it`}</Button>
-            : isRequest(t) && t.state === 'now' ? <TripButtons t={t} onDone={() => setLeaving(true)} />
-            : t.state === 'now' ? <Button size="sm" className={TBTN} icon={<Check />} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }}>Done</Button>
-              : <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })}>Open</Button>
-      }
+      latest={done ? null : latestOf(t, me0)}
+      forOthers={rowAct}
+      action={rowAct}
     />
   )
 }
 
+const stepWord = (v: StepView) => lineAction(v.action?.label) || (v.state === 'bad' ? 'Fix it' : v.state === 'now' ? 'Start' : undefined)
 function StepRowToday({ job, v, when, flag }: { job: Job; v: StepView; showOwner?: boolean; when?: { text: string; tone?: 'bad' | 'warn' | 'strong' | 'quiet' }; flag?: string }) {
   const s = useStore()
   const start = s.prep[job.id]?.targetISO
@@ -579,7 +648,9 @@ function StepRowToday({ job, v, when, flag }: { job: Job; v: StepView; showOwner
       projectId={job.id}
       when={when?.text ?? 'Anytime'}
       whenTone={when?.tone ?? 'quiet'}
-      action={<Button size="sm" className={cn(TBTN, 'max-w-full')} onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })}><span className="truncate">{v.action?.label || 'Open'}</span></Button>}
+      /* its next step in its own word — a step with none: Start (a problem: Fix it); its window has the rest */
+      action={stepWord(v) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'step', jobId: job.id, k: v.key })} data-row-act="step">{stepWord(v)}</Button> : undefined}
+      forOthers={v.owner !== meOf(s.role) ? <Button size="sm" className={TBTN} onClick={() => remindStep(job, v)} data-row-act="remind">Remind</Button> : undefined}
     />
   )
 }
@@ -601,6 +672,7 @@ function DailyRow({ d, showOwner }: { d: DailyItem; showOwner?: boolean }) {
       when={d.missed ? md(d.missed) : undefined}
       whenTone={d.missed ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={() => s.open({ t: 'daily', jobId: d.jobId })}>Send update</Button>}
+      remind={{ what: `Send the daily update · ${job.name}`, open: { t: 'daily', jobId: d.jobId }, jobId: d.jobId }}
     />
   )
 }
@@ -630,7 +702,8 @@ function TodosRow({ x, showOwner, overdue }: { x: PlateItem; showOwner?: boolean
       /* like every other line for today: nothing in When unless it's late (another day: its date) */
       when={late || (x.b === 'today' ? undefined : x.iso ? md(x.iso) : 'Anytime')}
       whenTone={late ? 'bad' : 'quiet'}
-      action={<Button size="sm" className={TBTN} onClick={open} data-todos-open>Open</Button>}
+      action={<Button size="sm" className={TBTN} onClick={open} data-todos-open>Open list</Button>}
+      remind={{ what: `${ts.map((t) => t.title.replace(/\.$/, '')).join(' · ')}${job ? ` · ${job.name}` : ''}`, open: { t: 'todos', jobId: job?.id, who }, jobId: job?.id }}
     />
   )
 }
@@ -651,9 +724,11 @@ function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       detail={jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(' · ')}
       owner={showOwner ? x.who : undefined}
       project={projectsWord(s, jobs)}
+      projectId={jobs.length === 1 ? jobs[0] : undefined}
       when={missed ? `${missed} late` : undefined}
       whenTone={missed ? 'bad' : undefined}
       action={<Button size="sm" className={TBTN} onClick={open} data-dailies-open>Send updates</Button>}
+      remind={{ what: `Send the daily updates · ${jobs.length} ${jobs.length === 1 ? 'project' : 'projects'}`, open: { t: 'dailies', who: x.who, jobs } }}
     />
   )
 }
@@ -672,9 +747,11 @@ function StepsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       owner={showOwner ? x.who : undefined}
       /* how many — which ones are in its window */
       project={projectsWord(s, vs.map((y) => y.job.id))}
+      projectId={new Set(vs.map((y) => y.job.id)).size === 1 ? vs[0].job.id : undefined}
       when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
       whenTone={x.b === 'overdue' ? 'bad' : undefined}
-      action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
+      action={<Button size="sm" className={TBTN} onClick={open}>Open list</Button>}
+      remind={{ what: `${vs[0] ? todoOf(vs[0].v) : 'Getting ready'} · ${vs.length} ${vs.length === 1 ? 'project' : 'projects'}`, open: { t: 'stepbatch', k: vs[0]?.v.key, jobs: vs.map((y) => y.job.id) } }}
     />
   )
 }
@@ -694,9 +771,11 @@ function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
       detail={ts.map((t) => t.req?.what || t.title).join(' · ')}
       owner={showOwner ? x.who : undefined}
       project={one ? one.name : projectsWord(s, jobs)}
+      projectId={one?.id}
       when={x.b === 'overdue' && x.iso ? md(x.iso) : undefined}
       whenTone={x.b === 'overdue' ? 'bad' : undefined}
-      action={<Button size="sm" className={TBTN} onClick={open} data-trips-open>Open</Button>}
+      action={<Button size="sm" className={TBTN} onClick={open} data-trips-open>Pickup list</Button>}
+      remind={{ what: `Bring to the ${jobs.length > 1 ? 'jobs' : 'job'}: ${ts.map((t) => t.req?.what || t.title.replace(/^Bring to [^:]+:\s*/i, '')).join(', ')}`, open: { t: 'trips', who: x.who, day: isNow(x.b) ? 'now' : x.b }, jobId: one?.id }}
     />
   )
 }
@@ -715,9 +794,11 @@ function CheckinRow({ x }: { x: PlateItem }) {
       title={`Check in with ${PEOPLE[g.who]?.short || 'them'}`}
       detail={g.items.map((c) => c.title).join(' · ')}
       project={projectsWord(s, [], g.items.map((c) => c.jobName || 'Company'))}
+      projectId={(() => { const ids = [...new Set(g.items.map((c) => c.x.t?.jobId || c.x.job?.id || ''))]; return ids.length === 1 && ids[0] ? ids[0] : undefined })()}
       when={`${n} late`}
       whenTone="bad"
       action={<Button size="sm" className={TBTN} onClick={open} data-checkin-open>Check in</Button>}
+      remind={{ what: `Check in with ${PEOPLE[g.who]?.short || 'them'}`, open: { t: 'checkin', who: g.who } }}
     />
   )
 }
@@ -730,15 +811,20 @@ function CrewRow() {
   const n = crewsOn(s, day).length
   const go = () => s.open({ t: 'crewreport', day })
   const whose = day === TODAY_ISO ? 'today’s' : day === TOMORROW ? 'tomorrow’s' : `${crewWhen(day)}’s`
+  /* its time: the evening (Settings → Automations → Crew list), or first thing for today's */
+  const at = day === TODAY_ISO ? 7 * 60 : crewHour(s) * 60
   return (
     <TodoRow
       kind="Crew list"
       onClick={go}
       icon={<HardHat />}
+      when={timeLabel(at)}
+      whenTone="strong"
       title={`Send ${whose} crew list`}
       detail={`${n} ${n === 1 ? 'project' : 'projects'}. How many people on each`}
       project={n ? projectsWord(s, crewsOn(s, day).map((c) => c.jobId)) : 'Company'}
-      action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send it</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go} data-crew-row>Send</Button>}
+      remind={{ what: `Send ${whose} crew list`, open: { t: 'crewreport', day } }}
     />
   )
 }
@@ -756,7 +842,8 @@ function RoundsRow() {
       detail="Google Maps through all of them, a video from each"
       project={`${r.left + r.done} job ${r.left + r.done === 1 ? 'site' : 'sites'}`}
       when={r.done ? `${r.done} of ${r.left + r.done} done` : 'Anytime'}
-      action={<span className="flex items-center gap-1.5"><Button size="sm" variant="ghost" className={TBTN} onClick={() => skipRounds(meOf(s.role))} data-rounds-row-skip>Skip today</Button><Button size="sm" className={TBTN} onClick={go} data-rounds-row>{r.done ? 'Keep going' : 'Start'}</Button></span>}
+      action={<Button size="sm" className={TBTN} onClick={go} data-rounds-row>{r.done ? 'Keep going' : 'Start'}</Button>}
+      remind={{ what: 'Visit the jobs', open: { t: 'rounds' } }}
     />
   )
 }
@@ -773,12 +860,13 @@ function PayRow() {
       kind="Installer pay"
       onClick={go}
       icon={<HandCoins />}
-      title={`Installer pay · week of ${PAY_WEEKS[0].label}`}
+      title={`Installer pay · week of ${PAY_WEEKS[0].label.replace(/ /g, '\u00a0')}`}
       detail={`${off.length ? `${off.length} bill doesn’t match · ` : ''}${open.length} installers · ${fmtMoney(total)} · from the daily updates`}
       project="All projects"
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" className={TBTN} onClick={go}>Review the week</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go}>Review</Button>}
+      remind={{ what: `Installer pay · week of ${PAY_WEEKS[0].label}`, open: { t: 'payweek' } }}
     />
   )
 }
@@ -814,6 +902,10 @@ function GcRow({ t }: { t: Task }) {
         whenTone={st.tone === 'bad' ? 'bad' : st.tone === 'warn' ? 'warn' : 'quiet'}
         /* a phone: when the next reminder goes is for a computer — there it says so only when something's wrong */
         phoneWhen={st.tone === 'bad' || st.tone === 'warn'}
+        latest={latestOf(t, me)}
+        /* its next step: ask the GC (the message, on WhatsApp) — someone else's: remind them */
+        action={t.owner === me ? <Button size="sm" className={TBTN} onClick={() => { openWhatsApp(gcMessage(s, t)); askedGc(t.id) }} data-row-act="gc">{askLabel(t)}</Button> : <Button size="sm" className={TBTN} onClick={() => remindTask(t)} data-row-act="remind">Remind</Button>}
+        forOthers={t.owner !== me ? <Button size="sm" className={TBTN} onClick={() => remindTask(t)} data-row-act="remind">Remind</Button> : undefined}
       />
     </div>
   )
@@ -863,12 +955,13 @@ function BillRow() {
       kind="Billing"
       onClick={go}
       icon={<Receipt />}
-      title={`Progress billing · week of ${LAST_WEEK.label}`}
+      title={`Progress billing · week of ${LAST_WEEK.label.replace(/ /g, '\u00a0')}`}
       detail={`${rows.length} ${rows.length === 1 ? 'project' : 'projects'} · ${fmtMoney(total)} to bill · from the daily updates`}
       project={projectsWord(s, rows.map((r) => r.jobId))}
       when="Anytime"
       whenTone="quiet"
-      action={<Button size="sm" className={TBTN} onClick={go}>Bill the week</Button>}
+      action={<Button size="sm" className={TBTN} onClick={go}>Bill</Button>}
+      remind={{ what: `Progress billing · week of ${LAST_WEEK.label}` }}
     />
   )
 }
@@ -879,6 +972,14 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
   const open = () => s.open({ t: 'event', id: e.id })
   const me = meOf(s.role)
   const admin = s.role === 'owner' || s.role === 'pm'
+  /* its next step: the day of it, until it ends: the way there (its address); after it (or a day ahead): what was
+     said or decided — its window, notes on top and Done at the bottom */
+  const where = e.where || job?.address
+  const d = new Date()
+  const over = e.date < TODAY || (e.date === TODAY && d.getHours() * 60 + d.getMinutes() >= e.start + (e.dur || 60))
+  const act = e.date === TODAY && !over && where
+    ? <Button size="sm" className={TBTN} onClick={() => window.open(mapsTo(where), '_blank', 'noopener')} data-row-act="directions">Directions</Button>
+    : <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'event', id: e.id, notes: true })} data-row-act="notes">Add notes</Button>
   return (
     <TodoRow
       kind={e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'}
@@ -895,7 +996,8 @@ function MeetingRow({ e, showOwner }: { e: CalEvent; showOwner?: boolean }) {
       also={e.people.slice(1)}
       when={hourLabel(e.start)}
       whenTone="strong"
-      action={<Button size="sm" className={TBTN} onClick={open}>Open</Button>}
+      action={act}
+      forOthers={act}
     />
   )
 }
@@ -1323,24 +1425,60 @@ function LineRow({ l, me, showOwner }: { l: Line; me: PersonKey; showOwner?: boo
 const timedLine = (l: Line): l is Extract<Line, { k: 'plate' }> => l.k === 'plate' && l.x.kind !== 'crew' && l.x.time != null
 /** Everyone: the line for now would show once for each person — it's left out there */
 const ShowNow = React.createContext(true)
-/** a list's lines — today's with the line for now between what's before it and what's after */
-function Lines({ lines: lines0, me, day, showOwner, on }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]> }) {
-  const d = new Date()
-  const nowMin = d.getHours() * 60 + d.getMinutes()
-  const showNow = React.useContext(ShowNow)
+/** the one project a line is about — none (several projects, or the company's own): the Company card */
+function projectKeyOf(l: Line): string {
+  if (l.k === 'wait') return l.job.id
+  if (l.k === 'task' || l.k === 'gc') return l.t.jobId || 'company'
+  const x = l.x
+  /* a check-in about one project's things goes in that project's card too */
+  const ci = x.ci?.items.map((c) => c.x.t?.jobId || c.x.job?.id || '') || []
+  const one = x.t?.jobId || x.job?.id || x.d?.jobId || x.e?.jobId || (x.ts?.length && x.ts.every((t) => t.jobId === x.ts![0].jobId) ? x.ts[0].jobId : '') || (ci.length && ci.every((j) => j && j === ci[0]) ? ci[0] : '')
+  return one || 'company'
+}
+/** each project's lines in one card — the address once, on top, everything for it inside; what isn't one job's (the crew
+ *  list, visiting the jobs, installer pay) in the Company card. The card with something late first (each card where
+ *  its most pressing line is); inside it, its lines in their order */
+function cardsOf(lines: Line[]): { key: string; lines: Line[] }[] {
+  const order: string[] = []
+  const groups = new Map<string, Line[]>()
+  lines.forEach((l) => { const k = projectKeyOf(l); if (!groups.has(k)) { groups.set(k, []); order.push(k) } groups.get(k)!.push(l) })
+  return order.map((key) => ({ key, lines: groups.get(key)! }))
+}
+/** one card: the address on top (it opens the project), how many things, then its lines */
+function ProjectCard({ id, label, n, children }: { id?: string; label: string; n: number; children: React.ReactNode }) {
+  const s = useStore()
+  return (
+    <section className="overflow-clip rounded-[1.125rem] bg-white shadow-[0_0_0_1px_rgba(40,33,20,0.07),0_1px_2px_rgba(40,33,20,0.04),0_12px_28px_-20px_rgba(40,33,20,0.22)]" data-project-card={id || 'company'}>
+      {/* the address — tap it: the project */}
+      <header className="flex items-baseline gap-2 px-5 pt-3.5 max-sm:px-4" data-card-head>
+        {id
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className="min-w-0 break-words rounded-sm text-left text-[1rem] font-semibold leading-6 tracking-[-0.01em] text-ink decoration-[#c9c2b6] underline-offset-[0.1875rem] hover:underline" data-card-label data-card-open={id}>{label}</button>
+          : <span className="min-w-0 break-words text-[1rem] font-semibold leading-6 tracking-[-0.01em] text-ink" data-card-label>{label}</span>}
+        {n > 1 && <span className="shrink-0 text-[0.875rem] font-medium text-faint tnum" data-card-count>{n}</span>}
+      </header>
+      <div className="pb-1">{children}</div>
+    </section>
+  )
+}
+/** a list's lines: one card per project (a list sorted by a column: one card, each line saying its own project) */
+function Lines({ lines: lines0, me, showOwner, on }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]> }) {
   const sort = React.useContext(TodaySort)
   const s = useStore()
-  const lines = sort ? sortLines(s, lines0, sort) : lines0
-  let at = -1
-  if (showNow && !sort && day === TODAY && lines.some(timedLine)) {
-    const after = lines.findIndex((l) => timedLine(l) && (l.x.time ?? 0) > nowMin)
-    at = after >= 0 ? after : lines.reduce((n, l, i) => (timedLine(l) ? i + 1 : n), 0)
+  const row = (l: Line, card: { label: string; first: boolean }) => (
+    <InCard.Provider key={l.key} value={card}><LineOn.Provider value={on?.[l.key] || null}><Safe name={`Today line ${l.key}`}><LineRow l={l} me={me} showOwner={showOwner} /></Safe></LineOn.Provider></InCard.Provider>
+  )
+  if (sort) {
+    const lines = sortLines(s, lines0, sort)
+    return <ProjectCard label="Sorted" n={lines.length}>{lines.map((l, i) => row(l, { label: '', first: i === 0 }))}</ProjectCard>
   }
   return (
-    <>
-      {lines.map((l, i) => <React.Fragment key={l.key}>{i === at && <NowLine min={nowMin} />}<LineOn.Provider value={on?.[l.key] || null}><Safe name={`Today line ${l.key}`}><LineRow l={l} me={me} showOwner={showOwner} /></Safe></LineOn.Provider></React.Fragment>)}
-      {at === lines.length && <NowLine min={nowMin} />}
-    </>
+    <div className="flex flex-col gap-3" data-cards>
+      {cardsOf(lines0).map((c) => {
+        const job = c.key === 'company' ? undefined : s.jobs[c.key]
+        const label = job?.name || 'Company'
+        return <ProjectCard key={c.key} id={job?.id} label={label} n={c.lines.length}>{c.lines.map((l, i) => row(l, { label, first: i === 0 }))}</ProjectCard>
+      })}
+    </div>
   )
 }
 /** a part of a list: its name and how many, then its lines */
@@ -1348,7 +1486,14 @@ function PartBlock({ p, me, showOwner, lateLink = true }: { p: Part; me: PersonK
   const s = useStore()
   return (
     <section data-day={p.day || p.key} data-part={p.key}>
-      {p.label && <Group label={p.label} count={p.lines.length} tone={p.tone} strong={p.tone === 'bad'} right={p.lateLink && lateLink ? <button onClick={() => s.open({ t: 'late' })} data-late-open className="text-[0.8125rem] font-medium text-muted hover:text-brand-700">Move or remind<ChevronRight className="ml-0.5 inline h-3.5 w-3.5 align-[-0.15em]" /></button> : undefined} />}
+      {/* the part's name, quiet, over its cards (late in red) — and what's late can be moved or reminded in one go */}
+      {p.label && (
+        <div className="flex items-center gap-2 px-1 pb-2.5 pt-5" data-group-head data-band data-group-tone={p.tone || 'neutral'}>
+          <h2 className={cn('text-[0.8125rem] font-semibold uppercase tracking-[0.07em]', p.tone === 'bad' ? 'text-bad-600' : 'text-[#7b756b]')}>{p.label}</h2>
+          <span className="text-[0.8125rem] font-semibold text-faint tnum" data-band-count>{p.lines.length}</span>
+          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.8125rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
+        </div>
+      )}
       <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} />
     </section>
   )
@@ -1372,8 +1517,7 @@ export function TheirList({ who }: { who: PersonKey }) {
         <span className="min-w-0 truncate text-[0.8125rem] text-muted">· the same list as on {you ? 'your' : 'their'} phone</span>
       </div>
       {n ? (
-        <div data-even-list style={todoCols}>
-          <TodayHead />
+        <div className="px-6 pb-4 max-sm:px-4" data-their-cards>
           {parts.map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} />)}
         </div>
       ) : <div className="px-6 pb-4 text-[0.875rem] text-muted max-sm:px-4">Nothing on it today.</div>}
@@ -1398,8 +1542,7 @@ export function NobodyModal({ level }: { level: number }) {
   const parts = everyoneOf(s, 'today', 'all').nobody
   return (
     <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet. Give each one to someone, or give the login to someone on Team.">
-      <div className="-mx-6 max-sm:-mx-4" data-even-list style={todoCols}>
-        {countOf(parts) > 0 && <TodayHead />}
+      <div className="pb-2" data-nobody-cards>
         {parts.map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} />)}
         {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing. Everything is on someone’s list.</div>}
       </div>
@@ -1480,8 +1623,9 @@ function WhoPick() {
   const row = (on: boolean) => cn('flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-[0.9375rem] text-ink transition hover:bg-wash', on && !many && 'bg-brand-50/60 font-medium hover:bg-brand-50')
   return (
     <Pop open={open} onOpenChange={setOpen} align="start" width={300} trigger={
-      <button type="button" aria-label="Whose list · pick" className={cn('inline-flex h-9 min-w-0 max-w-[18rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', words !== 'Mine' ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
-        {one && one !== me ? <Avatar who={one} size={20} /> : !one ? <Users className="shrink-0 text-brand-600" /> : <UserRound className="shrink-0 text-faint" />}
+      <button type="button" aria-label="Whose list · pick" className={cn('inline-flex h-9 min-w-0 max-w-[18rem] items-center md:shrink-0 gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] max-md:gap-1.5 max-md:px-2.5 transition-colors [&_svg]:h-4 [&_svg]:w-4', words !== 'Mine' ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-today-who>
+        {/* (a phone: the words alone, so All jobs, Mine, the search and Sort fit one line on a small phone) */}
+        {one && one !== me ? <Avatar who={one} size={20} /> : !one ? <Users className="shrink-0 text-brand-600 max-md:hidden" /> : <UserRound className="shrink-0 text-faint max-md:hidden" />}
         <span className="min-w-0 truncate" data-today-who-picked={keys.map((k) => (k === me ? 'me' : k)).join(',')}>{words}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
@@ -1523,10 +1667,11 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
   if (!n) return null
   return (
     <section data-person-list={l.key}>
-      <div className={cn('flex min-h-[3.25rem] items-center gap-3 border-t-2 border-line bg-white py-2', PX)} data-person-band>
+      {/* whose list: their circle and name, over their cards */}
+      <div className="flex items-center gap-2.5 px-1 pb-1 pt-7" data-person-band>
         <Avatar who={l.key} size={28} />
-        <b className="min-w-0 truncate text-[1rem] font-semibold text-ink">{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
-        <span className="text-[0.875rem] font-semibold text-faint tnum" data-person-count>{n}</span>
+        <b className="min-w-0 truncate text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
+        <span className="text-[0.9375rem] font-semibold text-faint tnum" data-person-count>{n}</span>
       </div>
       <Viewer.Provider value={l.key}>
         <Multi.Provider value={false}>
@@ -1637,8 +1782,8 @@ function JobPickPop({ picked }: { picked?: Job }) {
   return (
     <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }} align="start" width={320} trigger={
       <button type="button" aria-label={picked ? `Job: ${picked.name} · pick another` : 'Pick a job'}
-        className={cn('inline-flex h-9 min-w-0 max-w-[22rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition-colors [&_svg]:h-4 [&_svg]:w-4', picked ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-job-pick>
-        <Building2 className={cn('shrink-0', picked ? 'text-brand-600' : 'text-faint')} />
+        className={cn('inline-flex h-9 min-w-0 max-w-[22rem] items-center md:shrink-0 gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] max-md:gap-1.5 max-md:px-2.5 transition-colors [&_svg]:h-4 [&_svg]:w-4', picked ? 'border-brand-300 bg-brand-50 font-semibold text-brand-700' : 'border-[#d9d3c9] bg-white text-ink-2 shadow-xs hover:bg-wash')} data-job-pick>
+        <Building2 className={cn('shrink-0 max-md:hidden', picked ? 'text-brand-600' : 'text-faint')} />
         <span className="min-w-0 truncate" data-job-picked={picked?.id || 'all'}>{picked ? picked.name : 'All jobs'}</span>
         <ChevronDown className="shrink-0 opacity-50" />
       </button>
@@ -1662,7 +1807,7 @@ function JobPickPop({ picked }: { picked?: Job }) {
 }
 /* ---------------- find a to-do: type, and the list is only what matches ---------------- */
 /** what's typed in the list's search — kept while the app is open */
-export const useTodayFind = create<{ q: string; set: (q: string) => void }>((set) => ({ q: '', set: (q) => set({ q }) }))
+export const useTodayFind = create<{ q: string; set: (q: string) => void; /** a phone: the search open in the line */ open: boolean; setOpen: (v: boolean) => void }>((set) => ({ q: '', set: (q) => set({ q }), open: false, setOpen: (open) => set({ open }) }))
 /** the words a line is found by: what it says, its project (name, address, client), whose it is */
 function lineWords(s: Store, l: Line): string {
   const jn = (id?: string) => { const j = id ? s.jobs[id] : undefined; return j ? `${j.name} ${j.address || ''} ${j.client || ''}` : '' }
@@ -1690,15 +1835,28 @@ export function findIn(s: Store, parts: Part[], q: string): Part[] {
   if (!words.length) return parts
   return parts.map((p) => ({ ...p, lines: p.lines.filter((l) => { const k = lineWords(s, l).toLowerCase(); return words.every((w) => k.includes(w)) }) })).filter((p) => p.lines.length)
 }
-/** the search on top of the list — a computer's. A phone has Search on top of the screen, which finds to-dos (and
- *  everything else): one search there, not two */
+/** the search, in the same line as All jobs and Mine — a computer's a box at the end of the line; a phone's a button
+ *  there that opens the box across the line (Cancel closes it). Nothing on the list matches: Search everything */
 function FindBox() {
   const q = useTodayFind((x) => x.q)
   const set = useTodayFind((x) => x.set)
+  const open = useTodayFind((x) => x.open)
+  const setOpen = useTodayFind((x) => x.setOpen)
   const small = useSmall()
-  if (small) return null
+  if (small) {
+    if (!open) return <button type="button" onClick={() => setOpen(true)} aria-label="Search to-dos" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] border border-[#d9d3c9] bg-white text-ink-2 shadow-xs" data-today-find-open><Search className="h-[1.125rem] w-[1.125rem]" /></button>
+    return (
+      <div className="flex min-w-0 flex-1 items-center gap-2" data-today-find>
+        <label className="relative block min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+          <input {...NO_SUGGEST} autoFocus value={q} onChange={(e) => set(e.target.value)} placeholder="Search to-dos" aria-label="Search to-dos" className="h-10 w-full rounded-[0.625rem] border border-[#d9d3c9] bg-white pl-9 pr-3 text-ink outline-none placeholder:text-faint focus:border-brand-300 focus:ring-[0.1875rem] focus:ring-brand-50" data-today-find-input />
+        </label>
+        <button type="button" onClick={() => { set(''); setOpen(false) }} className="shrink-0 px-1 text-[0.9375rem] font-semibold text-brand-700" data-today-find-cancel>Cancel</button>
+      </div>
+    )
+  }
   return (
-    <label className="relative block w-[15.5rem] min-w-0" data-today-find>
+    <label className="relative block w-[15.5rem] min-w-[10.5rem] max-[90rem]:w-[12rem]" data-today-find>
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
       <input {...NO_SUGGEST} value={q} onChange={(e) => set(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') set('') }} placeholder="Search to-dos" aria-label="Search to-dos" className="h-9 w-full rounded-[0.625rem] border border-[#d9d3c9] bg-white pl-9 pr-8 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-300 focus:ring-[0.1875rem] focus:ring-brand-50" data-today-find-input />
       {q && <button type="button" onClick={() => set('')} aria-label="Clear the search" className="absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-wash hover:text-ink" data-today-find-clear><X className="h-3.5 w-3.5" /></button>}
@@ -1708,8 +1866,12 @@ function FindBox() {
 
 function JobBar({ picked, onClear, sort }: { picked?: Job; onClear: () => void; /** a phone: the Sort button */ sort?: React.ReactNode }) {
   const s = useStore()
+  const small = useSmall()
+  const finding = useTodayFind((x) => x.open)
+  /* a phone searching: the box across the whole line */
+  if (small && finding) return <div className="flex w-full min-w-0 items-center gap-2" data-today-bar><FindBox /></div>
   return (
-    <div className="flex w-full min-w-0 flex-wrap items-center gap-2" data-today-bar>
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:flex-nowrap" data-today-bar>
       <JobPickPop picked={picked} />
       {picked && <button type="button" onClick={onClear} aria-label="All jobs" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem] text-muted hover:bg-wash hover:text-ink" data-job-clear><X className="h-4 w-4" /></button>}
       {/* the admin: whose list — his own, or anyone's */}
@@ -1722,6 +1884,27 @@ function JobBar({ picked, onClear, sort }: { picked?: Job; onClear: () => void; 
     </div>
   )
 }
+
+/** Today / Coming up / Waiting / Done: one clean switch (the picked one a white pill on a soft track), each with its
+ *  number — not four boxes */
+function TodaySwitch({ items }: { items: { key: string; label: string; short?: string; tiny?: string; count: number; on: boolean; onClick: () => void }[] }) {
+  return (
+    <div role="tablist" className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-[#ebe6de] p-1 max-md:flex max-md:w-full" data-bubbles data-today-switch>
+      {items.map((it) => (
+        /* (the number first in the page's words, after the name on the screen) */
+        <button key={it.key} type="button" role="tab" aria-selected={it.on} onClick={it.onClick} data-bubble={it.key}
+          className={cn('inline-flex h-9 flex-row-reverse items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[0.875rem] font-semibold transition max-md:h-10 max-md:min-w-0 max-md:flex-1 max-md:px-1.5', it.on ? 'bg-white text-ink shadow-[0_1px_2px_rgba(40,33,20,0.1),0_4px_12px_-6px_rgba(40,33,20,0.18)]' : 'text-[#6f695f] hover:text-ink')}>
+          <span className={cn('tnum', it.on ? 'text-brand-600' : 'text-faint')} data-bubble-count>{it.count}</span>
+          {/* its whole name on a wide screen; shorter on a smaller computer; shortest on a phone */}
+          {/* (sizes in rem like md's, so the wider rule comes last in the styles and wins) */}
+          <span data-bubble-text><span className="hidden min-[90rem]:inline">{it.label}</span><span className="hidden md:inline min-[90rem]:hidden">{it.short || it.label}</span><span className="md:hidden">{it.tiny || it.short || it.label}</span></span>
+        </button>
+      ))}
+    </div>
+  )
+}
+/** sorting Today: the usual order is by project (a card each); picked here: one list in that order */
+const TODAY_SORTS: SortCol[] = [{ k: 'when', label: 'When', kind: 'date' }, { k: 'project', label: 'Project' }, { k: 'todo', label: 'To do' }, { k: 'who', label: 'Who' }]
 
 export function MyTasksPage() {
   const s = useStore()
@@ -1740,8 +1923,7 @@ export function MyTasksPage() {
   /* the number on each tab is what you see under it — Everyone: each person's lines added up */
   /* typed in the search: only what matches — and each tab's number is how many match on it */
   const q0 = useTodayFind((x) => x.q).trim()
-  /* (a phone has no list search — Search on top of the screen instead) */
-  const q = useSmall() ? '' : q0
+  const q = q0
   const n = (v: View) => (lists.length > 1 ? lists.reduce((k, l) => k + countOf(findIn(s, partsOf(s, l.role, l.person, v, job), q)), 0) : countOf(findIn(s, partsFor(s, lists, v, job), q)))
   const parts = findIn(s, partsFor(s, lists, view, job), q)
   const found = q ? n(view) : 0
@@ -1756,45 +1938,52 @@ export function MyTasksPage() {
     done: { title: 'Nothing done yet', sub: 'What’s finished goes here, by the day it was done. Open one to reopen it.' },
   }
 
+  /* on top: the name, the day, how much is on it (and how much is late — it opens what's late) */
+  const lateN = view === 'today' && !multi ? parts.reduce((k, p) => k + p.lines.filter((l) => l.k === 'plate' ? l.x.b === 'overdue' : l.k === 'task' ? taskBucket(l.t) === 'overdue' : false).length, 0) : 0
   return (
     <Page
+      bare
       title={multi ? (lists.length >= (insidePeople(s).length || 1) ? 'Everyone’s Today' : `Today · ${lists.map((l) => (l.key === meOf(role) ? 'You' : PEOPLE[l.key]?.short || '')).join(' and ')}`) : lists[0].person ? `${PEOPLE[lists[0].person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[meOf(role)].short}`}
       phoneTitle
-      sub={TODAY_LABEL}
+      sub={<span data-today-sub>{TODAY_LABEL}{n('today') ? <> · {n('today')} to do</> : null}{lateN ? <> · <button type="button" onClick={() => s.open({ t: 'late' })} className="font-medium text-bad-600 hover:underline" data-today-late>{lateN} late</button></> : null}</span>}
       top={
-        <Bubbles
-          row
-          soft
-          items={[
-            { key: 'today', label: 'Today', count: n('today'), icon: <ListTodo />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
-            { key: 'coming', label: 'Coming up', count: n('coming'), icon: <CalendarDays />, color: 'violet', on: view === 'coming', onClick: () => setView('coming') },
-            /* what someone else is doing that you're waiting for — you asked them, you're watching it, it's with the GC */
-            { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting') },
-            /* what's finished: today's, then the days before */
-            { key: 'done', label: 'Done', count: doneN, icon: <CircleCheckBig />, color: 'teal', on: view === 'done', onClick: () => setView('done') },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 max-md:flex-col max-md:items-stretch" data-today-top>
+          <TodaySwitch
+            items={[
+              { key: 'today', label: 'Today', count: n('today'), on: view === 'today', onClick: () => setView('today') },
+              { key: 'coming', label: 'Coming up', tiny: 'Coming', count: n('coming'), on: view === 'coming', onClick: () => setView('coming') },
+              /* what someone else is doing that you're waiting for — you asked them, you're watching it, it's with the GC */
+              { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), on: view === 'waiting', onClick: () => setView('waiting') },
+              /* what's finished: today's, then the days before */
+              { key: 'done', label: 'Done', count: doneN, on: view === 'done', onClick: () => setView('done') },
+            ]}
+          />
+          {/* All jobs, Mine, Sort and the search — the same line (not enough room next to the switch: the next line,
+              never cut short) */}
+          <div className="flex flex-1 items-center max-md:min-w-0" data-today-filters>
+            <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" />} />
+          </div>
+        </div>
       }
-      /* (a phone keeps its one line over the list — Today there goes by time; the column names sort it on a computer) */
-      toolbar={<JobBar picked={picked} onClear={() => setJob('all')} />}
     >
-      {/* Who is a column on every list — tap it to give it to someone (the admin); waiting: who it's with */}
       <WhoCol.Provider value={true}>
       <InJob.Provider value={!!picked}>
       <Viewer.Provider value={multi ? null : me}>
       <Multi.Provider value={multi}>
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
-      <div data-even-list data-list-scope="mine" style={todoColsOf(true)}>
+      <div className="flex flex-col" data-list-scope="mine" data-today-list>
         {/* Waiting on others, in one line: only what you're waiting for */}
-        {view === 'waiting' && n(view) > 0 && !q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch. By whom it’s with.</div>}
+        {view === 'waiting' && n(view) > 0 && !q && <div className="px-1 pb-1 pt-1 text-[0.8125rem] leading-snug text-muted" data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch.</div>}
         {/* searching: how many match, on this list */}
-        {q && <div className={cn('border-b border-line-2 py-2.5 text-[0.8125rem] text-muted', PX)} data-today-found={found}>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</div>}
-        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} who sort={sorter.sort} onSort={sorter.toggle} />}
+        {q && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pb-1 pt-1 text-[0.8125rem] text-muted" data-today-found={found}><span>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</span>{!found && <button type="button" onClick={() => s.setPalette(true)} className="font-semibold text-brand-700" data-today-find-all>Search everything</button>}</div>}
         {/* one person's list — or Everyone: each person's under their own name, never mixed */}
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
-        {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
-        {/* (what's done leaves Today right away — it's on Done) */}
+        {n(view) === 0 && !q && (
+          <div className="mt-2 rounded-[1.125rem] bg-white shadow-[0_0_0_1px_rgba(40,33,20,0.07),0_12px_28px_-20px_rgba(40,33,20,0.22)]">
+            <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />
+          </div>
+        )}
       </div>
       </TodaySort.Provider>
       </WaitView.Provider>
@@ -1819,7 +2008,7 @@ function gcToTodo(id: string) {
   }, 'It’s a to-do now', { sub: 'On their Today, today.' })
 }
 /** a call (call the GC, ask the client, find out…): what came of it is the point — so Done asks what they said */
-export const isCallTask = (t: Pick<Task, 'title' | 'state' | 'waitingOn'>) => t.state !== 'waiting' && /^\s*(call|phone|ring|text|ask|check with|find out|follow up with|reach out to|speak (to|with)|talk to)\b/i.test(t.title)
+export const isCallTask = (t: Pick<Task, 'title' | 'state' | 'waitingOn'>) => t.state !== 'waiting' && CALL_RE.test(t.title)
 function CallDone({ t, onDone }: { t: Task; onDone: () => void }) {
   const s = useStore()
   const [said, setSaid] = React.useState('')
@@ -1895,6 +2084,15 @@ export function taskOrigin(t: Task): string {
 /** someone else's task: remind them — it pops up on their screen — and, when it's late, it counts as checking in. For
  *  whoever reminded, it's off their Today now and back tomorrow if it still isn't done: nothing left to stare at, nothing
  *  lost */
+/** a reminder for a line that has none of its own (the crew list, the daily updates, the pickup list…): to its person's
+ *  phone (with notifications on) and their Messages; tapped, it opens that thing */
+export function remindLine(person: PersonKey, what: string, open?: { t: string; [k: string]: any }, jobId?: string) {
+  const st = useStore.getState()
+  const me = meOf(st.role)
+  st.commit((x) => {
+    x.notices.unshift({ id: 'nm' + Date.now().toString(36), jobId, text: `${PEOPLE[me]?.short || 'Someone'} reminded you: ${what}`, when: 'Just now', kind: 'field', unread: true, open, for: [person] })
+  }, `Reminder sent to ${PEOPLE[person]?.short || 'them'}`, { sub: 'It’s in their Messages, and on their phone when notifications are on.', undo: false })
+}
 function remindTask(t: Task) {
   const st = useStore.getState()
   const me = meOf(st.role)
@@ -1918,11 +2116,13 @@ export const quietForMe = (t: Task, me: PersonKey | null) => !!me && (t.quiet?.[
  * button), Not today, Waiting on someone; someone else's — Remind them, Follow it (you hear when it moves, and it waits
  * under Waiting on others until it's done), and the admin can take it over. Changing the task itself is in ··· : its
  * person moves its day; the admin also hands it to someone else, sets who follows it and puts it on everyone's Today. */
-export function TaskModal({ id, level, call }: { id: string; level: number; /** a call's circle: "What did they say?" open */ call?: boolean }) {
+export function TaskModal({ id, level, call, ordered, follow }: { id: string; level: number; /** opened from its line's button (Called): "What did they say?" open */ call?: boolean; /** opened from its line's button (Ordered): who brings it and when it should be there — then it waits for it */ ordered?: boolean; /** opened from its line's button (Follow up): what they said, and when it's back */ follow?: boolean }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
-  const [waitOpen, setWaitOpen] = React.useState(false)
+  const [waitOpen, setWaitOpen] = React.useState(!!ordered || !!follow)
   const [callOpen, setCallOpen] = React.useState(!!call)
+  /* its person opened it: seen (the list stops saying New / Not seen yet) */
+  React.useEffect(() => { markTaskSeen([id]) }, [id])
   /* a change from ··· opens in place of the task, with Back to it */
   const [panel, setPanel] = React.useState<null | 'share' | 'answer'>(null)
   /* once what it was opened for is done — finished, waiting on someone, set aside, moved to another day, handed to
@@ -2065,7 +2265,7 @@ export function TaskModal({ id, level, call }: { id: string; level: number; /** 
         /* you did your part — now it's with someone else: who, and the day it comes back (a little window over the
            button — never another screen) */
         <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" align="end" width={380} trigger={<Button icon={<Hourglass />} data-task-wait>Waiting on someone</Button>}>
-          <WaitPicker defaultWho={t.waitingOn} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
+          <WaitPicker defaultWho={t.waitingOn || (ordered ? 'Supplier' : undefined)} title={ordered ? 'Ordered. Who’s bringing it?' : undefined} backTitle={ordered ? 'When it should be there' : undefined} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
         </Pop>
       ) : null}
       {hasAction ? (
@@ -2258,6 +2458,17 @@ export function personIn(text: string, people: PersonKey[]): PersonKey | undefin
     return names.some((x) => t.includes(` ${oneEach(x).trim()} `))
   })
 }
+/* a time said in the words: "at 5", "at 4:30pm", "5pm", "by 3 PM" — "at 5" alone (or before today / tomorrow…) is the
+   afternoon, as everywhere; a number that's part of an address ("at 119 Park") is not a time */
+const TIME_SAID = /\b(?:at|@|by)\s*(\d{1,2}(?::\d{2})?)\s*(am|pm|a\.m\.|p\.m\.)(?![a-z])|\b(\d{1,2}(?::\d{2})?)\s*(am|pm|a\.m\.|p\.m\.)(?![a-z])|\b(?:at|@)\s*(\d{1,2}(?::\d{2})?)(?=\s*$|\s*[,.;!?)]|\s+(?:today|tomorrow|tonight|this|on|in|for|and|o'?clock)\b)/i
+export function timeSaid(v: string): string | undefined {
+  const m = v.match(TIME_SAID)
+  if (!m) return undefined
+  const num = m[1] || m[3] || m[5]
+  const ap = (m[2] || m[4] || '').replace(/\./g, '')
+  const min = parseTime(`${num}${ap ? ' ' + ap : ''}`)
+  return min == null ? undefined : clock(min)
+}
 export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?: string; /** made from this message on the project: it starts filled in */ fromMsg?: string }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -2276,6 +2487,9 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const [picked, setPicked] = React.useState(false)
   const [repeat, setRepeat] = React.useState<'' | NonNullable<Task['repeat']>>('')
   const [at, setAt] = React.useState('4 PM')
+  /* its time of day (a one-time to-do): any time, unless it's picked or said ("call the GC at 5") */
+  const [time, setTime] = React.useState('')
+  const [timePicked, setTimePicked] = React.useState(false)
   const projects = Object.values(s.jobs).filter((j) => !['request', 'estimating', 'proposal', 'followup'].includes(j.stage) || j.id === jobId)
   const [jobPicked, setJobPicked] = React.useState(!!jobId)
   const [heard, setHeard] = React.useState('')
@@ -2296,6 +2510,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       const p = personIn(v, team.filter((x) => x !== me))
       if (p) { setOwners([p]); setHeardWho(true) } else if (heardWho) { setOwners([me]); setHeardWho(false) }
     }
+    if (!timePicked) setTime(timeSaid(v) || '')
     if (picked || repeat) return
     const hit = DAY_WORDS.find(([re]) => re.test(v.toLowerCase()))
     if (hit) setDue(hit[1])
@@ -2307,9 +2522,11 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
     /* every login it's on — each person's own */
     const fors = Array.from(new Set(owners.flatMap((p) => { const r = s.team.find((m) => m.key === p)?.role; return r ? [r] : ROLE_OF[p] || ['owner'] }))) as Role[]
     /* given to someone else: you follow it — you hear when it's done */
-    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, also: shared ? owners.slice(1) : undefined, due: repeat ? 'Today' : due, for: fors, state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: (() => { const f = Array.from(new Set([...(!owners.includes(me) ? [me] : []), ...watchers])).filter((p) => !owners.includes(p)); return f.length ? f : undefined })() })
+    s.addTask({ jobId: job, title: clean, type: guessType(title), owner, also: shared ? owners.slice(1) : undefined, due: repeat ? 'Today' : due, ...(!repeat && time ? { at: time } : {}), for: fors, state: 'now', tone: urgent ? 'bad' : 'info', urgent: urgent || undefined, repeat: repeat || undefined, repeatAt: repeat ? at : undefined, where: repeat ? `${REPEAT_LABEL[repeat]} at ${at}` : msg ? 'From a message' : undefined, detail: msg ? `From ${PEOPLE[msg.who]?.name || 'someone'} in the project messages, ${msg.date} ${msg.time}: “${msg.text}”` : undefined, followers: (() => { const f = Array.from(new Set([...(!owners.includes(me) ? [me] : []), ...watchers])).filter((p) => !owners.includes(p)); return f.length ? f : undefined })() })
     if (msg && jobId) markMessageTask(jobId, msg.id)
     s.close()
+    /* set for a time, and it's mine: the phone can say so at that time (once in a while, when it's off) */
+    if (!repeat && time && owners.includes(me)) void offerNotify(time)
   }
   /* who: you first, as "Me"; everyone else by their whole name (two can share a first name) */
   const whoOptions = [me, ...team.filter((p) => p !== me)].map((p) => ({ key: p as string, label: p === me ? 'Me' : PEOPLE[p]?.name || p, hint: p === me ? undefined : PEOPLE[p]?.roleLabel, lead: <Avatar who={p} size={20} /> }))
@@ -2370,6 +2587,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
         </span>
         <span className="contents" data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
+          {!repeat && <SearchSelect label="Time" value={time} options={[{ key: '', label: 'Any time' }, ...TIMES.map((x) => ({ key: x, label: x }))]} onChange={(v) => { setTime(v); setTimePicked(true) }} search={false} width={200} trigger={<button type="button" aria-label="Time" className={cn(PICK_CHIP, time && 'text-ink')} data-task-time={time}><Clock3 /><span>{time ? `at ${time}` : 'Any time'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
           {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} trigger={<button type="button" aria-label="At" className={PICK_CHIP}><Clock3 /><span>at {at}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
         </span>
         {/* who's watching — they don't do it, they see it and hear when it moves (the same order as in a task: who
@@ -2434,8 +2652,8 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
   /* the day it's for: the one it was opened for, else today's until 3 and the next work day's after */
   const [day] = React.useState(() => day0 || crewDay())
   const today = day === TODAY_ISO
-  /* filled in: that day's booking, else what was planned for it, else the last report — 2 when nothing's known */
-  const [rows, setRows] = React.useState(() => crewsOn(s, day).map((c) => { const j = s.jobs[c.jobId]; const fix = (c as { fix?: string[] }).fix; return { jobId: c.jobId, crew: c.crew as PersonKey, workers: c.workers ?? (j?.crewPlan?.day === day ? j.crewPlan.workers : undefined) ?? j?.onSite?.workers ?? 2, note: fix?.length ? `Touch-ups: ${fix.join('; ')}` : '' } })
+  /* filled in: what was sent for that day already, else the last number sent for each job — 0 when it isn't known */
+  const [rows, setRows] = React.useState(() => crewLines(s, day)
     /* by crew, the same order as the email: each crew's jobs together */
     .sort((a, b) => (PEOPLE[a.crew]?.name || '~').localeCompare(PEOPLE[b.crew]?.name || '~') || (s.jobs[a.jobId]?.name || '').localeCompare(s.jobs[b.jobId]?.name || '')))
   const [adding, setAdding] = React.useState(false)
@@ -2450,7 +2668,7 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
   const add = (jobId: string) => {
     const j = s.jobs[jobId]
     if (!j || rows.some((r) => r.jobId === jobId)) { setAdding(false); setAddJob(''); return }
-    setRows((x) => [...x, { jobId, crew: ((j.crew || crews[0]) as PersonKey), workers: 2, note: '' }])
+    setRows((x) => [...x, { jobId, crew: ((j.crew || crews[0]) as PersonKey), workers: crewStart(s, jobId, day), note: '' }])
     setAdding(false); setAddJob('')
   }
   return (
@@ -2483,11 +2701,12 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
         {rows.map((r, i) => {
           const j = s.jobs[r.jobId]
           return (
-            <div key={r.jobId} className={cn('flex items-center gap-3 border-b border-line-2 px-6 py-3.5 max-sm:flex-wrap max-sm:px-4', r.workers === 0 && 'bg-wash/60')} data-crew-job={r.jobId}>
+            <div key={r.jobId} className="flex items-center gap-3 border-b border-line-2 px-6 py-3.5 max-sm:flex-wrap max-sm:px-4" data-crew-job={r.jobId}>
               <Avatar who={r.crew} size={32} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[0.9375rem] font-semibold text-ink">{j?.name}</div>
-                <div className={cn('text-[0.8125rem]', r.workers === 0 ? 'font-medium text-warn-700' : 'text-muted')}>{r.workers === 0 ? (today ? 'Nobody there today' : 'Nobody there') : `${PEOPLE[r.crew]?.name || 'No installer yet'}`}</div>
+                {/* 0: what it'll say (nobody there), quiet — it's where every job starts until a number is put in */}
+                <div className="text-[0.8125rem] text-muted">{PEOPLE[r.crew]?.name || 'No installer yet'}{r.workers === 0 ? <span data-crew-nobody> · {today ? 'Nobody there today' : 'Nobody there'}</span> : null}</div>
                 {r.note && <div className="break-words text-[0.78125rem] leading-snug text-muted" data-crew-note>{r.note}</div>}
               </div>
               <div className={cn(small && 'w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>

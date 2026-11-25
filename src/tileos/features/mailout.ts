@@ -310,24 +310,28 @@ ${groups.map((g) => `<tr><td style="padding:10px 6px 6px;background:#f6f5f2;font
 ${g.list.map((r) => `<tr><td style="${cell};padding-left:16px"><b>${esc(jobName(r))}</b>${addrOf(r) ? small(addrOf(r)) : ''}${r.note ? small(r.note) : ''}</td><td style="${cell};text-align:right;white-space:nowrap">${r.workers}</td></tr>`).join('\n')}`).join('\n')}
 <tr><td style="text-align:right;padding:10px 6px;font-weight:700">Total</td><td style="text-align:right;padding:10px 6px;font-weight:700">${people}</td></tr>
 </table>`
-  const nobody = off.length ? `<p style="margin:10px 0 4px;font-weight:700">Nobody there ${esc(dayWords)}</p><p style="margin:0;color:#5b5f68">${off.map((r) => `${esc(jobName(r))} (${esc(crewName(r))})`).join(' · ')}</p>` : ''
-  /* everyone in the loop: the touch-ups still open, and the jobs on hold — what has to happen on each */
-  const tu = Object.values(s.jobs).filter((j) => j.stage === 'punch' && !j.hold).map((j) => ({ j, open: s.punch.filter((p) => p.jobId === j.id && p.status !== 'verified') })).filter((x) => x.open.length)
-  const held = Object.values(s.jobs).filter((j) => j.hold && !['complete', 'closeout'].includes(j.stage))
-  const tuHtml = tu.length ? `<p style="margin:22px 0 6px;font-size:16px;font-weight:700">Touch-ups still open</p>
-<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${tu.map(({ j, open }) => `<tr><td style="${cell}"><b>${esc(j.name)}</b> <span style="color:#7a7569">· ${open.length} ${open.length === 1 ? 'thing' : 'things'}</span>${open.map((p) => small(`• ${p.text}${p.status === 'verify' ? ' (fixed, to check)' : ''}${p.owner ? ` · ${PEOPLE[p.owner]?.short || ''}` : ''}`)).join('')}</td></tr>`).join('')}</table>` : ''
-  const heldHtml = held.length ? `<p style="margin:22px 0 6px;font-size:16px;font-weight:700">On hold</p>
-<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${held.map((j) => `<tr><td style="${cell}"><b>${esc(j.name)}</b>${small([j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason || 'On hold', j.hold?.until ? `until ${j.hold.until}` : ''].filter(Boolean).join(' · '))}</td></tr>`).join('')}</table>` : ''
+  /* each part the same: its name, then one line a job — the job in bold, what to know under it */
+  const head = (t: string, n: number) => `<p style="margin:24px 0 6px;font-size:16px;font-weight:700">${esc(t)} <span style="color:#7a7569;font-weight:400">· ${n}</span></p>`
+  const tbl = (rowsHtml: string) => `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${rowsHtml}</table>`
+  /* in progress with nobody there that day (or not started yet): which, whose, and when it starts */
+  const nobody = off.length ? head(`Nobody there ${dayWords}`, off.length) + tbl(off.map((r) => `<tr><td style="${cell}"><b>${esc(jobName(r))}</b>${small([crewName(r), r.note].filter(Boolean).join(' · '))}</td></tr>`).join('')) : ''
+  /* everyone in the loop: the touch-ups still open, and the jobs on hold: what has to happen on each, and why it waits */
+  const tu = Object.values(s.jobs).filter((j) => j.stage === 'punch' && !j.hold).map((j) => ({ j, open: s.punch.filter((p) => p.jobId === j.id && p.status !== 'verified') })).filter((x) => x.open.length).sort((a, b) => a.j.name.localeCompare(b.j.name))
+  const held = Object.values(s.jobs).filter((j) => j.hold && !['complete', 'closeout'].includes(j.stage)).sort((a, b) => a.name.localeCompare(b.name))
+  const tuHtml = tu.length ? head('Touch-ups still open', tu.length) + tbl(tu.map(({ j, open }) => `<tr><td style="${cell}"><b>${esc(j.name)}</b> <span style="color:#7a7569">· ${open.length} ${open.length === 1 ? 'thing' : 'things'} to fix</span>${open.map((p) => small(`• ${p.text}${p.status === 'verify' ? ' (fixed, to check)' : ''}${p.owner ? ` · ${PEOPLE[p.owner]?.short || ''}` : ''}`)).join('')}</td></tr>`).join('')) : ''
+  const whyHeld = (j: (typeof held)[number]) => [j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason || 'On hold', j.hold?.since ? `since ${j.hold.since}` : '', j.hold?.until ? `until ${j.hold.until}` : ''].filter(Boolean).join(' · ')
+  const heldHtml = held.length ? head('On hold', held.length) + tbl(held.map((j) => `<tr><td style="${cell}"><b>${esc(j.name)}</b>${small(whyHeld(j))}</td></tr>`).join('')) : ''
+  const sum = [`${on.length} ${on.length === 1 ? 'job' : 'jobs'}`, `${people} ${people === 1 ? 'person' : 'people'}`, tu.length ? `${tu.length} with touch-ups` : '', held.length ? `${held.length} on hold` : '', `from ${by}`].filter(Boolean).join(' · ')
   const html = frame(`<p style="margin:0 0 4px;font-size:18px;font-weight:700">Where the crews are ${esc(dayWords)}</p>
-<p style="margin:0;color:#5b5f68">${on.length} ${on.length === 1 ? 'job' : 'jobs'} · ${people} ${people === 1 ? 'person' : 'people'} · from ${esc(by)}</p>
+<p style="margin:0;color:#5b5f68">${esc(sum)}</p>
 ${crewTbl}${nobody}${tuHtml}${heldHtml}`)
   const text = [
-    `Where the crews are ${dayWords}`, `${on.length} jobs · ${people} people · from ${by}`, '',
+    `Where the crews are ${dayWords}`, sum, '',
     ...groups.flatMap((g) => [`${g.c} · ${g.n}`, ...g.list.map((r) => `   ${jobName(r)}${addrOf(r) ? ` (${addrOf(r)})` : ''} · ${r.workers}${r.note ? ` · ${r.note}` : ''}`)]),
     '', `Total: ${people}`,
-    ...(off.length ? ['', `Nobody there: ${off.map((r) => `${jobName(r)} (${crewName(r)})`).join(', ')}`] : []),
+    ...(off.length ? ['', `Nobody there ${dayWords}`, ...off.map((r) => `   ${jobName(r)} · ${[crewName(r), r.note].filter(Boolean).join(' · ')}`)] : []),
     ...(tu.length ? ['', 'Touch-ups still open', ...tu.flatMap(({ j, open }) => [`${j.name}`, ...open.map((p) => `   • ${p.text}`)])] : []),
-    ...(held.length ? ['', 'On hold', ...held.map((j) => `${j.name} · ${j.hold?.reason || 'on hold'}${j.hold?.until ? ` until ${j.hold.until}` : ''}`)] : []),
+    ...(held.length ? ['', 'On hold', ...held.map((j) => `   ${j.name} · ${whyHeld(j)}`)] : []),
   ].join('\n')
   return { subject, html, text }
 }

@@ -16,7 +16,7 @@ export function lockZoom() {
 }
 
 /** the published app (or the company's own address) — not the editor's preview, not this computer's test server */
-function onDevice(): boolean {
+export function onDevice(): boolean {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || import.meta.env.DEV) return false
   if (window.self !== window.top) return false
   const host = location.hostname

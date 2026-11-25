@@ -540,6 +540,8 @@ export const useStore = create<Store>()(
         const t = s.tasks.find((x) => x.id === id)
         if (!t) return
         t.owner = owner
+        /* handed on: theirs from now — "Not seen yet" until they open it (taking it over yourself: nothing to see) */
+        if (owner !== meOf(s.role)) { t.given = new Date().toISOString(); t.givenBy = meOf(s.role) } else { delete t.given; delete t.givenBy }
         /* they do it now — not one of the others on it, and not watching it */
         if (t.also?.includes(owner)) { t.also = t.also.filter((p) => p !== owner); if (!t.also.length) delete t.also }
         if (t.followers?.includes(owner)) { t.followers = t.followers.filter((p) => p !== owner); if (!t.followers.length) delete t.followers }
@@ -571,6 +573,8 @@ export const useStore = create<Store>()(
         const id = 'n' + tid++ + ID.sfx
         s.tasks.unshift({
           id, type: 'Setup', owner: meOf(s.role), for: [s.role], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: meOf(s.role), text: p.urgent ? 'Created · urgent' : 'Created' }], ...p,
+          /* made for someone else: theirs from now, given by me — "Not seen yet" until they open it */
+          ...(other ? { given: new Date().toISOString(), givenBy: me } : {}),
         } as Task)
         if (s.tasks[0].log?.[0] && !s.tasks[0].log[0].time) s.tasks[0].log[0] = { ...s.tasks[0].log[0], time: clockNow() }
         /* urgent, for someone else: it pops up for them too, and opens the task */
@@ -596,6 +600,9 @@ export function newTask(s: Data, p: Partial<Task> & { jobId: string; title: stri
   const t: Task = { id: 'n' + tid++ + ID.sfx, type: 'Setup', owner: 'ys', for: ['owner'], state: 'now', tone: 'info', log: [{ date: NOW, time: clockNow(), who: 'system', text: 'Created' }], ...p } as Task
   /* its first line says what time it was made, whatever made it */
   if (t.log?.[0] && !t.log[0].time) t.log[0] = { ...t.log[0], time: clockNow() }
+  /* made by someone for someone else (a request, a hand-off): given — "Not seen yet" until they open it */
+  const by = t.log?.[0]?.who
+  if (by && by !== 'system' && by !== t.owner && !t.given) { t.given = new Date().toISOString(); t.givenBy = by as PersonKey }
   s.tasks.unshift(t)
   return t
 }

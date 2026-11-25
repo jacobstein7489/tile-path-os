@@ -88,3 +88,39 @@ self.addEventListener('fetch', (e) => {
     })())
   }
 })
+
+/* ---------------- notifications: what's due, even with the app closed ----------------
+ * The server sends a sealed message (lib/remind.server); here it shows as a notification. Tap it: the app opens (or
+ * comes to the front) right on that thing. With the app on screen on a computer or an Android phone, it shows in the
+ * app instead (an iPhone always shows it: it must). */
+const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome|Chromium|CriOS|Edg|Android/.test(navigator.userAgent)
+self.addEventListener('push', (e) => {
+  let d = {}
+  try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    wins.forEach((w) => { try { w.postMessage({ tileosPush: d }) } catch { /* fine */ } })
+    if (!webkit && wins.some((w) => w.focused && w.visibilityState === 'visible')) return
+    await self.registration.showNotification(d.title || 'Tile OS', {
+      body: d.body || '',
+      tag: d.tag || undefined,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { open: d.open || null },
+    })
+  })())
+})
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  const open = (e.notification.data && e.notification.data.open) || null
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const w = wins.find((c) => new URL(c.url).origin === self.location.origin)
+    if (w) {
+      try { await w.focus() } catch { /* fine */ }
+      if (open) w.postMessage({ tileosOpen: open })
+      return
+    }
+    await self.clients.openWindow('/' + (open ? '?open=' + encodeURIComponent(JSON.stringify(open)) : '') + '#/today')
+  })())
+})

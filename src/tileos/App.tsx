@@ -40,6 +40,8 @@ import { NewAutomationModal, AutomationModal } from '@/tileos/features/automatio
 import { PunchNewModal } from '@/tileos/features/punch'
 import { POsPage, MaterialPOModal, IPOModal, NewPOModal, BookInstallerModal } from '@/tileos/features/pos'
 import { QbRatesModal } from '@/tileos/features/qbratesui'
+import { NotifyModal } from '@/tileos/features/notify'
+import { PushOpener } from '@/tileos/features/pushopen'
 import { NewTilePOModal, PartCameModal } from '@/tileos/features/tilepo'
 import { JobPage } from '@/tileos/features/job/workspace'
 import { SurfaceModal, TileModal } from '@/tileos/features/job/scope-tab'
@@ -114,7 +116,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
       const t = useStore.getState().tasks.find((x) => x.id === m.id)
       const [jobId, k] = (t?.step || '').split(':')
       if (t && jobId && jobId !== '*' && k && useStore.getState().jobs[jobId]) return <StepModal jobId={jobId} k={k} level={level} />
-      return <TaskModal id={m.id} level={level} call={!!m.call} />
+      return <TaskModal id={m.id} level={level} call={!!m.call} ordered={!!m.ordered} follow={!!m.follow} />
     }
     case 'step': return <StepModal jobId={m.jobId} k={m.k} level={level} />
     case 'new': return <NewPickerModal jobId={m.jobId} level={level} />
@@ -194,7 +196,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'billedbefore': return <BilledBeforeModal jobId={m.jobId} level={level} />
     case 'reportshort': return <ReportShortModal jobId={m.jobId} room={m.room} surface={m.surface} level={level} />
     case 'record': return <RecordModal jobId={m.jobId} type={m.type} where={m.where} title={m.title} meetKind={m.meetKind} level={level} />
-    case 'event': return <EventModal id={m.id} level={level} />
+    case 'event': return <EventModal id={m.id} level={level} notes={!!m.notes} />
     case 'pay': return <PayModal crew={m.crew} week={m.week} level={level} />
     case 'layout': return <LayoutModal jobId={m.jobId} room={m.room} surface={m.surface} tile={m.tile} level={level} />
     case 'layouts': return <LayoutsModal jobId={m.jobId} level={level} />
@@ -228,6 +230,7 @@ function ModalSwitch({ m, level }: { m: any; level: number }) {
     case 'jobcontact': return <JobContactModal jobId={m.jobId} index={m.index} level={level} />
     case 'whowhat': return <WhoWhatModal level={level} first={m.first} />
     case 'late': return <LateModal level={level} />
+    case 'notify': return <NotifyModal level={level} at={m.at} />
     case 'checkin': return <CheckInModal who={m.who} level={level} />
     case 'report': return <ReportModal who={m.who} days={m.days || 30} level={level} list={<TheirList who={m.who} />} />
     case 'jobpick': return <JobPickModal level={level} />
@@ -337,7 +340,8 @@ export default function App() {
             <OfflineBar />
             <TopBar />
             <DesktopTopBar />
-            <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-0')}>
+            {/* (a computer: room under the last line, so the helper's round button never sits on a line's button) */}
+            <main key={page + (route.id || '')} className={cn(!LEGACY.includes(page) && 'pb-[calc(4.375rem+env(safe-area-inset-bottom,0))] lg:pb-24')}>
               <Safe name={`Page ${page}`} fallback={<PageTrouble />}>
                 {LEGACY.includes(page) ? <div data-page-frame className="mx-auto w-full max-w-[72rem] px-7 pb-28 pt-6 max-xl:px-6 max-lg:px-6 max-lg:pb-32 max-sm:px-4 max-sm:pt-5">{body}</div> : body}
               </Safe>
@@ -352,6 +356,7 @@ export default function App() {
           <CrewWatcher />
           <ClipsUploader />
           <LateWatcher />
+          <PushOpener />
         </div>
       )}
       <ModalHost />

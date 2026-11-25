@@ -1,5 +1,6 @@
 /* Settings — the admin's room: the team and their logins, what each login sees, and the rules the system runs on. */
 import * as React from 'react'
+import { useNotifyState, type NotifyState } from '@/tileos/lib/notify'
 import { ArrowUp, ArrowDown, Percent, Upload, ShieldCheck, Users, HardHat, Plug, CheckCircle2, Mail, MessageCircle, FolderOpen, BookOpen, UserPlus, Calculator, RotateCcw, Pencil, Check, Smartphone, LogIn, Calendar, Eye, EyeOff, ListChecks, Plus, Trash2, CornerDownRight, Layers, X, FlaskConical, ChevronRight, ChevronDown, MoreHorizontal, Send, Copy, Link2 } from 'lucide-react'
 import { salesPeople, rateOf, pct } from './commissions'
 import { toast } from '@/tileos/lib/pop'
@@ -64,7 +65,7 @@ const SECTIONS: { group: string; items: { key: Section; label: string; about: st
   /* one company, its own real work: no practice projects, no samples, and nothing that wipes everything out */
   { group: 'Tools', items: [
     { key: 'bringin', label: 'Bring in projects', about: 'The projects from before Tile OS: bring them in from their estimates, then go through them.', icon: Upload },
-    { key: 'device', label: 'This device', about: 'The app’s version here, and how fast it opens and answers on this device.', icon: Smartphone },
+    { key: 'device', label: 'This device', about: 'Notifications here, the app’s version, and how fast it opens and answers on this device.', icon: Smartphone },
   ] },
 ]
 const SHOWN = new Set(SECTIONS.flatMap((g) => g.items.map((x) => x.key)))
@@ -131,7 +132,13 @@ export function SettingsPage() {
 
 /** this device: the version it runs, how long the app took to open here, and the robot's speed — what used to sit at the
  *  bottom of the account menu (only the version stays there) */
+const NOTIFY_WORDS: Record<NotifyState, string> = {
+  on: 'On for this device', off: 'Off', homescreen: 'An iPhone gets them from the Home Screen icon', blocked: 'Turned off in this device’s settings',
+  old: 'This iPhone needs iOS 16.4 or newer', unsupported: 'This browser can’t get them', preview: 'In the published app',
+}
 function DeviceTab() {
+  const s = useStore()
+  const notify = useNotifyState()
   const opened = lastOpened()
   const robot = robotTime()
   const row = 'flex min-h-[3.25rem] items-center gap-4 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-sm:px-4'
@@ -143,6 +150,11 @@ function DeviceTab() {
   )
   return (
     <Card>
+      <div className={row} data-device="notify">
+        <div className="w-[8.5rem] shrink-0 text-[0.875rem] font-medium text-ink max-sm:w-[6.5rem]">Notifications</div>
+        <div className="min-w-0 flex-1 text-[0.84375rem] leading-snug text-ink-2">{notify ? NOTIFY_WORDS[notify] : ''}</div>
+        <Button size="sm" variant={notify === 'off' ? 'primary' : undefined} onClick={() => s.open({ t: 'notify' })} data-device-notify>{notify === 'off' ? 'Turn on' : 'Open'}</Button>
+      </div>
       {line('Version', BUILT || 'This preview', 'version')}
       {line('Opening the app', opened ? opened.replace(/^Opened in /, '') : 'Not timed on this device yet', 'opened')}
       {line('The robot', robot ? robot.replace(/^Robot: /, '') : 'Not used on this device yet', 'robot')}

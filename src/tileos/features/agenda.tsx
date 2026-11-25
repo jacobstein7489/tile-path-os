@@ -150,7 +150,7 @@ export function eventWhen(e: CalEvent): WhenPick {
   }
 }
 
-export function EventModal({ id, level }: { id: string; level: number }) {
+export function EventModal({ id, level, notes }: { id: string; level: number; /** opened from its Add notes: the notes box ready to type in */ notes?: boolean }) {
   const s = useStore()
   const e = s.events.find((x) => x.id === id)
   const [canceling, setCanceling] = React.useState(false)
@@ -217,7 +217,7 @@ export function EventModal({ id, level }: { id: string; level: number }) {
       bodyClass="px-6 pb-4 pt-3 max-sm:px-4"
     >
       {/* what people wrote on it — the same box as every to-do's */}
-      <Notes kind="event" me={me} notes={e.notes || []} onAdd={e.done ? undefined : (x) => addEventNote(e.id, x)} />
+      <Notes kind="event" me={me} notes={e.notes || []} onAdd={e.done ? undefined : (x) => addEventNote(e.id, x)} focus={notes} />
       {/* when it was set, and by whom — one quiet line, like every to-do's */}
       {e.by && <div className="mt-4 flex items-center gap-1.5 text-[0.8125rem] text-faint" data-event-by><History className="h-3.5 w-3.5" />Set {e.made ? `${e.made.date}${e.made.time ? `, ${e.made.time}` : ''} ` : ''}by {e.by === me ? 'you' : PEOPLE[e.by]?.short || 'someone'}</div>}
     </Modal>

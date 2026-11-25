@@ -16,6 +16,8 @@ export type CrewFromQb = {
   crew: PersonKey
   vendors: QbVendor[]
   bills: number
+  /** his POs read (their prices count too) */
+  pos: number
   paid: number
   last?: string
   /** each piece of work with a price on his lines: the middle price, from how many lines; what he gets now (his own
@@ -117,6 +119,8 @@ export function readInstallerBills(s: Store, vendors: QbVendor[], bills: QbPaid[
       const item = it ? items.find((i) => i.id === it) : undefined
       /* a price that's off by ten (a total typed as a price) doesn't count */
       if (item && r && r.rate >= item.cost / 10 && r.rate <= item.cost * 10) per.set(item.id, [...(per.get(item.id) || []), r.rate])
+      /* a PO is what was agreed, not what was paid: its prices count, its amounts don't */
+      if (b.kind === 'PO') return
       /* whose job: the QuickBooks customer (charged on its invoices), else one of our projects named in the words */
       if (l.customerId && charged.get(l.customerId)) { const c = perCust.get(l.customerId) || { name: (l.customer || '').split(':').pop()!.trim(), paid: 0 }; c.paid += l.amount; perCust.set(l.customerId, c); return }
       const j = jobOfLine(s, l, b.memo)
@@ -133,9 +137,10 @@ export function readInstallerBills(s: Store, vendors: QbVendor[], bills: QbPaid[
     ]
       /* a share under 10% or over 95% is a bill and a charge that don't belong together (a first payment, another year) */
       .filter((j) => j.sold > 0 && j.paid > 0 && j.pct >= 10 && j.pct <= 95).sort((a, b) => b.paid - a.paid)
-    const dates = bs.map((b) => b.date).filter(Boolean).sort()
-    return { crew, vendors: vs, bills: bs.length, paid: Math.round(bs.reduce((n, b) => n + b.total, 0)), last: dates[dates.length - 1], rates, jobs, pct: jobs.length ? Math.round(mid(jobs.map((j) => j.pct))) : undefined }
+    const paidBs = bs.filter((b) => b.kind !== 'PO')
+    const dates = paidBs.map((b) => b.date).filter(Boolean).sort()
+    return { crew, vendors: vs, bills: paidBs.length, pos: bs.length - paidBs.length, paid: Math.round(paidBs.reduce((n, b) => n + b.total, 0)), last: dates[dates.length - 1], rates, jobs, pct: jobs.length ? Math.round(mid(jobs.map((j) => j.pct))) : undefined }
   }).sort((a, b) => b.paid - a.paid)
-  const others = Array.from(other.entries()).map(([id, bs]) => ({ vendor: { id, name: nameOf.get(id) || bs[0]?.vendor || id }, bills: bs.length, paid: Math.round(bs.reduce((n, b) => n + b.total, 0)) })).sort((a, b) => b.paid - a.paid)
+  const others = Array.from(other.entries()).map(([id, bs]) => ({ vendor: { id, name: nameOf.get(id) || bs[0]?.vendor || id }, bills: bs.filter((b) => b.kind !== 'PO').length, paid: Math.round(bs.filter((b) => b.kind !== 'PO').reduce((n, b) => n + b.total, 0)) })).sort((a, b) => b.paid - a.paid)
   return { crews: crewsOut, others, since, count: bills.length }
 }

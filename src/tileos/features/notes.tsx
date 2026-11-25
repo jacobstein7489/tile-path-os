@@ -11,10 +11,12 @@ import { cn } from '@/tileos/lib/utils'
 
 export type NoteLine = { date: string; who: string; text: string; time?: string }
 
-export function Notes({ notes, onAdd, me, kind, className }: {
+export function Notes({ notes, onAdd, me, kind, className, focus }: {
   notes: NoteLine[]
   /** no box to add one when it's done */
   onAdd?: (text: string) => void
+  /** opened to write one (a meeting's Add notes): the box ready to type in */
+  focus?: boolean
   me: PersonKey
   /** the marks the checks look for: data-task-notes / data-step-notes … */
   kind: 'task' | 'step' | 'event'
@@ -54,6 +56,7 @@ export function Notes({ notes, onAdd, me, kind, className }: {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') add() }}
+            autoFocus={focus}
             placeholder="Write a note for the team…"
             aria-label="Add a note"
             className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-faint"

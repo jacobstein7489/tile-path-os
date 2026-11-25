@@ -5,6 +5,7 @@
  *               asked to follow it — the one who asked for it or handed it over follows it by itself) 
  *   everyone  — pinned to the top of every login's Today until it's done */
 import { useStore, NOW, meOf, clockNow, addHist, kindOfTask } from '@/tileos/store'
+import { offerNotify } from '@/tileos/lib/notify'
 import { PEOPLE, type PersonKey, type Role } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
 
@@ -73,6 +74,10 @@ export function setTaskTime(id: string, at?: string) {
     else delete t.at
     t.log.push({ date: NOW, time: clockNow(), who: meOf(s.role), text: at ? `Time: ${at}` : 'No set time' })
   }, undefined, { undo: false })
+  /* a time on a to-do of mine: the phone can say so at that time (once in a while, when notifications are off) */
+  const t = S().tasks.find((x) => x.id === id)
+  const me = meOf(S().role)
+  if (at && t && (t.owner === me || t.also?.includes(me))) void offerNotify(at)
 }
 
 /** its day and its time taken off — it waits on Today under "No day set" until it gets one (Undo puts them back) */

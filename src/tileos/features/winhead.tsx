@@ -70,7 +70,7 @@ export const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(lab
 export function KindTag({ label, className }: { label: string; className?: string }) {
   /* quiet: one gray for every kind, the same width, so the words after it line up — only a problem is red */
   const c = /problem/i.test(label) ? { background: '#fdecea', color: '#c4311f' } : { background: '#f1efea', color: '#57534c' }
-  return <span className={cn('inline-flex h-[1.25rem] w-[6rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.3125rem] px-1 text-[0.71875rem] font-semibold leading-none', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
+  return <span className={cn('inline-flex h-[1.25rem] w-[5.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.3125rem] px-1 text-[0.6875rem] font-semibold leading-none', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
 }
 
 export const CHIP = 'inline-flex min-h-8 min-w-0 items-center gap-2 rounded-full border border-[#e9e5de] bg-white px-3 py-1 text-left shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3] hover:shadow-[0_2px_6px_-2px_rgba(20,26,36,.15)] focus-visible:border-brand-300 focus-visible:outline-none'

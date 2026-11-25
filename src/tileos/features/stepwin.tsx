@@ -158,6 +158,8 @@ export function remindStep(job: Job, v: StepView) {
     r.nudge = { by: me, at: Date.now().toString(36), day: TODAY }
     if (v.due && v.due < TODAY) r.checkIn = { by: me, day: TODAY }
     addHist(x, job.id, { who: me, kind: 'setup', title: `${v.short}: reminded ${PEOPLE[v.owner]?.short || ''}` })
+    /* and to their phone (with notifications on) and their Messages: tapped, the step */
+    if (v.owner && v.owner !== me) x.notices.unshift({ id: 'nm' + Date.now().toString(36), jobId: job.id, text: `${PEOPLE[me]?.short || 'Someone'} reminded you: ${v.short} · ${job.name}`, when: 'Just now', kind: 'field', unread: true, open: { t: 'step', jobId: job.id, k: v.key }, for: [v.owner] })
   }, `Reminder sent to ${PEOPLE[v.owner]?.short || 'them'}`, { sub: 'It pops up on their screen, and it’s on their Today.', undo: false })
 }
 

@@ -83,6 +83,13 @@ export const REAL: {
   }
   /** pull down to refresh (the real app): send what's waiting, bring the newest down — 'offline' with no signal */
   refresh?: () => Promise<'ok' | 'offline' | 'none'>
+  /** notifications on this device (the real app): our public push key, this device on or off, a test to my devices */
+  push?: {
+    key: () => Promise<{ ok: true; key: string } | { ok: false; why: string }>
+    save: (d: { endpoint: string; p256dh: string; auth: string; person: string; tz?: string }) => Promise<{ ok: true } | { ok: false; why: string }>
+    drop: (endpoint: string) => Promise<{ ok: boolean }>
+    test: () => Promise<{ ok: true; sent: number; ticking?: boolean } | { ok: false; why: string }>
+  }
 } = { cloud: false, admin: true, home: 'owner' }
 /** what the app says with no signal */
 export const OFFLINE_WORDS = 'No signal. What you do is kept on this phone and goes up by itself when you’re back online'

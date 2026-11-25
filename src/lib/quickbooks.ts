@@ -309,10 +309,11 @@ export const qbPayment = createServerFn({ method: "POST" })
 export type QbPaidLine = { desc: string; item?: string; account?: string; qty?: number; rate?: number; amount: number; customer?: string; customerId?: string };
 /** what we billed a customer (an invoice): to compare with what we paid the installer for the same customer */
 export type QbBilled = { customerId: string; customer: string; date: string; total: number };
-export type QbPaid = { id: string; kind: "Bill" | "Purchase"; vendorId: string; vendor: string; date: string; total: number; memo?: string; lines: QbPaidLine[] };
-/** every bill and check to a vendor since a day (a year back, unless asked): its lines as they are in QuickBooks — what
- *  it was for, how many, at what price, for which customer — and the invoices to customers since then (what each
- *  customer was charged). Read only: nothing in QuickBooks changes */
+export type QbPaid = { id: string; kind: "Bill" | "Purchase" | "PO"; vendorId: string; vendor: string; date: string; total: number; memo?: string; lines: QbPaidLine[] };
+/** every purchase order, bill and check to a vendor since a day (a year back, unless asked): its lines as they are in
+ *  QuickBooks — what it was for, how many, at what price, for which customer — and the invoices to customers since then
+ *  (what each customer was charged). An installer works off his PO and bills from it: the PO's lines are his prices.
+ *  Read only: nothing in QuickBooks changes */
 export const qbVendorBills = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d: { since?: string }) => ({ since: /^\d{4}-\d{2}-\d{2}$/.test(String(d?.since || "")) ? String(d.since) : "" }))
@@ -346,11 +347,13 @@ export const qbVendorBills = createServerFn({ method: "POST" })
     const expense = (l: any) => l?.DetailType === "ItemBasedExpenseLineDetail" || l?.DetailType === "AccountBasedExpenseLineDetail";
     try {
       const day = quote(since);
-      const [vendors, bills, checks, invoices] = await Promise.all([all("Vendor"), all("Bill", `TxnDate >= ${day}`), all("Purchase", `TxnDate >= ${day}`), all("Invoice", `TxnDate >= ${day}`)]);
+      const [vendors, bills, checks, invoices, pos] = await Promise.all([all("Vendor"), all("Bill", `TxnDate >= ${day}`), all("Purchase", `TxnDate >= ${day}`), all("Invoice", `TxnDate >= ${day}`), all("PurchaseOrder", `TxnDate >= ${day}`)]);
       const out: QbPaid[] = [
         ...bills.map((b: any): QbPaid => ({ id: "b" + b.Id, kind: "Bill", vendorId: String(b.VendorRef?.value || ""), vendor: String(b.VendorRef?.name || ""), date: String(b.TxnDate || ""), total: Number(b.TotalAmt || 0), ...(b.PrivateNote ? { memo: String(b.PrivateNote).slice(0, 300) } : {}), lines: (b.Line || []).filter(expense).map(lineOf) })),
         /* checks, cash and card payments to a vendor (not to an employee or a customer) */
         ...checks.filter((p: any) => p.EntityRef?.value && (!p.EntityRef.type || p.EntityRef.type === "Vendor")).map((p: any): QbPaid => ({ id: "p" + p.Id, kind: "Purchase", vendorId: String(p.EntityRef.value), vendor: String(p.EntityRef.name || ""), date: String(p.TxnDate || ""), total: Number(p.TotalAmt || 0), ...(p.PrivateNote ? { memo: String(p.PrivateNote).slice(0, 300) } : {}), lines: (p.Line || []).filter(expense).map(lineOf) })),
+        /* purchase orders: the prices agreed with him (what we pay is on the bills and checks) */
+        ...pos.map((o: any): QbPaid => ({ id: "o" + o.Id, kind: "PO", vendorId: String(o.VendorRef?.value || ""), vendor: String(o.VendorRef?.name || ""), date: String(o.TxnDate || ""), total: Number(o.TotalAmt || 0), ...(o.Memo || o.PrivateNote ? { memo: String(o.Memo || o.PrivateNote).slice(0, 300) } : {}), lines: (o.Line || []).filter(expense).map(lineOf) })),
       ].filter((x) => x.vendorId);
       const billed: QbBilled[] = invoices.filter((i: any) => i.CustomerRef?.value).map((i: any) => ({ customerId: String(i.CustomerRef.value), customer: String(i.CustomerRef.name || ""), date: String(i.TxnDate || ""), total: Number(i.TotalAmt || 0) }));
       return { ok: true, since, vendors: vendors.map((v: any) => ({ id: String(v.Id), name: String(v.DisplayName || v.CompanyName || [v.GivenName, v.FamilyName].filter(Boolean).join(" ") || "") })), bills: out, invoices: billed };

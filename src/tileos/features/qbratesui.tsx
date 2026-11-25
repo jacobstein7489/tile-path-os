@@ -52,7 +52,7 @@ export function QbRatesModal({ level, crew: only }: { level: number; /** one ins
     }, picks.length ? `${picks.length} ${picks.length === 1 ? 'price' : 'prices'} saved` : 'Saved', { sub: picks.length ? 'Their POs are drafted at these prices from now on.' : undefined })
     s.close()
   }
-  const sub = !got ? 'Reading bills and checks from QuickBooks…' : 'error' in got ? 'Couldn’t read QuickBooks' : `From ${read!.count} bills and checks since ${dayWords(got.since)}. Nothing in QuickBooks changes.`
+  const sub = !got ? 'Reading bills and checks from QuickBooks…' : 'error' in got ? 'Couldn’t read QuickBooks' : `From ${read!.count} POs, bills and checks since ${dayWords(got.since)}. Nothing in QuickBooks changes.`
   return (
     <Modal
       level={level}
@@ -128,7 +128,7 @@ function CrewCard({ c, off, onTick }: { c: CrewFromQb; off: Record<string, boole
         </span>
         <span className="shrink-0 text-right">
           <span className="block text-[0.9375rem] font-semibold tnum text-ink">{fmtMoney(c.paid)}</span>
-          <span className="block text-[0.78125rem] text-muted">{c.bills} {c.bills === 1 ? 'bill' : 'bills'}</span>
+          <span className="block text-[0.78125rem] text-muted">{c.bills} {c.bills === 1 ? 'bill' : 'bills'}{c.pos ? ` · ${c.pos} ${c.pos === 1 ? 'PO' : 'POs'}` : ''}</span>
         </span>
       </div>
       {c.rates.length ? (
@@ -154,7 +154,7 @@ function CrewCard({ c, off, onTick }: { c: CrewFromQb; off: Record<string, boole
           })}
         </div>
       ) : (
-        <div className="border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-muted" data-qbrates-norates>His bills have totals only, no price per square foot.{c.pct != null ? ' His usual share of a job is used for his price.' : ''}</div>
+        <div className="border-t border-line-2 px-4 py-2.5 text-[0.8125rem] text-muted" data-qbrates-norates>His POs and bills have totals only, no price per square foot.{c.pct != null ? ' His usual share of a job is used for his price.' : ''}</div>
       )}
     </div>
   )

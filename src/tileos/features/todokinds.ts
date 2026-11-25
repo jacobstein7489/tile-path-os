@@ -24,10 +24,14 @@ export function tagOfTask(s: Pick<Store, 'punch'>, t: Task): string {
 /** the day it was done (the day it says, or today for "Just now") */
 export const doneDayOf = (t: Task) => t.doneOn || (t.doneAt === 'Just now' || t.doneAt === 'Today' ? TODAY : isoFromLabel(t.doneAt) || '')
 const dayOf = (t: Task) => (t.state === 'waiting' ? isoFromLabel(t.followUp) : t.state === 'later' ? isoFromLabel(t.laterUntil) : isoFromLabel(t.due))
-/** a plain to-do: its tag is To do — one with nothing of its own to press (not a problem, not a pickup, not the GC, not
- *  touch-ups, not waiting, not materials or billing, not a step, not for everyone, not repeating) — several of them on one
- *  project fold into one line */
-export const plainKind = (t: Task, touchIds: Set<string>) => (t.type === 'Setup' || t.type === 'Field') && !/\btouch-?\s?ups?\b/i.test(t.title) && !/^waiting (for|on)\b/i.test(t.title) && !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
+/** a call, a text, a question (call the GC, ask the client, find out…): its button says it was done and asks what they said */
+export const CALL_RE = /^\s*(call|phone|ring|text|ask|check with|find out|follow up with|reach out to|speak (to|with)|talk to)\b/i
+/** something to order: its button says it's ordered and asks who brings it and when */
+export const ORDER_RE = /^\s*(order|re-?order|buy)\b/i
+/** a plain to-do: its tag is To do — one with nothing of its own to press (not a call or an order — those have their own
+ *  next step — not a problem, not a pickup, not the GC, not touch-ups, not waiting, not materials or billing, not a step,
+ *  not for everyone, not repeating) — several of them on one project are a checklist: one line */
+export const plainKind = (t: Task, touchIds: Set<string>) => (t.type === 'Setup' || t.type === 'Field') && !CALL_RE.test(t.title) && !ORDER_RE.test(t.title) && !/\btouch-?\s?ups?\b/i.test(t.title) && !/^waiting (for|on)\b/i.test(t.title) && !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
 export const plainTodo = (t: Task, touchIds: Set<string>) => t.state === 'now' && !t.urgent && plainKind(t, touchIds)
 /** one person's plain to-dos on a project: still to do (soonest first), and done today — "2 of 5 done" */
 export function todosOf(s: Pick<Store, 'tasks' | 'punch'>, jobId: string, who: PersonKey) {

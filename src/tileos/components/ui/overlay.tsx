@@ -418,12 +418,12 @@ export function DatePresets({ value, onPick, presets = DATE_PRESETS }: { value?:
 
 export const WAIT_WHO = ['GC', 'Installer', 'Client', 'Designer', 'Supplier', 'Tile store', 'Plumber', 'Someone inside']
 
-export function WaitPicker({ onSave, defaultWho, onCancel }: { onSave: (who: string, back: string) => void; defaultWho?: string; onCancel?: () => void }) {
+export function WaitPicker({ onSave, defaultWho, onCancel, title, backTitle }: { onSave: (who: string, back: string) => void; defaultWho?: string; onCancel?: () => void; /** the question on top (Ordered: "Who's bringing it?") */ title?: string; backTitle?: string }) {
   const [who, setWho] = React.useState(defaultWho || '')
   const [back, setBack] = React.useState('Tomorrow')
   return (
-    <div>
-      <div className="text-[0.90625rem] font-semibold text-ink">Who are we waiting on?</div>
+    <div data-wait-picker>
+      <div className="text-[0.90625rem] font-semibold text-ink">{title || 'Who are we waiting on?'}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         {WAIT_WHO.map((w) => (
           <Chip key={w} on={who === w} onClick={() => setWho(w)} className="h-9 px-3 text-[0.84375rem]">
@@ -431,7 +431,7 @@ export function WaitPicker({ onSave, defaultWho, onCancel }: { onSave: (who: str
           </Chip>
         ))}
       </div>
-      <div className="mt-4 text-[0.90625rem] font-semibold text-ink">Bring it back</div>
+      <div className="mt-4 text-[0.90625rem] font-semibold text-ink">{backTitle || 'Bring it back'}</div>
       <div className="mt-3">
         <DatePresets value={back} onPick={setBack} presets={['Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon']} />
       </div>
