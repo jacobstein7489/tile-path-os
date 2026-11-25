@@ -544,7 +544,7 @@ export function EditProjectModal({ id, level }: { id: string; level: number }) {
   const [contract, setContract] = React.useState(j?.contract ? String(j.contract) : '')
   /* the designer: one from Designers, none, or a new one typed in (added to Designers when this is saved) */
   const [designer, setDesigner] = React.useState(() => designerOf(s.designers, j)?.id || '')
-  /* where the tile comes from: every tile PO and "Order more tile" on the job goes there (the same as on Tile & materials) */
+  /* where the tile comes from: every tile PO and "Order more tile" on the job goes there (set here only: it is one of the project's details) */
   const store0 = tileStoreOf(s, id)
   const [store, setStore] = React.useState(store0)
   if (!j) return null

@@ -218,6 +218,10 @@ export function addressBeyond(name: string, address?: string): string {
 }
 const META = 'inline-flex min-w-0 max-w-full items-center gap-1.5'
 const META_ICON = 'h-3.5 w-3.5 shrink-0 text-faint'
+/** a thing about the project on its top line: its name in gray, then it ("Client Baron Builders") */
+const FACT = 'inline-flex min-w-0 max-w-full items-baseline gap-1.5 text-left'
+const FACT_NAME = 'shrink-0 text-muted'
+const FACT_VAL = 'min-w-0 break-words font-medium text-ink'
 
 /** the header, the same as an estimate's: the name, the client and the address, the installer; on the right the
  *  conversation, + Add and ···. Under it where it's up to, in words. No money up here — it's in Billing. */
@@ -268,28 +272,29 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
           {!pricing && more}
         </span>
       </div>
-      {/* who it's for, where, who installs it, the date that matters — each with its own small mark (the same marks as
-          a window's lines), the installer in his circle; no dots between them */}
+      {/* who it's for, who to call, where, who installs it, the designer, the date that matters — each said with its name
+          in gray before it ("Client Baron Builders · Installer Leo · Designer Chaya Stein"), so you see who is who; a tap
+          on one opens it. Nothing cut off: a long one goes on to the next line */}
       {pricing && <div className="mt-1.5 sm:hidden">{statusChip}</div>}
-      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] text-ink-2 max-sm:gap-x-3" data-project-meta>
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1 text-[0.8125rem] max-sm:gap-x-4" data-project-meta>
         {hold && <span className="font-medium text-bad-600" data-on-hold>{statusChip}</span>}
-        <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className={cn(META, 'hover:text-brand-700')} data-project-client><Building2 className={META_ICON} /><span className="truncate">{meta[0]}</span></button>
+        <button onClick={() => s.open({ t: 'customer', id: job.clientId })} className={cn(FACT, 'group/fact')} title="The client" data-project-client><span className={FACT_NAME}>Client</span><span className={cn(FACT_VAL, 'group-hover/fact:text-brand-700')}>{meta[0]}</span></button>
         {/* this job's own person to call (the homeowner on a "Private customer" job) — a tap calls them on a phone */}
         {job.contacts?.[0] && (
-          <span className={META} data-job-contact>
-            <UserRound className={META_ICON} />
+          <span className={FACT} data-job-contact>
+            <span className={FACT_NAME}>{job.contacts[0].role?.trim() || 'Contact'}</span>
             {canPeople
-              ? <button onClick={() => s.open({ t: 'jobcontact', jobId: job.id, index: 0 })} className="min-w-0 truncate font-medium hover:text-brand-700" title="Change or take off" data-job-contact-open>{job.contacts[0].name}</button>
-              : <span className="truncate font-medium">{job.contacts[0].name}</span>}
+              ? <button onClick={() => s.open({ t: 'jobcontact', jobId: job.id, index: 0 })} className={cn(FACT_VAL, 'text-left hover:text-brand-700')} title="Change or take off" data-job-contact-open>{job.contacts[0].name}</button>
+              : <span className={FACT_VAL}>{job.contacts[0].name}</span>}
             {job.contacts[0].phone && job.contacts[0].phone.replace(/\D/g, '') !== job.contacts[0].name.replace(/\D/g, '') && <a href={`tel:${job.contacts[0].phone.replace(/[^\d+]/g, '')}`} className="shrink-0 tnum text-brand-700 hover:underline">{job.contacts[0].phone}</a>}
           </span>
         )}
-        {meta[1] && <span className={META}><MapPin className={META_ICON} /><span className="truncate">{meta[1]}</span></span>}
+        {meta[1] && <span className={FACT}><span className={FACT_NAME}>Address</span><span className={FACT_VAL}>{meta[1]}</span></span>}
         {!pricing && (crew
-          ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(META, 'hover:text-brand-700')} title="The installer" data-project-installer><Avatar who={crew} size={20} /><span className="truncate font-medium">{PEOPLE[crew].short}</span></button>
-          : !['closeout', 'complete'].includes(job.stage) && <span className={cn(META, 'text-muted')}><HardHat className={META_ICON} />No installer yet</span>)}
-        {designer && <button onClick={() => s.open({ t: 'designer', id: designer.id })} className={cn(META, 'hover:text-brand-700')} title="The designer" data-project-designer><Palette className={META_ICON} /><span className="truncate">{designer.name}</span></button>}
-        {date && <span className={cn(META, date.late && 'font-medium text-warn-700')} data-key-date><CalendarDays className={META_ICON} />{date.text}</span>}
+          ? <button onClick={() => s.open({ t: 'installerwin', jobId: job.id })} className={cn(FACT, 'group/fact')} title="The installer" data-project-installer><span className={FACT_NAME}>Installer</span><span className={cn(FACT_VAL, 'group-hover/fact:text-brand-700')}>{PEOPLE[crew].short}</span></button>
+          : !['closeout', 'complete'].includes(job.stage) && <span className={FACT} data-project-installer><span className={FACT_NAME}>Installer</span><span className="text-muted">Not picked yet</span></span>)}
+        {designer && <button onClick={() => s.open({ t: 'designer', id: designer.id })} className={cn(FACT, 'group/fact')} title="The designer" data-project-designer><span className={FACT_NAME}>Designer</span><span className={cn(FACT_VAL, 'group-hover/fact:text-brand-700')}>{designer.name}</span></button>}
+        {date && <span className={cn(FACT, date.late ? 'font-medium text-warn-700' : 'text-ink-2')} data-key-date>{date.text}</span>}
       </div>
       {/* where it is, like a parcel's tracking — six stages, clean */}
       {!pricing && <StageBar job={job} onChange={setsWhere ? () => s.open({ t: 'catchup', id: job.id }) : undefined} />}

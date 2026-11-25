@@ -445,9 +445,10 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
   const ownList = viewer === me && !multi
   /* no tags: the words say what it is. Only a few get a word before them — a problem and something urgent (red: they
      come first), a meeting (its words don't always say it's one) and something for everyone */
+  const part = React.useContext(PartOf)
   const problem = flag === 'Problem' || kind === 'Problem'
-  const urgent = !problem && flag === 'Urgent'
-  const before = problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || kind === 'For everyone' ? kind : ''
+  const urgent = !problem && flag === 'Urgent' && part !== 'urgent'
+  const before = problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || (kind === 'For everyone' && part !== 'pinned') ? kind : ''
   const isNew = latest?.tone === 'new'
   const tip = typeof detail === 'string' && detail ? detail : ''
   const whereLine = ownWhere ? (
@@ -1478,7 +1479,7 @@ function Lines({ lines: lines0, me, showOwner, on, byProject }: { lines: Line[];
     const lines = sort ? sortLines(s, lines0, sort) : cardsOf(lines0).flatMap((c) => c.lines)
     let prev = ''
     return (
-      <section data-project-card={sort ? 'sorted' : 'all'} data-runs>
+      <section data-runs={sort ? 'sorted' : ''}>
         {lines.map((l) => {
           const k = projectKeyOf(l)
           const same = k === prev
@@ -1498,20 +1499,16 @@ function Lines({ lines: lines0, me, showOwner, on, byProject }: { lines: Line[];
     </div>
   )
 }
-/** Today: one list for the day — what's starred, for everyone or urgent first, then the day (late first), then what has
- *  no day — each project's together under its address. (Each line says what it is: Urgent, For everyone; a star) */
-export const dayList = (parts: Part[]): Part[] => {
-  if (parts.length < 2) return parts
-  const on: Record<string, PersonKey[]> = Object.assign({}, ...parts.map((p) => p.on || {}))
-  const late = parts.some((p) => p.lateLink)
-  return [{ key: 'today', label: 'Today', tone: 'info', day: TODAY, lines: parts.flatMap((p) => p.lines), lateLink: late, ...(Object.keys(on).length ? { on } : {}) }]
-}
+/** which part of the list a line is in — a line in Urgent or For everyone doesn't say it again before its words */
+const PartOf = React.createContext('')
 /** a part of a list: its name and how many in its band (the same band as Estimates' groups), then its lines. Today's
- *  day has no band (the box on top says it): its projects' addresses are the bands */
+ *  day has no band (the box on top says it): its projects' addresses are the bands — what's starred, for everyone or
+ *  urgent in their own groups above them, what has no day below */
 function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; me: PersonKey; showOwner?: boolean; lateLink?: boolean; byProject?: boolean }) {
   const s = useStore()
   const sticky = React.useContext(StickyBands)
   return (
+    <PartOf.Provider value={p.key}>
     <section data-day={p.day || p.key} data-part={p.key}>
       {p.label && !byProject && (
         <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
@@ -1522,6 +1519,7 @@ function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; 
       )}
       <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} byProject={byProject} />
     </section>
+    </PartOf.Provider>
   )
 }
 /** a list inside a window (someone's list on Team report, what's on nobody's): the same bands and lines, in a box */
@@ -1548,7 +1546,7 @@ export function TheirList({ who }: { who: PersonKey }) {
       </div>
       {n ? (
         <div className="px-6 pb-4 max-sm:px-4" data-their-cards>
-          <ListBox>{dayList(parts).map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} byProject />)}</ListBox>
+          <ListBox>{parts.map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} byProject={p.key === 'today'} />)}</ListBox>
         </div>
       ) : <div className="px-6 pb-4 text-[0.875rem] text-muted max-sm:px-4">Nothing on it today.</div>}
     </section>
@@ -1573,7 +1571,7 @@ export function NobodyModal({ level }: { level: number }) {
   return (
     <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet. Give each one to someone, or give the login to someone on Team.">
       <div className="pb-2" data-nobody-cards>
-        {countOf(parts) > 0 && <ListBox>{dayList(parts).map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} byProject />)}</ListBox>}
+        {countOf(parts) > 0 && <ListBox>{parts.map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} byProject={p.key === 'today'} />)}</ListBox>}
         {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing. Everything is on someone’s list.</div>}
       </div>
     </Modal>
@@ -1706,7 +1704,7 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
       <Viewer.Provider value={l.key}>
         <Multi.Provider value={false}>
           <ShowNow.Provider value={false}>
-            {(view === 'today' ? dayList(parts) : parts).map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} byProject={view === 'today'} />)}
+            {parts.map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} byProject={view === 'today' && p.key === 'today'} />)}
           </ShowNow.Provider>
         </Multi.Provider>
       </Viewer.Provider>
@@ -1999,7 +1997,7 @@ export function MyTasksPage() {
         {q && <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[0.8125rem] text-muted', PX)} data-today-found={found}><span>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</span>{!found && <button type="button" onClick={() => s.setPalette(true)} className="font-semibold text-brand-700" data-today-find-all>Search everything</button>}</div>}
         {/* one person's list — or Everyone: each person's under their own name, never mixed. Today: each project under
             its address; Coming up, Waiting, Done: under the day or the person, each line saying its project */}
-        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : (view === 'today' ? dayList(parts) : parts).map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today'} />)}
+        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today' && p.key === 'today'} />)}
         {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
       </div>
       </StickyBands.Provider>

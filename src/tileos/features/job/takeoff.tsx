@@ -67,12 +67,10 @@ export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: 
   const unused = tags.filter((tag) => !rooms.some((r) => r.surfaces.some((x) => hasTile(x, tag))))
   return (
     <>
-      {/* the bar on top — the same as the scope's: the switch on the left; the tile store (every tile PO goes there),
-          a search, Order more tile and Tile came in on the right */}
+      {/* the bar on top — the same as the scope's: the switch on the left; a search, Order more tile and Tile came in on
+          the right. (The tile store is one of the project's details: ··· → Change the project's details) */}
       <PaperBar lead={lead} mark="data-tile-bar">
         {(all.length > 0 || !simple) && <>
-          {/* where the job's tile comes from — set once; every tile PO and Order more tile goes there */}
-          <TileStorePick job={job} canEdit={!simple} />
           {all.length > 6 && (
             <label className="relative block w-[12rem] max-sm:order-last max-sm:w-[11rem]">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
@@ -180,33 +178,6 @@ function TileLine({ job, tag, xs, room, simple }: { job: Job; tag: string; xs: i
         ) : <span className={cn('truncate text-[0.875rem]', tone)} data-tile-status={tag}>{st.label}</span>}
       </span>
     </div>
-  )
-}
-
-/** the job's tile store — a proper control on top of the tile: tap it to pick or change the store */
-function TileStorePick({ job, canEdit }: { job: Job; canEdit: boolean }) {
-  const s = useStore()
-  const active = s.suppliers.filter((x) => !s.inactive.includes('supplier:' + x.name))
-  const stores = [...active.filter((x) => sellsTile(x)), ...active.filter((x) => !sellsTile(x))].map((x) => x.name)
-  const store = tileStoreOf(s, job.id)
-  const may = canEdit && ['owner', 'pm', 'office', 'materials', 'estimator'].includes(s.role)
-  const set = (v: string) => {
-    if (!v || v === store) return
-    s.commit((st) => { const j = st.jobs[job.id]; if (j) j.tileStore = v; addHist(st, job.id, { who: meOf(st.role), kind: 'material', title: `Tile from ${v}` }) }, `Tile store: ${v}`, { sub: 'Every tile PO and “Order more tile” on this job goes there.' })
-  }
-  const face = (
-    <span className={cn('inline-flex h-9 min-w-0 max-w-[16rem] items-center gap-2 rounded-[0.625rem] border px-3 text-[0.875rem] transition', store ? 'border-line bg-white text-ink' : 'border-warn-300 bg-[#fffaf0] text-warn-700', may && 'hover:border-[#cfc8bc]')}>
-      <Truck className={cn('h-4 w-4 shrink-0', store ? 'text-brand-600' : 'text-warn-600')} />
-      <span className="shrink-0 text-muted max-sm:hidden">Tile store</span>
-      <b className="min-w-0 truncate font-semibold" data-tile-store-name>{store || 'Pick it'}</b>
-      {may && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />}
-    </span>
-  )
-  if (!may) return store ? <span data-tile-store={store}>{face}</span> : null
-  return (
-    <span data-tile-store={store || ''} data-tile-store-pick={store ? undefined : ''}>
-      <SearchSelect label="The tile store" value={store} onChange={set} search width={300} options={stores.map((v) => ({ key: v, label: v }))} searchPlaceholder="Type a store · e.g. Infinity Tile" onCreate={set} createLabel={(q) => `Use “${q}”`} trigger={<button type="button" aria-label="The tile store · change it" data-tile-store-change>{face}</button>} />
-    </span>
   )
 }
 
