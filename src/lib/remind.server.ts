@@ -6,6 +6,7 @@
  *   - right away: someone reminded you, gave you something urgent, needs something brought, or what you asked for is on
  *     the way or dropped off
  *   - the crew list at its time (6 PM unless it was changed), to whoever sends it, until it's sent
+ *   - at 5 PM, the daily updates still not sent for the jobs being worked that day
  * Only the person it's for (and anyone it's shared with), never everyone watching it. What was sent is kept, so a thing
  * is never sent twice. Everything about the person's day is in their own time zone (the phone says which). */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -201,6 +202,55 @@ export function crewDue(person: string, now: { day: string; min: number }, ctx: 
   const whose = day === addDays(now.day, 1) ? "tomorrow’s" : `${DAY_NAME[dow(day)]}’s`;
   return { title: `Due now · ${clock(at)}`, body: `Send ${whose} crew list · ${open.length} ${open.length === 1 ? "project" : "projects"}`, tag: `c:${person}:${day}`, open: { t: "crewreport", day, seen: `crew:${day}` } };
 }
+/* ---------------- the daily updates: at 5 PM, for every job still without today's ---------------- */
+type Booking = { jobId: string; crew?: string; start: string; end: string; label?: string };
+export type DailyJob = CrewJob & { name?: string; dates?: { start?: string } };
+const DAILY_AT = 17 * 60;
+const MD = MON_NAME;
+/** "Oct 20" → its date (last year's when it would be more than a month ahead); a daily update keeps its day as mdOf's */
+const isoOfMd = (label: string | undefined, today: string) => {
+  const m = (label || "").match(/^([A-Z][a-z]{2}) (\d{1,2})$/);
+  if (!m || MD.indexOf(m[1]) < 0) return undefined;
+  const y = +today.slice(0, 4);
+  const iso = `${y}-${pad(MD.indexOf(m[1]) + 1)}-${pad(+m[2])}`;
+  return iso > addDays(today, 31) ? `${y - 1}${iso.slice(4)}` : iso;
+};
+/** the jobs with a crew working that day, the same as the app's Today: booked that day, or being installed with no
+ *  days booked (a work day, once it has started) */
+export function workingJobs(day: string, jobs: Record<string, DailyJob>, bookings: Booking[]): string[] {
+  const live = (j?: DailyJob) => !!j && j.stage === "installation" && !j.hold;
+  const real = bookings.filter((b) => b && b.label !== "Return visit");
+  const booked = real.filter((b) => b.start <= day && b.end >= day && live(jobs[b.jobId])).map((b) => b.jobId);
+  const have = new Set(booked);
+  const workDay = dow(day) !== 0 && dow(day) !== 6;
+  const rest = !workDay ? [] : Object.entries(jobs).filter(([id, j]) => {
+    if (!live(j) || have.has(id)) return false;
+    const last = real.filter((b) => b.jobId === id).sort((a, b) => b.start.localeCompare(a.start))[0];
+    if (last && last.start > day) return false;
+    const start = last?.start || isoOfMd(j.dates?.start, day);
+    return !(!last && start && start > day);
+  }).map(([id]) => id);
+  return Array.from(new Set([...booked, ...rest]));
+}
+/** at 5 PM (the time it's on Today), whoever sends the daily updates (the one set in Automations, else the site
+ *  manager) gets the jobs still without today's — once. `sent` says which of them have today's already */
+export function dailyDueFor(person: string, now: { day: string; min: number }, ctx: { rules: CrewRules; jobs: Record<string, DailyJob>; bookings: Booking[]; roleOf: (k: string) => string | undefined; sent: (jobId: string, md: string) => boolean }): PushMessage | null {
+  const r = ctx.rules || {};
+  if ((r.autoOff || []).includes("daily-update")) return null;
+  const to = r.autoWho?.["daily-update"];
+  if (to ? person !== to : ctx.roleOf(person) !== "site") return null;
+  if (now.min < DAILY_AT || now.min - DAILY_AT > 120) return null;
+  const left = workingJobs(now.day, ctx.jobs, ctx.bookings).filter((id) => !ctx.sent(id, mdOf(now.day)));
+  if (!left.length) return null;
+  const one = left.length === 1 ? ctx.jobs[left[0]] : undefined;
+  return {
+    title: `Due now · ${clock(DAILY_AT)}`,
+    body: one ? `Send today’s daily update · ${one.name || "the job"}` : `Send today’s daily updates · ${left.length} projects`,
+    tag: `du:${person}:${now.day}`,
+    open: one ? { t: "daily", jobId: left[0], seen: `daily:${now.day}` } : { t: "dailies", who: person, jobs: left, seen: `daily:${now.day}` },
+  };
+}
+
 /** the company's settings: the old whole copy, then each setting saved on its own on top (as the app reads them) */
 async function rulesNow(): Promise<CrewRules> {
   const { data } = await db().from("tileos_records").select("id,data").eq("collection", "rules");
@@ -238,7 +288,7 @@ export async function remindNow(): Promise<{ ok: boolean; sent: number; due: num
   if (error) return { ok: false, sent: 0, due: 0, devices: 0, why: error.message };
   const devices = (devs || []) as Device[];
   if (!devices.length) return { ok: true, sent: 0, due: 0, devices: 0 };
-  const rows = await records(["tasks", "events", "jobs", "notices", "team"]);
+  const rows = await records(["tasks", "events", "jobs", "notices", "team", "bookings"]);
   const jobs = new Map(rows.filter((r) => r.collection === "jobs").map((r) => [r.id, r.data?.name as string]));
   const jobName = (id?: string) => (id && jobs.get(id)) || "";
   /* a person's first name, the way the app says it ("Jacob reminded you") */
@@ -249,6 +299,17 @@ export async function remindNow(): Promise<{ ok: boolean; sent: number; due: num
   const jobList = rows.filter((r) => r.collection === "jobs").map((r) => r.data as CrewJob);
   const roles = new Map(rows.filter((r) => r.collection === "team" && r.data?.status !== "off").map((r) => [String(r.data?.key || r.id), String(r.data?.role || "")]));
   const roleOf = (k: string) => roles.get(k);
+  /* the daily updates: the jobs and their days on the schedule; a job's updates are read only when it's time */
+  const jobMap = Object.fromEntries(rows.filter((r) => r.collection === "jobs").map((r) => [r.id, r.data as DailyJob]));
+  const bookings = rows.filter((r) => r.collection === "bookings").map((r) => r.data as Booking);
+  const diaryDays = new Map<string, Set<string>>();
+  const loadDiary = async (ids: string[]) => {
+    const need = ids.filter((id) => !diaryDays.has(id));
+    if (!need.length) return;
+    const { data } = await db().from("tileos_records").select("id,data").eq("collection", "diary").in("id", need);
+    need.forEach((id) => diaryDays.set(id, new Set()));
+    ((data || []) as { id: string; data: any }[]).forEach((r) => { if (Array.isArray(r.data)) diaryDays.set(r.id, new Set(r.data.map((e: { date?: string }) => String(e?.date || "")))); });
+  };
   const nowMs = Date.now();
   const byPerson = new Map<string, Device[]>();
   devices.forEach((d) => byPerson.set(d.person, [...(byPerson.get(d.person) || []), d]));
@@ -262,6 +323,12 @@ export async function remindNow(): Promise<{ ok: boolean; sent: number; due: num
     const list = dueFor(person, tasks, meetings, jobName, now, { notices, nameOf, nowMs });
     const crew = crewDue(person, now, { rules, jobs: jobList, roleOf });
     if (crew) list.push(crew);
+    /* (the updates are read only in the 5 PM window, and only the jobs being worked) */
+    if (now.min >= DAILY_AT && now.min - DAILY_AT <= 120) {
+      await loadDiary(workingJobs(now.day, jobMap, bookings)).catch(() => undefined);
+      const daily = dailyDueFor(person, now, { rules, jobs: jobMap, bookings, roleOf, sent: (id, md) => !!diaryDays.get(id)?.has(md) });
+      if (daily) list.push(daily);
+    }
     if (!list.length) continue;
     const { data: done } = await db().from("tileos_push_sent").select("tag").in("tag", list.map((m) => m.tag));
     const already = new Set((done || []).map((x: { tag: string }) => x.tag));

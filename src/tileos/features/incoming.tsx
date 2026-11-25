@@ -6,7 +6,7 @@
  * whose time came can be put off a little ("Remind me in 10 minutes"). With the app closed the phone's notifications
  * say the same (lib/remind.server). */
 import * as React from 'react'
-import { Inbox, ChevronRight, CalendarDays, BellRing, AlarmClock, ChevronDown, HardHat } from 'lucide-react'
+import { Inbox, ChevronRight, CalendarDays, BellRing, AlarmClock, ChevronDown, HardHat, ClipboardList } from 'lucide-react'
 import { useStore, meOf, NOW, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -17,7 +17,7 @@ import type { Task } from '@/tileos/data/work'
 import { TODAY, TOMORROW, labelFromIso, isoFromLabel, dow } from '@/tileos/lib/today'
 import { isGcWait, toldGc, askLabel } from './gcwait'
 import { timeLabel, parseTime, type CalEvent } from '@/tileos/data/calendar'
-import { taskIso, crewsOn, crewSentFor, crewDay, crewHour, crewEvening, crewReportOn, crewWhen } from './mytasks'
+import { taskIso, crewsOn, crewSentFor, crewDay, crewHour, crewEvening, crewReportOn, crewWhen, dailyDue } from './mytasks'
 import { autoWho } from './autowho'
 import { useNotifyState } from '@/tileos/lib/notify'
 import { markTaskSeen } from './latest'
@@ -43,6 +43,18 @@ const meetingsNow = (s: Store) => { const me = meOf(s.role); return s.events.fil
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() }
 const dueTag = (id: string, iso: string, min: number) => `due:${id}:${iso}:${min}`
 const soonTag = (e: CalEvent) => `soon:${e.id}:${e.date}:${e.start}`
+/* the daily updates: at 5 PM (their time on Today), one line for the jobs still without today's — once a day (the same
+   tag the phone notification marks seen) */
+const DAILY_AT = 17 * 60
+const dailyTag = (day: string) => `daily:${day}`
+export function dailyNow(s: Store): { jobs: string[]; min: number } | null {
+  const d = new Date()
+  if (d.getHours() * 60 + d.getMinutes() < DAILY_AT) return null
+  const to = autoWho(s, 'daily-update')
+  const items = to ? (meOf(s.role) === to ? dailyDue(s, 'site') : []) : dailyDue(s, s.role)
+  const jobs = Array.from(new Set(items.filter((x) => !x.missed).map((x) => x.jobId)))
+  return jobs.length ? { jobs, min: DAILY_AT } : null
+}
 /* the crew list: one a day (the same tag its phone notification marks seen) */
 const crewTag = (day: string) => `crew:${day}`
 /** the next work day's crew list, once its time has come (the evening, Settings → Automations) and while it isn't sent —
@@ -69,7 +81,8 @@ export function dueNow(s: Store, now = nowMin()) {
     .filter((x): x is { t: Task; iso: string; min: number } => x.iso === TODAY && x.min != null && x.min <= now && !setAfter(x.t, x.min))
   const meets = s.events.filter((e) => e.people.includes(me) && !e.done && e.date === TODAY && now >= e.start - 15 && now <= e.start)
   const crew = crewNow(s)
-  return { tasks, meets, crew, keys: [...tasks.map((x) => dueTag(x.t.id, x.iso, x.min)), ...meets.map(soonTag), ...(crew ? [crewTag(crew.day)] : [])] }
+  const daily = dailyNow(s)
+  return { tasks, meets, crew, daily, keys: [...tasks.map((x) => dueTag(x.t.id, x.iso, x.min)), ...meets.map(soonTag), ...(crew ? [crewTag(crew.day)] : []), ...(daily ? [dailyTag(TODAY)] : [])] }
 }
 /* "Remind me later": put off until then (by tag) */
 const laterKey = (s: Store) => `tileos-due-later:${REAL.email || 'preview'}:${meOf(s.role)}`
@@ -156,8 +169,17 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
     why: tnow - cw.min <= 10 ? `Due now · ${timeLabel(cw.min)}` : `Was due at ${timeLabel(cw.min)}`, tone: tnow - cw.min <= 10 ? 'now' : 'warn',
     job: `${crewsOn(s, cw.day).length} ${crewsOn(s, cw.day).length === 1 ? 'project' : 'projects'}`, open: go(() => s.open({ t: 'crewreport', day: cw.day })),
   }] : []
+  /* the daily updates still not sent */
+  const dl = dn.daily
+  const dailyRows: Row[] = dl && keys.includes(dailyTag(TODAY)) ? [{
+    key: dailyTag(TODAY), icon: <ClipboardList className="h-4 w-4" />, title: dl.jobs.length === 1 ? 'Send today’s daily update' : 'Send today’s daily updates', timed: true,
+    why: tnow - dl.min <= 10 ? `Due now · ${timeLabel(dl.min)}` : `Was due at ${timeLabel(dl.min)}`, tone: tnow - dl.min <= 10 ? 'now' : 'warn',
+    job: dl.jobs.length === 1 ? s.jobs[dl.jobs[0]]?.name : `${dl.jobs.length} projects`,
+    open: go(() => s.open(dl.jobs.length === 1 ? { t: 'daily', jobId: dl.jobs[0] } : { t: 'dailies', who: meOf(s.role), jobs: dl.jobs })),
+  }] : []
   const rows: Row[] = [
     ...crewRows,
+    ...dailyRows,
     ...dueRows,
     ...soonRows,
     ...list.map((t): Row => {

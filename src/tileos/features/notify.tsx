@@ -3,7 +3,7 @@
  * it says how to put Tile OS on the Home Screen (only from there can an iPhone get them); turned off for Tile OS in
  * the phone's settings, it says where to turn it back on. */
 import * as React from 'react'
-import { AlarmClock, BellRing, BellOff, CalendarDays, Sunrise, Send, Check, HardHat } from 'lucide-react'
+import { AlarmClock, BellRing, BellOff, CalendarDays, Sunrise, Send, Check, HardHat, ClipboardList } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
 import { Button } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -23,6 +23,8 @@ const WHAT: { icon: React.ReactNode; what: string; when: string }[] = [
 ]
 /* whoever sends the crew list (the site manager, or who it's set for in Automations): it, at its time */
 const CREW_WHAT = { icon: <HardHat />, what: 'The crew list', when: 'At its time' }
+/* whoever sends the daily updates: the ones not sent yet, at 5 PM */
+const DAILY_WHAT = { icon: <ClipboardList />, what: 'Daily updates not sent yet', when: '5 PM' }
 
 /** what's wrong, said plainly (the server's or the phone's word for it) */
 export const NOTIFY_WHY: Record<string, string> = {
@@ -80,9 +82,11 @@ export function NotifyModal({ level, at }: { level: number; /** opened right aft
 
   const crewTo = s.rules.autoWho?.['crew-morning']
   const sendsCrew = !(s.rules.autoOff || []).includes('crew-morning') && (crewTo ? meOf(s.role) === crewTo : s.role === 'site')
+  const dailyTo = s.rules.autoWho?.['daily-update']
+  const sendsDaily = !(s.rules.autoOff || []).includes('daily-update') && (dailyTo ? meOf(s.role) === dailyTo : s.role === 'site')
   const list = (
     <ul className="flex flex-col border-y border-line-2" data-notify-what>
-      {(sendsCrew ? [WHAT[0], CREW_WHAT, ...WHAT.slice(1)] : WHAT).map((x) => (
+      {[WHAT[0], ...(sendsCrew ? [CREW_WHAT] : []), ...(sendsDaily ? [DAILY_WHAT] : []), ...WHAT.slice(1)].map((x) => (
         <li key={x.what} className="flex min-h-[2.875rem] items-center gap-3 border-t border-line-2 py-2 first:border-t-0">
           <span className="inline-flex h-4 w-4 shrink-0 text-faint [&>svg]:h-4 [&>svg]:w-4">{x.icon}</span>
           <span className="min-w-0 flex-1 text-[0.9375rem] text-ink">{x.what}</span>
