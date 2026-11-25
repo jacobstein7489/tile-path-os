@@ -9,7 +9,7 @@ import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from 
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
-import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, GROUP_STICKY } from '@/tileos/components/ui/page'
+import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, GROUP_STICKY, bandColorOf, type BubbleColor } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -1453,19 +1453,29 @@ function cardsOf(lines: Line[]): { key: string; lines: Line[] }[] {
 }
 /** on the page, a group's band stays on top while its lines scroll by (in a window it doesn't) */
 const StickyBands = React.createContext(false)
+/** on the page, the groups' bands are the same as Projects' and Estimates' — the same size, in the color of the box
+ *  they're under (Today blue, Coming up indigo, Waiting amber, Done green); in a window they stay small and gray */
+const BandTone = React.createContext<BubbleColor | null>(null)
+/** the band itself: its classes, its colors, its name's classes — the page's (colored, like Projects') or a window's */
+function useBandLook() {
+  const sticky = React.useContext(StickyBands)
+  const tone = React.useContext(BandTone)
+  if (!tone) return { box: cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX, sticky && GROUP_STICKY), style: undefined, name: 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]', nameStyle: undefined }
+  const c = bandColorOf(tone)
+  return { box: cn('flex min-h-10 items-center gap-2 border-t border-line py-1.5', PX, sticky && GROUP_STICKY), style: { background: c.bg } as React.CSSProperties, name: 'min-w-0 break-words text-left text-[0.875rem] font-bold uppercase leading-5 tracking-[0.06em]', nameStyle: { color: c.fg } as React.CSSProperties }
+}
 /** one project's lines in the list: its address as the group's band — light gray, small capitals, how many (the same
  *  band as Estimates' and Projects' groups); tap it: the project — then its lines, a line between each */
 function ProjectCard({ id, label, n, children }: { id?: string; label: string; n: number; children: React.ReactNode }) {
   const s = useStore()
-  const sticky = React.useContext(StickyBands)
+  const look = useBandLook()
   /* the whole address, never cut off — a long one takes a second line in its band */
-  const name = 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]'
   return (
     <section data-project-card={id || 'company'}>
-      <header className={cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX, sticky && GROUP_STICKY)} data-card-head data-band>
+      <header className={look.box} style={look.style} data-card-head data-band>
         {id
-          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(name, 'rounded-sm decoration-[#aeb3bb] underline-offset-[0.1875rem] hover:text-ink hover:underline')} data-card-label data-card-open={id}>{label}</button>
-          : <span className={name} data-card-label>{label}</span>}
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.name, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} style={look.nameStyle} data-card-label data-card-open={id}>{label}</button>
+          : <span className={look.name} style={look.nameStyle} data-card-label>{label}</span>}
         {n > 1 && <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-card-count>{n}</span>}
       </header>
       {children}
@@ -1512,13 +1522,13 @@ const PartOf = React.createContext('')
  *  urgent in their own groups above them, what has no day below */
 function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; me: PersonKey; showOwner?: boolean; lateLink?: boolean; byProject?: boolean }) {
   const s = useStore()
-  const sticky = React.useContext(StickyBands)
+  const look = useBandLook()
   return (
     <PartOf.Provider value={p.key}>
     <section data-day={p.day || p.key} data-part={p.key}>
       {p.label && !byProject && (
-        <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
-          <h2 className={BAND_LABEL}>{p.label}</h2>
+        <div className={look.box} style={look.style} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
+          <h2 className={look.name} style={look.nameStyle}>{p.label}</h2>
           <BandCount n={p.lines.length} />
           {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.75rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
         </div>
@@ -1922,6 +1932,8 @@ function JobBar({ picked, onClear, sort }: { picked?: Job; onClear: () => void; 
 /** Today / Coming up / Waiting / Done: one clean switch (the picked one a white pill on a soft track), each with its
  *  number — not four boxes */
 /** sorting Today: the usual order is by project (a card each); picked here: one list in that order */
+/** each box's color on top — the bands of the list under it are in the same color */
+const VIEW_COLOR: Record<'today' | 'coming' | 'waiting' | 'done', BubbleColor> = { today: 'blue', coming: 'indigo', waiting: 'amber', done: 'green' }
 const TODAY_SORTS: SortCol[] = [{ k: 'when', label: 'When', kind: 'date' }, { k: 'project', label: 'Project' }, { k: 'todo', label: 'To do' }, { k: 'who', label: 'Who' }]
 
 export function MyTasksPage() {
@@ -1999,6 +2011,7 @@ export function MyTasksPage() {
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
       <StickyBands.Provider value={true}>
+      <BandTone.Provider value={VIEW_COLOR[view]}>
       <div className="flex flex-col" data-list-scope="mine" data-today-list>
         {/* the names of the columns (tap one to sort by it) */}
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} />}
@@ -2011,6 +2024,7 @@ export function MyTasksPage() {
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today' && p.key === 'today'} />)}
         {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
       </div>
+      </BandTone.Provider>
       </StickyBands.Provider>
       </TodaySort.Provider>
       </WaitView.Provider>

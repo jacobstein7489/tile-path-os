@@ -531,6 +531,8 @@ const BAND_TINT: Record<BubbleColor, string> = {
   blue: '#f4f7fd', indigo: '#f6f7fd', violet: '#f8f6fd', green: '#f4faf6', amber: '#fdf8f0', red: '#fdf5f4',
   rose: '#fdf5f8', teal: '#f3f9f8', slate: '#f6f4f1', orange: '#fdf7f2', cyan: '#f2f9fb',
 }
+/** a band's two colors for a box's color: its soft background, and its name's color */
+export const bandColorOf = (color: BubbleColor) => ({ bg: BAND_TINT[color], fg: BC[color].solid })
 export function StatusBand({ color, icon, label, count, sticky = true, attrs }: { color: BubbleColor; icon?: React.ReactNode; label: string; count?: number; sticky?: boolean; attrs?: Record<string, string> }) {
   const c = BC[color]
   return (
