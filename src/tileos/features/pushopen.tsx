@@ -19,6 +19,8 @@ export function openFromPush(o: Open) {
     if (!there && tries < 30) { setTimeout(() => go(tries + 1), 300); return }
     s.closeAll()
     if (!there || m.t === 'today') { s.go({ page: 'today' }); return }
+    /* the team's late things (the admin's morning): Team report */
+    if (m.t === 'team') { s.go({ page: 'team' }); return }
     s.open(m as any)
   }
   go()

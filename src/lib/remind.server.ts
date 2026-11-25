@@ -122,7 +122,7 @@ const NOTICE_PUSH: [RegExp, (m: RegExpMatchArray) => { title: string; body: stri
   [/^(.+?) reminded you: (.+)$/, (m) => ({ title: `${m[1]} reminded you`, body: m[2] })],
 ];
 /** every thing for this person at this minute (in their time zone), each with the tag it's sent under once */
-export function dueFor(person: string, tasks: Rec<Task>[], meetings: Meeting[], jobName: (id?: string) => string, now: { day: string; min: number }, more: { notices?: Rec<Notice>[]; nameOf?: (k: string) => string; nowMs?: number } = {}): PushMessage[] {
+export function dueFor(person: string, tasks: Rec<Task>[], meetings: Meeting[], jobName: (id?: string) => string, now: { day: string; min: number }, more: { notices?: Rec<Notice>[]; nameOf?: (k: string) => string; nowMs?: number; /** each one's login (the admin gets the team's late things in the morning) */ roleOf?: (k: string) => string | undefined } = {}): PushMessage[] {
   const out: PushMessage[] = [];
   const mine = (t: Task) => t.state === "now" && !t.hold && !t.paused && (t.owner === person || !!t.also?.includes(person));
   const where = (id?: string) => { const n = jobName(id); return n ? ` · ${n}` : ""; };
@@ -174,6 +174,23 @@ export function dueFor(person: string, tasks: Rec<Task>[], meetings: Meeting[], 
       .sort((a, b) => a.day.localeCompare(b.day))
       .map((x) => x.t);
     if (late.length) out.push({ title: late.length === 1 ? "Still open from before" : `${late.length} still open from before`, body: late.slice(0, 3).map((t) => t.title).join(" · ") + (late.length > 3 ? ` · and ${late.length - 3} more` : ""), tag: `l:${person}:${now.day}`, open: { t: "late" } });
+    /* the admin, the same morning, once: how much is late on each one's list (the same count as their own morning
+       message), the most first — "The team · 5 late" / "Yakov 3 · Back office 2". Tap it: Team report */
+    const role = more.roleOf?.(person);
+    if (role === "owner" || role === "pm") {
+      const by = new Map<string, number>();
+      for (const { data: t, saved } of tasks) {
+        if (t.state !== "now" || t.hold || t.paused || t.step || !t.owner || t.owner === person) continue;
+        const r = more.roleOf?.(t.owner);
+        /* the people inside (not the installers, not a client, nobody switched off) */
+        if (!r || r === "crew" || r === "client") continue;
+        if ((dueDay(t.due, saved) || "9999") >= now.day) continue;
+        by.set(t.owner, (by.get(t.owner) || 0) + 1);
+      }
+      const list = [...by.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const all = list.reduce((n, [, k]) => n + k, 0);
+      if (all) out.push({ title: `The team · ${all} late`, body: list.slice(0, 4).map(([k, n]) => `${more.nameOf?.(k) || "Someone"} ${n}`).join(" · ") + (list.length > 4 ? ` · and ${list.length - 4} more` : ""), tag: `tl:${person}:${now.day}`, open: { t: "team" } });
+    }
   }
   return out;
 }
@@ -320,7 +337,7 @@ export async function remindNow(): Promise<{ ok: boolean; sent: number; due: num
     const tasks = rows.filter((r) => r.collection === "tasks").map((r) => ({ data: r.data as Task, saved: localAt(tz, new Date(r.updated_at)).day }));
     const meetings = rows.filter((r) => r.collection === "events").map((r) => r.data as Meeting);
     const notices = rows.filter((r) => r.collection === "notices").map((r) => ({ data: r.data as Notice, saved: "", at: Date.parse(r.updated_at) }));
-    const list = dueFor(person, tasks, meetings, jobName, now, { notices, nameOf, nowMs });
+    const list = dueFor(person, tasks, meetings, jobName, now, { notices, nameOf, nowMs, roleOf });
     const crew = crewDue(person, now, { rules, jobs: jobList, roleOf });
     if (crew) list.push(crew);
     /* (the updates are read only in the 5 PM window, and only the jobs being worked) */
