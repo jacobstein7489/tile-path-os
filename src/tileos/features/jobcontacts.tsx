@@ -7,6 +7,7 @@ import { Button, Field, TextInput, Chip } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
 import type { JobContact } from '@/tileos/data/model'
 import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
+import { CUSTOMERS } from '@/tileos/data/jobs'
 import { fmtPhone } from './reach'
 
 const S = () => useStore.getState()
@@ -47,6 +48,25 @@ export function removeJobContact(jobId: string, index: number) {
     if (!j.contacts.length) delete j.contacts
     addHist(st, jobId, { who: meOf(st.role), kind: 'setup', title: `Took ${c.name} off`, detail: [c.role, c.phone, c.email].filter(Boolean).join(' · ') || undefined })
   }, `${c.name} taken off ${job.name}`)
+}
+
+/** a client's contact with no name that only repeats the client's own phone and email (a client list brought in makes
+ *  one: "Main contact") — not a person: the project's People leaves it out (the client's own line has those) */
+export const onlyClientsOwn = (c: { name?: string; phone?: string; email?: string; more?: unknown[] }, client?: { phone?: string; email?: string }) => {
+  const digits = (x?: string) => (x || '').replace(/\D/g, '')
+  return !(c.name || '').trim() && !(c.more || []).length && (!c.phone || digits(c.phone) === digits(client?.phone)) && (!c.email || c.email.trim().toLowerCase() === (client?.email || '').trim().toLowerCase())
+}
+/** one of a client's people taken off the client (on every one of its projects; Undo puts them back) */
+export function removeClientContact(clientId: string, index: number) {
+  const st0 = S()
+  const c = st0.clients[clientId]?.contacts?.[index] || CUSTOMERS[clientId]?.contacts?.[index]
+  const client = st0.clients[clientId] || CUSTOMERS[clientId]
+  if (!c || !client) return
+  const who = c.name || c.role || 'Them'
+  S().commit((st) => {
+    const x = st.clients[clientId] || (CUSTOMERS[clientId] ? (st.clients[clientId] = JSON.parse(JSON.stringify(CUSTOMERS[clientId]))) : undefined)
+    if (x?.contacts?.[index]) x.contacts.splice(index, 1)
+  }, `${who} taken off ${client.name}’s people`)
 }
 
 const ROLES = ['Homeowner', 'Designer', 'Super', 'Architect']

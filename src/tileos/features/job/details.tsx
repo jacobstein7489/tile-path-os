@@ -38,7 +38,7 @@ import { Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
 import { SearchSelect } from '@/tileos/components/ui/select'
 import { designerOf, NO_DESIGNER } from '@/tileos/data/directory'
-import { setJobDesigner, addDesignerNamed, removeJobContact } from '../jobcontacts'
+import { setJobDesigner, addDesignerNamed, removeJobContact, removeClientContact, onlyClientsOwn } from '../jobcontacts'
 import { edgeWords, parseMetal, finishOf, profileOf, edgeKind } from '@/tileos/data/catalog'
 import { isWall } from '../heights'
 import { detailsOf, setRoomDetails, surfaceDetailLines, edgeShort } from '../roomdetails'
@@ -655,7 +655,18 @@ function PeoplePart({ job, open, onStep }: { job: Job; open: (v: BoardView) => v
         <div data-even-list style={PEOPLE_COLS}>
         <div className={cn(HEAD_ROW, 'sticky top-0 z-[5] px-5 md:grid md:gap-x-6 max-md:hidden')} data-list-head data-subrow><span>Name</span><span>Role</span><span>On this job</span><span /></div>
         <Contact initials={initialsOf(job.client)} tone="bg-[#e3ece6] text-[#2c4a3e]" name={job.client} role="Client" r={{ phone: client?.phone, email: client?.email, more: client?.more }} onName={() => s.open({ t: 'customer', id: job.clientId })} />
-        {(client?.contacts || []).map((c) => <Contact key={c.name} initials={initialsOf(c.name)} name={c.name} role={c.role || 'Contact'} r={c} />)}
+        {/* the client's people — each one can be changed or taken off (···); a nameless one that only repeats the
+            client's own phone and email isn't a person, so it isn't here */}
+        {(client?.contacts || []).map((c, i) => ({ c, i })).filter(({ c }) => !onlyClientsOwn(c, client)).map(({ c, i }) => (
+          <Contact key={'cc' + i} mark="data-client-person" initials={initialsOf(c.name || c.role || 'C')} name={c.name || c.role || 'Contact'} role={c.name ? c.role || 'Contact' : 'Contact'} r={c} onName={canContacts ? () => s.open({ t: 'contact', clientId: job.clientId, index: i }) : undefined}
+            menu={canContacts ? (
+              <Menu align="end" width={260} trigger={<button aria-label={`Change or take off ${c.name || c.role}`} className={MORE_BTN} data-client-person-more><MoreHorizontal className="h-4 w-4" /></button>}>
+                <MenuItem icon={<Pencil className="h-4 w-4" />} onSelect={() => s.open({ t: 'contact', clientId: job.clientId, index: i })}>Change</MenuItem>
+                <MenuSep />
+                <MenuItem danger icon={<Trash2 className="h-4 w-4" />} onSelect={() => removeClientContact(job.clientId, i)} data-client-person-remove>Take off {job.client}’s people</MenuItem>
+              </Menu>
+            ) : undefined} />
+        ))}
         {/* this job's own people — the homeowner, the designer, the super (a client like NJ Private Customer is many
             homeowners) — tap a name to change it */}
         {(job.contacts || []).map((c, i) => (

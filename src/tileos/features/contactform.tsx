@@ -1,6 +1,6 @@
 /* One of a client's people — the GC's project manager, the super, accounts payable: their name, what they do, and
- * every phone and email they have. Added from the client's People tab; changed or taken off from the same place.
- * The first one is the client's main contact (the client's own details) — it can be changed, not taken off. */
+ * every phone and email they have. Added from the client's People tab; changed or taken off from the same place (or
+ * from a project's People). The first one is the client's main contact; taken off, the next one is. */
 import * as React from 'react'
 import { Trash2, Check } from 'lucide-react'
 import { useStore } from '@/tileos/store'
@@ -39,7 +39,7 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
     }, `${label(rec)} · saved`, { close: true, sub: was ? undefined : `On ${c.name}’s people.` })
   }
   const remove = () => {
-    if (index == null || index === 0) return
+    if (index == null) return
     s.commit((st) => {
       const x = st.clients[clientId] || (CUSTOMERS[clientId] ? (st.clients[clientId] = JSON.parse(JSON.stringify(CUSTOMERS[clientId]))) : undefined)
       if (x?.contacts?.[index]) x.contacts.splice(index, 1)
@@ -54,7 +54,7 @@ export function ContactModal({ clientId, index, level }: { clientId: string; ind
       sub={was ? `${c.name}${index === 0 ? ' · main contact' : ''}` : `Someone at ${c.name}. The PM, the super, who pays the bills`}
       footer={
         <>
-          {was && index ? <Button variant="ghost" className="text-bad-600" icon={<Trash2 />} onClick={remove}>Take them off</Button> : null}
+          {was ? <Button variant="ghost" className="text-bad-600" icon={<Trash2 />} onClick={remove} data-contact-remove>Take them off</Button> : null}
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{was ? 'Save' : 'Add them'}</Button>
         </>
