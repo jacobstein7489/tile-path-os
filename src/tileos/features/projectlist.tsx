@@ -7,7 +7,7 @@ import { Plus, Wrench, CircleCheckBig, Building2, HardHat, ClipboardList, Sparkl
 import { useStore, addHist, newTask, NOW, meOf, type Store } from '@/tileos/store'
 import { Button, Avatar, TextInput, Field, Chip, Segmented } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, BAND_STRONG, bandStyle, bandLabel, BandCount } from '@/tileos/components/ui/page'
+import { Page, Filter, ToolbarSearch, ClearFilters, Group, EmptyState, Bubbles, STICKY_HEAD, HEAD_ROW, ROW_H, BAND, BAND_LABEL, GROUP_STICKY, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, CREWS, STAGE_LABEL, fmtMoney, type Job, type PersonKey, type Stage } from '@/tileos/data/model'
 import { CUSTOMERS } from '@/tileos/data/jobs'
@@ -145,18 +145,15 @@ export function ProjectsPage() {
   )
 }
 
+/** each group's tone — kept on the band as data (the bubble on top has the color; the band itself is plain) */
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
-/** each group's mark: the same as its card on top */
-const TYPE_ICON: Record<ProjType, React.ReactNode> = { hold: <PauseCircle />, coming: <ClipboardList />, progress: <HardHat />, touchups: <Sparkles />, repairs: <Wrench />, done: <CircleCheckBig /> }
-/** All open: each group's name — big, in its color, with its mark — stays on top while its projects scroll by (under
- *  the column names on a computer), so you always see which group you're in */
-const GROUP_STICKY = 'sticky z-[4] top-[calc(var(--app-top,0px)+var(--ptop,0px))] md:top-[calc(var(--app-top,0px)+var(--bar,0px)+2.5rem)] lg:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px)+2.5rem)]'
+/** All open: each group's name in the same plain band as Estimates' and Today's — light gray, small capitals, how many
+ *  (the colors and marks are on the boxes on top, not again on the bands) — and it stays on top while its projects
+ *  scroll by (under the column names on a computer), so you always see which group you're in */
 function GroupHead({ k, label, n }: { k: ProjType; label: string; n: number }) {
-  const tone = TYPE_TONE[k]
   return (
-    <div className={cn(BAND_STRONG, 'px-5 max-sm:px-4', GROUP_STICKY)} style={bandStyle(tone)} data-band data-strong data-group-tone={tone} data-group-head={k}>
-      <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4', bandLabel(tone).split(' ').filter((c) => c.startsWith('text-[#')).join(' '))} aria-hidden>{TYPE_ICON[k]}</span>
-      <span className={bandLabel(tone)}>{label}</span>
+    <div className={cn(BAND, 'px-5 max-sm:px-4', GROUP_STICKY)} data-band data-group-tone={TYPE_TONE[k]} data-group-head={k}>
+      <span className={BAND_LABEL}>{label}</span>
       <BandCount n={n} />
     </div>
   )

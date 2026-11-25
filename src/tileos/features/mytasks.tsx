@@ -9,7 +9,7 @@ import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from 
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
-import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, GROUP_STICKY } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -341,19 +341,17 @@ function WatchDots({ who, eye, size = 20 }: { who: PersonKey[]; eye?: boolean; s
     </span>
   )
 }
-/** the names on top of Today's columns — the same as Estimates' and Projects' */
-export function TodayHead({ waiting, who, sort, onSort }: { waiting?: boolean; /** several people's lists, or Waiting: who it's with */ who?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void }) {
+/** the names on top of Today's columns — the same row as Estimates' and Projects' (tap one to sort by it): To do ·
+ *  When · Who · its button. The same widths as the cells on each line, so they line up */
+export function TodayHead({ waiting, sort, onSort }: { /** Waiting on others: Who is who it's with */ waiting?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void }) {
+  const who = React.useContext(WhoCol)
   const h = (k: string, label: string, right?: boolean, kind?: SortCol['kind']) => (onSort ? <SortHead k={k} sort={sort || null} onSort={onSort} right={right} kind={kind}>{label}</SortHead> : label)
   return (
-    <div className={cn(HEAD_ROW, 'px-5 md:grid md:gap-x-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
-      <span>{h('project', 'Project')}</span>
-      <span>{h('todo', 'To do')}</span>
-      {/* waiting: the one you're waiting on; several people's lists: whose it is */}
-      {(who || waiting) && <span className="max-lg:hidden" data-head-turn>{h('who', waiting ? 'Waiting on' : 'Who')}</span>}
-      {/* new to you, not seen yet, seen, updated — and how old */}
-      <span className="max-xl:hidden" data-head-latest>Latest</span>
-      <span className="text-right">{h('when', 'When', true, 'date')}</span>
-      <span className="text-right" data-head-next>Next step</span>
+    <div className={cn(HEAD_ROW, 'flex gap-3 px-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
+      <span className="min-w-0 flex-1">{h('todo', 'To do')}</span>
+      <span className="flex w-[6.75rem] shrink-0 justify-end" data-head-when>{h('when', 'When', true, 'date')}</span>
+      {who && <span className="flex w-[3.75rem] shrink-0 justify-center" data-head-turn>{h('who', waiting ? 'With' : 'Who')}</span>}
+      <span className="w-[7.75rem] shrink-0" aria-hidden data-head-next />
     </div>
   )
 }
@@ -445,10 +443,11 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
   const ownWhere = !!where && !company && where !== card?.label
   /* the star is yours: on your own list only — not on someone else's you're looking at */
   const ownList = viewer === me && !multi
-  /* no tags: the words say what it is. Only two get a word before them — a problem (red: it comes first) and a meeting
-     (its words don't always say it's one) */
+  /* no tags: the words say what it is. Only a few get a word before them — a problem and something urgent (red: they
+     come first), a meeting (its words don't always say it's one) and something for everyone */
   const problem = flag === 'Problem' || kind === 'Problem'
-  const before = problem ? 'Problem' : kind === 'Meeting' || kind === 'Walkthrough' ? kind : ''
+  const urgent = !problem && flag === 'Urgent'
+  const before = problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || kind === 'For everyone' ? kind : ''
   const isNew = latest?.tone === 'new'
   const tip = typeof detail === 'string' && detail ? detail : ''
   const whereLine = ownWhere ? (
@@ -468,7 +467,8 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
       title={tip || undefined}
       data-todo
       {...(card && !card.first ? { 'data-same-project': '' } : {})}
-      className={cn('group/row relative flex min-h-[3.25rem] items-center gap-3 px-5 py-2.5 transition-colors focus-visible:outline-none max-sm:gap-2.5 max-sm:px-4 max-sm:py-3', (!card || !card.first) && 'border-t border-[#f0ebe3]', card?.first && 'pt-1.5 max-sm:pt-2', onClick && 'cursor-pointer hover:bg-[#fbf9f6]', leaving && 'row-out')}
+      /* a line between every two, the same as Estimates' and Projects' lists */
+      className={cn('group/row relative flex min-h-[3.25rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 transition-colors focus-visible:outline-none max-sm:gap-2.5 max-sm:px-4 max-sm:py-3', onClick && 'cursor-pointer row-hover', leaving && 'row-out')}
       data-starred={star?.on && ownList ? '' : undefined}
     >
       {/* its star, in the margin at the left — nothing on the line moves */}
@@ -480,7 +480,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         {whereLine && <div className="mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5" data-row-where>{whereLine}</div>}
         {/* what to do — whole, never cut off (a long one takes a second line) */}
         <div className={cn('min-w-0 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
-          {before && <span className={problem ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
+          {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
           {title}
         </div>
         {/* the small gray line: (a phone) when · what's happened with it lately · (a computer) who's watching · (a phone)
@@ -591,6 +591,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   return (
     <TodoRow
       kind={tagOfTask(s, t)}
+      flag={t.urgent && !done ? 'Urgent' : undefined}
       leaving={leaving}
       done={done || leaving}
       /* every row opens its window — the same window every time; what happens next is its button at the bottom */
@@ -1443,59 +1444,89 @@ function cardsOf(lines: Line[]): { key: string; lines: Line[] }[] {
   lines.forEach((l) => { const k = projectKeyOf(l); if (!groups.has(k)) { groups.set(k, []); order.push(k) } groups.get(k)!.push(l) })
   return order.map((key) => ({ key, lines: groups.get(key)! }))
 }
-/** one card: the address on top (it opens the project), how many things, then its lines */
+/** on the page, a group's band stays on top while its lines scroll by (in a window it doesn't) */
+const StickyBands = React.createContext(false)
+/** one project's lines in the list: its address as the group's band — light gray, small capitals, how many (the same
+ *  band as Estimates' and Projects' groups); tap it: the project — then its lines, a line between each */
 function ProjectCard({ id, label, n, children }: { id?: string; label: string; n: number; children: React.ReactNode }) {
   const s = useStore()
+  const sticky = React.useContext(StickyBands)
+  /* the whole address, never cut off — a long one takes a second line in its band */
+  const name = 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]'
   return (
-    <section className="overflow-clip rounded-[1.125rem] bg-white shadow-[0_0_0_1px_rgba(40,33,20,0.07),0_1px_2px_rgba(40,33,20,0.04),0_12px_28px_-20px_rgba(40,33,20,0.22)]" data-project-card={id || 'company'}>
-      {/* the address — tap it: the project */}
-      <header className="flex items-baseline gap-2 px-5 pt-3.5 max-sm:px-4" data-card-head>
+    <section data-project-card={id || 'company'}>
+      <header className={cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX, sticky && GROUP_STICKY)} data-card-head data-band>
         {id
-          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className="min-w-0 break-words rounded-sm text-left text-[1rem] font-semibold leading-6 tracking-[-0.01em] text-ink decoration-[#c9c2b6] underline-offset-[0.1875rem] hover:underline" data-card-label data-card-open={id}>{label}</button>
-          : <span className="min-w-0 break-words text-[1rem] font-semibold leading-6 tracking-[-0.01em] text-ink" data-card-label>{label}</span>}
-        {n > 1 && <span className="shrink-0 text-[0.875rem] font-medium text-faint tnum" data-card-count>{n}</span>}
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(name, 'rounded-sm decoration-[#aeb3bb] underline-offset-[0.1875rem] hover:text-ink hover:underline')} data-card-label data-card-open={id}>{label}</button>
+          : <span className={name} data-card-label>{label}</span>}
+        {n > 1 && <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-card-count>{n}</span>}
       </header>
-      <div className="pb-1">{children}</div>
+      {children}
     </section>
   )
 }
-/** a list's lines: one card per project (a list sorted by a column: one card, each line saying its own project) */
-function Lines({ lines: lines0, me, showOwner, on }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]> }) {
+/** a list's lines: each project's under its address (Today) — or, under a day or a person (Coming up, Waiting, Done)
+ *  and on a list sorted by a column, each line says its own project (once for a run of the same project's lines) */
+function Lines({ lines: lines0, me, showOwner, on, byProject }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]>; byProject?: boolean }) {
   const sort = React.useContext(TodaySort)
   const s = useStore()
   const row = (l: Line, card: { label: string; first: boolean }) => (
     <InCard.Provider key={l.key} value={card}><LineOn.Provider value={on?.[l.key] || null}><Safe name={`Today line ${l.key}`}><LineRow l={l} me={me} showOwner={showOwner} /></Safe></LineOn.Provider></InCard.Provider>
   )
-  if (sort) {
-    const lines = sortLines(s, lines0, sort)
-    return <ProjectCard label="Sorted" n={lines.length}>{lines.map((l, i) => row(l, { label: '', first: i === 0 }))}</ProjectCard>
+  if (sort || !byProject) {
+    /* in the picked order — or each project's lines together — the project said on the first of each run */
+    const lines = sort ? sortLines(s, lines0, sort) : cardsOf(lines0).flatMap((c) => c.lines)
+    let prev = ''
+    return (
+      <section data-project-card={sort ? 'sorted' : 'all'} data-runs>
+        {lines.map((l) => {
+          const k = projectKeyOf(l)
+          const same = k === prev
+          prev = k
+          return row(l, { label: same ? s.jobs[k]?.name || 'Company' : '', first: !same })
+        })}
+      </section>
+    )
   }
   return (
-    <div className="flex flex-col gap-3" data-cards>
+    <div data-cards>
       {cardsOf(lines0).map((c) => {
-        const job = c.key === 'company' ? undefined : s.jobs[c.key]
+        const job = s.jobs[c.key]
         const label = job?.name || 'Company'
         return <ProjectCard key={c.key} id={job?.id} label={label} n={c.lines.length}>{c.lines.map((l, i) => row(l, { label, first: i === 0 }))}</ProjectCard>
       })}
     </div>
   )
 }
-/** a part of a list: its name and how many, then its lines */
-function PartBlock({ p, me, showOwner, lateLink = true }: { p: Part; me: PersonKey; showOwner?: boolean; lateLink?: boolean }) {
+/** Today: one list for the day — what's starred, for everyone or urgent first, then the day (late first), then what has
+ *  no day — each project's together under its address. (Each line says what it is: Urgent, For everyone; a star) */
+export const dayList = (parts: Part[]): Part[] => {
+  if (parts.length < 2) return parts
+  const on: Record<string, PersonKey[]> = Object.assign({}, ...parts.map((p) => p.on || {}))
+  const late = parts.some((p) => p.lateLink)
+  return [{ key: 'today', label: 'Today', tone: 'info', day: TODAY, lines: parts.flatMap((p) => p.lines), lateLink: late, ...(Object.keys(on).length ? { on } : {}) }]
+}
+/** a part of a list: its name and how many in its band (the same band as Estimates' groups), then its lines. Today's
+ *  day has no band (the box on top says it): its projects' addresses are the bands */
+function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; me: PersonKey; showOwner?: boolean; lateLink?: boolean; byProject?: boolean }) {
   const s = useStore()
+  const sticky = React.useContext(StickyBands)
   return (
     <section data-day={p.day || p.key} data-part={p.key}>
-      {/* the part's name, quiet, over its cards (late in red) — and what's late can be moved or reminded in one go */}
-      {p.label && (
-        <div className="flex items-center gap-2 px-1 pb-2.5 pt-5" data-group-head data-band data-group-tone={p.tone || 'neutral'}>
-          <h2 className={cn('text-[0.8125rem] font-semibold uppercase tracking-[0.07em]', p.tone === 'bad' ? 'text-bad-600' : 'text-[#7b756b]')}>{p.label}</h2>
-          <span className="text-[0.8125rem] font-semibold text-faint tnum" data-band-count>{p.lines.length}</span>
-          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.8125rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
+      {p.label && !byProject && (
+        <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
+          <h2 className={BAND_LABEL}>{p.label}</h2>
+          <BandCount n={p.lines.length} />
+          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.75rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
         </div>
       )}
-      <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} />
+      <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} byProject={byProject} />
     </section>
   )
+}
+/** a list inside a window (someone's list on Team report, what's on nobody's): the same bands and lines, in a box */
+function ListBox({ children }: { children: React.ReactNode }) {
+  return <div className="overflow-hidden rounded-xl border border-line bg-white"><div className="-mt-px">{children}</div></div>
 }
 
 /* ---------------- someone's list, for the admin (Team report → a person) ---------------- */
@@ -1517,7 +1548,7 @@ export function TheirList({ who }: { who: PersonKey }) {
       </div>
       {n ? (
         <div className="px-6 pb-4 max-sm:px-4" data-their-cards>
-          {parts.map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} />)}
+          <ListBox>{dayList(parts).map((p) => <PartBlock key={p.key} p={p} me={who} lateLink={false} byProject />)}</ListBox>
         </div>
       ) : <div className="px-6 pb-4 text-[0.875rem] text-muted max-sm:px-4">Nothing on it today.</div>}
     </section>
@@ -1542,7 +1573,7 @@ export function NobodyModal({ level }: { level: number }) {
   return (
     <Modal level={level} size="md" onClose={s.close} title="On nobody’s list" sub="For a login nobody has yet. Give each one to someone, or give the login to someone on Team.">
       <div className="pb-2" data-nobody-cards>
-        {parts.map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} />)}
+        {countOf(parts) > 0 && <ListBox>{dayList(parts).map((p) => <PartBlock key={p.key} p={p} me={meOf(s.role)} lateLink={false} byProject />)}</ListBox>}
         {!countOf(parts) && <div className="px-6 py-4 text-[0.875rem] text-muted">Nothing. Everything is on someone’s list.</div>}
       </div>
     </Modal>
@@ -1666,16 +1697,16 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
   if (!n) return null
   return (
     <section data-person-list={l.key}>
-      {/* whose list: their circle and name, over their cards */}
-      <div className="flex items-center gap-2.5 px-1 pb-1 pt-7" data-person-band>
-        <Avatar who={l.key} size={28} />
-        <b className="min-w-0 truncate text-[1.0625rem] font-semibold tracking-[-0.01em] text-ink">{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
-        <span className="text-[0.9375rem] font-semibold text-faint tnum" data-person-count>{n}</span>
+      {/* whose list: their circle and name, over their lines — a heading of its own, bigger than the bands under it */}
+      <div className={cn('flex min-h-[3.25rem] items-center gap-2.5 border-t border-line bg-white py-2', PX)} data-person-band>
+        <Avatar who={l.key} size={26} />
+        <b className="min-w-0 truncate text-[1rem] font-semibold tracking-[-0.01em] text-ink">{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
+        <span className="text-[0.875rem] font-semibold text-faint tnum" data-person-count>{n}</span>
       </div>
       <Viewer.Provider value={l.key}>
         <Multi.Provider value={false}>
           <ShowNow.Provider value={false}>
-            {parts.map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} />)}
+            {(view === 'today' ? dayList(parts) : parts).map((p) => <PartBlock key={p.key} p={p} me={l.key} showOwner={view === 'waiting'} lateLink={l.key === me} byProject={view === 'today'} />)}
           </ShowNow.Provider>
         </Multi.Provider>
       </Viewer.Provider>
@@ -1925,12 +1956,11 @@ export function MyTasksPage() {
   const lateN = view === 'today' && !multi ? parts.reduce((k, p) => k + p.lines.filter((l) => l.k === 'plate' ? l.x.b === 'overdue' : l.k === 'task' ? taskBucket(l.t) === 'overdue' : false).length, 0) : 0
   return (
     <Page
-      bare
       title={multi ? (lists.length >= (insidePeople(s).length || 1) ? 'Everyone’s Today' : `Today · ${lists.map((l) => (l.key === meOf(role) ? 'You' : PEOPLE[l.key]?.short || '')).join(' and ')}`) : lists[0].person ? `${PEOPLE[lists[0].person]?.short || 'Their'}’s Today` : `${greeting()}, ${PEOPLE[meOf(role)].short}`}
       phoneTitle
       sub={<span data-today-sub>{TODAY_LABEL}{n('today') ? <> · {n('today')} to do</> : null}{lateN ? <> · <button type="button" onClick={() => s.open({ t: 'late' })} className="font-medium text-bad-600 hover:underline" data-today-late>{lateN} late</button></> : null}</span>}
       top={
-        <div className="flex flex-col gap-3 max-md:gap-2.5" data-today-top>
+        <div data-today-top>
           {/* the same boxes on top as every page (Projects, Estimates, POs…): the number, its name, the picked one soft */}
           <div data-today-switch>
             <Bubbles row soft items={[
@@ -1942,10 +1972,14 @@ export function MyTasksPage() {
               { key: 'done', label: 'Done', count: doneN, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
             ]} />
           </div>
-          {/* All jobs, Mine, Sort and the search — one line under them */}
-          <div className="flex flex-1 items-center max-md:min-w-0" data-today-filters>
-            <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" />} />
-          </div>
+        </div>
+      }
+      /* the list in one box, the same as Estimates and Projects: All jobs, Mine and the search on its top line, the
+         column names under it, then each project under its address — a line between every two */
+      toolbar={
+        <div className="flex w-full min-w-0 items-center" data-today-filters>
+          {/* (a computer sorts by tapping a column's name; a phone: Sort) */}
+          <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" className="md:hidden" />} />
         </div>
       }
     >
@@ -1955,19 +1989,20 @@ export function MyTasksPage() {
       <Multi.Provider value={multi}>
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
+      <StickyBands.Provider value={true}>
       <div className="flex flex-col" data-list-scope="mine" data-today-list>
+        {/* the names of the columns (tap one to sort by it) */}
+        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} />}
         {/* Waiting on others, in one line: only what you're waiting for */}
-        {view === 'waiting' && n(view) > 0 && !q && <div className="px-1 pb-1 pt-1 text-[0.8125rem] leading-snug text-muted" data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch.</div>}
+        {view === 'waiting' && n(view) > 0 && !q && <div className={cn('py-2 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch.</div>}
         {/* searching: how many match, on this list */}
-        {q && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pb-1 pt-1 text-[0.8125rem] text-muted" data-today-found={found}><span>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</span>{!found && <button type="button" onClick={() => s.setPalette(true)} className="font-semibold text-brand-700" data-today-find-all>Search everything</button>}</div>}
-        {/* one person's list — or Everyone: each person's under their own name, never mixed */}
-        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} />)}
-        {n(view) === 0 && !q && (
-          <div className="mt-2 rounded-[1.125rem] bg-white shadow-[0_0_0_1px_rgba(40,33,20,0.07),0_12px_28px_-20px_rgba(40,33,20,0.22)]">
-            <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />
-          </div>
-        )}
+        {q && <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[0.8125rem] text-muted', PX)} data-today-found={found}><span>{found ? `${found} ${found === 1 ? 'to-do matches' : 'to-dos match'} “${q}”` : `Nothing ${view === 'today' ? 'on Today' : view === 'coming' ? 'coming up' : view === 'done' ? 'done' : 'waiting'} matches “${q}”`}</span>{!found && <button type="button" onClick={() => s.setPalette(true)} className="font-semibold text-brand-700" data-today-find-all>Search everything</button>}</div>}
+        {/* one person's list — or Everyone: each person's under their own name, never mixed. Today: each project under
+            its address; Coming up, Waiting, Done: under the day or the person, each line saying its project */}
+        {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : (view === 'today' ? dayList(parts) : parts).map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today'} />)}
+        {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
       </div>
+      </StickyBands.Provider>
       </TodaySort.Provider>
       </WaitView.Provider>
       </Multi.Provider>

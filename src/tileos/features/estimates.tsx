@@ -163,7 +163,7 @@ export function EstimatesPage() {
             if (!rows.length) return null
             return (
               <section key={k} data-est-group={k}>
-                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} />
+                <Group label={CAT[k].label} count={rows.length} tone={CAT[k].tone} sticky />
                 {rows.map((e) => <EstRow key={e.id} e={e} />)}
               </section>
             )

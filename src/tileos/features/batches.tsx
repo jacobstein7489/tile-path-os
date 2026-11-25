@@ -10,7 +10,7 @@ import { ListHead } from './winhead'
 import { useStore, meOf, isRequest } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
-import { BAND_STRONG, bandStyle, bandLabel } from '@/tileos/components/ui/page'
+import { BAND, BAND_LABEL } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, crewWords, type Job, type PersonKey } from '@/tileos/data/model'
 import { md, TODAY } from '@/tileos/lib/today'
@@ -101,7 +101,7 @@ export function TripsModal({ who, day, level }: { who?: PersonKey; day?: string;
       <div data-trips>
         {jobs.map((jobId) => (
           <section key={jobId} aria-label={s.jobs[jobId]?.name || 'A project'}>
-            <div className={cn(BAND_STRONG, 'px-5 max-sm:px-4')} style={bandStyle('neutral')} data-band><span className={bandLabel('neutral')}>{s.jobs[jobId]?.name || 'A project'}</span></div>
+            <div className={cn(BAND, 'px-5 max-sm:px-4')} data-band><span className={BAND_LABEL}>{s.jobs[jobId]?.name || 'A project'}</span></div>
             {list.filter((t) => t.jobId === jobId).map((t) => {
               const done = t.state === 'done'
               const due = taskIso(t)
