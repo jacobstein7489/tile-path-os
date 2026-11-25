@@ -28,6 +28,7 @@ import { LayoutsBoard } from '../layout'
 import { JobPart, type JobTab } from './details'
 import { IN_FIELD_STAGES, stepsFor } from '../steps'
 import { tracksFor } from '../tracks'
+import { ProgressTab, hasProgress } from './progress-tab'
 
 /** something opened on the project: a room, the conversation, a file, the money… */
 export type BoardView = null | { t: 'room'; name: string; tab?: RoomTab; /** a wall or floor to open right away */ surface?: string } | { t: 'chat' } | { t: 'file'; id: string } | { t: 'doc'; doc: string } | { t: 'files' } | { t: 'scope' } | { t: 'log' } | { t: 'orders' } | { t: 'money' } | { t: 'layouts' }
@@ -136,10 +137,12 @@ function InPlace({ job, view, back, setView }: { job: Job; view: NonNullable<Boa
 /* ---------------- the body: what's going on now on the left, the job on the right ---------------- */
 /** the project's parts, one at a time, each the full width: Where it stands (what's next, getting ready, the open
  *  issues) · Scope of work · Tiles · People · Documents. It opens on Where it stands. */
-export type BoardTab = 'stands' | 'materials' | 'billing' | 'layouts' | JobTab
+export type BoardTab = 'stands' | 'progress' | 'materials' | 'billing' | 'layouts' | JobTab
 const LINK_TAB: Record<string, BoardTab> = {
   scope: 'scope', rooms: 'scope', walls: 'scope', layouts: 'scope', tiles: 'materials', materials: 'materials', orders: 'materials', pos: 'materials', deliveries: 'materials',
   money: 'billing', billing: 'billing', estimate: 'billing', people: 'people', files: 'files', docs: 'files', documents: 'files',
+  /* the daily updates and how far it is */
+  progress: 'progress', install: 'progress', diary: 'progress', updates: 'progress', daily: 'progress',
 }
 /** who sees the money — billing is its own tab, never on top of the work */
 export const seesMoney = (role: string) => !['site', 'crew', 'client'].includes(role)
@@ -168,8 +171,10 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
     return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
   }
   const money = seesMoney(s.role)
+  /* how far it is and the daily updates, day by day — once it's on site (or has an update) */
+  const progress = hasProgress(s, job)
   /* the layouts are on the scope of work now (its Layouts button) */
-  const at: BoardTab = tab === 'billing' && !money ? 'stands' : tab === 'layouts' ? 'scope' : tab
+  const at: BoardTab = (tab === 'billing' && !money) || (tab === 'progress' && !progress) ? 'stands' : tab === 'layouts' ? 'scope' : tab
   const pick = (t: BoardTab) => { setTab(t); if (t !== 'stands') setOpen(null) }
   const sheet = (body: React.ReactNode) => <div data-side="job" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3">{body}</div>
   return (
@@ -183,6 +188,8 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         items={[
           /* what's left on the project — the stage is the bar on top, the rooms are in the scope of work */
           { key: 'stands', label: 'To do', short: 'To do' },
+          /* how far it is, room by room, and the daily updates day by day */
+          ...(progress ? [{ key: 'progress' as BoardTab, label: 'Progress' }] : []),
           /* the scope, its tiles and its layouts — one page, room by room, like Cobblestone's own scope of work */
           { key: 'scope', label: 'Scope of work', short: 'Scope' },
           /* what has to come to the job: each tile once, and our materials — ordered, here */
@@ -196,6 +203,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
       <div ref={top} data-board-tab={at} className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f7f5f1]">
         {at === 'stands'
           ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3"><Stands job={job} open={open} setOpen={setOpen} onStep={onStep || (() => {})} setView={setView} /></div>
+          : at === 'progress' ? sheet(<ProgressTab job={job} open={setView} />)
           : at === 'materials' ? sheet(<MaterialsTab job={job} onScope={() => setTab('scope')} />)
             : at === 'billing' ? sheet(<MoneyTab job={job} />)
               : <div data-side="job" className="mx-auto w-full max-w-[96rem]"><JobPart job={job} tab={at} open={setView} onStep={onStep} /></div>}

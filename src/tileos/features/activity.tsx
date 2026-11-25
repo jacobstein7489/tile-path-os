@@ -49,7 +49,7 @@ export function refFor(s: Store, text: string, jobId?: string, given?: Ref): Ref
 export const refLabel = (r: Ref) =>
   r.t === 'po' ? `Open ${r.id}` : r.t === 'ipo' ? `Open ${r.id}` : r.t === 'estimate' ? `Open estimate ${r.id}` : r.t === 'money' ? 'Open the billing record' : r.t === 'diary' ? 'Open the daily log' : 'Open'
 export function openRef(s: Store, r: Ref) {
-  if (r.t === 'diary') return s.open({ t: 'job', id: r.jobId, tab: 'rooms' })
+  if (r.t === 'diary') return s.open({ t: 'job', id: r.jobId, tab: 'progress' })
   s.open(r)
 }
 
