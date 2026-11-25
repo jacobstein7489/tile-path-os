@@ -10,7 +10,7 @@ import {
 import { toast } from '@/tileos/lib/pop'
 import { useStore } from '@/tileos/store'
 import { Button, Pill, Avatar, Chip, Field, TextInput, TextArea, Card, CardHeader, Empty, IconCircle, Segmented, Count, Stepper as NumStepper } from '@/tileos/components/ui/core'
-import { Modal } from '@/tileos/components/ui/overlay'
+import { Modal, Pop } from '@/tileos/components/ui/overlay'
 import { FlowSteps } from '@/tileos/components/ui/page'
 import { Swatch, TileImg } from '@/tileos/components/ui/swatch'
 import { Bar, MiniSteps } from '@/tileos/components/ui/progress'
@@ -243,7 +243,36 @@ export function RoomPhotos({ job, room }: { job: Job; room: Room }) {
 }
 
 /* ================= the daily update ================= */
+/** the quick picks — and the number itself can be tapped to type any other (60%, 85%…) */
 const STEPS = [25, 50, 75, 90]
+/** how far a wall or floor is, in words: where it was, where it is now, and what's left — "40% done · 60% to go",
+ *  "40% → 75% · 25% to go". Tap it: type the exact % (more than it was, up to 100) */
+function ExactPct({ cur, to, onSet, name }: { cur: number; to?: number; onSet: (v: number | null) => void; name: string }) {
+  const [open, setOpen] = React.useState(false)
+  const [v, setV] = React.useState('')
+  const n = Math.round(Number(v.replace(/[^\d.]/g, '')))
+  const ok = v.trim() !== '' && Number.isFinite(n) && n > cur && n <= 100
+  const set = () => { if (!ok) return; onSet(n); setOpen(false) }
+  const words = to !== undefined ? `${cur}% → ${to >= 100 ? 'done' : to + '%'}${to < 100 ? ` · ${100 - to}% to go` : ''}` : cur ? `${cur}% done · ${100 - cur}% to go` : 'Not started · 100% to go'
+  return (
+    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (o) setV(to !== undefined ? String(to) : '') }} width={260} align="start" trigger={
+      <button type="button" aria-label={`${name}: type how far it is`} title="Tap to type the exact %" className={cn('block text-left text-[0.78125rem] tnum underline decoration-dotted decoration-[#b9b3a9] underline-offset-[0.1875rem] transition hover:text-brand-700 hover:decoration-brand-400', to !== undefined ? 'font-semibold text-brand-700' : 'text-muted')} data-daily-exact>{words}</button>
+    }>
+      <div className="text-[0.9375rem] font-semibold text-ink">How far is it now?</div>
+      <div className="mt-0.5 text-[0.8125rem] text-muted">{name} · {cur ? `${cur}% done before today` : 'not started before today'}</div>
+      <div className="mt-3 flex items-center gap-2">
+        <label className="relative block min-w-0 flex-1">
+          <input autoFocus inputMode="numeric" value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') set() }} aria-label="How far, in %" placeholder={String(Math.min(100, cur + 10))}
+            className="h-10 w-full rounded-lg border border-line bg-white pl-3 pr-8 text-right text-[1rem] font-semibold tnum text-ink outline-none placeholder:font-normal placeholder:text-faint focus:border-brand-300 focus:ring-[0.1875rem] focus:ring-brand-50" data-daily-exact-input />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[0.9375rem] font-semibold text-muted">%</span>
+        </label>
+        <Button variant="primary" disabled={!ok} onClick={set} data-daily-exact-set>Set</Button>
+      </div>
+      {v.trim() !== '' && !ok && <div className="mt-1.5 text-[0.75rem] font-medium text-bad-600">{n <= cur ? `More than ${cur}%, where it was` : 'Up to 100%'}</div>}
+      {to !== undefined && <button type="button" onClick={() => { onSet(null); setOpen(false) }} className="mt-2 text-[0.8125rem] font-medium text-muted hover:text-ink" data-daily-exact-clear>Leave it as it was</button>}
+    </Pop>
+  )
+}
 const keyOf = (room: string, sf: string) => room + '::' + sf
 const SAMPLE_SW = ['subway', 'toscana', 'pearl', 'bianco', 'calacatta', 'hex'] as const
 
@@ -321,7 +350,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
      finished already is one quiet line, not more buttons), a photo, anything to flag, a note — Send */
   const header = (
     <div className="border-b border-line px-7 pb-4 pt-6 pr-20 max-sm:px-4 max-sm:pr-14 max-sm:pt-4">
-      <div className="text-[0.8125rem] font-medium text-muted">{personOf(job.crew) ? `${personOf(job.crew)!.name}’s crew` : 'Site'} · {dayShort(TODAY)} · {before}% installed</div>
+      <div className="text-[0.8125rem] font-medium text-muted">{personOf(job.crew) ? `${personOf(job.crew)!.name}’s crew` : 'Site'} · {dayShort(TODAY)} · {before}% installed{before < 100 ? ` · ${100 - before}% to go` : ''}</div>
       <h2 className="mt-0.5 text-[1.375rem] font-bold tracking-[-0.02em] text-ink max-sm:text-[1.1875rem]">Daily update · {job.name}</h2>
     </div>
   )
@@ -403,7 +432,11 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                         <div key={sf.name} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-2 px-4 py-2.5', t !== undefined && 'bg-brand-50/40')} data-daily-line={`${rm.name} · ${sf.name}`}>
                           <span className="min-w-0 flex-1 basis-[11rem]">
                             <span className="block text-[0.9375rem] text-ink">{sf.name}</span>
-                            <span className={cn('block text-[0.78125rem] tnum', t !== undefined ? 'font-semibold text-brand-700' : 'text-muted')}>{t !== undefined ? `${cur}% → ${t >= 100 ? 'done' : t + '%'}` : cur ? `${cur}% so far` : 'Not started'}</span>
+                            {/* where it was, where it is, what's left — it carries on from the last update; tap it to type
+                                the exact % (a stopped one only says where it is) */}
+                            {stopped(sf)
+                              ? <span className="block text-[0.78125rem] tnum text-muted">{cur ? `${cur}% done · ${100 - cur}% to go` : 'Not started'}</span>
+                              : <ExactPct cur={cur} to={t} name={sf.name} onSet={(v) => setFor(rm.name, sf, v)} />}
                           </span>
                           {stopped(sf) ? (
                             <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-warn-700"><Ban className="h-3.5 w-3.5 shrink-0" />Don’t start · {sf.pending ? `${sf.pending.co} pending` : sf.reason || SURF_LABEL[sf.state]}</span>
