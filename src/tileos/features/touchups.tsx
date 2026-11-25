@@ -16,7 +16,7 @@ import type { PunchItem, Task } from '@/tileos/data/work'
 import { setPunch, setPunchOwner } from './flows'
 import { WhoMenu, WhenPop, type WhoPick, type WhenPick } from './winhead'
 import { isOff } from './active'
-import { TOUCH_WORDS } from './todokinds'
+import { TOUCH_WORDS, sameWords } from './todokinds'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 import { fieldPeople } from './steps-ui'
 import { Whose } from './job/whatsleft'
@@ -98,7 +98,9 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
   const items = s.punch.filter((p) => p.jobId === jobId)
   /* the to-dos about them said in words: on top */
   const linked = new Set(items.map((p) => p.taskId).filter(Boolean) as string[])
-  const strays = items.length ? s.tasks.filter((t) => t.jobId === jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title)) : []
+  /* (a to-do with the same words as one of theirs is that one, written twice: not shown again) */
+  const mains = s.tasks.filter((t) => linked.has(t.id))
+  const strays = items.length ? s.tasks.filter((t) => t.jobId === jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title) && !mains.some((m) => sameWords(m.title, t.title))) : []
   const open = items.filter((p) => p.status === 'open' || p.status === 'working')
   const check = items.filter((p) => p.status === 'verify')
   const done = items.filter((p) => p.status === 'verified')

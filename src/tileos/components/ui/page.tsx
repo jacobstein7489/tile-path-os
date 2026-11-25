@@ -535,7 +535,9 @@ export function phoneGrid(n: number, row?: boolean, four?: boolean): { cols: num
   if (n === 8) return { cols: 4, tall: false }
   return { cols: 3, tall: (n - 1) % 3 === 0 }
 }
-export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row */ four?: boolean; /** on a phone, all on one row with their short names (Today's five) */ row?: boolean; /** the picked one soft blue, not a solid block (the list pages); Today's stands out */ soft?: boolean }) {
+export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; arrows?: boolean; wrap?: boolean; /** on a phone, four a row */ four?: boolean; /** on a phone, all on one row with their short names (Today's) */ row?: boolean; /** (every page's are soft now — the same boxes on top of every page) */ soft?: boolean }) {
+  /* one look on every page: the picked one in its own soft color, never a solid block */
+  const soft = true
   const g = phoneGrid(items.length, row, four)
   return (
     <div
@@ -578,7 +580,8 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
               /* the picked one on a list page: its own soft color */
               style={b.on && soft ? { background: c.tint, borderColor: `${c.solid}59`, boxShadow: `inset 0 0 0 1.5px ${c.solid}73` } : undefined}
             >
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5rem] [&_svg]:h-4 [&_svg]:w-4 max-sm:hidden', items.length >= 7 && 'sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3')} style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
+              {/* its icon small in the corner — the same on every page, however many there are */}
+              <span className="flex shrink-0 items-center justify-center max-sm:hidden sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3" style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
                 {b.icon}
               </span>
               {/* a phone: a small dot of its color in the corner — a little color, and the name keeps its whole width */}
@@ -590,9 +593,9 @@ export function Bubbles({ items, arrows, wrap, four, row, soft }: { items: Bubbl
                 {row ? (
                   <span className="flex items-center max-sm:justify-center max-sm:gap-1">
                     {/* (a phone: just the number and its name — no colored icons, the top stays calm) */}
-                    <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>
+                    <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined} data-bubble-count>{b.count}</span>
                   </span>
-                ) : <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined}>{b.count}</span>}
+                ) : <span className={cn('display-num block text-[1.125rem] font-semibold leading-5', tall && 'max-sm:text-[1.5rem] max-sm:leading-7', b.on ? (soft ? '' : 'text-white') : 'text-ink')} style={b.on && soft ? { color: c.solid } : undefined} data-bubble-count>{b.count}</span>}
                 {row && b.short
                   ? <><span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:hidden', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span><span className={cn('mt-0.5 block whitespace-nowrap text-[0.6875rem] font-medium leading-[0.875rem] sm:hidden [@media(max-width:22rem)]:text-[0.625rem]', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.short}</span></>
                   : <span className={cn('block truncate text-[0.75rem] font-medium leading-4 max-sm:mt-0.5 max-sm:text-[0.71875rem] max-sm:leading-[0.9375rem]', row ? 'max-sm:whitespace-normal max-sm:text-[0.6875rem] max-sm:leading-[0.8125rem] [@media(max-width:22rem)]:text-[0.625rem]' : 'max-sm:whitespace-normal max-sm:break-words', b.on ? (soft ? 'text-ink' : 'text-white/90') : 'text-ink-2')}>{b.label}</span>}

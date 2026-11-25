@@ -554,7 +554,7 @@ export function IPOModal({ id, level }: { id: string; level: number }) {
   const name = PEOPLE[p.crew].name
   const at = { Draft: 0, Sent: 1, Accepted: 2, Rejected: 2 }[p.status]
   const steps = [
-    { key: 'draft', label: 'Made', state: (at > 0 ? 'done' : 'current') as any, sub: p.log[0]?.date || 'From scope' },
+    { key: 'draft', label: 'Created', state: (at > 0 ? 'done' : 'current') as any, sub: p.log[0]?.date || 'From scope' },
     { key: 'sent', label: `Sent to ${PEOPLE[p.crew].short}`, state: (at > 1 ? 'done' : at === 1 ? 'current' : 'future') as any, sub: at >= 1 ? p.log.find((l) => /sent/i.test(l.text))?.date : undefined },
     { key: 'answer', label: p.status === 'Rejected' ? 'Turned down' : 'Accepted', state: (p.status === 'Rejected' ? 'blocked' : p.status === 'Accepted' ? 'current' : 'future') as any, sub: at === 2 ? p.date : undefined },
   ]

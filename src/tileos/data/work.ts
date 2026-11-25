@@ -27,6 +27,8 @@ export interface Task {
   dueTone?: Tone
   waitingOn?: string
   followUp?: string
+  /** ordered, and the store delivers it: it waits for it, and on its day the question is "Came in?" */
+  coming?: boolean
   /** how many times someone followed up while it waited — each one is logged on the task */
   followUps?: number
   laterUntil?: string

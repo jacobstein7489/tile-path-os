@@ -18,6 +18,7 @@ import { mailLive, emailPO, emailIPO } from './mailout'
 import { stepsFor, siteOf } from './steps'
 import { REAL } from '@/tileos/lib/save'
 import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, isoFromLabel } from '@/tileos/lib/today'
+import { sameWords } from './todokinds'
 
 const S = () => useStore.getState()
 const me = () => meOf(S().role)
@@ -1415,7 +1416,11 @@ export function setPunch(id: string, status: 'open' | 'working' | 'verify' | 've
     if (!p) return
     p.status = status
     /* its to-do is done once every touch-up on it is checked — not with the first one */
-    if (status === 'verified' && p.taskId && s.punch.every((x) => x.taskId !== p.taskId || x.status === 'verified')) closeTasks(s, [p.taskId], 'Verified')
+    if (status === 'verified' && p.taskId && s.punch.every((x) => x.taskId !== p.taskId || x.status === 'verified')) {
+      /* and a to-do with the same words on the project (written twice): the same one, done with it */
+      const main = s.tasks.find((t) => t.id === p.taskId)
+      closeTasks(s, [p.taskId, ...(main ? s.tasks.filter((t) => t.id !== main.id && t.jobId === main.jobId && t.state !== 'done' && sameWords(t.title, main.title)).map((t) => t.id) : [])], 'Verified')
+    }
     /* the crew says it's done — the site manager gets it to check, once per project */
     if (status === 'verify' && !s.tasks.some((t) => t.jobId === p.jobId && t.state !== 'done' && /check/i.test(t.title) && /touch-?up/i.test(t.title))) {
       newTask(s, { jobId: p.jobId, title: `Check the touch-ups at ${s.jobs[p.jobId]?.name || 'the project'}`, type: 'Field', owner: 'yakov', for: ['site'], watch: ['owner'], state: 'now', due: 'Tomorrow', tone: 'info', where: `${(p.owner && PEOPLE[p.owner]?.short) || 'The crew'} marked “${p.text}” done`, action: { label: 'Check them', kind: 'tab:touchups' } })

@@ -4,8 +4,8 @@
  *   someone else's, they did something on it:       Updated 3:42 PM
  *   someone else's, they opened it:                 Seen Yesterday
  *   yours, someone else did something on it:        Note from Jacob · Nov 23
- *   otherwise:                                      Made Nov 20          (how old it is)
- * The whole story (made, given, seen, the last change) is on the line when you point at it. "Seen" is when its person
+ *   otherwise:                                      Created Nov 20, 9:14 AM  (when, and so how old it is)
+ * The whole story (created, given, seen, the last change) is on the line when you point at it. "Seen" is when its person
  * opened it after it was given to them (its window, the "New for you" card, a tapped notification). */
 import { useStore, meOf, NOW } from '@/tileos/store'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -19,6 +19,8 @@ const short = (p?: string) => (p && p !== 'system' ? PEOPLE[p as PersonKey]?.sho
 const YESTERDAY = md(addDays(TODAY, -1))
 /** a day and a time, the way the list says it: the time today, Yesterday, else the day ("Nov 20") */
 const whenOf = (date?: string, time?: string) => (!date ? '' : date === NOW ? time || 'Today' : date === YESTERDAY ? 'Yesterday' : date)
+/** when it was created: "Created 9:14 AM" (today), "Created yesterday, 3:42 PM", "Created Nov 20, 9:14 AM" */
+const createdOf = (date?: string, time?: string) => (!date ? '' : date === NOW ? `Created ${time || 'today'}` : date === YESTERDAY ? `Created yesterday${time ? `, ${time}` : ''}` : `Created ${date}${time ? `, ${time}` : ''}`)
 /** the same from a moment (ISO) */
 const whenAt = (iso?: string) => {
   if (!iso) return ''
@@ -40,7 +42,7 @@ export const notSeen = (t: Task) => !!t.given && !!t.givenBy && t.givenBy !== t.
 export function latestOf(t: Task, me: PersonKey): Latest | null {
   const log = t.log || []
   const first = log[0]
-  const made = first ? `Made ${[first.date, first.time].filter(Boolean).join(', ')}${first.who && first.who !== 'system' ? ` by ${short(first.who)}` : ''}` : ''
+  const made = first ? `${createdOf(first.date, first.time)}${first.who && first.who !== 'system' ? ` by ${short(first.who)}` : ''}` : ''
   const given = t.given && t.givenBy ? `${short(t.givenBy)} gave it to ${t.owner === me ? 'you' : short(t.owner)} ${fullAt(t.given)}` : ''
   const seenAt = t.seen?.[t.owner]
   const seen = seenAt ? `${t.owner === me ? 'You' : short(t.owner)} opened it ${fullAt(seenAt)}` : t.given ? `${t.owner === me ? 'You haven’t' : `${short(t.owner)} hasn’t`} opened it yet` : ''
@@ -62,7 +64,7 @@ export function latestOf(t: Task, me: PersonKey): Latest | null {
     if (theirs) return { text: `Updated ${whenOf(theirs.date, theirs.time)}`, tip }
     if (seenAt) return { text: `Seen ${whenAt(seenAt)}`, tip }
   }
-  return first ? { text: `Made ${whenOf(first.date, first.time)}`, tip } : null
+  return first ? { text: createdOf(first.date, first.time), tip } : null
 }
 
 /** its person opened it (or read it on the "New for you" card, or tapped its notification): seen — once each time it's

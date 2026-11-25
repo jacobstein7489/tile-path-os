@@ -1,7 +1,8 @@
 /* The top of every window that opens from a list — a task, a step, waiting on the GC — the same every time:
  *   what it is (Task, Change order, Waiting on the GC, Getting ready · Installer) and its project (tap: the project)
  *   the thing to do (big)
- *   one box of short lines, each with its name on the left, always these names, always in this order:
+ *   short lines, each with its name on the left, always these names, always in this order — every line the same
+ *   height, every value starting at the same place, plain words you tap (no bubbles):
  *     Who does it  — their circle and name
  *     When         — its day
  *     Status       — where it stands: waiting on someone, done, not yet (only when there's something to say)
@@ -73,7 +74,8 @@ export function KindTag({ label, className }: { label: string; className?: strin
   return <span className={cn('inline-flex h-[1.25rem] w-[5.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.3125rem] px-1 text-[0.6875rem] font-semibold leading-none', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
 }
 
-export const CHIP = 'inline-flex min-h-8 min-w-0 items-center gap-2 rounded-full border border-[#e9e5de] bg-white px-3 py-1 text-left shadow-[0_1px_2px_rgba(20,26,36,.05)] transition hover:border-[#d6cfc3] hover:shadow-[0_2px_6px_-2px_rgba(20,26,36,.15)] focus-visible:border-brand-300 focus-visible:outline-none'
+/** a value you tap to change it: plain words, a soft wash when pointed at — the same size and place on every line */
+export const CHIP = 'group/val -mx-2 inline-flex min-h-8 min-w-0 max-w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none [&>svg:last-child]:opacity-60 hover:[&>svg:last-child]:opacity-100'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
 
 /** each line's small mark — the same on every window */
@@ -81,8 +83,8 @@ const LINE_ICON: Record<string, React.ReactNode> = { who: <UserRound />, people:
 /** one line of the box: its mark and name on the left, what it says on the right */
 export function WinLine({ k, label, top, children }: { k: string; label: string; top?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('grid min-h-11 grid-cols-[8.5rem_minmax(0,1fr)] gap-x-3 rounded-xl px-3 py-1 transition-colors hover:bg-white/70 max-sm:grid-cols-[7.25rem_minmax(0,1fr)] max-sm:px-2', top ? 'items-start' : 'items-center')} data-win-line={k}>
-      <span className={cn('flex min-w-0 items-center gap-2.5 text-[0.875rem] text-muted [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-[#a39d93]', top && 'pt-[0.4375rem]')} data-win-label={k}>{LINE_ICON[k]}<span className="min-w-0">{label}</span></span>
+    <div className={cn('grid min-h-9 grid-cols-[8rem_minmax(0,1fr)] gap-x-3 py-0.5 max-sm:min-h-10 max-sm:grid-cols-[7rem_minmax(0,1fr)]', top ? 'items-start' : 'items-center')} data-win-line={k}>
+      <span className={cn('flex min-w-0 items-center gap-2.5 text-[0.875rem] text-muted [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-[#aaa398]', top && 'pt-1.5')} data-win-label={k}>{LINE_ICON[k]}<span className="min-w-0 truncate">{label}</span></span>
       <div className="flex min-w-0 items-center">{children}</div>
     </div>
   )
@@ -307,17 +309,17 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
 }) {
   const whoBody = (
     <>
-      {who && <Avatar who={who} size={24} />}
-      {whoText && <span className="min-w-0 text-[0.9375rem] font-medium text-ink" data-win-owner>{whoText}</span>}
+      {who && <Avatar who={who} size={22} />}
+      {whoText && <span className="min-w-0 text-[0.9375rem] text-ink" data-win-owner>{whoText}</span>}
     </>
   )
   const stateCls = toneCls(tone)
   return (
-    <div className="relative isolate px-6 pb-2 pt-5 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
+    <div className="relative isolate px-6 pb-1 pt-4 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
       {/* a soft wash of what it is behind the top of the window — you know what you opened before you read a word */}
       {kind && <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-40" style={{ background: `linear-gradient(180deg, ${kindTone(kind.label).background} 0%, rgba(255,255,255,0) 100%)` }} data-win-wash />}
       {/* what it is, and its project — clear of the window's ✕ (a phone too: the ✕ is on this line) */}
-      <div className="relative flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:items-center max-sm:pr-12 [[data-stacked]_&]:pr-0">
+      <div className="relative flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:pr-12 [[data-stacked]_&]:pr-0">
         {/* the project goes on to the next line when there isn't room — never cut short */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
           {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-2.5 text-[0.8125rem] font-semibold shadow-[0_1px_2px_rgba(20,26,36,.06)] ring-1 ring-inset ring-black/[0.04] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: kindTone(kind.label).color }} data-win-kind>{kind.icon}{kind.label}</span>}
@@ -333,21 +335,21 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
           </span>
         )}
       </div>
-      <h2 className="font-display relative mt-3 text-[1.5rem] font-semibold leading-tight tracking-[-0.018em] text-ink max-sm:text-[1.3125rem]" data-win-title>
+      <h2 className="font-display relative mt-2.5 text-[1.25rem] font-semibold leading-snug tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]" data-win-title>
         {edit ? <EditText value={edit.title} onSave={edit.onTitle} label="What to do" attrs={{ 'data-win-title-edit': '' }} /> : title}
       </h2>
       {edit ? (
-        <div className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>
+        <div className="mt-1 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>
           <EditText value={edit.sub || ''} onSave={edit.onSub} area label="Details" placeholder="Add details" attrs={{ 'data-win-sub-edit': '', ...(edit.sub ? { 'data-task-detail': '' } : {}) }} />
         </div>
-      ) : sub && <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
+      ) : sub && <p className="mt-1 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
       {/* one box of short lines, each with its name on the left (nothing to say in it: no box) */}
-      {(lines || whoText || whoPick || state || status || where || watch) && <div className="mt-4 rounded-2xl bg-[#f8f7f4] p-1.5 ring-1 ring-inset ring-[#efebe4]" data-win-who>
+      {(lines || whoText || whoPick || state || status || where || watch) && <div className="mt-3 flex flex-col" data-win-who>
         {lines}
         {(whoText || whoPick) && (
           <WinLine k="who" label={whoLabel}>
             {whoPick ? (
-              <WhoMenu pick={whoPick} trigger={<button type="button" className={CHIP} aria-label="Who does it · change it" data-who-pick>{whoBody}<ChevronDown className="h-4 w-4 shrink-0 text-faint" /></button>} />
+              <WhoMenu pick={whoPick} trigger={<button type="button" className={CHIP} aria-label="Who does it · change it" data-who-pick>{whoBody}<ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>} />
             ) : <span className="inline-flex min-w-0 items-center gap-2">{whoBody}</span>}
           </WinLine>
         )}
@@ -360,7 +362,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
                   <button type="button" className={cn(CHIP, 'text-[0.9375rem]', stateCls)} aria-label="When · change it" data-when-pick>
                     <span className="min-w-0" data-win-state>{state}</span>
                     {(whenPick.onTime || whenPick.onSet) && whenPick.time && <span className="shrink-0 tnum text-ink" data-when-time>· {whenPick.time}</span>}
-                    <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />
                   </button>
                 } />
               ) : <span className={cn('text-[0.9375rem]', stateCls)} data-win-state>{state}</span>}
@@ -376,11 +378,11 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
                 (nothing cut off); nobody yet: Add someone */}
             <span className="flex min-w-0 items-center" data-win-watch={watch.current.join(',')}>
               <WatchPop pick={watch} trigger={
-                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3.5 gap-y-1.5')} aria-label="Who’s watching. Add or take off" data-watch-add>
+                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3 gap-y-1')} aria-label="Who’s watching. Add or take off" data-watch-add>
                   {watch.current.length > 0
-                    ? watch.current.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={24} />{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span>)
-                    : <span className="inline-flex items-center gap-1.5 text-[0.9375rem] font-medium text-brand-700"><Plus className="h-4 w-4" />Add someone</span>}
-                  {watch.current.length > 0 && <ChevronDown className="h-4 w-4 shrink-0 text-faint" />}
+                    ? watch.current.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={22} />{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span>)
+                    : <span className="inline-flex items-center gap-1.5 text-[0.9375rem] text-muted group-hover/val:text-brand-700"><Plus className="h-4 w-4" />Add someone</span>}
+                  {watch.current.length > 0 && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />}
                 </button>
               } />
             </span>

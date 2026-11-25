@@ -4,7 +4,7 @@
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Sparkles, History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2 } from 'lucide-react'
+import { Sparkles, History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2, PackageCheck } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from '@/tileos/store'
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
@@ -53,7 +53,9 @@ import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 import { TouchupLine, StrayLine } from './touchups'
 import { holdWords } from './common'
-import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS, CALL_RE, ORDER_RE } from './todokinds'
+import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
+import { nextOf, doneWord, isCall, isOrder } from './nextstep'
+import { OrderedPanel, NotYetPanel, cameIn } from './ordered'
 import { autoWho } from './autowho'
 import { useSort, sortRows, SortHead, SortMenu, type Sort, type SortCol } from '@/tileos/components/ui/sort'
 
@@ -512,7 +514,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         </div>
       )}
       {/* its next step — a soft pill, the same size on every line; none: the line opens it (a quiet arrow says so) */}
-      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next>
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
         {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
@@ -524,19 +526,12 @@ const hourLabel = (min: number) => timeLabel(min).replace(/^(\d+) /, '$1:00 ')
 function taskTime(t: Task): number | null { return t.at ? parseTime(t.at) : t.repeatAt ? parseTime(t.repeatAt) : null }
 
 /* ---------------- a line's button: the real next step, in its own word ---------------- */
-/** a call, a text, a question: the button says it was done, and asks what they said */
-const CALL_WORDS: [RegExp, string][] = [[/^\s*(call|phone|ring)\b/i, 'Called'], [/^\s*text\b/i, 'Texted'], [/^\s*(ask|find out|check with)\b/i, 'Asked'], [/^\s*follow up with\b/i, 'Followed up'], [/^\s*reach out to\b/i, 'Reached out'], [/^\s*(speak|talk)\b/i, 'Talked']]
-/** something to order: the button says it's ordered, and asks who brings it and when (then it waits for it) */
-export const isOrderTask = (t: Pick<Task, 'title' | 'state'>) => t.state === 'now' && ORDER_RE.test(t.title)
+/* read from the to-do's words wherever the verb is (features/nextstep): "…tom order missing tiles" → Ordered */
+/** something to order or buy, still to do: Ordered asks how it gets there and the day — then it's followed until it's there */
+export const isOrderTask = (t: Pick<Task, 'title' | 'state' | 'coming'>) => (t.state === 'now' || (t.state === 'waiting' && !t.coming)) && isOrder(t.title)
 /** any other to-do: the word for having done it (Sent, Fixed, Picked up…) — else Done */
-const DONE_WORDS: [RegExp, string][] = [
-  [/^\s*(send|email|e-mail|mail)\b/i, 'Sent'], [/^\s*(pick\s*up|pickup|collect)\b/i, 'Picked up'], [/^\s*(drop\s*off|deliver|bring)\b/i, 'Dropped off'],
-  [/^\s*(fix|repair|patch)\b/i, 'Fixed'], [/^\s*install\b/i, 'Installed'], [/^\s*(check|inspect|verify)\b/i, 'Checked'], [/^\s*confirm\b/i, 'Confirmed'],
-  [/^\s*(book|schedule)\b/i, 'Booked'], [/^\s*set up\b/i, 'Set up'], [/^\s*pay\b/i, 'Paid'], [/^\s*measure\b/i, 'Measured'], [/^\s*upload\b/i, 'Uploaded'],
-  [/^\s*print\b/i, 'Printed'], [/^\s*(clean|clear)\b/i, 'Cleaned'], [/^\s*sign\b/i, 'Signed'], [/^\s*price\b/i, 'Priced'],
-]
-export const doneWordOf = (title: string) => DONE_WORDS.find(([re]) => re.test(title))?.[1] || 'Done'
-export const callWordOf = (title: string) => CALL_WORDS.find(([re]) => re.test(title))?.[1] || 'Called'
+export const doneWordOf = (title: string) => doneWord(title)
+export const callWordOf = (title: string) => (isCall(title) ? doneWord(title) : 'Called')
 /** a step's own button, short enough for the line's button (the whole words in its window) */
 const SHORT_ACTION: Record<string, string> = { 'Set the meeting': 'Set meeting', 'Chase or reorder': 'Chase it', 'Send the report': 'Send report', 'Order materials': 'Order', 'Decide the setup': 'Decide', 'Send updates': 'Send updates', 'Enter heights': 'Enter heights', 'Send revised quantities': 'Send', 'Fixed. Check it again': 'Check again', 'The PO came · file it': 'File the PO', 'Print the room sheets': 'Print sheets', 'Enter the high and low': 'Enter heights', 'Report what’s short': 'Report short', 'Open the project': 'Open project', 'Start walkthrough': 'Walkthrough', 'Record follow-up': 'Followed up', 'Add the estimate': 'Add estimate', 'Add to next bill': 'Add to bill' }
 /** a step's "open…" button that is really its next step, said as one */
@@ -559,7 +554,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   const Ic = TYPE_ICON[t.type] || ListTodo
   const log = t.log || []
   const last = log[log.length - 1]
-  const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? `Waiting on ${t.waitingOn}` : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
+  const detail0 = t.req && !done ? `${t.req.trip === 'onway' ? 'On the way' : 'Asked'}${t.by ? ` by ${PEOPLE[t.by]?.short || ''}` : ''}${t.owner !== meOf(s.role) ? ` · ${PEOPLE[t.owner]?.short || 'someone'} brings it` : ''}` : t.state === 'waiting' ? (t.coming ? `Coming from ${t.waitingOn}` : `Waiting on ${t.waitingOn}`) : t.blocks && !done ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : last?.text || t.where || t.detail
   const detail = followed ? <><Eye className="mr-1 inline h-3.5 w-3.5 align-[-0.125rem] text-brand-600" />{detail0 ? `You follow · ${detail0}` : 'You follow'}</> : detail0
   /* shared — two can do it, whoever gets to it first: the row has both their circles (no names in words) */
   const gcw = isGcWait(t) ? gcState(t) : undefined
@@ -569,24 +564,28 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   /* time to follow up: When says since when (the button says what to do) */
   const fu = t.followUp ? isoFromLabel(t.followUp) : undefined
   const followWhen = fu && fu < TODAY ? { text: lateBy(fu), tone: 'bad' as const } : { text: 'Today', tone: 'warn' as const }
-  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? followWhen : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? followWhen : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `Back ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? (t.hold ? { text: holdWords(t.laterUntil), tone: holdUp(t) ? 'warn' as const : undefined } : { text: `Back ${t.laterUntil}` }) : { text: 'Anytime', tone: 'quiet' as const })
+  const w = when || (gcw ? (follow && gcw.tone !== 'bad' ? followWhen : { text: gcw.text, tone: gcw.tone === 'bad' ? 'bad' as const : gcw.tone === 'warn' ? 'warn' as const : undefined }) : undefined) || (t.state === 'waiting' ? (follow ? followWhen : { text: /^tomorrow$/i.test(t.followUp || '') ? 'Tomorrow' : `${t.coming ? 'Coming' : 'Back'} ${t.followUp}`, tone: undefined }) : t.state === 'done' ? { text: t.doneAt ? (t.doneAt === 'Just now' ? 'Today' : t.doneAt) : 'Done', tone: 'quiet' as const } : t.state === 'later' ? (t.hold ? { text: holdWords(t.laterUntil), tone: holdUp(t) ? 'warn' as const : undefined } : { text: `Back ${t.laterUntil}` }) : { text: 'Anytime', tone: 'quiet' as const })
   /* touch-ups: the checklist, how far along — "1 of 4 done" (tap it: the four) */
   const touch = s.punch.filter((p) => p.taskId === t.id)
   const noOne = touch.filter((p) => !p.owner && p.status !== 'verified').length
   const touchWords = !touch.length ? '' : noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} ${noOne === 1 ? 'touch-up' : 'touch-ups'}` : touchupsWords(touch)
   /* its next step, in its own word: a call → Called (what did they say?), an order → Ordered (who brings it, when —
      then it waits for it), waiting → Follow up, someone else's → Remind them; anything else → the word for doing it */
+  /* one tap is one: a quick second tap on the same spot never does it twice */
+  const once = React.useRef(false)
   const rowAct =
-        done ? ((!theirs || admin) ? <Button size="sm" className={TBTN} onClick={() => s.reopenTask(t.id)} data-row-act="reopen">Reopen</Button> : undefined)
+        /* done: nothing to press (its window has Reopen) — so a second tap right after Done can't undo it */
+        done ? undefined
         /* someone else's: remind them (pinned for everyone: only the admin reminds its person — for the rest it's to know) */
         : theirs ? (t.state === 'now' && !isRequest(t) && (!t.everyone || admin) ? <Button size="sm" className={TBTN} onClick={() => remindTask(t)} data-row-act="remind">Remind</Button> : undefined)
-          : follow ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, follow: true })} data-row-act="follow">{isGcWait(t) ? askLabel(t) : 'Follow up'}</Button>
+          /* its day came: ordered and on its way → Came in?; waiting on someone → Follow up */
+          : follow ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, follow: true })} data-row-act={t.coming ? 'came' : 'follow'}>{t.coming ? 'Came in?' : isGcWait(t) ? askLabel(t) : 'Follow up'}</Button>
           : stepTask ? undefined
           : act && lineAction(t.action!.label) ? <Button size="sm" className={TBTN} onClick={() => runTaskAction(t)} data-row-act="own">{lineAction(t.action!.label)}</Button>
             : isRequest(t) && t.state === 'now' ? (t.owner === me0 ? <TripButtons t={t} onDone={() => setLeaving(true)} /> : undefined)
             : t.state === 'now' && isCallTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, call: true })} data-row-act="call">{callWordOf(t.title)}</Button>
-            : isOrderTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, ordered: true })} data-row-act="ordered">Ordered</Button>
-            : t.state === 'now' && !touch.length ? <Button size="sm" className={TBTN} onClick={() => { setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }} data-row-act="done">{doneWordOf(t.title)}</Button>
+            : t.state === 'now' && isOrderTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, ordered: true })} data-row-act="ordered">{doneWordOf(t.title)}</Button>
+            : t.state === 'now' && !touch.length ? <Button size="sm" className={TBTN} onClick={() => { if (once.current) return; once.current = true; setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }} data-row-act="done">{doneWordOf(t.title)}</Button>
               : touch.length ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })} data-row-act="list">Open list</Button>
               : undefined
   return (
@@ -940,7 +939,7 @@ const teamPlateNow = (() => {
 })()
 
 /** a note someone wrote — not a line the app wrote when something happened (Created, Reminded, Moved, Done…) */
-const APP_DID = /^(\d+ touch-ups? logged|Created|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for |Time: |No set time$)|(follows it( now)?|stopped following|is watching it( now)?|stopped watching| can do it too| taken off it)$/
+const APP_DID = /^(\d+ touch-ups? logged|Created|Marked done$|Ordered\b|Bought\b|Reminded |Told |Needed by |No date it’s needed by|Moved to |Checked in with |Done\b|Reopened|Back to needs action|Back on |Handed (from|to) |Waiting on |Not here yet|Pinned to|Unpinned from|Repeats|Set up to repeat|Due |Emailed to |Sent (to|back to) |Asked for |Brought in from|Accepted|Logged as a problem|Set aside|Taken over|Took it over|Followed up$|Shared with|Now for |Time: |No set time$)|(follows it( now)?|stopped following|is watching it( now)?|stopped watching| can do it too| taken off it)$/
 export const isNote = (l: { who: string; text: string; note?: boolean }) => !!l.note || (l.who !== 'system' && !APP_DID.test(l.text))
 
 /** the billing person's week: last week's progress, ready to bill (it works like installer pay) */
@@ -1887,22 +1886,6 @@ function JobBar({ picked, onClear, sort }: { picked?: Job; onClear: () => void; 
 
 /** Today / Coming up / Waiting / Done: one clean switch (the picked one a white pill on a soft track), each with its
  *  number — not four boxes */
-function TodaySwitch({ items }: { items: { key: string; label: string; short?: string; tiny?: string; count: number; on: boolean; onClick: () => void }[] }) {
-  return (
-    <div role="tablist" className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-[#ebe6de] p-1 max-md:flex max-md:w-full" data-bubbles data-today-switch>
-      {items.map((it) => (
-        /* (the number first in the page's words, after the name on the screen) */
-        <button key={it.key} type="button" role="tab" aria-selected={it.on} onClick={it.onClick} data-bubble={it.key}
-          className={cn('inline-flex h-9 flex-row-reverse items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[0.875rem] font-semibold transition max-md:h-10 max-md:min-w-0 max-md:flex-1 max-md:px-1.5', it.on ? 'bg-white text-ink shadow-[0_1px_2px_rgba(40,33,20,0.1),0_4px_12px_-6px_rgba(40,33,20,0.18)]' : 'text-[#6f695f] hover:text-ink')}>
-          <span className={cn('tnum', it.on ? 'text-brand-600' : 'text-faint')} data-bubble-count>{it.count}</span>
-          {/* its whole name on a wide screen; shorter on a smaller computer; shortest on a phone */}
-          {/* (sizes in rem like md's, so the wider rule comes last in the styles and wins) */}
-          <span data-bubble-text><span className="hidden min-[90rem]:inline">{it.label}</span><span className="hidden md:inline min-[90rem]:hidden">{it.short || it.label}</span><span className="md:hidden">{it.tiny || it.short || it.label}</span></span>
-        </button>
-      ))}
-    </div>
-  )
-}
 /** sorting Today: the usual order is by project (a card each); picked here: one list in that order */
 const TODAY_SORTS: SortCol[] = [{ k: 'when', label: 'When', kind: 'date' }, { k: 'project', label: 'Project' }, { k: 'todo', label: 'To do' }, { k: 'who', label: 'Who' }]
 
@@ -1947,19 +1930,19 @@ export function MyTasksPage() {
       phoneTitle
       sub={<span data-today-sub>{TODAY_LABEL}{n('today') ? <> · {n('today')} to do</> : null}{lateN ? <> · <button type="button" onClick={() => s.open({ t: 'late' })} className="font-medium text-bad-600 hover:underline" data-today-late>{lateN} late</button></> : null}</span>}
       top={
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 max-md:flex-col max-md:items-stretch" data-today-top>
-          <TodaySwitch
-            items={[
-              { key: 'today', label: 'Today', count: n('today'), on: view === 'today', onClick: () => setView('today') },
-              { key: 'coming', label: 'Coming up', tiny: 'Coming', count: n('coming'), on: view === 'coming', onClick: () => setView('coming') },
+        <div className="flex flex-col gap-3 max-md:gap-2.5" data-today-top>
+          {/* the same boxes on top as every page (Projects, Estimates, POs…): the number, its name, the picked one soft */}
+          <div data-today-switch>
+            <Bubbles row soft items={[
+              { key: 'today', label: 'Today', count: n('today'), icon: <CalendarDays />, color: 'blue', on: view === 'today', onClick: () => setView('today') },
+              { key: 'coming', label: 'Coming up', short: 'Coming', count: n('coming'), icon: <CalendarRange />, color: 'indigo', on: view === 'coming', onClick: () => setView('coming') },
               /* what someone else is doing that you're waiting for — you asked them, you're watching it, it's with the GC */
-              { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), on: view === 'waiting', onClick: () => setView('waiting') },
+              { key: 'waiting', label: 'Waiting on others', short: 'Waiting', count: n('waiting'), icon: <Hourglass />, color: 'amber', on: view === 'waiting', onClick: () => setView('waiting') },
               /* what's finished: today's, then the days before */
-              { key: 'done', label: 'Done', count: doneN, on: view === 'done', onClick: () => setView('done') },
-            ]}
-          />
-          {/* All jobs, Mine, Sort and the search — the same line (not enough room next to the switch: the next line,
-              never cut short) */}
+              { key: 'done', label: 'Done', count: doneN, icon: <CircleCheckBig />, color: 'green', on: view === 'done', onClick: () => setView('done') },
+            ]} />
+          </div>
+          {/* All jobs, Mine, Sort and the search — one line under them */}
           <div className="flex flex-1 items-center max-md:min-w-0" data-today-filters>
             <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" />} />
           </div>
@@ -2004,11 +1987,11 @@ function gcToTodo(id: string) {
     x.due = 'Today'
     x.tone = 'info'
     delete x.waitingOn; delete x.needBy; delete x.followUp; delete x.promised
-    ;(x.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(st.role), text: 'Made a to-do · ours, not the GC’s' })
+    ;(x.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(st.role), text: 'Changed to a to-do · ours, not the GC’s' })
   }, 'It’s a to-do now', { sub: 'On their Today, today.' })
 }
 /** a call (call the GC, ask the client, find out…): what came of it is the point — so Done asks what they said */
-export const isCallTask = (t: Pick<Task, 'title' | 'state' | 'waitingOn'>) => t.state !== 'waiting' && CALL_RE.test(t.title)
+export const isCallTask = (t: Pick<Task, 'title' | 'state' | 'waitingOn'>) => t.state !== 'waiting' && isCall(t.title)
 function CallDone({ t, onDone }: { t: Task; onDone: () => void }) {
   const s = useStore()
   const [said, setSaid] = React.useState('')
@@ -2076,7 +2059,7 @@ function NowLine({ min }: { min: number }) {
 export function taskOrigin(t: Task): string {
   const first = (t.log || [])[0]
   const said = first?.text ? ` · ${first.text.charAt(0).toLowerCase()}${first.text.slice(1)}` : ''
-  if (first?.who === 'system') return `Made by Tile OS · ${first.date}${said}`
+  if (first?.who === 'system') return `Created by Tile OS · ${first.date}${said}`
   if (t.by && PEOPLE[t.by]) return `Asked by ${PEOPLE[t.by].short}${first ? ` · ${first.date}` : ''}`
   if (first && PEOPLE[first.who as PersonKey]) return `Added by ${PEOPLE[first.who as PersonKey].short} · ${first.date}`
   return ''
@@ -2119,8 +2102,13 @@ export const quietForMe = (t: Task, me: PersonKey | null) => !!me && (t.quiet?.[
 export function TaskModal({ id, level, call, ordered, follow }: { id: string; level: number; /** opened from its line's button (Called): "What did they say?" open */ call?: boolean; /** opened from its line's button (Ordered): who brings it and when it should be there — then it waits for it */ ordered?: boolean; /** opened from its line's button (Follow up): what they said, and when it's back */ follow?: boolean }) {
   const s = useStore()
   const t = s.tasks.find((x) => x.id === id)
-  const [waitOpen, setWaitOpen] = React.useState(!!ordered || !!follow)
+  const t0 = useStore.getState().tasks.find((x) => x.id === id)
+  const [waitOpen, setWaitOpen] = React.useState(!!follow && !t0?.coming)
   const [callOpen, setCallOpen] = React.useState(!!call)
+  /* Ordered: how it gets there, and the day (opened from its line's button: open already) */
+  const [orderOpen, setOrderOpen] = React.useState(!!ordered)
+  /* ordered and on its way, not here on its day: the new day */
+  const [notYetOpen, setNotYetOpen] = React.useState(false)
   /* its person opened it: seen (the list stops saying New / Not seen yet) */
   React.useEffect(() => { markTaskSeen([id]) }, [id])
   /* a change from ··· opens in place of the task, with Back to it */
@@ -2183,7 +2171,10 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   const gcw = isGcWait(t) ? gcState(t) : undefined
   const start = gcw ? startOf(s, job) : undefined
   /* the same lines as every window: When (its day), Status (where it stands — waiting, set aside, done) */
-  const followDay = t.state === 'waiting' ? (followDue(t) ? 'Follow up today' : `Follow up ${/^tomorrow$/i.test(t.followUp || '') ? 'tomorrow' : t.followUp || ''}`) : ''
+  const followDay = t.state !== 'waiting' ? ''
+    /* ordered, on its way: the day it should be there */
+    : t.coming ? `Should be there ${followDue(t) ? ((isoFromLabel(t.followUp) || TODAY) < TODAY ? t.followUp : 'today') : /^tomorrow$/i.test(t.followUp || '') ? 'tomorrow' : t.followUp || ''}`
+      : followDue(t) ? 'Follow up today' : `Follow up ${/^tomorrow$/i.test(t.followUp || '') ? 'tomorrow' : t.followUp || ''}`
   const whenWords = gcw ? (t.needBy ? `Needed by ${dayShort(t.needBy)}` : 'No day it’s needed by') : t.state === 'now' ? when.text : t.state === 'waiting' ? followDay : t.state === 'later' ? (t.hold ? (t.laterUntil ? holdWords(t.laterUntil).replace(/^On hold until/, 'Until') : 'No day') : `Back ${t.laterUntil}`) : ''
   /* something to bring: who asked for it (and when) is where it stands — On the way once it is */
   const asked = isRequest(t) && t.state === 'now' ? (t.req?.trip === 'onway' ? 'On the way' : t.by ? `Asked by ${t.by === me ? 'you' : PEOPLE[t.by]?.short || 'someone'}${log[0]?.date ? (log[0].date === NOW ? ' today' : ` ${log[0].date}`) : ''}` : undefined) : undefined
@@ -2203,13 +2194,13 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       kind={taskKind(t)}
       place={job ? job.name : 'Company'}
       onPlace={job ? () => s.open({ t: 'job', id: job.id }) : undefined}
-      where={t.where && t.where.trim() !== job?.name ? t.where : undefined}
+      where={t.where && t.where.trim() !== job?.name && !touch.length ? t.where : undefined}
       title={cleanTitle(t.title, job)}
       sub={about ? <span data-task-detail>{about}</span> : undefined}
       edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
       who={t.owner}
-      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')}. Whoever gets to it first` : t.owner === me ? 'You' : owner}</span>}
+      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p, i) => (p === me ? (i ? 'you' : 'You') : PEOPLE[p]?.short || p)).join(' or ')}, whoever’s first` : t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
@@ -2249,6 +2240,17 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       <Button icon={<MessageSquareReply />} onClick={() => setPanel('answer')} data-gc-answered>They answered</Button>
       <Button variant="primary" className="max-sm:flex-1" icon={<Send />} onClick={() => { openWhatsApp(gcMessage(s, t)); askedGc(t.id); s.close() }} data-gc-send>{askLabel(t)}</Button>
     </>
+  ) : t.state === 'waiting' && t.coming ? (
+    /* ordered, on its way: did it come? (on its day, Not yet gives it a new day) */
+    <>
+      {right}
+      {followDue(t) && (
+        <Pop open={notYetOpen} onOpenChange={setNotYetOpen} side="top" align="end" width={360} trigger={<Button icon={<Hourglass />} data-not-yet>Not yet</Button>}>
+          <NotYetPanel t={t} onDone={() => { setNotYetOpen(false); s.close() }} />
+        </Pop>
+      )}
+      <Button variant="primary" className="max-sm:flex-1" icon={<PackageCheck />} onClick={() => { cameIn(t.id); s.close() }} data-came-in>It came</Button>
+    </>
   ) : (
     <>
       {right}
@@ -2265,20 +2267,27 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
         /* you did your part — now it's with someone else: who, and the day it comes back (a little window over the
            button — never another screen) */
         <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" align="end" width={380} trigger={<Button icon={<Hourglass />} data-task-wait>Waiting on someone</Button>}>
-          <WaitPicker defaultWho={t.waitingOn || (ordered ? 'Supplier' : undefined)} title={ordered ? 'Ordered. Who’s bringing it?' : undefined} backTitle={ordered ? 'When it should be there' : undefined} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
+          <WaitPicker defaultWho={t.waitingOn} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
         </Pop>
       ) : null}
       {hasAction ? (
         <Button variant="primary" className="max-sm:flex-1" onClick={() => runTaskAction(t)}>{t.action!.label}</Button>
       ) : (
         isRequest(t) && t.owner === meOf(s.role) ? <TripButtons t={t} size="md" onDone={() => s.close()} />
-          /* a call: Done asks what they said (it goes to whoever's following it) — or No answer, back tomorrow */
+          /* a call: Called (Asked, Texted…) asks what they said (it goes to whoever's following it) — or No answer, back
+             tomorrow */
           : isCallTask(t) && t.state === 'now' ? (
-            <Pop open={callOpen} onOpenChange={setCallOpen} side="top" align="end" width={380} sheet className="max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] max-sm:pt-3" trigger={<Button variant="primary" className="max-sm:flex-1" icon={<Check />} data-task-done data-call-done>Done</Button>}>
+            <Pop open={callOpen} onOpenChange={setCallOpen} side="top" align="end" width={380} sheet className="max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] max-sm:pt-3" trigger={<Button variant="primary" className="max-sm:flex-1" icon={<Check />} data-task-done data-call-done>{callWordOf(t.title)}</Button>}>
               <CallDone t={t} onDone={() => { setCallOpen(false); s.close() }} />
             </Pop>
           )
-          : <Button variant="primary" className="max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }} data-task-done>{isRequest(t) ? 'Dropped off' : 'Done'}</Button>
+          /* an order: Ordered asks how it gets there and the day — then it's followed until it's there */
+          : isOrderTask(t) ? (
+            <Pop open={orderOpen} onOpenChange={setOrderOpen} side="top" align="end" width={400} sheet className="max-sm:px-4 max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] max-sm:pt-3" trigger={<Button variant="primary" className="max-sm:flex-1" icon={<Check />} data-task-done data-order-done>{doneWordOf(t.title)}</Button>}>
+              <OrderedPanel t={t} onDone={() => { setOrderOpen(false); s.close() }} />
+            </Pop>
+          )
+          : <Button variant="primary" className="max-sm:flex-1" icon={isRequest(t) ? <Truck /> : <Check />} onClick={() => { s.completeTask(t.id); s.close() }} data-task-done>{isRequest(t) ? 'Dropped off' : t.state === 'now' ? doneWordOf(t.title) : 'Done'}</Button>
       )}
     </>
   )
@@ -2342,7 +2351,7 @@ function TaskStatusPick({ t }: { t: Task }) {
   const s = useStore()
   const [open, setOpen] = React.useState(false)
   const [until, setUntil] = React.useState(false)
-  const word = t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? (t.hold ? 'On hold' : `Set aside · back ${t.laterUntil}`) : 'To do'
+  const word = t.state === 'waiting' ? (t.coming ? `Coming from ${t.waitingOn || 'the store'}` : `Waiting on ${t.waitingOn || 'someone'}`) : t.state === 'later' ? (t.hold ? 'On hold' : `Set aside · back ${t.laterUntil}`) : 'To do'
   const hold = (d?: string) => { setOpen(false); s.holdTask(t.id, d) }
   const item = (on: boolean, label: React.ReactNode, onClick: () => void, attrs: Record<string, string>) => (
     <button type="button" role="menuitemradio" aria-checked={on} onClick={onClick} className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[0.9375rem] text-ink transition hover:bg-wash" {...attrs}>
@@ -2351,7 +2360,7 @@ function TaskStatusPick({ t }: { t: Task }) {
   )
   return (
     <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setUntil(false) }} align="start" width={until ? 332 : 240} className="p-0" sheet={until}
-      trigger={<button type="button" className={cn(CHIP, '-ml-1')} data-task-status-pick={t.hold ? 'hold' : t.state}><span className={cn('text-[0.9375rem]', t.state === 'waiting' ? 'text-warn-700' : t.hold ? 'font-medium text-ink' : 'text-ink')}>{word}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
+      trigger={<button type="button" className={CHIP} data-task-status-pick={t.hold ? 'hold' : t.state}><span className={cn('text-[0.9375rem]', t.state === 'waiting' ? 'text-warn-700' : t.hold ? 'font-medium text-ink' : 'text-ink')}>{word}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
       {!until ? (
         <div className="flex flex-col p-1.5" role="menu">
           {item(t.state === 'now', 'To do', () => { setOpen(false); if (t.state !== 'now') s.reopenTask(t.id) }, { 'data-status-now': '' })}

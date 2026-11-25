@@ -72,10 +72,11 @@ export function WinStar({ star }: { star: StarPick }) {
       aria-label={star.on ? 'Starred. Take the star off' : 'Star it. It goes on top of your list'}
       title={star.on ? 'Starred. On top of your list. Tap to take it off' : 'Star it. It goes on top of your list'}
       data-win-star={star.on ? '1' : '0'}
-      className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-medium transition hover:bg-wash-2', star.on ? cn(STAR_GOLD, 'bg-[#fdf5e3]') : 'text-muted hover:text-ink-2')}
+      className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-medium transition hover:bg-wash-2 max-sm:w-8 max-sm:justify-center max-sm:px-0', star.on ? cn(STAR_GOLD, 'bg-[#fdf5e3]') : 'text-muted hover:text-ink-2')}
     >
       <Star className="h-4 w-4" fill={star.on ? 'currentColor' : 'none'} strokeWidth={star.on ? 1.5 : 1.75} />
-      {star.on ? 'Starred' : 'Star'}
+      {/* a phone: the star alone (the top line stays one line) */}
+      <span className="max-sm:hidden">{star.on ? 'Starred' : 'Star'}</span>
     </button>
   )
 }

@@ -6,6 +6,7 @@ import type { PersonKey } from '@/tileos/data/model'
 import type { Task } from '@/tileos/data/work'
 import { TODAY, isoFromLabel } from '@/tileos/lib/today'
 import { isGc } from './gcwait'
+import { nextOf } from './nextstep'
 
 /** the kind, in words — the same as a to-do's window says on top */
 const TYPE_TAG: Record<string, string> = { Pricing: 'Estimate', Setup: 'To do', Materials: 'Materials', Field: 'To do', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
@@ -24,14 +25,13 @@ export function tagOfTask(s: Pick<Store, 'punch'>, t: Task): string {
 /** the day it was done (the day it says, or today for "Just now") */
 export const doneDayOf = (t: Task) => t.doneOn || (t.doneAt === 'Just now' || t.doneAt === 'Today' ? TODAY : isoFromLabel(t.doneAt) || '')
 const dayOf = (t: Task) => (t.state === 'waiting' ? isoFromLabel(t.followUp) : t.state === 'later' ? isoFromLabel(t.laterUntil) : isoFromLabel(t.due))
-/** a call, a text, a question (call the GC, ask the client, find out…): its button says it was done and asks what they said */
-export const CALL_RE = /^\s*(call|phone|ring|text|ask|check with|find out|follow up with|reach out to|speak (to|with)|talk to)\b/i
-/** something to order: its button says it's ordered and asks who brings it and when */
-export const ORDER_RE = /^\s*(order|re-?order|buy)\b/i
+/** a call or an order, wherever its verb is in the words: it has its own next step (what did they say · how does it get
+ *  there), so it's a line of its own */
+const ownStep = (title: string) => { const k = nextOf(title)?.kind; return k === 'call' || k === 'order' || k === 'buy' }
 /** a plain to-do: its tag is To do — one with nothing of its own to press (not a call or an order — those have their own
  *  next step — not a problem, not a pickup, not the GC, not touch-ups, not waiting, not materials or billing, not a step,
  *  not for everyone, not repeating) — several of them on one project are a checklist: one line */
-export const plainKind = (t: Task, touchIds: Set<string>) => (t.type === 'Setup' || t.type === 'Field') && !CALL_RE.test(t.title) && !ORDER_RE.test(t.title) && !/\btouch-?\s?ups?\b/i.test(t.title) && !/^waiting (for|on)\b/i.test(t.title) && !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
+export const plainKind = (t: Task, touchIds: Set<string>) => (t.type === 'Setup' || t.type === 'Field') && !ownStep(t.title) && !/\btouch-?\s?ups?\b/i.test(t.title) && !/^waiting (for|on)\b/i.test(t.title) && !isRequest(t) && !isGc(t) && t.tone !== 'bad' && !t.everyone && !t.repeat && !(t.step && !t.step.startsWith('*:')) && (!t.action || t.action.kind === 'open-job') && !touchIds.has(t.id)
 export const plainTodo = (t: Task, touchIds: Set<string>) => t.state === 'now' && !t.urgent && plainKind(t, touchIds)
 /** one person's plain to-dos on a project: still to do (soonest first), and done today — "2 of 5 done" */
 export function todosOf(s: Pick<Store, 'tasks' | 'punch'>, jobId: string, who: PersonKey) {
@@ -62,5 +62,9 @@ export function strayTouchups(s: Pick<Store, 'tasks' | 'punch'>, main: Task): Ta
   const linked = new Set(s.punch.map((p) => p.taskId).filter(Boolean) as string[])
   if (!linked.has(main.id)) return []
   const mine = (t: Task) => t.owner === main.owner || (t.also || []).includes(main.owner)
-  return s.tasks.filter((t) => t.id !== main.id && t.jobId === main.jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title) && mine(t))
+  /* the same words as the window's own to-do ("Touch-ups at 114 — check them…" twice): the same to-do, not shown again */
+  return s.tasks.filter((t) => t.id !== main.id && t.jobId === main.jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title) && mine(t) && !sameWords(t.title, main.title))
 }
+/** two to-dos that say the same thing ("Touch-ups at 114 Park Place. Check them…" and "…Place — check them…") */
+const wordsOf = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+export const sameWords = (a: string, b: string) => wordsOf(a) === wordsOf(b)
