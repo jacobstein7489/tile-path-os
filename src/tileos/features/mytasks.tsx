@@ -2247,6 +2247,8 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   }, [t?.state, t?.owner, t?.due, top])
   const [addDetails, setAddDetails] = React.useState(false)
   const [showWatch, setShowWatch] = React.useState(false)
+  /* Put on hold (in ···): its Status line shows, asking until when */
+  const [askHold, setAskHold] = React.useState(false)
   if (!t) return null
   const job = s.jobs[t.jobId]
   const me = meOf(s.role)
@@ -2270,7 +2272,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   const items: React.ReactNode[] = [
     /* who's watching and its status: lines only when they say something — added from here */
     t.state !== 'done' && !followersOf(t).length && !showWatch && <MenuItem key="watch" icon={<Eye className="h-4 w-4" />} onSelect={() => setShowWatch(true)} data-add-watch>Add someone watching</MenuItem>,
-    t.state === 'now' && (!theirs || admin) && <MenuItem key="hold" icon={<Hourglass className="h-4 w-4" />} onSelect={() => s.holdTask(t.id)} data-put-hold>Put on hold</MenuItem>,
+    t.state === 'now' && (!theirs || admin) && <MenuItem key="hold" icon={<Hourglass className="h-4 w-4" />} onSelect={() => setAskHold(true)} data-put-hold>Put on hold</MenuItem>,
     /* details: none shown until there are some — added from here */
     canEditTask(t, meOf(s.role), s.role === 'owner' || s.role === 'pm') && !t.detail && !s.punch.some((p) => p.taskId === t.id) && t.state !== 'done' && <MenuItem key="details" icon={<PencilLine className="h-4 w-4" />} onSelect={() => setAddDetails(true)} data-add-details>Add details</MenuItem>,
     /* two can have it — whoever gets to it first */
@@ -2305,7 +2307,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   const status = gcw ? <span data-gc-sofar><b className="font-medium">Waiting on the GC</b> · {gcSoFar(t, false)}</span>
     : asked ? <span data-task-asked>{asked}</span>
       /* where it stands, picked right here: To do · On hold · Done (waiting on someone: its button at the bottom) */
-      : canMove && t.state !== 'done' && !(t.state === 'now' && !t.hold) ? <TaskStatusPick t={t} />
+      : canMove && t.state !== 'done' && (!(t.state === 'now' && !t.hold) || askHold) ? <TaskStatusPick t={t} ask={askHold && t.state === 'now' && !t.hold} onAsked={() => setAskHold(false)} />
         : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? (t.hold ? 'On hold' : 'Set aside') : t.state === 'done' ? when.text : undefined
   /* what it's about — under its name; a request's "who asked" is its Status, not said twice. Touch-ups: their own
      checklist instead (the same as the project's), not a paragraph */
@@ -2488,19 +2490,19 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
 /** where a to-do stands, picked right on its Status line: To do, On hold, Done. On hold asks until when — that day it's
  *  back on Today, to check in (or no day: until it's taken off hold). Waiting on someone is its button at the bottom */
 export const HOLD_DAYS = ['Tomorrow', 'Next Mon', 'In 2 weeks']
-function TaskStatusPick({ t }: { t: Task }) {
+function TaskStatusPick({ t, ask, onAsked }: { t: Task; /** opened from Put on hold (···): straight to until when */ ask?: boolean; onAsked?: () => void }) {
   const s = useStore()
-  const [open, setOpen] = React.useState(false)
-  const [until, setUntil] = React.useState(false)
+  const [open, setOpen] = React.useState(!!ask)
+  const [until, setUntil] = React.useState(!!ask)
   const word = t.state === 'waiting' ? (t.coming ? `Coming from ${t.waitingOn || 'the store'}` : `Waiting on ${t.waitingOn || 'someone'}`) : t.state === 'later' ? (t.hold ? 'On hold' : `Set aside · back ${t.laterUntil}`) : 'To do'
-  const hold = (d?: string) => { setOpen(false); s.holdTask(t.id, d) }
+  const hold = (d?: string) => { setOpen(false); s.holdTask(t.id, d); onAsked?.() }
   const item = (on: boolean, label: React.ReactNode, onClick: () => void, attrs: Record<string, string>) => (
     <button type="button" role="menuitemradio" aria-checked={on} onClick={onClick} className="flex h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[0.9375rem] text-ink transition hover:bg-wash" {...attrs}>
       <span className="min-w-0 flex-1">{label}</span>{on && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
     </button>
   )
   return (
-    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) setUntil(false) }} align="start" width={until ? 332 : 240} className="p-0" sheet={until}
+    <Pop open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setUntil(false); onAsked?.() } }} align="start" width={until ? 332 : 240} className="p-0" sheet={until}
       trigger={<button type="button" className={CHIP} data-task-status-pick={t.hold ? 'hold' : t.state}><span className={cn('text-[0.9375rem]', t.state === 'waiting' ? 'text-warn-700' : t.hold ? 'font-medium text-ink' : 'text-ink')}>{word}</span><ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" /></button>}>
       {!until ? (
         <div className="flex flex-col p-1.5" role="menu">
