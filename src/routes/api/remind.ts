@@ -3,9 +3,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const run = async () => {
-  const { remindNow } = await import("@/lib/remind.server");
+  const { remindNow, crewMorningMail } = await import("@/lib/remind.server");
+  /* last night's crew list again at 7 AM, by itself — whether or not anyone has the app on a phone */
+  const crewMail = await crewMorningMail().catch((e) => ({ sent: false, why: String((e as Error)?.message || e).slice(0, 200) }));
   try {
-    return Response.json(await remindNow());
+    return Response.json({ ...(await remindNow()), crewMail });
   } catch (e) {
     console.error("remind failed", e);
     return Response.json({ ok: false, why: String((e as Error)?.message || e).slice(0, 200) }, { status: 500 });

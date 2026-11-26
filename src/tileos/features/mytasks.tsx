@@ -427,6 +427,10 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
   const justYou = !t0.name && turnKeys.length === 1 && turnKeys[0] === viewer && !multi
   const doers = turnKeys.includes(me) ? [me, ...turnKeys.filter((p) => p !== me)] : turnKeys
   const names = turnKeys.length ? namesOf(turnKeys, me, true) : t0.name || ''
+  /* a phone: only what changes what you do. Late says Late (how many days: in its window); "Today" on Today says
+     nothing; a time stays. Who else has it: only on Waiting, where who it's with is the point */
+  const pw = typeof w === 'string' ? (/^(\d+ (work )?days? late|was due\b|yesterday$)/i.test(w) ? 'Late' : /^today$/i.test(w) ? '' : w) : w
+  const phoneCircles = !!waitView
   const circles = justYou ? null : (
     /* whole circles side by side, never one over another: two at most, a third and more as "+2" */
     <span className="flex shrink-0 items-center gap-0.5" title={names} aria-label={names} data-row-people {...(turnKeys.length ? { 'data-row-doer': turnKeys.join(',') } : { 'data-row-turn-name': t0.name || '' })} data-row-turn>
@@ -497,13 +501,14 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
             ? <WatchPop pick={watchPick} trigger={<button type="button" onClick={stop} className="-mx-1 inline-flex items-center rounded-md px-1 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none" aria-label="Who’s watching. Add or take off" data-row-watch-pick><WatchDots who={watchers} eye size={18} /></button>} />
             : <WatchDots who={watchers} eye size={18} />}</span>}
         </div>
-        {/* the small line under it, only when there's something to see: (a phone) when and who · what's new — "New from
-            Yaakov" (blue), "Not seen yet" (amber). Created and updated are in its window */}
-        {((w && phoneWhen) || seenOrNew || circles) && (
-          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !seenOrNew && 'md:hidden', !(w && phoneWhen) && !seenOrNew && !circles && 'max-md:hidden')} data-row-meta>
-            {w && phoneWhen && <span className={cn('tnum md:hidden', whenCls)} data-todo-when-phone>{w}</span>}
-            {seenOrNew && <span title={seenOrNew.tip} className={cn('font-medium', seenOrNew.tone === 'new' ? 'text-brand-700' : 'text-warn-700')} data-row-latest={seenOrNew.tone || ''}>{w && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{seenOrNew.text}</span>}
-            {circles && <span className="md:hidden">{circles}</span>}
+        {/* the small line under it, only when there's something to see: (a phone) only what changes what you do — its
+            time, or that it's late ("Late": how many days is in its window), who it's with on Waiting · what's new —
+            "New from Yaakov" (blue), "Not seen yet" (amber). Who else has it, who's watching: in its window */}
+        {((pw && phoneWhen) || seenOrNew || phoneCircles) && (
+          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !seenOrNew && 'md:hidden', !(pw && phoneWhen) && !seenOrNew && !phoneCircles && 'max-md:hidden')} data-row-meta>
+            {pw && phoneWhen && <span className={cn('tnum md:hidden', whenCls)} data-todo-when-phone>{pw}</span>}
+            {seenOrNew && <span title={seenOrNew.tip} className={cn('font-medium', seenOrNew.tone === 'new' ? 'text-brand-700' : 'text-warn-700')} data-row-latest={seenOrNew.tone || ''}>{pw && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{seenOrNew.text}</span>}
+            {phoneCircles && <span className="md:hidden">{circles}</span>}
           </div>
         )}
       </div>
@@ -523,8 +528,9 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
           {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={cn(CELL_BTN, 'justify-center px-1', justYou && 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who does it · change it" data-row-who-pick>{circles || <UserRound className="h-4 w-4 text-faint" />}</button>} /> : circles}
         </div>
       )}
-      {/* its next step — a soft pill, the same size on every line; none: the line opens it (a quiet arrow says so) */}
-      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-10 max-sm:[&_button]:text-[0.875rem]', action ? 'w-[7.75rem] max-sm:w-[7rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
+      {/* its next step — a soft pill, the same size on every line (a phone: always there — no mouse to point with — but
+          smaller); none: the line opens it (a quiet arrow says so) */}
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-8 max-sm:[&_button]:text-[0.8125rem]', action ? 'w-[7.75rem] max-sm:w-[6.5rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
         {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
@@ -1034,10 +1040,11 @@ export function plateOf(s: Store, role: Role, person?: PersonKey | null): PlateI
   const out: PlateItem[] = []
   const last = addDays(TODAY, AHEAD)
   s.events.filter((e) => !e.done && e.date >= TODAY && e.date <= last && (!me || e.people.includes(me))).forEach((e) => out.push({ key: 'e' + e.id, b: bucketOfIso(e.date), iso: e.date, time: e.start, kind: 'meet', e, who: e.people[0] }))
-  /* the site manager's crew list, until it's sent: tomorrow's after 3 in the afternoon, today's first thing */
-  /* (or whoever the admin picked for it — Settings → Automations) */
+  /* the site manager's crew list, until it's sent: the next work day's, from its time in the evening (or whoever the
+     admin picked for it — Settings → Automations). Nothing in the morning: that morning the same list is emailed again by
+     itself (the server, at 7 AM) — nobody has anything to do */
   const crewTo = autoWho(s, 'crew-morning')
-  if ((crewTo ? me === crewTo : role === 'site') && crewReportOn(s)) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: day === TODAY ? 7 * 60 : crewHour(s) * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
+  if ((crewTo ? me === crewTo : role === 'site') && crewReportOn(s) && crewEvening()) { const day = crewDay(); if (crewsOn(s, day).length && !crewSentFor(s, day)) out.push({ key: 'crew', b: 'today', iso: TODAY, time: crewHour(s) * 60, kind: 'crew', who: me || realOwner(s, meOf('site')) }) }
   /* the admin's rounds: the job sites with work going on, on a work day, until a video has gone out from each */
   const roundsTo = autoWho(s, 'rounds')
   if ((roundsTo ? me === roundsTo : role === 'owner') && roundsOn(s) && ![0, 6].includes(dow(TODAY)) && !roundsSkipped(s, me || meOf('owner')) && roundsToday(s, me || meOf('owner')).left > 0) out.push({ key: 'rounds', b: 'today', iso: TODAY, time: null, kind: 'rounds', who: me || meOf('owner') })
@@ -1151,15 +1158,22 @@ function TouchWords({ lead, items }: { lead: string; items: { id: string; text: 
   const shown = small ? 0 : 4
   const open = items.filter((p) => p.status === 'open')
   const list = open.length ? open : items.filter((p) => p.status === 'verify')
+  /* the numbered ones in their own column after "5 to fix": a second line starts under the first one, not under the
+     count */
   return (
-    <span data-touch-words>
-      <span className="mr-1 font-medium text-ink" data-touch-lead>{lead}</span>
-      {list.slice(0, shown).map((p, i) => (
-        <span key={p.id} className="ml-3 inline-block max-w-full text-muted" data-touch-item>
-          <span className="mr-1.5 inline-flex h-[1.0625rem] min-w-[1.0625rem] -translate-y-px items-center justify-center rounded-full bg-[#eeece7] px-1 align-middle text-[0.6875rem] font-semibold leading-none tnum text-ink-2" aria-hidden>{i + 1}</span>{p.text.replace(/\.$/, '')}
+    <span className="flex min-w-0 items-baseline gap-x-3" data-touch-words>
+      <span className="shrink-0 font-medium text-ink" data-touch-lead>{lead}</span>
+      {shown > 0 && list.length > 0 && (
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3.5 gap-y-0.5">
+          {list.slice(0, shown).map((p, i) => (
+            <span key={p.id} className="inline-flex min-w-0 max-w-full items-baseline gap-1.5 text-muted" data-touch-item>
+              <span className="inline-flex h-[1.0625rem] min-w-[1.0625rem] shrink-0 -translate-y-px items-center justify-center self-center rounded-full bg-[#eeece7] px-1 text-[0.6875rem] font-semibold leading-none tnum text-ink-2" aria-hidden>{i + 1}</span>
+              <span className="min-w-0 break-words">{p.text.replace(/\.$/, '')}</span>
+            </span>
+          ))}
+          {list.length > shown && <span className="whitespace-nowrap text-faint" data-touch-more>+{list.length - shown} more</span>}
         </span>
-      ))}
-      {shown > 0 && list.length > shown && <span className="ml-3 whitespace-nowrap text-faint" data-touch-more>+{list.length - shown} more</span>}
+      )}
     </span>
   )
 }
@@ -2692,9 +2706,9 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   )
 }
 
-/** the crew list pops up by itself for the site manager: after 3 in the afternoon, the next work day's (the first time
- *  he opens the app or comes back to it); in the morning, today's — only if last night's wasn't sent. Once each
- *  (Later: it waits at the top of his Today) — before the day's other pop-up */
+/** the crew list pops up by itself for the site manager in the evening, the next work day's (the first time he opens
+ *  the app or comes back to it, from its time). Once (Later: it waits at the top of his Today) — before the day's other
+ *  pop-up. Never in the morning: that morning the list is emailed again by itself */
 export function CrewWatcher() {
   React.useEffect(() => {
     let quiet = false
@@ -2702,7 +2716,7 @@ export function CrewWatcher() {
     if (quiet) return
     const check = () => {
       const s = useStore.getState()
-      if (s.role !== 'site' || s.modals.length || !crewReportOn(s)) return
+      if (s.role !== 'site' || s.modals.length || !crewReportOn(s) || !crewEvening()) return
       const day = crewDay()
       if (crewSentFor(s, day) || !crewsOn(s, day).length) return
       const key = `tileos-crew-asked:${REAL.email || 'preview'}:${meOf('site')}`

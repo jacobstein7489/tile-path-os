@@ -7,10 +7,14 @@
  *     the way or dropped off
  *   - the crew list at its time (6 PM unless it was changed), to whoever sends it, until it's sent
  *   - at 5 PM, the daily updates still not sent for the jobs being worked that day
+ * And one email, by itself: last night's crew list again at 7 AM on the day it's for (crewMorningMail).
  * Only the person it's for (and anyone it's shared with), never everyone watching it. What was sent is kept, so a thing
  * is never sent twice. Everything about the person's day is in their own time zone (the phone says which). */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { newVapidKeys, sendPush, type VapidKeys, type PushTarget } from "./webpush";
+import { mailConfigured, send } from "./mail.server";
+import { crewMailCompose, type CrewLine } from "@/tileos/lib/crewmail";
+import { PEOPLE } from "@/tileos/data/model";
 
 const db = () => supabaseAdmin as any;
 export const SUBJECT = "https://cobblestone.lovable.app";
@@ -219,6 +223,73 @@ export function crewDue(person: string, now: { day: string; min: number }, ctx: 
   const whose = day === addDays(now.day, 1) ? "tomorrow’s" : `${DAY_NAME[dow(day)]}’s`;
   return { title: `Due now · ${clock(at)}`, body: `Send ${whose} crew list · ${open.length} ${open.length === 1 ? "project" : "projects"}`, tag: `c:${person}:${day}`, open: { t: "crewreport", day, seen: `crew:${day}` } };
 }
+/* ---------------- the crew list again, first thing that morning, by itself ---------------- */
+const CREW_MAIL_AT = 7 * 60;
+const MAIL_RE = /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/;
+const mails = (l: (string | undefined)[]) => Array.from(new Set(l.map((x) => (x || "").trim().toLowerCase()).filter((x) => MAIL_RE.test(x))));
+/** who gets the crew list when nobody was picked: everyone on the team but estimating (the app's crewMailPeople) */
+const NOT_TO = ["estimator", "takeoff", "crew", "client"];
+type TeamRec = { key: string; email?: string; role?: string; status?: string; first?: string; last?: string };
+type Plan = { day?: string; crew?: string; workers?: number; by?: string };
+/** the evening's crew list, emailed again at 7 AM on the work day it's for — to the same people, from the same person,
+ *  with nobody doing anything (nothing comes up on anyone's Today in the morning). Only when the list for that day was
+ *  sent the evening before (one sent that same morning already reached everyone); once. Off when the crew list or its
+ *  email is turned off in Settings. The company's day is New York's */
+export async function crewMorningMail(tz = "America/New_York"): Promise<{ sent: boolean; why?: string }> {
+  const now = localAt(tz);
+  if ([0, 6].includes(dow(now.day))) return { sent: false, why: "not a work day" };
+  /* at 7, and not hours later (the check was down): only within two hours */
+  if (now.min < CREW_MAIL_AT || now.min - CREW_MAIL_AT > 120) return { sent: false, why: "not its time" };
+  if (!mailConfigured()) return { sent: false, why: "email isn’t set up" };
+  const tag = `crewmail:${now.day}`;
+  const { data: was } = await db().from("tileos_push_sent").select("tag").eq("tag", tag).maybeSingle();
+  if (was) return { sent: false, why: "already sent" };
+  const rules: any = await rulesNow().catch(() => ({}));
+  if ((rules.autoOff || []).includes("crew-morning") || rules.crewMail?.off) return { sent: false, why: "turned off" };
+  const rows = await records(["jobs", "team", "punch"]);
+  const jobs: Record<string, any> = Object.fromEntries(rows.filter((r) => r.collection === "jobs").map((r) => [r.id, r.data]));
+  const team: TeamRec[] = rows.filter((r) => r.collection === "team").map((r) => ({ ...(r.data as Omit<TeamRec, "key">), key: String(r.data?.key || r.id) }));
+  const punch = rows.filter((r) => r.collection === "punch").map((r) => r.data);
+  /* today's list sent this morning: everyone has it already */
+  const live = Object.entries(jobs).filter(([, j]) => j && j.stage === "installation" && !j.hold && j.kind !== "repair");
+  if (live.some(([, j]) => j.onSite?.day === now.day)) return { sent: false, why: "today’s went out this morning" };
+  /* the evening's list for today: each project in progress with its people — the same lines the email had then */
+  const lines: CrewLine[] = [];
+  let by = "";
+  for (const [id, j] of live) {
+    const at: Plan | null = j.crewPlan?.day === now.day ? j.crewPlan : null;
+    if (!at) continue;
+    lines.push({ jobId: id, crew: String(at.crew || ""), workers: Number(at.workers) || 0, note: "" });
+    by = by || String(at.by || "");
+  }
+  if (!lines.length) return { sent: false, why: "no list for today" };
+  /* a person's name, the way the app says it: from the team (the real people), else the built-in name */
+  const builtIn = PEOPLE as Record<string, { name?: string; short?: string } | undefined>;
+  const who = (k: string) => {
+    const m = team.find((x) => x.key === k);
+    const name = m ? [m.first, m.last].filter(Boolean).join(" ").trim() : "";
+    return { name: name || builtIn[k]?.name || "", short: (m?.last ? m.first : name.split(" ")[0]) || builtIn[k]?.short || "" };
+  };
+  /* to the same people as the evening's (Settings → Automations → Crew list) */
+  const picked: string[] | undefined = Array.isArray(rules.crewMail?.to) ? rules.crewMail.to : undefined;
+  const people = picked || team.filter((m) => m.status !== "off" && !NOT_TO.includes(String(m.role))).map((m) => m.key);
+  const to = mails(people.map((k) => team.find((m) => m.key === k)?.email));
+  if (!to.length) return { sent: false, why: "nobody to send it to" };
+  /* from the company's address (Settings → Email), else whoever sent the list */
+  const mail = rules.email || {};
+  const sender = team.find((m) => m.key === by) || team.find((m) => m.role === "site" && m.status !== "off");
+  const addr = String(mail.other || sender?.email || "").trim();
+  if (!addr) return { sent: false, why: "no address to send it from" };
+  const name = who(sender?.key || by).name || "Cobblestone Tile";
+  const from = mail.other ? `Cobblestone Tile <${addr}>` : `${name} · Cobblestone Tile <${addr}>`;
+  const m = crewMailCompose({ jobs, punch, nameOf: (k) => who(k).name || undefined, shortOf: (k) => who(k).short || undefined, by: name, site: SUBJECT }, lines, now.day, { morning: true });
+  /* kept first: two checks at once never send it twice */
+  const { error } = await db().from("tileos_push_sent").insert({ tag });
+  if (error) return { sent: false, why: "already being sent" };
+  const r = await send({ from, to, cc: mails([...(mail.cc || []), ...(mail.ccOther || [])]).filter((x) => !to.includes(x)), replyTo: [addr], subject: m.subject, html: m.html, text: m.text });
+  return r.ok ? { sent: true } : { sent: false, why: r.why };
+}
+
 /* ---------------- the daily updates: at 5 PM, for every job still without today's ---------------- */
 type Booking = { jobId: string; crew?: string; start: string; end: string; label?: string };
 export type DailyJob = CrewJob & { name?: string; dates?: { start?: string } };

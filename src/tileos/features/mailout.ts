@@ -10,6 +10,7 @@ import { NOW, TOMORROW, md, isoFromLabel } from '@/tileos/lib/today'
 import { fmtMoney, PEOPLE, crewInfo, type PersonKey } from '@/tileos/data/model'
 import type { PO } from '@/tileos/data/work'
 import { matBy } from './flows'
+import { crewMailCompose } from '@/tileos/lib/crewmail'
 
 /** the real app, with email from Tile OS switched on in Lovable (if it isn't, sending says so) */
 export const mailLive = () => !!REAL.mail && REAL.cloud
@@ -288,52 +289,9 @@ export function crewMailPeople(s: Pick<Store, 'rules' | 'team'>): PersonKey[] {
 }
 /** their emails (a person with no email on the team isn't on it — the window says so) */
 export const crewMailTo = (s: Pick<Store, 'rules' | 'team'>) => clean(crewMailPeople(s).map((p) => s.team.find((m) => m.key === p)?.email))
-/** the email, word for word: "Crews for Tue, Nov 24" — each project (its address), the crew, how many, the note */
+/** the email, word for word (lib/crewmail — the same words the server uses for that morning's, by itself) */
 export function crewMailWords(s: Store, rows: CrewLine[], day: string): { subject: string; html: string; text: string } {
-  const on = rows.filter((r) => r.workers > 0)
-  const off = rows.filter((r) => !(r.workers > 0))
-  const people = on.reduce((n, r) => n + r.workers, 0)
-  const d = new Date(day + 'T12:00:00')
-  const dayWords = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  const subject = `Crews for ${dayWords} · ${on.length} ${on.length === 1 ? 'job' : 'jobs'}, ${people} ${people === 1 ? 'person' : 'people'}`
-  const by = PEOPLE[meOf(s.role)]?.name || 'the site manager'
-  const crewName = (r: CrewLine) => PEOPLE[r.crew]?.name || 'No installer yet'
-  const jobName = (r: CrewLine) => s.jobs[r.jobId]?.name || 'A project'
-  const addrOf = (r: CrewLine) => { const j = s.jobs[r.jobId]; return j?.address && j.address !== j.name ? j.address : '' }
-  /* by crew: each crew once, its jobs under it (A to Z) — who's where at a glance */
-  const crews = Array.from(new Set(on.map(crewName))).sort((a, b) => a.localeCompare(b))
-  const groups = crews.map((c) => { const list = on.filter((r) => crewName(r) === c).sort((a, b) => jobName(a).localeCompare(jobName(b))); return { c, list, n: list.reduce((k, r) => k + r.workers, 0) } })
-  const cell = 'padding:7px 6px;border-bottom:1px solid #ece8e1;vertical-align:top'
-  const small = (t: string) => `<br><span style="color:#7a7569;font-size:13px">${esc(t)}</span>`
-  const crewTbl = `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:14px 0 6px;font-size:14px">
-${groups.map((g) => `<tr><td style="padding:10px 6px 6px;background:#f6f5f2;font-weight:700">${esc(g.c)} <span style="color:#7a7569;font-weight:400">· ${g.list.length} ${g.list.length === 1 ? 'job' : 'jobs'}</span></td><td style="padding:10px 6px 6px;background:#f6f5f2;text-align:right;font-weight:700">${g.n}</td></tr>
-${g.list.map((r) => `<tr><td style="${cell};padding-left:16px"><b>${esc(jobName(r))}</b>${addrOf(r) ? small(addrOf(r)) : ''}${r.note ? small(r.note) : ''}</td><td style="${cell};text-align:right;white-space:nowrap">${r.workers}</td></tr>`).join('\n')}`).join('\n')}
-<tr><td style="text-align:right;padding:10px 6px;font-weight:700">Total</td><td style="text-align:right;padding:10px 6px;font-weight:700">${people}</td></tr>
-</table>`
-  /* each part the same: its name, then one line a job — the job in bold, what to know under it */
-  const head = (t: string, n: number) => `<p style="margin:24px 0 6px;font-size:16px;font-weight:700">${esc(t)} <span style="color:#7a7569;font-weight:400">· ${n}</span></p>`
-  const tbl = (rowsHtml: string) => `<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px">${rowsHtml}</table>`
-  /* in progress with nobody there that day (or not started yet): which, whose, and when it starts */
-  const nobody = off.length ? head(`Nobody there ${dayWords}`, off.length) + tbl(off.map((r) => `<tr><td style="${cell}"><b>${esc(jobName(r))}</b>${small([crewName(r), r.note].filter(Boolean).join(' · '))}</td></tr>`).join('')) : ''
-  /* everyone in the loop: the touch-ups still open, and the jobs on hold: what has to happen on each, and why it waits */
-  const tu = Object.values(s.jobs).filter((j) => j.stage === 'punch' && !j.hold).map((j) => ({ j, open: s.punch.filter((p) => p.jobId === j.id && p.status !== 'verified') })).filter((x) => x.open.length).sort((a, b) => a.j.name.localeCompare(b.j.name))
-  const held = Object.values(s.jobs).filter((j) => j.hold && !['complete', 'closeout'].includes(j.stage)).sort((a, b) => a.name.localeCompare(b.name))
-  const tuHtml = tu.length ? head('Touch-ups still open', tu.length) + tbl(tu.map(({ j, open }) => `<tr><td style="${cell}"><b>${esc(j.name)}</b> <span style="color:#7a7569">· ${open.length} ${open.length === 1 ? 'thing' : 'things'} to fix</span>${open.map((p) => small(`• ${p.text}${p.status === 'verify' ? ' (fixed, to check)' : ''}${p.owner ? ` · ${PEOPLE[p.owner]?.short || ''}` : ''}`)).join('')}</td></tr>`).join('')) : ''
-  const whyHeld = (j: (typeof held)[number]) => [j.hold?.shortage ? 'Waiting for the tile' : j.hold?.reason || 'On hold', j.hold?.since ? `since ${j.hold.since}` : '', j.hold?.until ? `until ${j.hold.until}` : ''].filter(Boolean).join(' · ')
-  const heldHtml = held.length ? head('On hold', held.length) + tbl(held.map((j) => `<tr><td style="${cell}"><b>${esc(j.name)}</b>${small(whyHeld(j))}</td></tr>`).join('')) : ''
-  const sum = [`${on.length} ${on.length === 1 ? 'job' : 'jobs'}`, `${people} ${people === 1 ? 'person' : 'people'}`, tu.length ? `${tu.length} with touch-ups` : '', held.length ? `${held.length} on hold` : '', `from ${by}`].filter(Boolean).join(' · ')
-  const html = frame(`<p style="margin:0 0 4px;font-size:18px;font-weight:700">Where the crews are ${esc(dayWords)}</p>
-<p style="margin:0;color:#5b5f68">${esc(sum)}</p>
-${crewTbl}${nobody}${tuHtml}${heldHtml}`)
-  const text = [
-    `Where the crews are ${dayWords}`, sum, '',
-    ...groups.flatMap((g) => [`${g.c} · ${g.n}`, ...g.list.map((r) => `   ${jobName(r)}${addrOf(r) ? ` (${addrOf(r)})` : ''} · ${r.workers}${r.note ? ` · ${r.note}` : ''}`)]),
-    '', `Total: ${people}`,
-    ...(off.length ? ['', `Nobody there ${dayWords}`, ...off.map((r) => `   ${jobName(r)} · ${[crewName(r), r.note].filter(Boolean).join(' · ')}`)] : []),
-    ...(tu.length ? ['', 'Touch-ups still open', ...tu.flatMap(({ j, open }) => [`${j.name}`, ...open.map((p) => `   • ${p.text}`)])] : []),
-    ...(held.length ? ['', 'On hold', ...held.map((j) => `   ${j.name} · ${whyHeld(j)}`)] : []),
-  ].join('\n')
-  return { subject, html, text }
+  return crewMailCompose({ jobs: s.jobs, punch: s.punch, nameOf: (k) => PEOPLE[k as PersonKey]?.name, shortOf: (k) => PEOPLE[k as PersonKey]?.short, by: PEOPLE[meOf(s.role)]?.name || 'the site manager', site: PUBLISHED }, rows, day)
 }
 /** send it: to everyone it goes to (a test: only to you) */
 export async function emailCrewList(rows: CrewLine[], day: string, o: { test?: boolean } = {}): Promise<{ ok: true; to: string[] } | { ok: false; why: string }> {
