@@ -149,25 +149,24 @@ const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More ti
 /** a choice on + New: a white card with its icon in its part's soft color, every one the same size; Problem is red.
  *  A computer: the icon and the name on one line. A phone: a tile — the icon on top, the name under it, three
  *  across, every tile the same height (room for a name on two lines: "Purchase order") */
-function Choice({ x, onClick, big }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
+function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
+  /* one line of a list: its icon in its part's color (a problem's red), its name — no boxes */
   const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={x.h}
-      data-new={x.k}
-      data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
-      className={cn('group flex min-w-0 items-center gap-2.5 rounded-[0.75rem] border border-line bg-white px-2.5 text-left transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)]', 'max-sm:h-[6.125rem] max-sm:flex-col max-sm:justify-center max-sm:gap-1.5 max-sm:rounded-xl max-sm:px-1 max-sm:py-2 max-sm:text-center max-sm:hover:translate-y-0 max-sm:active:scale-[0.97] max-sm:active:bg-wash', big ? 'min-h-[3.75rem] py-2' : 'min-h-11 py-1.5')}
-    >
-      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.5625rem] transition max-sm:h-10 max-sm:w-10 max-sm:rounded-xl" style={{ background: tint.bg, color: tint.fg }}>
-        <x.i className="h-4 w-4 max-sm:h-[1.375rem] max-sm:w-[1.375rem]" strokeWidth={2.1} />
-      </span>
-      <span className="min-w-0 leading-tight max-sm:w-full">
-        <span className="block text-[0.84375rem] font-semibold text-ink max-sm:text-[0.84375rem] max-sm:leading-[1.2]"><span className={cn(SHORT[x.k] && 'max-sm:hidden')}>{x.l}</span>{SHORT[x.k] && <span className="sm:hidden">{SHORT[x.k]}</span>}</span>
-        {big && <span className="mt-0.5 line-clamp-1 text-[0.75rem] text-muted max-sm:hidden">{x.h}</span>}
-      </span>
+    <button type="button" onClick={onClick} title={x.h} data-new={x.k} data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
+      className="flex min-h-11 min-w-0 items-center gap-3 bg-pure px-3.5 text-left transition hover:bg-wash active:bg-wash-2 max-sm:min-h-12">
+      <x.i className="h-[1.125rem] w-[1.125rem] shrink-0" style={{ color: tint.fg }} strokeWidth={2} />
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{x.l}</span>
     </button>
+  )
+}
+/** the choices of a part, as a list: one box, a line between each — two columns on a computer, one on a phone */
+function ChoiceList({ list, go, attrs }: { list: (Pick & { c: TileColor })[]; go: (x: Pick) => void; attrs?: Record<string, string> }) {
+  return (
+    <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line-2 sm:grid-cols-2" {...attrs}>
+      {list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}
+      {list.length % 2 === 1 && <span className="bg-pure max-sm:hidden" aria-hidden />}
+    </div>
   )
 }
 
@@ -211,19 +210,19 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       {/* the easy way: say it — it makes the right things by itself. Or pick one below */}
       <div className="mb-5 max-sm:mb-3"><SayItBar jobId={jobId || undefined} /></div>
       {few ? (
-        <div className="grid grid-cols-3 gap-2 max-sm:gap-2" data-new-group="all">{[...groups.flatMap((x) => x.list), ...starts].map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+        <ChoiceList list={[...groups.flatMap((x) => x.list), ...starts]} go={go} attrs={{ 'data-new-group': 'all' }} />
       ) : (
         <>
           {groups.map((x, i) => (
             <section key={x.g} className={cn(i > 0 && 'mt-4 max-sm:mt-3.5')} data-new-group={x.g}>
               <div className={head}>{dot(x.g)}{x.label}</div>
-              <div className="grid grid-cols-3 gap-1.5 max-sm:gap-2">{x.list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+              <ChoiceList list={x.list} go={go} />
             </section>
           ))}
           {starts.length > 0 && (
             <section className="mt-4 max-sm:mt-3.5" data-new-group="start">
               <div className={head}>{dot('start')}Start something new</div>
-              <div className="grid grid-cols-3 gap-1.5 max-sm:gap-2">{starts.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}</div>
+              <ChoiceList list={starts} go={go} />
             </section>
           )}
         </>

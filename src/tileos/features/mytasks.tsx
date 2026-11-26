@@ -41,7 +41,7 @@ import { isOff } from './active'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, WIN_ROW, WIN_ROW_GRID, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { WinHead, WinLine, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, WIN_ROW, WIN_ROW_GRID, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
 import { offerNotify } from '@/tileos/lib/notify'
 import { latestOf, markTaskSeen, type Latest } from './latest'
 import { namesOf } from './estpeople'
@@ -287,7 +287,8 @@ export const projectsWord = (s: Store, ids: (string | undefined)[], names?: stri
 export const todoColsOf = (who?: boolean) => ({ '--list': todoList(who), '--list-lg': todoListLg(who), '--list-xl': todoListXl(who) }) as React.CSSProperties
 export const todoCols = todoColsOf(false)
 /** how late something is — "1 day late", "4 days late" (no date to work out) */
-export const lateBy = (iso?: string) => { if (!iso) return 'Late'; const d = Math.max(1, daysBetween(iso, TODAY)); return `${d} ${d === 1 ? 'day' : 'days'} late` }
+/** late: the day it was due, in red ("Nov 23") — calmer than "3 days late", and it says the same */
+export const lateBy = (iso?: string) => (iso ? md(iso) : 'Late')
 
 /** whose turn it is: people inside — their circles and first names — or someone outside (Alex, the GC, the store), by
  *  name: a plain circle with their initials */
@@ -434,7 +435,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
   const names = turnKeys.length ? namesOf(turnKeys, me, true) : t0.name || ''
   /* a phone: only what changes what you do. Late says Late (how many days: in its window); "Today" on Today says
      nothing; a time stays. Who else has it: only on Waiting, where who it's with is the point */
-  const pw = typeof w === 'string' ? (/^(\d+ (work )?days? late|was due\b|yesterday$)/i.test(w) ? 'Late' : /^today$/i.test(w) ? '' : w) : w
+  const pw = typeof w === 'string' ? (whenTone === 'bad' || /^(\d+ (work )?days? late|was due\b|yesterday$)/i.test(w) ? 'Late' : /^today$/i.test(w) ? '' : w) : w
   const phoneCircles = !!waitView
   const circles = justYou ? null : (
     /* whole circles side by side, never one over another: two at most, a third and more as "+2" */
@@ -504,9 +505,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
             {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
             {title}
           </div>
-          {watchers.length > 0 && <span className="shrink-0 max-md:hidden">{watchPick
-            ? <WatchPop pick={watchPick} trigger={<button type="button" onClick={stop} className="-mx-1 inline-flex items-center rounded-md px-1 py-0.5 transition hover:bg-wash-2 focus-visible:bg-wash-2 focus-visible:outline-none" aria-label="Who’s watching. Add or take off" data-row-watch-pick><WatchDots who={watchers} eye size={18} /></button>} />
-            : <WatchDots who={watchers} eye size={18} />}</span>}
+          {/* (who's watching: in its window — not on the line) */}
         </div>
         {/* the small line under it, only when there's something to see: (a phone) only what changes what you do — its
             time, or that it's late ("Late": how many days is in its window), who it's with on Waiting · what's new —
@@ -1177,7 +1176,8 @@ export function collapse(items: PlateItem[]): PlateItem[] {
 function TouchWords({ lead, items }: { lead: string; items: { id: string; text: string; status: string }[] }) {
   const small = useSmall()
   /* (a line that says its next step first — "Check the touch-ups · 4 to fix" — has room for two) */
-  const shown = small ? 0 : lead.length > 14 ? 2 : 3
+  /* the count only — each one, numbered, is in its window */
+  const shown = small ? 0 : 0
   const open = items.filter((p) => p.status === 'open')
   const list = open.length ? open : items.filter((p) => p.status === 'verify')
   /* the numbered ones in their own column after "5 to fix": a second line starts under the first one, not under the
@@ -2697,15 +2697,15 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       level={level}
       size="sm"
       onClose={s.close}
-      title="New task"
-      header={<FormHead k="task" title="New task" />}
+      title="New to-do"
+      header={<FormHead k="task" title="New to-do" />}
       bodyClass="px-6 pb-4 pt-3 max-sm:px-4"
       footer={<>
         {/* urgent: on top of their Today, in red */}
         <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent title="On top of their Today, in red, until it’s done" className={cn(PICK_CHIP, 'max-sm:h-11', urgent && '!border-bad-200 !bg-bad-50 !text-bad-700 [&>svg]:!text-bad-600')}>
           <Flag />Urgent
         </button>
-        <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating task' : 'Add task'}</Button>
+        <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating to-do' : 'Add to-do'}</Button>
       </>}
     >
       {msg && (
@@ -2717,8 +2717,13 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       {/* one box: what needs to be done — the rest is already filled in */}
       <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones. Tap to pick" className="[&_input]:h-12 [&_input]:text-[1rem]" />
       {/* the usual answers, as chips — change one only when it's wrong */}
-      <div className="mt-3 flex flex-wrap items-center gap-2" data-task-chips>
+      {/* the rest on the same lines as a to-do's window: each its name on the left, what it is on the right — tap it to
+          change it (already filled in: change one only when it's wrong) */}
+      <div className="mt-3 flex flex-col [&_button]:!h-auto [&_button]:!min-h-8 [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!px-2 [&_button]:!-mx-2 [&_button]:!text-[0.9375rem] [&_button]:!text-ink [&_button]:!shadow-none [&_button:hover]:!bg-wash [&_button>svg:first-child:not(:only-child)]:hidden [&_button>svg:last-child]:opacity-0 [&_button:hover>svg:last-child]:opacity-100" data-task-chips>
+        <WinLine k="where" label="Project">
         <ProjectChip value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} />
+        </WinLine>
+        <WinLine k="who" label="Who does it">
         <span className="contents" data-task-who={owners.join(',')}>
           {/* the same Who as on Today and in a task: one person, or the switch under it for more than one */}
           <WhoMenu
@@ -2730,21 +2735,26 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
             trigger={whoChip}
           />
         </span>
-        <span className="contents" data-task-when={whenValue}>
+        </WinLine>
+        <WinLine k="when" label="When">
+        <span className="flex flex-wrap items-center gap-x-3" data-task-when={whenValue}>
           <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
           {!repeat && <SearchSelect label="Time" value={time} options={[{ key: '', label: 'Any time' }, ...TIMES.map((x) => ({ key: x, label: x }))]} onChange={(v) => { setTime(v); setTimePicked(true) }} search={false} width={200} trigger={<button type="button" aria-label="Time" className={cn(PICK_CHIP, time && 'text-ink')} data-task-time={time}><Clock3 /><span>{time ? `at ${time}` : 'Any time'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
           {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} trigger={<button type="button" aria-label="At" className={PICK_CHIP}><Clock3 /><span>at {at}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
         </span>
+        </WinLine>
         {/* who's watching — they don't do it, they see it and hear when it moves (the same order as in a task: who
             does it, when, who's watching) */}
+        <WinLine k="watch" label="Watching">
         <span className="contents" data-task-watch={watchers.join(',')}>
           <MultiSelect label="Who’s watching" values={watchers} options={whoOptions.filter((o) => !owners.includes(o.key as PersonKey))} onChange={(ks) => setWatchers(ks as PersonKey[])} width={340} trigger={
             <button type="button" aria-label="Who’s watching" className={cn(PICK_CHIP, 'pl-1.5', watchers.length && 'text-ink')}>
               {watchers.length ? <span className="flex gap-0.5">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span> : <Eye />}
-              <span className="min-w-0 truncate">{watchers.length ? `Watching: ${watchers.map((p) => (p === me ? 'Me' : PEOPLE[p]?.short || p)).join(', ')}` : 'Who’s watching'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+              <span className="min-w-0 truncate">{watchers.length ? `${watchers.map((p) => (p === me ? 'Me' : PEOPLE[p]?.short || p)).join(', ')}` : 'Add someone'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
             </button>
           } />
         </span>
+        </WinLine>
       </div>
     </Modal>
   )

@@ -100,23 +100,16 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
         <>
           <FormRow label="What’s wrong?">
             {/* tap one — no list to open. Picked, only that one stays (Change brings the others back) */}
-            <div className={cn('grid grid-cols-2 gap-2', small && !kind && 'gap-2.5')} data-problem-kinds>
+            {/* a list, one line each — picked, only that one stays (Change brings the others back) */}
+            <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line-2" data-problem-kinds>
               {KINDS.filter((x) => !kind || kind === x.k).map((x) => {
                 const on = kind === x.k
-                /* on a phone, before one is picked: big tiles, the icon on top — like + New */
-                if (small && !on) return (
-                  <button key={x.k} type="button" onClick={() => choose(x.k)} aria-pressed={false} data-problem-kind={x.k}
-                    className="flex h-[6.5rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-white px-2 text-center shadow-[0_1px_2px_rgba(20,26,36,.05)] transition active:scale-[0.97] active:bg-wash">
-                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.8125rem] bg-[#fdecea] text-[#c4311f]"><x.icon className="h-[1.375rem] w-[1.375rem]" /></span>
-                    <span className="line-clamp-2 text-[0.9375rem] font-semibold leading-snug text-ink">{x.label}</span>
-                  </button>
-                )
                 return (
                   <button key={x.k} type="button" onClick={() => choose(on ? ('' as Kind) : x.k)} aria-pressed={on} data-problem-kind={x.k}
-                    className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition max-sm:min-h-14', on ? 'col-span-2 border-bad-300 bg-bad-50 ring-2 ring-bad-100' : 'border-line bg-white hover:border-[#d6cfc3]', x.k === 'other' && 'col-span-2')}>
-                    <span className={cn('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]', on ? 'bg-bad-600 text-white' : 'bg-wash-2 text-ink-2')}><x.icon className="h-[1.125rem] w-[1.125rem]" /></span>
-                    <span className="min-w-0 flex-1 leading-tight"><span className="block text-[0.875rem] font-semibold text-ink max-sm:text-[0.9375rem]">{x.label}</span><span className="block truncate text-[0.75rem] text-muted max-sm:text-[0.8125rem]">{x.sub}</span></span>
-                    {on && <span className="shrink-0 text-[0.8125rem] font-semibold text-brand-700 max-sm:text-[0.9375rem]" data-problem-change>Change</span>}
+                    className="flex min-h-12 min-w-0 items-center gap-3 bg-pure px-3.5 py-2 text-left transition hover:bg-wash active:bg-wash-2">
+                    <x.icon className="h-[1.125rem] w-[1.125rem] shrink-0 text-bad-600" />
+                    <span className="min-w-0 flex-1 leading-tight"><span className="block text-[0.9375rem] font-medium text-ink">{x.label}</span>{on && <span className="block text-[0.8125rem] text-muted">{x.sub}</span>}</span>
+                    {on && <span className="shrink-0 text-[0.875rem] font-semibold text-brand-700" data-problem-change>Change</span>}
                   </button>
                 )
               })}

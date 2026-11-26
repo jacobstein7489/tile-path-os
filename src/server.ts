@@ -44,12 +44,26 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+/* the app's page is never kept by a cache on the way (a phone, the network's): a new version shows the moment it's
+   published. Its files (/assets) have new names each version and stay cached */
+function freshPage(response: Response): Response {
+  if (!(response.headers.get("content-type") ?? "").includes("text/html")) return response;
+  try {
+    response.headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    return response;
+  } catch {
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const response = await normalizeCatastrophicSsrResponse(await handler.fetch(request, env, ctx));
+      return freshPage(response);
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
