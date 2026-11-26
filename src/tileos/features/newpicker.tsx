@@ -3,7 +3,7 @@ import * as React from 'react'
 import { SayItBar } from './capture'
 import {
   FileText, Building2, ListTodo, CalendarPlus, Sparkles, Wrench, ContactRound, PackageCheck,
-  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus, Upload,
+  MessageCircleQuestion, ArrowLeftRight, PackageX, Truck, Gavel, Phone, ClipboardList, Wallet, StickyNote, TriangleAlert, PackagePlus, Upload, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useStore, type Modal as M } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -76,6 +76,10 @@ export const allowedFor = (role: Role, key: string) => !FOR[key] || FOR[key].inc
 
 type Pick = { k: string; l: string; h: string; i: React.ElementType; m: (jobId?: string) => M; job?: boolean }
 
+/** what this login picks on + New, on this device — the shortcuts are the ones used most */
+const USE_KEY = (role: Role) => `tileos-new-use:${role}`
+function usedOf(role: Role): Record<string, number> { try { return JSON.parse(localStorage.getItem(USE_KEY(role)) || '{}') || {} } catch { return {} } }
+function noteUse(role: Role, k: string) { try { const u = usedOf(role); u[k] = (u[k] || 0) + 1; localStorage.setItem(USE_KEY(role), JSON.stringify(u)) } catch { /* fine */ } }
 /** the project a window is open on, or the project page — "New" starts on it */
 function projectInView(s: ReturnType<typeof useStore.getState>) {
   const top = [...s.modals].reverse().find((m) => m.t === 'job' && m.id)
@@ -145,7 +149,7 @@ export const PART_TINT: Record<Part | 'bad', { bg: string; fg: string; dot: stri
 const partOf = (k: string): Part => KIND[k]?.g || 'office'
 
 /** the phone's tile is small: a shorter name where the whole one doesn't fit */
-const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More tile', question: 'Site question', po: 'PO' }
+const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More tile', question: 'Site question', po: 'PO', punch: 'Touch\u2011ups' }
 /** a choice on + New: a white card with its icon in its part's soft color, every one the same size; Problem is red.
  *  A computer: the icon and the name on one line. A phone: a tile — the icon on top, the name under it, three
  *  across, every tile the same height (room for a name on two lines: "Purchase order") */
@@ -198,34 +202,53 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:mb-1.5 max-sm:text-[0.6875rem]'
   const dot = (p: Part) => <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PART_TINT[p].dot }} />
-  /* a short list (the site manager's) is one grid — no headings; a long one keeps its three parts */
-  const few = groups.reduce((n, x) => n + x.list.length, 0) + starts.length <= 8
+  /* (Nov 26, evening) + is one way in: say it, type it or take a photo — it works out what it is and follows it
+     through. Under it four shortcuts — what you add most (it learns: what you pick goes first), like Maps' — and More
+     for everything else. Too many shortcuts aren't shortcuts */
+  const [all, setAll] = React.useState(false)
+  const every = [...groups.flatMap((x) => x.list), ...starts]
+  const used = usedOf(role)
+  const shortcuts = [...every].sort((a, b) => (used[b.k] || 0) - (used[a.k] || 0) || rank(a.k) - rank(b.k)).slice(0, 4)
+  const pick = (x: Pick) => { noteUse(role, x.k); go(x) }
   return (
     <Modal
       level={level}
       size="md"
       onClose={s.close}
-      title="What are you adding?"
+      title={all ? 'Everything you can add' : 'What’s going on?'}
       /* the project you're on goes with it — each form asks for one otherwise */
       sub={job ? <span className="flex flex-wrap items-center gap-x-2">For {job.name}<button type="button" onClick={() => setJobId('')} className="font-semibold text-brand-700 hover:underline" data-new-unpick>Not for this project</button></span> : undefined}
     >
-      {/* the easy way: say it — it makes the right things by itself. Or pick one below */}
-      <div className="mb-5 max-sm:mb-3"><SayItBar jobId={jobId || undefined} /></div>
-      {few ? (
-        <ChoiceList list={[...groups.flatMap((x) => x.list), ...starts]} go={go} attrs={{ 'data-new-group': 'all' }} />
-      ) : (
+      {all ? (
         <>
+          <button type="button" onClick={() => setAll(false)} className="-ml-1 mb-3 inline-flex h-8 items-center gap-0.5 rounded-full pl-1 pr-3 text-[0.875rem] font-semibold text-ink-2 transition hover:bg-wash-2 hover:text-ink" data-new-back><ChevronLeft className="h-[1.125rem] w-[1.125rem]" />Back</button>
           {groups.map((x, i) => (
             <section key={x.g} className={cn(i > 0 && 'mt-4 max-sm:mt-2.5')} data-new-group={x.g}>
               <div className={head}>{dot(x.g)}{x.label}</div>
-              <ChoiceList list={x.list} go={go} />
+              <ChoiceList list={x.list} go={pick} />
             </section>
           ))}
           {starts.length > 0 && (
             <section className="mt-4 max-sm:mt-2.5" data-new-group="start">
               <div className={head}>{dot('start')}Start something new</div>
-              <ChoiceList list={starts} go={go} />
+              <ChoiceList list={starts} go={pick} />
             </section>
+          )}
+        </>
+      ) : (
+        <>
+          {/* the one way in: say it, type it, or a photo */}
+          <SayItBar jobId={jobId || undefined} big />
+          {shortcuts.length > 0 && (
+            <section className="mt-5 max-sm:mt-4" data-new-group="shortcuts">
+              <div className={head}>Shortcuts</div>
+              <div className="grid grid-cols-4 gap-2">{shortcuts.map((y) => <Choice key={y.k} x={y} onClick={() => pick(y)} />)}</div>
+            </section>
+          )}
+          {every.length > shortcuts.length && (
+            <button type="button" onClick={() => setAll(true)} className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl px-1 text-left text-[0.9375rem] font-medium text-ink-2 transition hover:text-ink" data-new-more>
+              <span className="flex-1">More</span><span className="text-[0.875rem] text-muted tnum">{every.length - shortcuts.length}</span><ChevronRight className="h-4 w-4 text-faint" />
+            </button>
           )}
         </>
       )}

@@ -8,7 +8,7 @@
  * The AI is the company's own (Lovable AI, on the server). Where it isn't on, the words are split into lines by
  * themselves — the same box to check, just less clever. */
 import * as React from 'react'
-import { ArrowLeftRight, ArrowUp, AudioLines, Building2, CalendarDays, Check, ChevronDown, ExternalLink, HardHat, HelpCircle, ListTodo, Mic, Plus, Ruler, Sparkles, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ArrowUp, AudioLines, Building2, CalendarDays, Camera, Check, ChevronDown, ExternalLink, HardHat, HelpCircle, ListTodo, Mic, Plus, Ruler, Sparkles, StickyNote, TriangleAlert, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
 import { useStore, meOf, NOW, newTask, addHist, clockNow, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
@@ -361,6 +361,10 @@ function addPlace(st: Store, name: string, me: PersonKey): string {
 /* ---------------- the conversation ---------------- */
 type Turn = { id: string; who: 'bot' | 'me'; text: string; /** pictures sent with it (shown small) */ pics?: string[]; items?: CapItem[]; acts?: CapAction[]; state?: 'ask' | 'done' | 'dropped'; thinking?: boolean; plain?: boolean }
 const NEEDS_JOB: CapKind[] = ['problem', 'touchup', 'bring', 'gc']
+/* photos picked on + New (its camera): handed over here, added the moment the window opens — a phone only lets a
+   photo be picked straight from a tap, so the picking happens there */
+let handed: File[] = []
+export const handPhotos = (files: File[]) => { handed = files }
 export function CaptureModal({ level, jobId, listen, ask }: { level: number; jobId?: string; /** opened from the mic: listening right away */ listen?: boolean; /** asked from search: the question, answered right away */ ask?: string }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -400,6 +404,8 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
   }
   const end = React.useRef<HTMLDivElement>(null)
   const box = React.useRef<HTMLTextAreaElement>(null)
+  /* photos taken on + New: with the next message */
+  React.useEffect(() => { if (handed.length) { const f = handed; handed = []; void addFiles(f) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const last = turns[turns.length - 1]
   React.useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [turns.length, last?.thinking, last?.state])
   /* the box grows with what's in it */
@@ -764,10 +770,29 @@ function CapRow({ it, me, team, onChange, onRemove }: { it: CapItem; me: PersonK
   )
 }
 
-/** the way in, on top of + New: the little robot, the question, and the mic */
-export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => void }) {
+/** the way in, on top of + New: the robot, what to do, the camera and the mic — say it, type it, or take a photo; it
+ *  works out what it is (a need on site, a problem, an order…) and follows it through */
+export function SayItBar({ jobId, onOpen, big }: { jobId?: string; onOpen?: () => void; /** + New's own: the one big way in */ big?: boolean }) {
   const s = useStore()
   const open = (listen?: boolean) => { onOpen?.(); s.open({ t: 'capture', jobId, listen }) }
+  if (big) return (
+    <div role="button" tabIndex={0} onClick={() => open()} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
+      className="group flex min-w-0 cursor-pointer items-center gap-3.5 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-4 py-4 transition hover:border-brand-200 max-sm:gap-3 max-sm:px-3.5 max-sm:py-3.5" data-say-it="big">
+      <Helper size={56} mood="idle" />
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block text-[1.125rem] font-semibold text-ink max-sm:text-[1.0625rem]">Say it or type it</span>
+        <span className="mt-1 block text-[0.875rem] text-muted">“Need 4 bags of grout at 114 Park”</span>
+      </span>
+      {/* a photo: picked right here (a phone wants the tap), then it opens with the photo in it */}
+      <label onClick={(e) => e.stopPropagation()} className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-pure text-ink-2 shadow-xs transition hover:border-[#d1cbc0] hover:text-ink" title="Take a photo" aria-label="Take a photo" data-say-photo>
+        <Camera className="h-5 w-5" />
+        <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; if (f.length) { handPhotos(f); open() } }} />
+      </label>
+      <button type="button" onClick={(e) => { e.stopPropagation(); open(true) }} aria-label="Talk" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 max-sm:h-11 max-sm:w-11" data-say-mic>
+        <Mic className="h-[1.375rem] w-[1.375rem]" />
+      </button>
+    </div>
+  )
   return (
     <div role="button" tabIndex={0} onClick={() => open()} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
       className="group flex min-w-0 cursor-pointer items-center gap-3.5 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-4 py-3.5 transition hover:border-brand-200 max-sm:gap-3 max-sm:px-3.5 max-sm:py-2" data-say-it>
