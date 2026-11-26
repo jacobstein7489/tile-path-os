@@ -5,8 +5,8 @@ import * as React from 'react'
 import { useStore } from '@/tileos/store'
 import { REAL } from '@/tileos/lib/save'
 
-/** long enough to need one: more than fits on a phone's line */
-export const LONG = 30
+/** long enough to need one: more than fits on a phone's line (beside its icon and its time) */
+export const LONG = 24
 const tried = new Set<string>()
 /** without the AI: its first sentence or clause, if that's short enough — else nothing (the line wraps) */
 export function shortFrom(title: string): string | undefined {

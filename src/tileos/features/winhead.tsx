@@ -333,8 +333,10 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, remove
 }) {
   const whoBody = (
     <>
-      {who && <Avatar who={who} size={22} />}
-      {whoText && <span className="min-w-0 text-[0.9375rem] text-ink" data-win-owner>{whoText}</span>}
+      {who && <Avatar who={who} size={24} />}
+      {/* (Nov 26) a circle, not a name: the name alone is only said to a screen reader (it shows when you point at the
+          circle); anything more than the name ("Nobody yet") is written */}
+      {whoText && <span className={cn('min-w-0 text-[0.9375rem] text-ink', who && typeof whoText === 'string' && (whoText === 'You' || whoText === PEOPLE[who]?.short || whoText === PEOPLE[who]?.name) && 'sr-only')} data-win-owner>{whoText}</span>}
     </>
   )
   const stateCls = toneCls(tone)
@@ -410,9 +412,9 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, remove
                 (nothing cut off); nobody yet: Add someone */}
             <span className="flex min-w-0 items-center" data-win-watch={watch.current.join(',')}>
               <WatchPop pick={watch} trigger={
-                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-3 gap-y-1')} aria-label="Who’s watching. Add or take off" data-watch-add>
+                <button type="button" className={cn(CHIP, 'flex-wrap gap-x-1.5 gap-y-1')} aria-label="Who’s watching. Add or take off" data-watch-add>
                   {watch.current.length > 0
-                    ? watch.current.map((p) => <span key={p} className="inline-flex items-center gap-2 text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={22} />{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span>)
+                    ? watch.current.map((p) => <span key={p} className="inline-flex items-center text-[0.9375rem] text-ink" data-win-watcher={p}><Avatar who={p} size={24} /><span className="sr-only">{p === watch.me ? 'You' : PEOPLE[p]?.short || p}</span></span>)
                     : <span className="inline-flex items-center gap-1.5 text-[0.9375rem] text-muted group-hover/val:text-brand-700"><Plus className="h-4 w-4" />Add someone</span>}
                   {watch.current.length > 0 && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" />}
                 </button>

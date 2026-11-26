@@ -501,7 +501,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
             {icon && <span className={cn('-mr-1 inline-flex h-[1.375rem] w-4 shrink-0 items-center justify-center self-start [&_svg]:h-4 [&_svg]:w-4', problem || urgent ? 'text-bad-600' : 'text-[#8a8478]')} aria-hidden data-row-icon={problem ? 'problem' : urgent ? 'urgent' : ''}>{problem ? <TriangleAlert /> : icon}</span>}
-          <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:truncate max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
+          <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
             {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
             {title}
           </div>
@@ -2336,11 +2336,12 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       sub={about ? <span data-task-detail>{about}</span> : undefined}
       edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }), subOpen: addDetails, onSubDone: () => setAddDetails(false) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
-      /* more than one can do it: each one's circle and name — "(YS) You or (YJ) Jacob" — the same circles as everywhere */
+      /* who does it: just their circle — more than one can do it, each one's circle (the name shows when you point at
+         it, and is said to a screen reader) — the same circles as everywhere, no names written out */
       who={t.also?.length ? undefined : t.owner}
       whoText={t.also?.length
-        ? <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1" data-task-owner>{[t.owner, ...t.also].map((p, i) => <React.Fragment key={p}>{i > 0 && <span className="text-muted"> or </span>}<span className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{p === me ? 'You' : PEOPLE[p]?.short || p}</span></React.Fragment>)}</span>
-        : <span data-task-owner>{t.owner === me ? 'You' : owner}</span>}
+        ? <span className="inline-flex flex-wrap items-center gap-1.5" data-task-owner>{[t.owner, ...t.also].map((p) => <Avatar key={p} who={p} size={24} />)}<span className="sr-only">{[t.owner, ...t.also].map((p) => (p === me ? 'You' : PEOPLE[p]?.short || p)).join(' or ')}</span></span>
+        : <span className="sr-only" data-task-owner>{t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' && (followersOf(t).length > 0 || showWatch) ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
