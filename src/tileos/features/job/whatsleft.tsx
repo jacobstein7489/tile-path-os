@@ -168,21 +168,9 @@ export function WhatsLeft({ job }: { job: Job }) {
     const late = !!iso && iso < TODAY
     return { key: 'touchups', kind: 'Touch-ups', what: noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} not decided yet` : touchupsWords(punch), who, iso, when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : undefined, late, tone: 'now' as const, open: () => s.open({ t: 'touchups', jobId: job.id }), done: () => {}, noCheck: true }
   })() : null
-  /* plain to-dos, one person's: one line — "To-dos · 2 of 5 done"; tap it: the checklist */
-  const plain = new Set(s.tasks.filter((t) => t.jobId === job.id && plainTodo(t, touchIds)).map((t) => t.id))
-  const byWho = new Map<string, LeftRow[]>()
-  left.forEach((r) => { if (plain.has(r.key) && r.who) byWho.set(r.who, [...(byWho.get(r.who) || []), r]) })
+  /* plain to-dos: each its own line, the same as on Today — each opens the same window as every to-do */
   const folded = new Set<string>()
   const todoRows: LeftRow[] = []
-  byWho.forEach((rs, who) => {
-    if (rs.length < 2) return
-    rs.forEach((r) => folded.add(r.key))
-    const l = todosOf(s, job.id, who as PersonKey)
-    const first = rs.reduce((a, r) => ((r.iso || '9999') < (a.iso || '9999') ? r : a))
-    /* the to-dos themselves, so they're read right here — and how many are done, once some are */
-    const words = l.open.map((t) => t.title.replace(/\.$/, '')).join(' · ')
-    todoRows.push({ key: 'todos:' + who, kind: 'To do', what: `${words}${l.done.length ? ` · ${l.done.length} of ${l.open.length + l.done.length} done` : ''}`, who: who as PersonKey, iso: first.iso, when: first.when, late: rs.some((r) => r.late), tone: 'now', open: () => s.open({ t: 'todos', jobId: job.id, who }), done: () => {}, noCheck: true })
-  })
   /* a touch-ups task, or (with the list there) a to-do about them said in words: inside the one touch-ups line */
   const touchTask = (k: string) => punch.some((p) => p.taskId === k) || (!!touchRow && TOUCH_WORDS.test(s.tasks.find((t) => t.id === k && t.state === 'now')?.title || ''))
   const rest = [...(touchRow && !ret ? [touchRow] : []), ...todoRows, ...left.filter((r) => !touchTask(r.key) && r !== retTask && !folded.has(r.key))]

@@ -75,7 +75,9 @@ export function KindTag({ label, className }: { label: string; className?: strin
 }
 
 /** a value you tap to change it: plain words, a soft wash when pointed at — the same size and place on every line */
-export const CHIP = 'group/val -mx-2 inline-flex min-h-8 min-w-0 max-w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none [&>svg:last-child]:opacity-60 hover:[&>svg:last-child]:opacity-100'
+/* its arrow only when you point at it (or tab to it): at rest the values line up with nothing trailing after them —
+ * arrows after words of different lengths never line up (a phone: no arrows, tap the value) */
+export const CHIP = 'group/val -mx-2 inline-flex min-h-8 min-w-0 max-w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none [&>svg:last-child]:opacity-0 [&>svg:last-child]:transition-opacity hover:[&>svg:last-child]:opacity-100 focus-visible:[&>svg:last-child]:opacity-100'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
 
 /** each line's small mark — the same on every window */

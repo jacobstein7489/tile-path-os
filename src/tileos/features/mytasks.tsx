@@ -53,7 +53,7 @@ import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
 import { TouchupLine, StrayLine } from './touchups'
 import { holdWords } from './common'
-import { tagOfTask, plainTodo, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
+import { tagOfTask, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
 import { nextOf, doneWord, isCall, isOrder } from './nextstep'
 import { OrderedPanel, NotYetPanel, cameIn } from './ordered'
 import { autoWho } from './autowho'
@@ -368,7 +368,9 @@ const InCard = React.createContext<{ label: string; first: boolean } | null>(nul
 /** a line on Today: a dot when it's new to you · what to do (a small gray line under it: when, seen, updated) · on a
  *  computer when, who (circles) and its next step, each the same width on every line so they line up down the page;
  *  a phone: when and who in the small line, its button at the end. Every button the same size: a soft pill */
-function TodoRow({ when, whenTone, title, detail, project, projectId, action: own, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, latest, forOthers, remind }: {
+function TodoRow({ when, whenTone, title, detail, project, projectId, action: own, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, latest, forOthers, remind, rowId }: {
+  /** the to-do it is (a to-do's line) */
+  rowId?: string
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string
   /** its next step, as a button: Called, Ordered, Send, Remind… (none: the line itself opens it) */
   action?: React.ReactNode; onClick?: () => void; done?: boolean; leaving?: boolean; owner?: PersonKey
@@ -470,6 +472,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
       /* pointing at it says what's happened with it (created, updated) — it isn't on the line */
       title={[tip, latest && !seenOrNew ? latest.text : ''].filter(Boolean).join(' · ') || undefined}
       data-todo
+      data-todo-id={rowId}
       {...(card && !card.first ? { 'data-same-project': '' } : {})}
       /* a line between every two, the same as Estimates' and Projects' lists */
       /* one line, the height of an Estimates line (what's happened with it — created, updated — is in its window) */
@@ -597,6 +600,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
               : undefined
   return (
     <TodoRow
+      rowId={t.id}
       kind={tagOfTask(s, t)}
       flag={t.urgent && !done ? 'Urgent' : undefined}
       leaving={leaving}
@@ -604,7 +608,7 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       /* every row opens its window — the same window every time; what happens next is its button at the bottom */
       onClick={() => s.open({ t: 'task', id: t.id })}
       icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
-      title={touchWords || cleanTitle(t.title, job)}
+      title={touch.length ? <TouchWords lead={touchWords} items={touch} /> : cleanTitle(t.title, job)}
       detail={detail}
       owner={t.owner}
       also={done ? undefined : t.also}
@@ -1099,7 +1103,6 @@ const BUCKET_ORDER: Bucket[] = ['overdue', 'today', 'tomorrow', 'week', 'later',
 export function collapse(items: PlateItem[]): PlateItem[] {
   const out: PlateItem[] = []
   const touchIds = new Set(useStore.getState().punch.map((p) => p.taskId).filter(Boolean) as string[])
-  const todos = new Map<string, PlateItem[]>()
   const dailies = new Map<string, PlateItem[]>()
   const trips = new Map<string, PlateItem[]>()
   const steps = new Map<string, PlateItem[]>()
@@ -1116,8 +1119,8 @@ export function collapse(items: PlateItem[]): PlateItem[] {
     if (x.kind === 'task' && x.t && isRequest(x.t) && x.t.state === 'now' && !x.t.urgent) return add(trips, `${x.who || x.t.owner}|${isNow(x.b) ? 'now' : x.b}`, x)
     /* the same step on many projects — a problem stays its own line */
     if (x.kind === 'step' && x.v && x.job && x.v.state !== 'bad') return add(steps, `${x.who || x.v.owner}|${x.v.key}|${isNow(x.b) ? 'now' : x.b}`, x)
-    /* plain to-dos on one project, one person's — one line: "2 of 5 done"; tap it: the checklist */
-    if (x.kind === 'task' && x.t && x.t.jobId && plainTodo(x.t, touchIds)) return add(todos, `${x.who || x.t.owner}|${x.t.jobId}`, x)
+    /* plain to-dos: each its own line — the project's band keeps them together, and every to-do opens the same window
+       (who, when, status, who's watching, notes); folded into one "5 to-dos" line they opened a different one */
     out.push(x)
   })
   const first = (xs: PlateItem[]) => xs.reduce((a, x) => (BUCKET_ORDER.indexOf(x.b) < BUCKET_ORDER.indexOf(a.b) || (x.b === a.b && (x.iso || '9') < (a.iso || '9')) ? x : a))
@@ -1136,12 +1139,29 @@ export function collapse(items: PlateItem[]): PlateItem[] {
     const f = first(xs)
     out.push({ key: 'steps:' + k, b: f.b, iso: f.iso, time: null, kind: 'steps', who: f.who, vs: xs.map((x) => ({ job: x.job!, v: x.v! })) })
   })
-  todos.forEach((xs, k) => {
-    if (xs.length < 2) return out.push(...xs)
-    const f = first(xs)
-    out.push({ key: 'todos:' + k, b: f.b, iso: f.iso, time: null, kind: 'todos', who: f.who || f.t?.owner, ts: xs.map((x) => x.t!) })
-  })
   return sortPlate(out)
+}
+
+/** a touch-ups line: how far along first ("5 to fix"), then each one with its number (the same order and numbers as in
+ *  its window) — what's still to fix (all fixed: what's to check), four of them and how many more — so it reads as a
+ *  list, not one long sentence. Each one stays whole (it goes on to the next line as one). A phone: how far along only
+ *  (the line's too narrow for a list — Open list has them) */
+function TouchWords({ lead, items }: { lead: string; items: { id: string; text: string; status: string }[] }) {
+  const small = useSmall()
+  const shown = small ? 0 : 4
+  const open = items.filter((p) => p.status === 'open')
+  const list = open.length ? open : items.filter((p) => p.status === 'verify')
+  return (
+    <span data-touch-words>
+      <span className="mr-1 font-medium text-ink" data-touch-lead>{lead}</span>
+      {list.slice(0, shown).map((p, i) => (
+        <span key={p.id} className="ml-3 inline-block max-w-full text-muted" data-touch-item>
+          <span className="mr-1.5 inline-flex h-[1.0625rem] min-w-[1.0625rem] -translate-y-px items-center justify-center rounded-full bg-[#eeece7] px-1 align-middle text-[0.6875rem] font-semibold leading-none tnum text-ink-2" aria-hidden>{i + 1}</span>{p.text.replace(/\.$/, '')}
+        </span>
+      ))}
+      {shown > 0 && list.length > shown && <span className="ml-3 whitespace-nowrap text-faint" data-touch-more>+{list.length - shown} more</span>}
+    </span>
+  )
 }
 
 /* ================= a person's lists — one place decides what's on each ================= */
