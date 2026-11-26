@@ -3,7 +3,7 @@
  * box to write one, with the mic to say it and the arrow to add it, both inside the box. A note is always the writer's
  * own. */
 import * as React from 'react'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Plus } from 'lucide-react'
 import { Avatar, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Mic, addSaid } from '@/tileos/components/ui/mic'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -23,7 +23,10 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
   className?: string
 }) {
   const [text, setText] = React.useState('')
-  const add = () => { const v = text.trim(); if (!v || !onAdd) return; onAdd(v); setText('') }
+  /* (Nov 26) the window is about the next move: writing a note is one small line ("Add a note") — its box only once tapped */
+  const [writing, setWriting] = React.useState(!!focus)
+  const box = React.useRef<HTMLDivElement>(null)
+  const add = () => { const v = text.trim(); if (!v || !onAdd) return; onAdd(v); setText(''); setWriting(false) }
   const name = (w: string) => (w === 'system' ? 'Tile OS' : w === me ? 'You' : PEOPLE[w as PersonKey]?.short || w)
   const ready = !!text.trim()
   if (!notes.length && !onAdd) return null
@@ -48,15 +51,20 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
           ))}
         </ul>
       )}
-      {onAdd && (
-        /* one box: type it (or the mic, to say it) — the arrow adds it */
-        <div className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-pure py-1 pl-4 pr-1.5 shadow-[0_1px_2px_rgba(20,26,36,.04)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50" data-note-box>
+      {onAdd && !writing && !text && (
+        <button type="button" onClick={() => setWriting(true)} className="-mx-1 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-1 text-[0.875rem] font-medium text-muted transition hover:text-ink" data-note-open>
+          <Plus className="h-4 w-4" />Add a note
+        </button>
+      )}
+      {onAdd && (writing || !!text) && (
+        /* one box: type it (or the mic, to say it) — the arrow adds it. Left empty, it goes back to the small line */
+        <div ref={box} onBlur={(e) => { if (!text.trim() && !box.current?.contains(e.relatedTarget as Node | null)) setWriting(false) }} className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-pure py-1 pl-4 pr-1.5 shadow-[0_1px_2px_rgba(20,26,36,.04)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50" data-note-box>
           <input
             {...NO_SUGGEST}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') add() }}
-            autoFocus={focus}
+            autoFocus
             placeholder="Add a note…"
             aria-label="Add a note"
             className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-faint"

@@ -266,7 +266,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
       {REAL.signOut && <><MenuSep /><MenuItem icon={<LogOut className="h-4 w-4" />} onSelect={REAL.signOut} hint={REAL.email}>Sign out</MenuItem></>}
       {/* just the version — tap it to check for a newer one (how fast it opened and the robot's times are in Settings →
           This device) */}
-      {BUILT && <MenuItem icon={<RotateCw className="h-4 w-4" />} onSelect={() => { void checkNow().then((r) => { if (r === 'same') toast(`This is the newest · Version ${BUILT}`); else if (r === 'error') toast('Couldn’t check · no signal?') }) }} hint="Tap to check for a newer one" data-version>Version {BUILT}</MenuItem>}
+      {BUILT && <MenuItem icon={<RotateCw className="h-4 w-4" />} onSelect={() => { void checkNow().then((r) => { if (r === 'same') void updateNow(); else if (r === 'error') toast('Couldn’t check · no signal?') }) }} hint="Tap to load the newest" data-version>Version {BUILT}</MenuItem>}
     </>
   )
 }

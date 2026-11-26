@@ -1519,7 +1519,7 @@ const InPerson = React.createContext(false)
 function useBandLook() {
   return {
     box: cn(BAND, 'py-1', PX), name: cn(BAND_LABEL, 'whitespace-normal break-words text-left'),
-    sub: cn(BAND_SUB, 'min-h-[2.125rem] py-1', PX), subName: cn(BAND_SUB_LABEL, 'whitespace-normal break-words text-left text-[0.78125rem] tracking-[0.06em] text-ink'),
+    sub: cn(BAND_SUB, 'min-h-[2.125rem] py-1', PX), subName: cn(BAND_SUB_LABEL, 'whitespace-normal break-words text-left text-[0.875rem] text-ink'),
   }
 }
 /** (Nov 26) on the page's own list every group is a box of its own: a thin, slightly darker edge around it, its name on

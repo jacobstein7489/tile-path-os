@@ -301,13 +301,13 @@ export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-semibo
  *  full width, the name in dark capitals, how many after it (a status on Projects and Estimates, a part of the day on
  *  Today, a floor on a scope, a category on Items, "To fix" in a window). A status says its own color with its small
  *  mark. One look everywhere — a list never has its own. A quiet link on the right if any. */
-export const BAND = 'flex min-h-[2.125rem] items-center gap-2 border-t border-line bg-wash-2 text-ink'
-/** a band's name: capitals, bold, dark — the same on every list */
-export const BAND_LABEL = 'min-w-0 truncate text-[0.78125rem] font-bold uppercase leading-5 tracking-[0.08em] text-ink-2'
+export const BAND = 'flex min-h-[2.125rem] items-center gap-2 border-t border-line bg-wash text-ink'
+/** a band's name: as it's written ("14 Cannon", not capitals), semibold, dark — the same on every list */
+export const BAND_LABEL = 'min-w-0 truncate text-[0.875rem] font-semibold leading-5 text-ink'
 /** a group inside a group (a room on a floor, a part inside one person's list): the same band a step down — lighter,
  *  its name in gray */
 export const BAND_SUB = 'flex min-h-8 items-center gap-2 border-t border-line-2 bg-wash'
-export const BAND_SUB_LABEL = 'min-w-0 truncate text-[0.75rem] font-bold uppercase leading-5 tracking-[0.07em] text-ink-2'
+export const BAND_SUB_LABEL = 'min-w-0 truncate text-[0.8125rem] font-semibold leading-5 text-ink-2'
 /** something to press on a band (a link, an arrow): gray until pointed at */
 export const BAND_LINK = 'text-muted transition hover:text-ink'
 /** how many in a group, after its name */
@@ -714,14 +714,14 @@ export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, h
   return (
     <tr>
       {/* THE band, in a table: the same soft beige, dark capitals and count as every list's */}
-      <td className={cn('h-[2.125rem] whitespace-nowrap border-t border-line bg-wash-2 py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
+      <td className={cn('h-[2.125rem] whitespace-nowrap border-t border-line bg-wash py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2 text-left disabled:cursor-default">
           <span className={BAND_LABEL}>{label}</span>
           {count !== undefined && <BandCount n={count} />}
           {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-muted" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-muted" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-t border-line bg-wash-2 max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-t border-line bg-wash max-md:hidden" />}
     </tr>
   )
 }
