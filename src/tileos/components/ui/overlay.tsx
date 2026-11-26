@@ -24,24 +24,27 @@ const INSIDE = { '--app-top': '0px', '--bar': '0px', '--head': '0px' } as React.
 
 /* One window at a time: a small window opened from another small one takes its place — the one under it hides until
  * Back. A big one (a project, an estimate) stays behind, dimmed, like a page. Every open window says its level here. */
-type Win = { level: number; size: keyof typeof WIDTHS }
+type Win = { level: number; size: keyof typeof WIDTHS; side?: boolean }
 const wins = new Map<string, Win>()
 const winSubs = new Set<() => void>()
 let winVer = 0
 const winsChanged = () => { winVer++; winSubs.forEach((f) => f()) }
 const smallWin = (w?: Win) => !!w && (w.size === 'sm' || w.size === 'md')
-function useWinStack(level: number, size: keyof typeof WIDTHS) {
+function useWinStack(level: number, size: keyof typeof WIDTHS, sideAsked?: boolean) {
   const id = React.useId()
-  React.useLayoutEffect(() => {
-    wins.set(id, { level, size })
-    winsChanged()
-    return () => { wins.delete(id); winsChanged() }
-  }, [id, level, size])
   React.useSyncExternalStore((f) => { winSubs.add(f); return () => { winSubs.delete(f) } }, () => winVer, () => winVer)
   const all = Array.from(wins.entries()).filter(([k]) => k !== id).map(([, w]) => w)
   const above = all.some((w) => w.level > level)
   const below = all.filter((w) => w.level < level).sort((a, b) => b.level - a.level)[0]
+  /* on the right (a computer): a thing opened from a list — and a small window opened from one, in its place */
+  const side = !!sideAsked || (smallWin({ level, size }) && !!below?.side && smallWin(below))
+  React.useLayoutEffect(() => {
+    wins.set(id, { level, size, side })
+    winsChanged()
+    return () => { wins.delete(id); winsChanged() }
+  }, [id, level, size, side])
   return {
+    side,
     /* covered by another window: hidden until that one closes */
     hidden: above && smallWin({ level, size }),
     /* the window under this one is hidden — its shade is already there; no second, darker one */
@@ -49,8 +52,11 @@ function useWinStack(level: number, size: keyof typeof WIDTHS) {
   }
 }
 export function Modal({
-  level = 0, size = 'md', onClose, title, sub, header, children, footer, footerClass, bodyClass, tall, className, inlineClose,
+  level = 0, size = 'md', onClose, title, sub, header, children, footer, footerClass, bodyClass, tall, className, inlineClose, side: sideAsked,
 }: {
+  /** a computer: on the right, the whole height of the screen — the list it came from stays beside it (a thing opened
+   *  from a list: a to-do, a step, a meeting, the touch-ups). A phone: the same sheet as every window */
+  side?: boolean
   /** a phone: the ✕ sits on the header's own first line (top right) — no bar of its own above it; once the header has
    *  scrolled away it becomes a bar with the window's name */
   inlineClose?: boolean
@@ -72,7 +78,7 @@ export function Modal({
   /* a window opened from another window: Back takes you to that one — never closed and opened again */
   const stacked = level > 0
   const inline = !!inlineClose && !stacked
-  const { hidden, noShade } = useWinStack(level, size)
+  const { hidden, noShade, side } = useWinStack(level, size, sideAsked)
   /* a phone: pull the window down by its top to close it — like any app */
   const sheet = React.useRef<HTMLDivElement | null>(null)
   const drag = React.useRef<{ y0: number; dy: number } | null>(null)
@@ -109,11 +115,12 @@ export function Modal({
   return (
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} />
+        {/* (on the right: the list beside it only a little dimmer — no blur; the phone's sheet the same as every window) */}
+        <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]', side && 'sm:backdrop-blur-none sm:!bg-[rgba(17,19,24,.06)]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} data-side-shade={side && !noShade ? '' : undefined} />
         {/* a phone: every window the same — from just under the top of the screen to the bottom, its content at the top.
             The keyboard coming up, a list opening inside it, a box growing: nothing moves — the keyboard only covers the
             bottom of the window (the buttons at its bottom ride on top of the keyboard) */}
-        <div className="pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-start max-sm:p-0" style={{ zIndex: z + 1 }} data-modal-frame>
+        <div className={cn('pointer-events-none fixed inset-0 flex items-center justify-center p-5 max-sm:items-start max-sm:p-0', side && 'sm:items-stretch sm:justify-end sm:p-0')} style={{ zIndex: z + 1 }} data-modal-frame data-side={side ? '' : undefined}>
           <Dialog.Content
             aria-describedby={undefined}
             data-stacked={stacked ? '' : undefined}
@@ -142,6 +149,7 @@ export function Modal({
               hidden && 'invisible pointer-events-none',
               WIDTHS[size],
               'max-sm:w-full',
+              side && 'sm:h-full sm:max-h-none sm:w-[min(36rem,100vw)] sm:rounded-none sm:border-l sm:border-line sm:shadow-side sm:animate-panel-in',
               tall && (size === 'full' ? 'h-[calc(100dvh-2.5rem)] max-h-[calc(100dvh-2.5rem)] max-sm:mt-0 max-sm:h-full max-sm:rounded-none' : 'h-[92vh]'),
               className,
             )}

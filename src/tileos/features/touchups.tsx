@@ -122,6 +122,7 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
     <Modal
       level={level}
       size="md"
+      side
       onClose={s.close}
       title="Touch-ups"
       inlineClose

@@ -190,13 +190,14 @@ export function EventModal({ id, level, notes }: { id: string; level: number; /*
   return (
     <Modal
       level={level}
-      /* the same size as every window that opens from a list */
+      /* the same size as every window that opens from a list — and on the right */
       size="md"
+      side
       onClose={s.close}
       title={e.title}
       inlineClose header={<WinHead kind={{ icon: <CalendarDays />, label: what }} place={job ? job.name : 'Company'} onPlace={job ? () => s.swap({ t: 'job', id: job.id }) : undefined} title={e.title}
         edit={{ title: e.title, sub: e.note, onTitle: (v) => renameEvent(e.id, v), onSub: (v) => noteEvent(e.id, v) }}
-        remove={() => setCanceling(true)} lines={lines} attrs={{ 'data-event-win': e.id }} />}
+        remove={() => setCanceling(true)} removeLabel={`Cancel the ${what.toLowerCase()}`} lines={lines} attrs={{ 'data-event-win': e.id }} />}
       footer={canceling ? (
         <>
           <span className="text-[0.875rem] font-medium text-bad-700">Cancel it? It comes off everyone’s calendar.</span>

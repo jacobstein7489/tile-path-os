@@ -13,9 +13,9 @@
  * when moves it; watching adds or takes off people. The buttons are at the bottom of the window — on every window. */
 import * as React from 'react'
 import { WinStar, type StarPick } from './star'
-import { Building2, CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, Eye, HardHat, Hash, Mail, MapPin, Plus, Receipt, Trash2, UserRound, Users } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, ChevronRight, CircleAlert, MoreHorizontal, Plus, Star, Trash2 } from 'lucide-react'
 import { Avatar, Button } from '@/tileos/components/ui/core'
-import { Pop, MonthCal, TimeList } from '@/tileos/components/ui/overlay'
+import { Pop, MonthCal, TimeList, Menu, MenuItem, MenuSep } from '@/tileos/components/ui/overlay'
 import { isoFromLabel, pickedLabel, dayShort } from '@/tileos/lib/today'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
@@ -80,13 +80,11 @@ export function KindTag({ label, className }: { label: string; className?: strin
 export const CHIP = 'group/val -mx-2 inline-flex min-h-8 min-w-0 max-w-[calc(100%+1rem)] items-center gap-2 rounded-lg px-2 py-1 text-left transition hover:bg-wash focus-visible:bg-wash focus-visible:outline-none [&>svg:last-child]:opacity-0 [&>svg:last-child]:transition-opacity hover:[&>svg:last-child]:opacity-100 focus-visible:[&>svg:last-child]:opacity-100'
 export const toneCls = (tone?: WinTone) => cn(tone === 'late' ? 'font-medium text-bad-600' : tone === 'warn' ? 'font-medium text-warn-700' : tone === 'ok' ? 'font-medium text-[#2c8a5b]' : tone === 'quiet' ? 'text-muted' : 'text-ink')
 
-/** each line's small mark — the same on every window */
-const LINE_ICON: Record<string, React.ReactNode> = { who: <UserRound />, people: <Users />, crew: <HardHat />, when: <CalendarDays />, status: <CircleDot />, where: <MapPin />, watch: <Eye />, money: <Receipt />, ref: <Hash />, mail: <Mail />, client: <Building2 /> }
-/** one line of the box: its mark and name on the left, what it says on the right */
+/** one line of the box: its name on the left (just the words — no little marks in front), what it says on the right */
 export function WinLine({ k, label, top, children }: { k: string; label: string; top?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('grid min-h-9 grid-cols-[8rem_minmax(0,1fr)] gap-x-3 py-0.5 max-sm:min-h-10 max-sm:grid-cols-[7rem_minmax(0,1fr)]', top ? 'items-start' : 'items-center')} data-win-line={k}>
-      <span className={cn('flex min-w-0 items-center gap-2.5 text-[0.875rem] text-muted [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-[#aaa398]', top && 'pt-1.5')} data-win-label={k}>{LINE_ICON[k]}<span className="min-w-0 truncate">{label}</span></span>
+    <div className={cn('grid min-h-9 grid-cols-[7rem_minmax(0,1fr)] gap-x-3 py-0.5 max-sm:min-h-10 max-sm:grid-cols-[6.5rem_minmax(0,1fr)]', top ? 'items-start' : 'items-center')} data-win-line={k}>
+      <span className={cn('flex min-w-0 items-center text-[0.875rem] text-muted', top && 'pt-1.5')} data-win-label={k}><span className="min-w-0 truncate">{label}</span></span>
       <div className="flex min-w-0 items-center">{children}</div>
     </div>
   )
@@ -278,7 +276,7 @@ function EditText({ value, onSave, area, placeholder, label, attrs, start, onDon
   )
 }
 
-export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines, who, whoText, state, tone, status, statusTone, where, problem, more, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch, star }: {
+export function WinHead({ kind, place, onPlace, title, sub, edit, remove, removeLabel = 'Delete', lines, who, whoText, state, tone, status, statusTone, where, problem, more, moreItems, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch, star }: {
   /** what it is: Task, Change order, Waiting on the GC, Getting ready · Installer */
   kind?: WinKind
   /** its project */
@@ -290,8 +288,10 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   sub?: React.ReactNode
   /** its words can be changed right here: tap the thing to do, or what it's about (nothing yet: "Add details") */
   edit?: { title: string; sub?: string; onTitle: (v: string) => void; onSub: (v: string) => void; /** none yet: its box only when asked for (··· → Add details) — no empty "Add details" line */ subOpen?: boolean; onSubDone?: () => void }
-  /** take it off altogether — the bin on top, next to ··· (Undo in the pop-up) */
+  /** take it off altogether — last in ···, in red (Undo in the pop-up) */
   remove?: () => void
+  /** what taking it off is called ("Cancel the meeting") — Delete unless it says */
+  removeLabel?: string
   /** lines of its own, in the same box and the same look (a meeting: who's in it, when, where) */
   lines?: React.ReactNode
   /** whose it is: their circle */
@@ -308,8 +308,10 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   where?: React.ReactNode
   /** what's wrong, in a few words */
   problem?: React.ReactNode
-  /** the ··· menu */
+  /** a ··· menu of its own (a PO's) — or, the usual: */
   more?: React.ReactNode
+  /** what's in ··· — with Star it and Delete, last */
+  moreItems?: React.ReactNode[]
   /** one more short thing on the When line (it repeats every week) */
   extra?: React.ReactNode
   /** marks the checks look for */
@@ -334,27 +336,36 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
     </>
   )
   const stateCls = toneCls(tone)
+  /* ··· holds everything rare: its own few, Star it (once starred, the gold star shows on top), and Delete last, in red */
+  const items = [...(moreItems || []).filter(Boolean), star && !star.on ? <MenuItem key="win-star" icon={<Star className="h-4 w-4" />} onSelect={star.toggle} data-win-star="0">Star it · on top of your list</MenuItem> : null].filter(Boolean)
+  const menu = items.length || remove ? (
+    <Menu align="end" width={260} trigger={<button type="button" aria-label="More" title="More" data-task-more data-win-more className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
+      {items}
+      {remove && items.length > 0 && <MenuSep />}
+      {remove && <MenuItem icon={<Trash2 className="h-4 w-4" />} danger onSelect={remove} data-win-remove>{removeLabel}</MenuItem>}
+    </Menu>
+  ) : more
   return (
     <div className="relative isolate px-6 pb-1 pt-4 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
-      {/* (the top of every window is the same plain paper — what kind of thing it is: its tag, in its own soft color) */}
-      {/* what it is, and its project — clear of the window's ✕ (a phone too: the ✕ is on this line) */}
+      {/* the top line, quiet: what kind of thing it is and its project, in small gray words (a problem in red) — then ···
+          (and the gold star, once it's starred). Clear of the window's ✕ (a phone too: the ✕ is on this line) */}
       <div className="relative flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:pr-12 [[data-stacked]_&]:pr-0">
         {/* the project goes on to the next line when there isn't room — never cut short */}
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-semibold [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: kindTone(kind.label).color, background: kindTone(kind.label).background }} data-win-kind>{kind.icon}{kind.label}</span>}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          {kind && <span className={cn('inline-flex min-h-7 shrink-0 items-center gap-1.5 text-[0.8125rem] font-medium [&_svg]:h-3.5 [&_svg]:w-3.5', /problem/i.test(kind.label) ? 'text-bad-600' : 'text-muted')} data-win-kind>{kind.icon}{kind.label}</span>}
+          {kind && <span aria-hidden className="text-[0.8125rem] text-faint">·</span>}
           {onPlace ? (
             <button type="button" onClick={onPlace} className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-0.5 text-left text-[0.875rem] font-medium text-muted transition hover:text-brand-700" data-win-place aria-label="Open the project"><span className="min-w-0">{place}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" /></button>
           ) : <span className="inline-flex min-h-7 min-w-0 items-center text-[0.875rem] font-medium text-muted" data-win-place>{place}</span>}
         </div>
-        {(star || more || remove) && (
+        {(star?.on || menu) && (
           <span className="-my-0.5 flex shrink-0 items-center gap-0.5 pl-1">
-            {star && <WinStar star={star} />}
-            {remove && <button type="button" onClick={remove} aria-label="Delete it" title="Delete it" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-bad-50 hover:text-bad-600" data-win-remove><Trash2 className="h-[1.0625rem] w-[1.0625rem]" /></button>}
-            {more}
+            {star?.on && <WinStar star={star} />}
+            {menu}
           </span>
         )}
       </div>
-      <h2 className="font-display relative mt-2.5 text-[1.25rem] font-semibold leading-snug tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]" data-win-title>
+      <h2 className="font-display relative mt-3 text-[1.375rem] font-semibold leading-[1.3] tracking-[-0.016em] text-ink max-sm:text-[1.25rem]" data-win-title>
         {edit ? <EditText value={edit.title} onSave={edit.onTitle} label="What to do" attrs={{ 'data-win-title-edit': '' }} /> : title}
       </h2>
       {edit ? ((edit.sub || edit.subOpen) && (

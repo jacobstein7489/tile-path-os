@@ -147,7 +147,7 @@ export function Sidebar() {
         className={cn(
           /* easy to read and to hit: a bit bigger than the page's small print (a short screen keeps them snug) */
           'group flex h-9 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.9375rem] transition-colors [@media(max-height:47.5rem)]:h-8 [@media(max-height:47.5rem)]:text-[0.875rem]',
-          on ? 'bg-pure font-semibold text-ink shadow-xs' : 'font-medium text-ink-2 hover:bg-[#ecebe6] hover:text-ink',
+          on ? 'bg-pure font-semibold text-ink shadow-xs' : 'font-medium text-ink-2 hover:bg-wash-2 hover:text-ink',
         )}
       >
         <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-forest-700' : 'text-[#7b766b] group-hover:text-ink-2')} strokeWidth={1.9} />

@@ -616,14 +616,15 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
   return (
     <Modal
       level={level}
-      /* the same size as every window that opens from a list — a task, a step, waiting on the GC */
+      /* the same size as every window that opens from a list — a task, a step, waiting on the GC — and on the right */
       size="md"
+      side
       onClose={s.close}
       title={title}
       inlineClose header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}
         state={whenWords} tone={isWhen ? h.tone : undefined} status={status} statusTone={h.tone} problem={h.problem}
         whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'}
-        more={admin ? <StepMore job={job} v={v} /> : undefined}
+        moreItems={admin ? stepMoreItems(s.stepRecs[job.id]?.[v.key], job, v) : undefined}
         /* one added just for this project: the bin takes it off */
         remove={admin && v.only ? () => { removeJobStep(job.id, v.key); s.close() } : undefined}
         /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */
@@ -713,9 +714,19 @@ export function Legend({ className }: { className?: string }) {
 
 /** the admin's few extra things with a step, in one small menu: not needed here, not done after all, give it to
  *  someone else on this project — and Who does what, where every step's person is set for every project */
+/** a step's line: its own ··· with the few rare ones */
 function StepMore({ job, v }: { job: Job; v: StepView }) {
   const s = useStore()
-  const rec = s.stepRecs[job.id]?.[v.key]
+  const items = stepMoreItems(s.stepRecs[job.id]?.[v.key], job, v)
+  if (!items.length) return null
+  return (
+    <Menu align="end" width={260} trigger={<button aria-label="More for this step" title="More" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
+      {items}
+    </Menu>
+  )
+}
+/** the step's few rare ones, for its ··· (the window's own ···: with Star it and Delete) */
+function stepMoreItems(rec: { done?: unknown; wait?: unknown } | undefined, job: Job, v: StepView): React.ReactNode[] {
   const reopenable = v.custom || ['getpaper', 'rooms', 'qty', 'heights', 'design', 'walk', 'order', 'delivered', 'change', 'layouts', 'matin', 'confirmed'].includes(v.key)
   const items: { label: string; run: () => void; attr?: string }[] = v.state === 'na' ? [{ label: 'Needed after all', run: () => skipStep(job.id, v.key, false) }]
     : v.state === 'done' ? (reopenable && rec?.done ? [{ label: 'Not done after all', run: () => reopenStep(job.id, v.key) }] : [])
@@ -725,13 +736,7 @@ function StepMore({ job, v }: { job: Job; v: StepView }) {
           ...(rec?.wait ? [{ label: 'Not waiting any more', run: () => stopWaiting(job.id, v.key) }] : []),
           { label: 'Not needed on this project', run: () => skipStep(job.id, v.key, true), attr: 'data-step-skip' },
         ]
-  /* only the few rare ones — one added just for this project goes with the bin on top */
-  if (!items.length) return null
-  return (
-    <Menu align="end" width={260} trigger={<button aria-label="More for this step" title="More" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
-      {items.map((x) => <MenuItem key={x.label} onSelect={x.run} {...(x.attr ? { [x.attr]: '' } : {})}>{x.label}</MenuItem>)}
-    </Menu>
-  )
+  return items.map((x) => <MenuItem key={x.label} onSelect={x.run} {...(x.attr ? { [x.attr]: '' } : {})}>{x.label}</MenuItem>)
 }
 
 /* ---------------- small pieces ---------------- */

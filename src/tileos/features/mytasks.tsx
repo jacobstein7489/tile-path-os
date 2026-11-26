@@ -2283,11 +2283,6 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
     isGcWait(t) && (!theirs || admin) && <MenuItem key="ours" icon={<ListTodo className="h-4 w-4" />} hint="A call or something we do. On their Today, today" onSelect={() => gcToTodo(t.id)} data-gc-to-todo>It’s ours to do, not the GC’s</MenuItem>,
   ].filter(Boolean)
   const people = insidePeople(s).length ? insidePeople(s) : ASSIGNABLE
-  const more = items.length > 0 && (
-    <Menu align="end" width={260} trigger={<button aria-label="More" title="More" data-task-more className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
-      {items}
-    </Menu>
-  )
   /* a task someone added by hand: its words change right here, and the bin takes it off (Undo in the pop-up) */
   const editable = canEditTask(t, me, admin)
   const removable = canRemoveTask(t, me, admin)
@@ -2344,7 +2339,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       statusTone={gcw || t.state === 'waiting' ? 'warn' : t.state === 'done' ? 'ok' : asked && t.req?.trip === 'onway' ? 'ok' : 'quiet'}
       extra={!gcw && t.repeat ? `${REPEAT_LABEL[t.repeat]}${t.repeatAt ? ` at ${t.repeatAt}` : ''}` : undefined}
       problem={gcw?.flag ? <span data-gc-flag>{gcw.text}</span> : t.blocks && t.state !== 'done' ? `Holds up ${t.blocks.charAt(0).toLowerCase() + t.blocks.slice(1)}` : undefined}
-      more={more || undefined}
+      moreItems={items}
       /* its star — on top of your list */
       star={t.state !== 'done' ? taskStarPick(s, t, me) : undefined}
       attrs={theirs && t.state !== 'done' ? { 'data-theirs-task': '' } : undefined}
@@ -2481,7 +2476,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
 
   return (
     /* the same size as every window that opens from a list — a task, a step, waiting on the GC */
-    <Modal level={level} size="md" onClose={s.close} inlineClose header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
+    <Modal level={level} size="md" side onClose={s.close} inlineClose header={header} footer={footer} title={t.title} bodyClass="px-6 pb-4 pt-3 max-sm:px-4">
       {body}
     </Modal>
   )
