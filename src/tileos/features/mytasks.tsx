@@ -4,7 +4,7 @@
  * Mine / Everyone switches between your list and the whole team's. */
 import * as React from 'react'
 import { create } from 'zustand'
-import { Sparkles, History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2, PackageCheck } from 'lucide-react'
+import { PencilLine, CalendarPlus, Phone, TriangleAlert, Sparkles, History, Send, MessageSquareReply, CalendarRange, Check, Flag, Plus, Repeat, Clock3, MoonStar, RotateCcw, Ban, Building2, CalendarDays, UserRound, HardHat, ListTodo, Hourglass, CircleCheckBig, Eye, Users, Megaphone, UserPlus, FileText, ClipboardList, Package, ArrowLeftRight, Receipt, ListChecks, HandCoins, ChevronRight, ChevronDown, ChevronLeft, Search, X, ListPlus, Truck, UserRoundCheck, Gauge, BellRing, MoreHorizontal, ArrowRight, MessageSquare, MapPinned, Trash2, PackageCheck } from 'lucide-react'
 import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from '@/tileos/store'
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
@@ -65,6 +65,10 @@ const TYPES: TaskType[] = ['Pricing', 'Setup', 'Materials', 'Field', 'Changes', 
 const ASSIGNABLE: PersonKey[] = ['ys', 'yakov', 'office', 'estimator', 'takeoff', 'materials', 'accounting']
 const ROLE_OF: Partial<Record<PersonKey, Role[]>> = { ys: ['owner', 'pm'], yakov: ['site'], office: ['office'], estimator: ['estimator'], takeoff: ['takeoff'], materials: ['materials'], accounting: ['accounting'] }
 const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setup: ClipboardList, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt }
+/** a to-do's icon at the start of its line — the same icons as + New: a problem, touch-ups, a call, something to bring,
+ *  a meeting, an order, the money; a plain one: To-do */
+const lineIcon = (t: Task, kind: string): React.ElementType =>
+  kind === 'Problem' ? TriangleAlert : kind === 'Touch-ups' ? Sparkles : kind === 'To bring' ? Truck : isCallTask(t) ? Phone : t.type === 'Schedule' ? CalendarPlus : t.type === 'Materials' ? Package : t.type === 'Money' ? Receipt : t.type === 'Changes' ? ArrowLeftRight : t.type === 'Pricing' ? FileText : ListTodo
 /** what kind of thing a task is, in its window's top line — so you know what you opened */
 const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'Task', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
 export function taskKind(t: Task): WinKind {
@@ -369,7 +373,7 @@ const InCard = React.createContext<{ label: string; first: boolean } | null>(nul
 /** a line on Today: a dot when it's new to you · what to do (a small gray line under it: when, seen, updated) · on a
  *  computer when, who (circles) and its next step, each the same width on every line so they line up down the page;
  *  a phone: when and who in the small line, its button at the end. Every button the same size: a soft pill */
-function TodoRow({ when, whenTone, title, detail, project, projectId, action: own, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, latest, forOthers, remind, rowId }: {
+function TodoRow({ when, whenTone, icon, title, detail, project, projectId, action: own, onClick, done, leaving, owner, also, watch, flag, turn, phoneWhen = true, watchPick, whenPick, whoPick, star, kind, latest, forOthers, remind, rowId }: {
   /** the to-do it is (a to-do's line) */
   rowId?: string
   when?: React.ReactNode; whenTone?: 'bad' | 'warn' | 'strong' | 'quiet'; icon?: React.ReactNode; title: React.ReactNode; detail?: React.ReactNode; project?: string
@@ -455,7 +459,8 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
   const part = React.useContext(PartOf)
   const problem = flag === 'Problem' || kind === 'Problem'
   const urgent = !problem && flag === 'Urgent' && part !== 'urgent'
-  const before = problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || (kind === 'For everyone' && part !== 'pinned') ? kind : ''
+  /* the icon says what it is; a word before the words only where there's no icon to say it */
+  const before = icon ? '' : problem ? 'Problem' : urgent ? 'Urgent' : kind === 'Meeting' || kind === 'Walkthrough' || (kind === 'For everyone' && part !== 'pinned') ? kind : ''
   const isNew = latest?.tone === 'new'
   /* on the line only what matters at a glance: new to you, or not seen yet (on someone else's list) */
   const seenOrNew = latest && (latest.tone === 'new' || latest.tone === 'warn') ? latest : null
@@ -495,6 +500,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
           <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:truncate max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
+            {icon && <span className={cn('mr-2 inline-flex h-[1.375rem] w-4 shrink-0 -translate-y-px items-center justify-center align-middle [&_svg]:h-4 [&_svg]:w-4', problem || urgent ? 'text-bad-600' : 'text-[#8a8478]')} aria-hidden data-row-icon={problem ? 'problem' : urgent ? 'urgent' : ''}>{problem ? <TriangleAlert /> : icon}</span>}
             {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
             {title}
           </div>
@@ -514,7 +520,9 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         )}
       </div>
       {/* a phone: when, at the right of the one line (Late in red, a time, a day) */}
-      {pw && phoneWhen && <span className={cn('shrink-0 text-[0.875rem] tnum sm:hidden', whenCls)} data-todo-when-phone>{pw}</span>}
+      {pw && phoneWhen && (pw === 'Late'
+        ? <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-bad-500 sm:hidden" role="img" aria-label="Late" title="Late" data-todo-when-phone="Late" />
+        : <span className={cn('shrink-0 text-[0.875rem] tnum sm:hidden', whenCls)} data-todo-when-phone>{pw}</span>)}
       {/* a computer: when · who · its next step — the same widths on every line */}
       <div className="flex w-[7.5rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
         {whenPick ? (
@@ -626,8 +634,8 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
       done={done || leaving}
       /* every row opens its window — the same window every time; what happens next is its button at the bottom */
       onClick={() => s.open({ t: 'task', id: t.id })}
-      icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : <Ic />}
-      title={touch.length ? <TouchWords lead={touchWords} items={touch} /> : cleanTitle(t.title, job)}
+      icon={t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : React.createElement(lineIcon(t, tagOfTask(s, t)))}
+      title={touch.length ? <TouchWords lead={touchWords} items={touch} /> : cleanTitle(t.short || t.title, job)}
       detail={detail}
       owner={t.owner}
       also={done ? undefined : t.also}
@@ -2238,6 +2246,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
     const tm = setTimeout(() => useStore.getState().closeLevel(level), 400)
     return () => clearTimeout(tm)
   }, [t?.state, t?.owner, t?.due, top])
+  const [addDetails, setAddDetails] = React.useState(false)
   if (!t) return null
   const job = s.jobs[t.jobId]
   const me = meOf(s.role)
@@ -2259,6 +2268,8 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   /* everything you can do is right there: who, when, watching on top; its words tapped to change them; the bin to
      delete it; the buttons at the bottom. ··· keeps only the two rare ones */
   const items: React.ReactNode[] = [
+    /* details: none shown until there are some — added from here */
+    canEditTask(t, meOf(s.role), s.role === 'owner' || s.role === 'pm') && !t.detail && !s.punch.some((p) => p.taskId === t.id) && t.state !== 'done' && <MenuItem key="details" icon={<PencilLine className="h-4 w-4" />} onSelect={() => setAddDetails(true)} data-add-details>Add details</MenuItem>,
     /* two can have it — whoever gets to it first */
     /* the admin shares it right in Who ("More than one can do it"); whoever has it, here */
     !admin && (t.owner === me || !!t.also?.includes(me)) && t.state !== 'done' && <MenuItem key="share" icon={<Users className="h-4 w-4" />} onSelect={() => setPanel('share')}>Share it. Whoever gets to it first</MenuItem>,
@@ -2310,7 +2321,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       where={t.where && t.where.trim() !== job?.name && !touch.length ? t.where : undefined}
       title={cleanTitle(t.title, job)}
       sub={about ? <span data-task-detail>{about}</span> : undefined}
-      edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }) } : undefined}
+      edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }), subOpen: addDetails, onSubDone: () => setAddDetails(false) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
       who={t.owner}
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p, i) => (p === me ? (i ? 'you' : 'You') : PEOPLE[p]?.short || p)).join(' or ')}, whoever’s first` : t.owner === me ? 'You' : owner}</span>}

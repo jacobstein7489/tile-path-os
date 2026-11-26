@@ -257,8 +257,9 @@ export function WatchPop({ pick, trigger, align = 'start', title = 'Who’s watc
 
 /** words you can change right where they are: tap them, type, Enter (or tap away) keeps it — Esc puts it back. The
  *  same letters as when it's not being changed: nothing jumps */
-function EditText({ value, onSave, area, placeholder, label, attrs }: { value: string; onSave: (v: string) => void; area?: boolean; placeholder?: string; label: string; attrs?: Record<string, string> }) {
-  const [on, setOn] = React.useState(false)
+function EditText({ value, onSave, area, placeholder, label, attrs, start, onDone }: { value: string; onSave: (v: string) => void; area?: boolean; placeholder?: string; label: string; attrs?: Record<string, string>; /** open, to type in right away */ start?: boolean; /** typing's over */ onDone?: () => void }) {
+  const [on, setOn0] = React.useState(!!start)
+  const setOn = (x: boolean) => { setOn0(x); if (!x) onDone?.() }
   const [v, setV] = React.useState(value)
   React.useEffect(() => { if (!on) setV(value) }, [value, on])
   const keep = () => { setOn(false); if (v.trim() !== value.trim() && (area || v.trim())) onSave(v) }
@@ -288,7 +289,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   /** what it's about, in a line or two — right under the thing to do */
   sub?: React.ReactNode
   /** its words can be changed right here: tap the thing to do, or what it's about (nothing yet: "Add details") */
-  edit?: { title: string; sub?: string; onTitle: (v: string) => void; onSub: (v: string) => void }
+  edit?: { title: string; sub?: string; onTitle: (v: string) => void; onSub: (v: string) => void; /** none yet: its box only when asked for (··· → Add details) — no empty "Add details" line */ subOpen?: boolean; onSubDone?: () => void }
   /** take it off altogether — the bin on top, next to ··· (Undo in the pop-up) */
   remove?: () => void
   /** lines of its own, in the same box and the same look (a meeting: who's in it, when, where) */
@@ -356,11 +357,11 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
       <h2 className="font-display relative mt-2.5 text-[1.25rem] font-semibold leading-snug tracking-[-0.012em] text-ink max-sm:text-[1.1875rem]" data-win-title>
         {edit ? <EditText value={edit.title} onSave={edit.onTitle} label="What to do" attrs={{ 'data-win-title-edit': '' }} /> : title}
       </h2>
-      {edit ? (
+      {edit ? ((edit.sub || edit.subOpen) && (
         <div className="mt-1 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>
-          <EditText value={edit.sub || ''} onSave={edit.onSub} area label="Details" placeholder="Add details" attrs={{ 'data-win-sub-edit': '', ...(edit.sub ? { 'data-task-detail': '' } : {}) }} />
+          <EditText value={edit.sub || ''} onSave={edit.onSub} area label="Details" placeholder="Details" start={!edit.sub && edit.subOpen} onDone={edit.onSubDone} attrs={{ 'data-win-sub-edit': '', ...(edit.sub ? { 'data-task-detail': '' } : {}) }} />
         </div>
-      ) : sub && <p className="mt-1 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
+      )) : sub && <p className="mt-1 text-[0.9375rem] leading-relaxed text-ink-2" data-win-sub>{sub}</p>}
       {/* one box of short lines, each with its name on the left (nothing to say in it: no box) */}
       {(lines || whoText || whoPick || state || status || where || watch) && <div className="mt-3 flex flex-col" data-win-who>
         {lines}

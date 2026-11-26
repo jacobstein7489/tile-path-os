@@ -10,6 +10,8 @@ export interface Task {
   id: string
   jobId: string
   title: string
+  /** its short name for a list line ("Chase the thinset") — made from the words by itself; the whole words are in its window */
+  short?: string
   detail?: string
   /** who asked for it (a request from the site): they hear when it's on the way and when it's dropped off */
   by?: PersonKey

@@ -97,7 +97,7 @@ const ADD: (Pick & { c: TileColor; g: Group })[] = [
   { k: 'delivery', l: 'Tile came in', h: 'Count the boxes. It says right away if anything is short', i: PackageCheck, c: 'teal', g: 'site', m: (j) => ({ t: 'receivetile', jobId: j }) },
   { k: 'shortage', l: 'Damaged or wrong', h: 'Tile or material that came broken, wrong or short', i: PackageX, c: 'rose', g: 'site', m: (j) => ({ t: 'record', type: 'shortage', jobId: j }) },
   { k: 'question', l: 'Site issue or question', h: 'Something on site needs an answer', i: MessageCircleQuestion, c: 'amber', g: 'site', m: (j) => ({ t: 'record', type: 'question', jobId: j }) },
-  { k: 'task', l: 'Task', h: 'Something someone has to do', i: ListTodo, c: 'blue', g: 'office', m: (j) => ({ t: 'newtask', jobId: j }) },
+  { k: 'task', l: 'To-do', h: 'Something someone has to do', i: ListTodo, c: 'blue', g: 'office', m: (j) => ({ t: 'newtask', jobId: j }) },
   { k: 'note', l: 'Note', h: 'A call, a decision. Anything to remember', i: StickyNote, c: 'amber', g: 'office', job: true, m: (j) => ({ t: 'note', jobId: j! }) },
   { k: 'meeting', l: 'Meeting', h: 'A meeting or a walkthrough. A day, a time, who’s in it', i: CalendarPlus, c: 'indigo', g: 'office', m: (j) => ({ t: 'record', type: 'meeting', jobId: j }) },
   { k: 'po', l: 'Purchase order', h: 'Materials from a supplier', i: FileText, c: 'cyan', g: 'office', m: (j) => ({ t: 'newpo', jobId: j }) },
@@ -189,7 +189,7 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   const rank = (k: string) => { const i = top.indexOf(k); return i < 0 ? 99 : i }
   /* each part in its own place — what your login adds most first in it */
   const list = (g: Group) => ADD.filter((x) => x.g === g && ok(x) && !FOLDED.has(x.k)).sort((a, b) => rank(a.k) - rank(b.k))
-  const groups = ([['site', 'On the job site'], ['office', 'Paperwork and calls']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
+  const groups = ([['site', 'At the job'], ['office', 'In the office']] as [Group, string][]).map(([g, label]) => ({ g, label, list: list(g) })).filter((x) => x.list.length)
   /* bringing in the projects that were going before Tile OS is one-time work — it's in Settings, not on + New. From a
      project (its To do's Add): only what goes on that project — no new estimate or project */
   const starts = given ? [] : STARTS.filter((x) => ok(x) && x.k !== 'bringin' && x.k !== 'newreq')

@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { ShortNames } from './features/shortnames'
 import { cn } from '@/tileos/lib/utils'
 import { CenterPop } from '@/tileos/lib/pop'
 import { useStore, homeOf, meOf, type Page } from '@/tileos/store'
@@ -354,6 +355,7 @@ export default function App() {
           <IncomingWatcher />
           <AppBadge />
           <CrewWatcher />
+          <ShortNames />
           <ClipsUploader />
           <LateWatcher />
           <PushOpener />

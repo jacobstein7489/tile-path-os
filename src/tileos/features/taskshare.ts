@@ -114,7 +114,7 @@ export function editTask(id: string, patch: { title?: string; detail?: string })
   S().commit((s) => {
     const t = s.tasks.find((x) => x.id === id)
     if (!t) return
-    if (patch.title != null && patch.title.trim()) t.title = patch.title.trim()
+    if (patch.title != null && patch.title.trim() && patch.title.trim() !== t.title) { t.title = patch.title.trim(); delete t.short }
     if (patch.detail != null) { const d = patch.detail.trim(); if (d) t.detail = d; else delete t.detail }
   }, undefined, { undo: false })
 }
