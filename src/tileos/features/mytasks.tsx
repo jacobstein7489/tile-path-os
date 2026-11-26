@@ -41,7 +41,7 @@ import { isOff } from './active'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
 import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
-import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
+import { WinHead, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, WIN_ROW, WIN_ROW_GRID, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
 import { offerNotify } from '@/tileos/lib/notify'
 import { latestOf, markTaskSeen, type Latest } from './latest'
 import { namesOf } from './estpeople'
@@ -2768,28 +2768,31 @@ export function CrewReportModal({ taskId, level, day: day0 }: { taskId?: string;
         {rows.map((r, i) => {
           const j = s.jobs[r.jobId]
           return (
-            <div key={r.jobId} className="flex items-center gap-3 border-b border-line-2 px-6 py-3.5 max-sm:flex-wrap max-sm:px-4" data-crew-job={r.jobId}>
-              <Avatar who={r.crew} size={32} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[0.9375rem] font-semibold text-ink">{j?.name}</div>
+            /* on the window's own lines: the crew's circle under the marks above, the project under their names */
+            <div key={r.jobId} className={cn(WIN_ROW, 'py-2.5')} data-crew-job={r.jobId}>
+              <div className={cn(WIN_ROW_GRID, small && 'grid-cols-[1rem_minmax(0,1fr)]')}>
+              <span className="justify-self-center"><Avatar who={r.crew} size={22} /></span>
+              <div className="min-w-0">
+                <div className="break-words text-[0.9375rem] font-semibold leading-snug text-ink">{j?.name}</div>
                 {/* 0: what it'll say (nobody there), quiet — it's where every job starts until a number is put in */}
                 <div className="text-[0.8125rem] text-muted">{PEOPLE[r.crew]?.name || 'No installer yet'}{r.workers === 0 ? <span data-crew-nobody> · {today ? 'Nobody there today' : 'Nobody there'}</span> : null}</div>
                 {r.note && <div className="break-words text-[0.78125rem] leading-snug text-muted" data-crew-note>{r.note}</div>}
               </div>
-              <div className={cn(small && 'w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>
+              <div className={cn(small && 'col-start-2 mt-2 w-full')}><Stepper big={small} value={r.workers} onChange={(n) => set(i, { workers: n })} min={0} max={30} suffix={small ? (r.workers === 1 ? 'person' : 'people') : undefined} /></div>
+              </div>
             </div>
           )
         })}
         {!rows.length && !adding && <div className="px-6 py-8 text-center text-[0.875rem] text-muted max-sm:px-4">No project has a crew {today ? 'today' : crewWhen(day) === 'tomorrow' ? 'tomorrow' : `on ${crewWhen(day)}`}.</div>}
         {/* a crew on a project that isn't here */}
-        <div className="px-6 py-3 max-sm:px-4">
+        <div className="border-t border-line-2 px-6 py-2 max-sm:px-4">
           {adding ? (
             <div className="flex flex-col gap-2">
               <ProjectField value={addJob} onChange={(id) => { if (id) add(id); else setAddJob('') }} keep={(x) => !['request', 'estimating', 'proposal', 'followup', 'complete'].includes(x.stage) && !rows.some((r) => r.jobId === x.id)} />
               <button type="button" onClick={() => setAdding(false)} className="self-start text-[0.84375rem] font-semibold text-muted">Cancel</button>
             </div>
           ) : (
-            <button type="button" onClick={() => setAdding(true)} className="inline-flex h-10 items-center gap-1.5 text-[0.875rem] font-semibold text-brand-700" data-crew-add><Plus className="h-4 w-4" />Another project</button>
+            <button type="button" onClick={() => setAdding(true)} className="grid h-10 grid-cols-[1rem_auto] items-center gap-x-2.5 text-[0.875rem] font-semibold text-brand-700" data-crew-add><Plus className="h-4 w-4 justify-self-center" />Another project</button>
           )}
         </div>
       </div>

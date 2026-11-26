@@ -8,7 +8,7 @@
 import * as React from 'react'
 import { create } from 'zustand'
 import { Navigation, Video, Send, Check, X, Plus, MapPinned, LocateFixed, Car } from 'lucide-react'
-import { ListHead } from './winhead'
+import { ListHead, WIN_ROW_GRID } from './winhead'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Modal } from '@/tileos/components/ui/overlay'
 import { Button, btnClass } from '@/tileos/components/ui/core'
@@ -261,9 +261,9 @@ export function RoundsModal({ level }: { level: number }) {
             <React.Fragment key={j.id}>
             {/* Google Maps takes ten stops at a time: where the first trip ends, and that the rest come after */}
             {i === 10 && <div className="border-b border-line-2 bg-[#f6f6f4] px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time · these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
-            <div className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-stop={j.id}>
-              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[0.8125rem] font-bold text-brand-700 tnum">{i + 1}</span>
-              <div className="min-w-0 flex-1">
+            <div className={cn(WIN_ROW_GRID, 'border-b border-line-2 px-6 py-2.5 max-sm:px-4')} data-rounds-stop={j.id}>
+              <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center justify-self-center rounded-full bg-brand-50 text-[0.75rem] font-bold text-brand-700 tnum">{i + 1}</span>
+              <div className="min-w-0">
                 <div className="break-words text-[0.9375rem] font-semibold text-ink">{j.name}</div>
                 {/* the address: Google Maps to just this one */}
                 <a href={mapsTo(j.address || j.name)} target="_blank" rel="noopener noreferrer" className="block break-words text-[0.8125rem] text-muted hover:text-brand-700" data-rounds-address>{line || 'No address yet'}</a>
@@ -271,10 +271,12 @@ export function RoundsModal({ level }: { level: number }) {
                 {leg && leg.sec > 0 ? <div className="mt-0.5 text-[0.75rem] font-medium text-ink-2 tnum" data-rounds-leg>{planned!.road ? '' : '~'}{driveWords(leg.sec)} · {mileWords(leg.m)}{i === 0 && here ? ' from you' : ''}</div>
                   : x.pt === null ? <div className="mt-0.5 text-[0.75rem] text-warn-700" data-rounds-nomap>Not found on the map · last</div> : null}
               </div>
-              {clip
-                ? <Button variant="primary" size="sm" icon={<Send />} onClick={() => void send(j)} data-rounds-send>Send</Button>
-                : <Button size="sm" icon={<Video />} onClick={() => shoot(j.id)} data-rounds-video>Video</Button>}
-              <button type="button" aria-label={`Skip ${j.name} today`} title="Not today" onClick={() => skip(j.id)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink" data-rounds-skip><X className="h-4 w-4" /></button>
+              <span className="flex shrink-0 items-center gap-1">
+                {clip
+                  ? <Button variant="primary" size="sm" icon={<Send />} onClick={() => void send(j)} data-rounds-send>Send</Button>
+                  : <Button size="sm" icon={<Video />} onClick={() => shoot(j.id)} data-rounds-video>Video</Button>}
+                <button type="button" aria-label={`Skip ${j.name} today`} title="Not today" onClick={() => skip(j.id)} className="-mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition hover:bg-wash-2 hover:text-ink" data-rounds-skip><X className="h-4 w-4" /></button>
+              </span>
             </div>
             </React.Fragment>
           )
@@ -284,10 +286,10 @@ export function RoundsModal({ level }: { level: number }) {
           <>
             <Group label="Done" count={done.length} tone="ok" />
             {done.map((j) => (
-              <div key={j.id} className="flex items-center gap-3 border-b border-line-2 px-6 py-3 max-sm:px-4" data-rounds-done={j.id}>
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600"><Check className="h-4 w-4" strokeWidth={3} /></span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[0.9375rem] font-semibold text-ink-2">{j.name}</div>
+              <div key={j.id} className={cn(WIN_ROW_GRID, 'border-b border-line-2 px-6 py-2.5 max-sm:px-4')} data-rounds-done={j.id}>
+                <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center justify-self-center rounded-full bg-ok-50 text-ok-600"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
+                <div className="col-span-2 min-w-0">
+                  <div className="break-words text-[0.9375rem] font-semibold text-ink-2">{j.name}</div>
                   <div className="text-[0.8125rem] text-muted">{j.visit?.video ? 'Video sent' : 'Been there'}</div>
                 </div>
               </div>

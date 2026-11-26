@@ -6,7 +6,7 @@
  *     open on the right, done right there. */
 import * as React from 'react'
 import { Check, ChevronLeft, ChevronRight, PackageCheck, Truck, ClipboardList, ListChecks } from 'lucide-react'
-import { ListHead } from './winhead'
+import { ListHead, WIN_ROW, WIN_ROW_GRID } from './winhead'
 import { useStore, meOf, isRequest } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
 import { Modal } from '@/tileos/components/ui/overlay'
@@ -56,16 +56,20 @@ export function DailiesModal({ who, jobs: only, level }: { who?: PersonKey; /** 
           const ok = sent(d)
           const crew = `${crewWords(d.crew)} · `
           return (
-            <div key={d.jobId} className="flex min-h-14 items-center gap-3 border-t border-line-2 px-5 py-2 first:border-t-0 max-sm:px-4" data-daily-row={d.jobId} data-sent={ok ? '1' : '0'}>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9375rem] font-medium text-ink">{j?.name || 'A project'}</span>
-                <span className="block truncate text-[0.8125rem] text-muted">{d.missed && !ok && <span className="font-medium text-bad-600">{md(d.missed)} not sent · </span>}{crew}{j?.pct ?? 0}% installed</span>
-              </span>
-              {ok
-                ? <span className="inline-flex shrink-0 items-center gap-1 text-[0.8125rem] font-semibold text-[#2c8a5b]"><Check className="h-4 w-4" strokeWidth={2.5} />Sent</span>
-                : theirs
-                  ? <span className="shrink-0 text-[0.8125rem] text-muted">Not sent yet</span>
-                  : <Button size="sm" className="shrink-0" onClick={() => s.open({ t: 'daily', jobId: d.jobId })} data-daily-send={d.jobId}>Send update</Button>}
+            /* on the window's own lines: the crew's circle under the marks above, the project under their names */
+            <div key={d.jobId} className={WIN_ROW} data-daily-row={d.jobId} data-sent={ok ? '1' : '0'}>
+              <div className={cn(WIN_ROW_GRID, 'min-h-10')}>
+                <span className="justify-self-center">{d.crew ? <Avatar who={d.crew} size={22} /> : <ClipboardList className="h-4 w-4 text-faint" />}</span>
+                <span className="min-w-0">
+                  <span className="block break-words text-[0.9375rem] font-medium leading-snug text-ink">{j?.name || 'A project'}</span>
+                  <span className="block break-words text-[0.8125rem] leading-snug text-muted">{d.missed && !ok && <span className="font-medium text-bad-600">{md(d.missed)} not sent · </span>}{crew}{j?.pct ?? 0}% installed</span>
+                </span>
+                {ok
+                  ? <span className="inline-flex shrink-0 items-center gap-1 text-[0.8125rem] font-semibold text-[#2c8a5b]"><Check className="h-4 w-4" strokeWidth={2.5} />Sent</span>
+                  : theirs
+                    ? <span className="shrink-0 text-[0.8125rem] text-muted">Not sent yet</span>
+                    : <Button size="sm" className="shrink-0" onClick={() => s.open({ t: 'daily', jobId: d.jobId })} data-daily-send={d.jobId}>Send update</Button>}
+              </div>
             </div>
           )
         })}
@@ -101,22 +105,28 @@ export function TripsModal({ who, day, level }: { who?: PersonKey; day?: string;
       <div data-trips>
         {jobs.map((jobId) => (
           <section key={jobId} aria-label={s.jobs[jobId]?.name || 'A project'}>
-            <div className={cn(BAND, 'px-5 max-sm:px-4')} data-band><span className={BAND_LABEL}>{s.jobs[jobId]?.name || 'A project'}</span></div>
+            <div className={cn(BAND, 'px-6 max-sm:px-4')} data-band><span className={BAND_LABEL}>{s.jobs[jobId]?.name || 'A project'}</span></div>
             {list.filter((t) => t.jobId === jobId).map((t) => {
               const done = t.state === 'done'
               const due = taskIso(t)
               const late = !done && !!due && due < TODAY
               return (
-                <div key={t.id} className="flex min-h-14 items-center gap-3 border-t border-line-2 px-5 py-2 max-sm:flex-wrap max-sm:px-4" data-trip={t.id} data-done={done ? '1' : '0'}>
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-[0.9375rem]', done ? 'text-muted line-through decoration-faint' : 'font-medium text-ink')}>{t.req?.what || t.title}</span>
-                    <span className={cn('block truncate text-[0.8125rem]', late ? 'font-medium text-bad-600' : 'text-muted')}>{[t.by && PEOPLE[t.by] ? `${t.by === me ? 'You' : PEOPLE[t.by].short} asked` : '', due ? (late ? `was due ${md(due)}` : due === TODAY ? 'today' : `by ${md(due)}`) : ''].filter(Boolean).join(' · ')}</span>
-                  </span>
-                  {done
-                    ? <span className="inline-flex shrink-0 items-center gap-1 text-[0.8125rem] font-semibold text-[#2c8a5b]"><PackageCheck className="h-4 w-4" />Dropped off</span>
-                    : mine
-                      ? <span className="shrink-0 max-sm:ml-auto"><TripButtons t={t} /></span>
-                      : <span className="inline-flex shrink-0 items-center gap-1 text-[0.8125rem] text-muted">{t.req?.trip === 'onway' ? <><Truck className="h-4 w-4" />On the way</> : 'Not yet'}</span>}
+                /* on the window's own lines: who asked (their circle) under the marks above, the thing under their names */
+                <div key={t.id} className={WIN_ROW} data-trip={t.id} data-done={done ? '1' : '0'}>
+                  <div className={cn(WIN_ROW_GRID, 'min-h-10 max-sm:grid-cols-[1rem_minmax(0,1fr)]')}>
+                    <span className="justify-self-center">{t.by && PEOPLE[t.by] ? <Avatar who={t.by} size={22} /> : <Truck className="h-4 w-4 text-faint" />}</span>
+                    <span className="min-w-0">
+                      <span className={cn('block break-words text-[0.9375rem] leading-snug', done ? 'text-muted line-through decoration-faint' : 'font-medium text-ink')}>{t.req?.what || t.title}</span>
+                      <span className={cn('block break-words text-[0.8125rem] leading-snug', late ? 'font-medium text-bad-600' : 'text-muted')}>{[t.by && PEOPLE[t.by] ? `${t.by === me ? 'You' : PEOPLE[t.by].short} asked` : '', due ? (late ? `was due ${md(due)}` : due === TODAY ? 'today' : `by ${md(due)}`) : ''].filter(Boolean).join(' · ')}</span>
+                    </span>
+                    <span className="shrink-0 max-sm:col-start-2 max-sm:mt-1.5">
+                      {done
+                        ? <span className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-[#2c8a5b]"><PackageCheck className="h-4 w-4" />Dropped off</span>
+                        : mine
+                          ? <TripButtons t={t} />
+                          : <span className="inline-flex items-center gap-1 text-[0.8125rem] text-muted">{t.req?.trip === 'onway' ? <><Truck className="h-4 w-4" />On the way</> : 'Not yet'}</span>}
+                    </span>
+                  </div>
                 </div>
               )
             })}

@@ -6,7 +6,7 @@ import { HandCoins, ArrowRight, Check, HardHat, MessageCircleQuestion, Undo2, Tr
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Modal, Pop } from '@/tileos/components/ui/overlay'
-import { ListHead } from './winhead'
+import { ListHead, WIN_ROW_GRID } from './winhead'
 import { Page, Status, Row, Col, Meta, PX, STICKY_HEAD, HEAD_ROW, EVEN, evenVars } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, fmtMoney, type PersonKey } from '@/tileos/data/model'
@@ -205,27 +205,30 @@ export function PayWeekModal({ level }: { level: number }) {
   const total = rows.reduce((n, r) => n + r.owe, 0)
   return (
     <Modal level={level} size="lg" onClose={s.close} title={`Installer pay · week of ${week.label}`} inlineClose header={<ListHead kind={{ icon: <HandCoins />, label: 'Installer pay' }} title={`Installer pay · week of ${week.label}`} sub={`From the site manager’s daily updates × the rates on each PO${smp(' · sample amounts')}`} who={meOf(s.role)} me={meOf(s.role)} when="Today" attrs={{ 'data-payweek-head': '' }} />}>
-      <div className="flex flex-col divide-y divide-line-2 overflow-hidden rounded-2xl border border-line">
+      {/* on the window's own lines, the same as every list in a window: each one's circle under the marks above, the
+          name under their names; how much and Approve straight down at the right */}
+      <div className="-mx-6 -my-5 max-sm:-mx-4" data-payweek-list>
         {rows.map((r) => {
           const st = PAY_STATE[r.state]
           return (
-            <button key={r.crew} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} className="flex items-center gap-3 px-4 py-3 text-left transition hover:bg-[#f3f2ef]">
-              <Avatar who={r.crew} size={34} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.90625rem] font-medium text-ink">{PEOPLE[r.crew].name}</span>
-                <span className="block truncate text-[0.78125rem] text-muted">{jobsLabel(s, r)} · {r.calc.days} days{r.bill ? ` · his bill ${fmtMoney(r.bill.amount)}` : ' · no bill yet'}</span>
+            <div key={r.crew} role="button" tabIndex={0} onClick={() => s.open({ t: 'pay', crew: r.crew, week: week.key })} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) s.open({ t: 'pay', crew: r.crew, week: week.key }) }}
+              className={cn(WIN_ROW_GRID, 'cursor-pointer grid-cols-[1rem_minmax(0,1fr)_auto_9.375rem] border-t border-line-2 px-6 py-2.5 text-left row-hover max-sm:grid-cols-[1rem_minmax(0,1fr)_auto] max-sm:px-4')} data-payweek-row={r.crew}>
+              <span className="justify-self-center"><Avatar who={r.crew} size={22} /></span>
+              <span className="min-w-0">
+                <span className="block break-words text-[0.90625rem] font-medium leading-snug text-ink">{PEOPLE[r.crew].name}</span>
+                <span className="block break-words text-[0.78125rem] leading-snug text-muted">{jobsLabel(s, r)} · {r.calc.days} days{r.bill ? ` · his bill ${fmtMoney(r.bill.amount)}` : ' · no bill yet'}</span>
               </span>
-              <span className="text-[0.9375rem] font-bold tnum text-ink">{fmtMoney(r.calc.total)}</span>
-              <span className="w-[9.375rem] shrink-0 text-right max-sm:hidden">
+              <span className="text-right text-[0.9375rem] font-bold tnum text-ink">{fmtMoney(r.calc.total)}</span>
+              <span className="text-right max-sm:hidden">
                 {r.state === 'ready' || r.state === 'nobill' ? (
                   <Button size="sm" variant="primary" icon={<Check />} onClick={(e) => { e.stopPropagation(); approvePay(r.crew, week.key) }}>Approve</Button>
                 ) : <Status tone={st.tone}>{st.label}</Status>}
               </span>
-            </button>
+            </div>
           )
         })}
+        <div className="flex items-center justify-between border-t border-line-2 px-6 py-3 text-[0.875rem] max-sm:px-4"><span className="text-muted">{rows.length} installers</span><b className="tnum text-ink">{fmtMoney(total)}</b></div>
       </div>
-      <div className="mt-3 flex items-center justify-between px-1 text-[0.875rem]"><span className="text-muted">{rows.length} installers</span><b className="tnum text-ink">{fmtMoney(total)}</b></div>
     </Modal>
   )
 }
