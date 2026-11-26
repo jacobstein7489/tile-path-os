@@ -41,6 +41,8 @@ export function keepAppOnDevice() {
  * the app's files — a name this copy never loaded means a newer version is out. Then the device keeps the new page,
  * and the app moves to it: right away when it was only just opened and nothing's been touched yet, or when it comes
  * back on screen after a while with no window open — otherwise simply the next time it's opened. Once per version. */
+/** the server's page right now — at an address of its own each time, so no cache on the way hands back an old one */
+const PAGE_NOW = () => '/?_v=' + Date.now().toString(36)
 const ASSET = /\/assets\/([\w.-]+\.(?:js|css))/g
 /** the app's file names a page names */
 export const assetsIn = (text: string): Set<string> => new Set(Array.from(text.matchAll(ASSET), (m) => m[1]))
@@ -91,7 +93,7 @@ export async function updateNow(reload: () => void = () => location.reload()) {
 /** "is there a newer one?" — asked from the account menu: a newer one opens right away */
 export async function checkNow(o: { get?: () => Promise<string>; loaded?: Set<string>; reload?: () => void } = {}): Promise<'same' | 'updating' | 'error'> {
   let html = ''
-  try { html = o.get ? await o.get() : await (await fetch('/', { cache: 'no-store', credentials: 'same-origin' })).text() } catch { return 'error' }
+  try { html = o.get ? await o.get() : await (await fetch(PAGE_NOW(), { cache: 'no-store', credentials: 'same-origin' })).text() } catch { return 'error' }
   if (!isNewer(html, o.loaded || loadedFiles())) return 'same'
   await updateNow(o.reload)
   return 'updating'
@@ -99,7 +101,7 @@ export async function checkNow(o: { get?: () => Promise<string>; loaded?: Set<st
 /** look once: true when it moved (or is about to) */
 export async function checkForNewVersion(o: { idle: () => boolean; now: boolean; get?: () => Promise<string>; loaded?: Set<string>; reload?: () => void }): Promise<'same' | 'moved' | 'later' | 'error'> {
   let html = ''
-  try { html = o.get ? await o.get() : await (await fetch('/', { cache: 'no-store', credentials: 'same-origin' })).text() } catch { return 'error' }
+  try { html = o.get ? await o.get() : await (await fetch(PAGE_NOW(), { cache: 'no-store', credentials: 'same-origin' })).text() } catch { return 'error' }
   if (!isNewer(html, o.loaded || loadedFiles())) return 'same'
   const sig = Array.from(assetsIn(html)).sort().join(',')
   let was: { sig?: string; at?: number } | null = null

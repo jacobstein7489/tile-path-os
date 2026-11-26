@@ -24,7 +24,7 @@ self.addEventListener('message', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE)
     if (d.page) {
-      try { const r = await fetch('/', { credentials: 'same-origin', cache: 'no-cache' }); if (r.ok) await c.put(PAGE, r) } catch { /* no signal */ }
+      try { const r = await fetch('/?_v=' + Date.now().toString(36), { credentials: 'same-origin', cache: 'no-store' }); if (r.ok) await c.put(PAGE, r) } catch { /* no signal */ }
       /* the page asked to know when it's kept (it's about to move to the new version) */
       if (e.ports && e.ports[0]) e.ports[0].postMessage({ kept: true })
     }
@@ -54,8 +54,11 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       const c = await caches.open(CACHE)
       /* the newest page, past every cache on the way — a new version shows the moment it's published (a refresh always
-         gets it) — and kept for next time */
-      const net = fetch(url.href, { credentials: 'same-origin', cache: 'no-store' }).then(async (res) => {
+         gets it) — and kept for next time. Asked for at an address of its own each time, so no cache between here and
+         the server (a phone's network, the host's) can hand back an old copy */
+      const fresh = new URL(url.href)
+      fresh.searchParams.set('_v', Date.now().toString(36))
+      const net = fetch(fresh.href, { credentials: 'same-origin', cache: 'no-store' }).then(async (res) => {
         if (res.ok) await c.put(PAGE, res.clone())
         return res
       })
