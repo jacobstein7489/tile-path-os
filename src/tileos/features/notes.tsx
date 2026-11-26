@@ -30,7 +30,7 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
   return (
     <div className={cn('pt-1', className)} {...{ [`data-${kind}-notes`]: '' }}>
       {/* its name, like a heading — so the box reads as the notes, not as the one thing to do */}
-      <div className="mb-2.5 flex items-baseline gap-2" data-notes-head>
+      <div className={cn('mb-2.5 flex items-baseline gap-2', !notes.length && 'hidden')} data-notes-head>
         <span className="text-[0.9375rem] font-semibold text-ink">Notes</span>
         {notes.length > 0 && <span className="text-[0.8125rem] font-semibold text-faint tnum">{notes.length}</span>}
       </div>
@@ -57,7 +57,7 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') add() }}
             autoFocus={focus}
-            placeholder="Write a note for the team…"
+            placeholder="Add a note…"
             aria-label="Add a note"
             className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] text-ink outline-none placeholder:text-faint"
             {...{ [`data-${kind}-note`]: '' }}

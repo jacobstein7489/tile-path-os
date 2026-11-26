@@ -51,7 +51,7 @@ import { roundsToday, roundsOn, roundsSkipped, skipRounds } from './rounds'
 /** a phone: a switch takes its share of the width, its buttons split it evenly — one line; a very narrow phone (or big
  *  text) gives each switch its own line rather than cut a word */
 import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords, gcMessage, askLabel, askedGc, setNeedBy, openWhatsApp, startOf, GcMessageBox, GcAnswer } from './gcwait'
-import { TouchupLine, StrayLine } from './touchups'
+import { TouchupLine, StrayLine, punchDue } from './touchups'
 import { holdWords } from './common'
 import { tagOfTask, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
 import { touchNext } from './touchnext'
@@ -2246,6 +2246,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
     return () => clearTimeout(tm)
   }, [t?.state, t?.owner, t?.due, top])
   const [addDetails, setAddDetails] = React.useState(false)
+  const [showWatch, setShowWatch] = React.useState(false)
   if (!t) return null
   const job = s.jobs[t.jobId]
   const me = meOf(s.role)
@@ -2267,6 +2268,9 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   /* everything you can do is right there: who, when, watching on top; its words tapped to change them; the bin to
      delete it; the buttons at the bottom. ··· keeps only the two rare ones */
   const items: React.ReactNode[] = [
+    /* who's watching and its status: lines only when they say something — added from here */
+    t.state !== 'done' && !followersOf(t).length && !showWatch && <MenuItem key="watch" icon={<Eye className="h-4 w-4" />} onSelect={() => setShowWatch(true)} data-add-watch>Add someone watching</MenuItem>,
+    t.state === 'now' && (!theirs || admin) && <MenuItem key="hold" icon={<Hourglass className="h-4 w-4" />} onSelect={() => s.holdTask(t.id)} data-put-hold>Put on hold</MenuItem>,
     /* details: none shown until there are some — added from here */
     canEditTask(t, meOf(s.role), s.role === 'owner' || s.role === 'pm') && !t.detail && !s.punch.some((p) => p.taskId === t.id) && t.state !== 'done' && <MenuItem key="details" icon={<PencilLine className="h-4 w-4" />} onSelect={() => setAddDetails(true)} data-add-details>Add details</MenuItem>,
     /* two can have it — whoever gets to it first */
@@ -2301,13 +2305,18 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   const status = gcw ? <span data-gc-sofar><b className="font-medium">Waiting on the GC</b> · {gcSoFar(t, false)}</span>
     : asked ? <span data-task-asked>{asked}</span>
       /* where it stands, picked right here: To do · On hold · Done (waiting on someone: its button at the bottom) */
-      : canMove && t.state !== 'done' ? <TaskStatusPick t={t} />
+      : canMove && t.state !== 'done' && !(t.state === 'now' && !t.hold) ? <TaskStatusPick t={t} />
         : t.state === 'waiting' ? `Waiting on ${t.waitingOn || 'someone'}` : t.state === 'later' ? (t.hold ? 'On hold' : 'Set aside') : t.state === 'done' ? when.text : undefined
   /* what it's about — under its name; a request's "who asked" is its Status, not said twice. Touch-ups: their own
      checklist instead (the same as the project's), not a paragraph */
   const touch = s.punch.filter((p) => p.taskId === t.id)
   /* to-dos about these touch-ups said in words (same project, same person): here, on top — they're not lines of their own */
   const strays = touch.length ? strayTouchups(s, t) : []
+  /* every touch-up the same person's, on the same day: said once (the lines don't each repeat it) */
+  const openTouch = touch.filter((p) => p.status !== 'verified')
+  const punchDueWords = (p: typeof openTouch[number]) => { const d = punchDue(p); return d ? d.text : '' }
+  const sameWho = openTouch.length > 1 && openTouch.every((p) => p.owner && p.owner === openTouch[0].owner)
+  const sameDay = openTouch.length > 1 && openTouch.every((p) => (p.due || '') === (openTouch[0].due || ''))
   /* the touch-ups' next step — this window's main button (anyone who can change them; not the crew, not the client) */
   const tnWin = touch.length && job && t.state !== 'done' && !['crew', 'client', 'accounting'].includes(s.role) ? touchNext(s, job) : null
   const touchStep = tnWin && tnWin.step !== 'add' && tnWin.open.some((p) => p.taskId === t.id) ? tnWin : null
@@ -2326,7 +2335,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p, i) => (p === me ? (i ? 'you' : 'You') : PEOPLE[p]?.short || p)).join(' or ')}, whoever’s first` : t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
-      watch={t.state !== 'done' ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
+      watch={t.state !== 'done' && (followersOf(t).length > 0 || showWatch) ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
       state={whenWords ? <span data-task-when {...(gcw ? { 'data-gc-needby': t.needBy || '' } : {})}>{whenWords}</span> : undefined}
       tone={gcw ? 'warn' : t.state === 'now' ? (b === 'overdue' ? 'late' : b === 'today' ? 'warn' : undefined) : (t.state === 'waiting' && followDue(t)) || holdUp(t) ? 'warn' : undefined}
       status={status}
@@ -2456,7 +2465,8 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
           change their words, add photos */}
       {touch.length > 0 && (
         <div className="-mx-6 mb-5 border-b border-line-2 max-sm:-mx-4" data-task-touchups>
-          {touch.map((p) => <TouchupLine key={p.id} p={p} win />)}
+          {(sameWho || sameDay) && <div className="flex items-center gap-2 px-6 pb-1 pt-2.5 text-[0.8125rem] text-muted max-sm:px-4" data-touchups-same>{sameWho && <><Avatar who={openTouch[0].owner!} size={18} /><span className="font-medium text-ink-2">{openTouch[0].owner === me ? 'You' : PEOPLE[openTouch[0].owner!]?.short} fixes {openTouch.length === 1 ? 'it' : 'them'}</span></>}{sameWho && sameDay && openTouch[0].due && <span aria-hidden>·</span>}{sameDay && openTouch[0].due && <span>{punchDueWords(openTouch[0])}</span>}</div>}
+          {touch.map((p) => <TouchupLine key={p.id} p={p} win same={sameWho && sameDay ? { who: true, day: true } : sameWho ? { who: true } : sameDay ? { day: true } : undefined} />)}
         </div>
       )}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;

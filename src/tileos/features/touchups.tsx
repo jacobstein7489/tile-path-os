@@ -177,7 +177,7 @@ export function punchDue(p: PunchItem): { text: string; late: boolean } | null {
  *  and ··· (a photo, on hold, delete). Where it is and what it waits on, in gray under it; its photos in a small row.
  *  The tick: the crew ticks it done (the site manager checks it next); anyone else ticking it has checked it. Laid out
  *  by the room it has: wide (a project's To do) in columns; narrow (a window, a phone) who and when under the words */
-export function TouchupLine({ p, win }: { p: PunchItem; /** in a window: one line on the window's own lines */ win?: boolean }) {
+export function TouchupLine({ p, win, same }: { p: PunchItem; /** in a window: one line on the window's own lines */ win?: boolean; /** all of them the same person's, the same day: not said on each line */ same?: { who?: boolean; day?: boolean } }) {
   const s = useStore()
   const pick = React.useRef<HTMLInputElement>(null)
   const [waitOpen, setWaitOpen] = React.useState(false)
@@ -287,8 +287,8 @@ export function TouchupLine({ p, win }: { p: PunchItem; /** in a window: one lin
           {tickBtn(WIN_TICK)}
           {wordsEl}
           <div className={WIN_CELLS}>
-            <span className="flex min-w-0 items-center justify-center max-sm:-ml-1.5 max-sm:gap-1" data-touchup-who>{whoBtn}<span className="text-[0.8125rem] text-muted sm:hidden">{whoName}</span></span>
-            <span className="flex min-w-0 items-center justify-end text-right text-[0.8125rem] max-sm:justify-start" data-touchup-when>{day && <span className="text-faint sm:hidden" aria-hidden>·&nbsp;</span>}{when('-mr-2 justify-end max-sm:mr-0')}</span>
+            <span className={cn('flex min-w-0 items-center justify-center max-sm:-ml-1.5 max-sm:gap-1', same?.who && !done && !toCheck && 'invisible max-sm:hidden')} data-touchup-who>{whoBtn}<span className="text-[0.8125rem] text-muted sm:hidden">{whoName}</span></span>
+            <span className={cn('flex min-w-0 items-center justify-end text-right text-[0.8125rem] max-sm:justify-start', same?.day && !done && !toCheck && 'invisible max-sm:hidden')} data-touchup-when>{day && <span className="text-faint sm:hidden" aria-hidden>·&nbsp;</span>}{when('-mr-2 justify-end max-sm:mr-0')}</span>
           </div>
           <span className={cn('flex justify-end', WIN_MORE)}>{fileIn}{moreMenu('max-sm:h-7')}</span>
         </div>
