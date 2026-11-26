@@ -21,25 +21,25 @@
   --font-display: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* (Nov 26) light and warm: a light beige page, warm-white paper on it — beige fills, never gray */
-  --color-canvas: #f5f1ea;
+  --color-canvas: #f7f4ef;
   /* paper: `bg-white` everywhere is this */
-  --color-white: #fdfcf9;
-  --color-surface: #fdfcf9;
+  --color-white: #fefdfb;
+  --color-surface: #fefdfb;
   /* true white: what you press or type in */
   --color-pure: #ffffff;
   /* the side menu: a step under the ground — quiet, so the lists' green headers are the one strong color */
-  --color-side: #f8f6f1;
+  --color-side: #faf8f4;
   --color-ink: #1c1b18;
   --color-ink-2: #3e3b35;
   --color-muted: #696559;
   --color-faint: #9a958b;
-  --color-line: #e2dbcf;
-  --color-line-2: #ebe6dc;
+  --color-line: #e6e0d6;
+  --color-line-2: #eee9e2;
   /* a step and two steps darker than the paper: a soft fill, what's under the pointer */
-  --color-wash: #f3eee6;
-  --color-wash-2: #ece5d9;
+  --color-wash: #f5f1eb;
+  --color-wash-2: #efe9e0;
   /* a third step: the track of a bar, a quiet pill */
-  --color-wash-3: #ded5c6;
+  --color-wash-3: #e3dbcf;
 
   /* Cobblestone's dark green — the frame: the side menu and every section's band */
   --color-forest-50: #eaf0ec;

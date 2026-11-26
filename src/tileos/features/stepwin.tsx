@@ -624,7 +624,7 @@ export function StepModal({ jobId, k: k0raw, level }: { jobId: string; k: string
       inlineClose header={<WinHead kind={{ icon: <ListChecks />, label: `Getting ready · ${part}` }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={title} who={h.who} whoText={h.whoText}
         state={whenWords} tone={isWhen ? h.tone : undefined} status={status} statusTone={h.tone} problem={h.problem}
         whoLabel={v.state === 'done' ? 'Who did it' : 'Who does it'}
-        moreItems={admin ? stepMoreItems(s.stepRecs[job.id]?.[v.key], job, v) : undefined}
+        moreItems={admin ? stepMoreItems(s.stepRecs[job.id]?.[v.key], job, v) : undefined} moreLabel="More for this step"
         /* one added just for this project: the bin takes it off */
         remove={admin && v.only ? () => { removeJobStep(job.id, v.key); s.close() } : undefined}
         /* the admin gives it to someone else — or takes it over — right here; its day moves the same way */

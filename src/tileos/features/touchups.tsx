@@ -7,7 +7,7 @@ import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, RotateCcw
 import { useStore, meOf, NOW, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
-import { BAND, BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
+import { BAND_SUB, BAND_SUB_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
 import { keepFiles, showFile } from '@/tileos/lib/files'
 import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
@@ -64,9 +64,9 @@ export function TouchupsList({ job, bare, win }: { job: Job; /** inside the proj
       {!bare && check.length > 0 && <Part label="Fixed · to check" n={check.length} win={win}>{check.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}</Part>}
       {!bare && done.length > 0 && (
         <div>
-          <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'group w-full text-left max-sm:px-4', win ? 'px-6' : 'px-5')}>
-            <span className={BAND_LABEL}>Checked</span><BandCount n={done.length} />
-            {showDone ? <ChevronDown className="h-3.5 w-3.5 text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 text-white/[0.6]" />}
+          <button onClick={() => setShowDone(!showDone)} className={cn(BAND_SUB, 'group w-full text-left max-sm:px-4', win ? 'px-6' : 'px-5')}>
+            <span className={BAND_SUB_LABEL}>Checked</span><BandCount n={done.length} sub />
+            {showDone ? <ChevronDown className="h-3.5 w-3.5 text-muted" /> : <ChevronRight className="h-3.5 w-3.5 text-muted" />}
           </button>
           {showDone && done.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}
         </div>
@@ -159,7 +159,8 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
 function Part({ label, n, win, children }: { label: string; n: number; win?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <div className={cn(BAND, 'max-sm:px-4', win ? 'px-6' : 'px-5')}><span className={BAND_LABEL}>{label}</span><BandCount n={n} /></div>
+      {/* (a to-do list's groups are the soft beige band — the green one is only for a page's record lists) */}
+      <div className={cn(BAND_SUB, 'max-sm:px-4', win ? 'px-6' : 'px-5')}><span className={BAND_SUB_LABEL}>{label}</span><BandCount n={n} sub /></div>
       {children}
     </div>
   )

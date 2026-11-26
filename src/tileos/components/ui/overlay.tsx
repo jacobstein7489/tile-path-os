@@ -116,7 +116,7 @@ export function Modal({
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         {/* (on the right: the list beside it only a little dimmer — no blur; the phone's sheet the same as every window) */}
-        <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]', side && 'sm:backdrop-blur-none sm:!bg-[rgba(17,19,24,.06)]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} data-side-shade={side && !noShade ? '' : undefined} />
+        <Dialog.Overlay className={cn('fixed inset-0 animate-overlay-in', !noShade && 'backdrop-blur-[0.125rem]', side && 'sm:backdrop-blur-none sm:!bg-[rgba(17,19,24,.04)]')} style={{ zIndex: z, background: noShade ? 'transparent' : level ? 'rgba(17,19,24,.18)' : 'rgba(17,19,24,.38)' }} data-side-shade={side && !noShade ? '' : undefined} />
         {/* a phone: every window the same — from just under the top of the screen to the bottom, its content at the top.
             The keyboard coming up, a list opening inside it, a box growing: nothing moves — the keyboard only covers the
             bottom of the window (the buttons at its bottom ride on top of the keyboard) */}

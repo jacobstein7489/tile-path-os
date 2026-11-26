@@ -276,7 +276,7 @@ function EditText({ value, onSave, area, placeholder, label, attrs, start, onDon
   )
 }
 
-export function WinHead({ kind, place, onPlace, title, sub, edit, remove, removeLabel = 'Delete', lines, who, whoText, state, tone, status, statusTone, where, problem, more, moreItems, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch, star }: {
+export function WinHead({ kind, place, onPlace, title, sub, edit, remove, removeLabel = 'Delete', moreLabel = 'More', lines, who, whoText, state, tone, status, statusTone, where, problem, more, moreItems, extra, attrs, whoPick, whenPick, whoLabel = 'Who does it', watch, star }: {
   /** what it is: Task, Change order, Waiting on the GC, Getting ready · Installer */
   kind?: WinKind
   /** its project */
@@ -312,6 +312,8 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, remove
   more?: React.ReactNode
   /** what's in ··· — with Star it and Delete, last */
   moreItems?: React.ReactNode[]
+  /** what ··· is called, for a screen reader ("More for this step") */
+  moreLabel?: string
   /** one more short thing on the When line (it repeats every week) */
   extra?: React.ReactNode
   /** marks the checks look for */
@@ -339,7 +341,7 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, remove
   /* ··· holds everything rare: its own few, Star it (once starred, the gold star shows on top), and Delete last, in red */
   const items = [...(moreItems || []).filter(Boolean), star && !star.on ? <MenuItem key="win-star" icon={<Star className="h-4 w-4" />} onSelect={star.toggle} data-win-star="0">Star it · on top of your list</MenuItem> : null].filter(Boolean)
   const menu = items.length || remove ? (
-    <Menu align="end" width={260} trigger={<button type="button" aria-label="More" title="More" data-task-more data-win-more className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
+    <Menu align="end" width={260} trigger={<button type="button" aria-label={moreLabel} title="More" data-task-more data-win-more className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition hover:bg-wash-2 hover:text-ink"><MoreHorizontal className="h-[1.125rem] w-[1.125rem]" /></button>}>
       {items}
       {remove && items.length > 0 && <MenuSep />}
       {remove && <MenuItem icon={<Trash2 className="h-4 w-4" />} danger onSelect={remove} data-win-remove>{removeLabel}</MenuItem>}

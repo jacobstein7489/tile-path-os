@@ -2328,8 +2328,11 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       sub={about ? <span data-task-detail>{about}</span> : undefined}
       edit={editable ? { title: t.title, sub: touch.length ? undefined : t.detail, onTitle: (v) => editTask(t.id, { title: v }), onSub: (v) => editTask(t.id, { detail: v }), subOpen: addDetails, onSubDone: () => setAddDetails(false) } : undefined}
       remove={removable ? () => { removeTask(t.id); s.closeLevel(level) } : undefined}
-      who={t.owner}
-      whoText={<span data-task-owner>{t.also?.length ? `${[t.owner, ...t.also].map((p, i) => (p === me ? (i ? 'you' : 'You') : PEOPLE[p]?.short || p)).join(' or ')}, whoever’s first` : t.owner === me ? 'You' : owner}</span>}
+      /* more than one can do it: each one's circle and name — "(YS) You or (YJ) Jacob" — the same circles as everywhere */
+      who={t.also?.length ? undefined : t.owner}
+      whoText={t.also?.length
+        ? <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1" data-task-owner>{[t.owner, ...t.also].map((p, i) => <React.Fragment key={p}>{i > 0 && <span className="text-muted"> or </span>}<span className="inline-flex items-center gap-1.5"><Avatar who={p} size={22} />{p === me ? 'You' : PEOPLE[p]?.short || p}</span></React.Fragment>)}</span>
+        : <span data-task-owner>{t.owner === me ? 'You' : owner}</span>}
       whoLabel={t.state === 'done' ? 'Who did it' : 'Who does it'}
       /* who's watching: anyone can watch it; who does it (and the admin) adds others */
       watch={t.state !== 'done' && (followersOf(t).length > 0 || showWatch) ? { people, me, current: followersOf(t), onToggle: (p) => toggleFollow(t.id, p, true), anyone: !theirs || admin, doers: [t.owner, ...(t.also || [])] } : undefined}
