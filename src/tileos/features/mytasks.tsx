@@ -9,7 +9,7 @@ import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from 
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
-import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD, GROUP_STICKY, bandColorOf, type BubbleColor } from '@/tileos/components/ui/page'
+import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -693,15 +693,16 @@ function TodosRow({ x, showOwner, overdue }: { x: PlateItem; showOwner?: boolean
   const who = (x.who || ts[0]?.owner) as PersonKey
   const l = todosOf(s, job?.id || '', who)
   const done = l.done.length
-  const all = l.open.length + l.done.length
+  const items = (l.open.length ? l.open : ts).map((t) => t.title.replace(/\.$/, ''))
   const open = () => s.open({ t: 'todos', jobId: job?.id, who })
   const late = overdue ? lateBy(x.iso) : ''
   return (
     <TodoRow
       kind="To do"
       onClick={open}
-      /* the to-dos themselves, so you read them right here — and how many are done, once some are */
-      title={<span data-todos-words>{(l.open.length ? l.open : ts).map((t) => t.title.replace(/\.$/, '')).join(' · ')}{done > 0 && <span className="text-muted"> · {done} of {all} done</span>}</span>}
+      /* one thing — a checklist: how many first, then what they are, lighter, so you read them right here (and how many
+         are done, once some are) */
+      title={<span data-todos-words><span className="font-medium text-ink" data-todos-count>{items.length} {items.length === 1 ? 'to-do' : 'to-dos'}</span><span className="ml-2 text-muted" data-todos-items>{items.join(', ')}</span>{done > 0 && <span className="text-faint"> · {done} done</span>}</span>}
       detail={ts.map((t) => t.title).join(' · ')}
       owner={who}
       project={job?.name || 'Company'}
@@ -1451,18 +1452,16 @@ function cardsOf(lines: Line[]): { key: string; lines: Line[] }[] {
   lines.forEach((l) => { const k = projectKeyOf(l); if (!groups.has(k)) { groups.set(k, []); order.push(k) } groups.get(k)!.push(l) })
   return order.map((key) => ({ key, lines: groups.get(key)! }))
 }
-/** on the page, a group's band stays on top while its lines scroll by (in a window it doesn't) */
-const StickyBands = React.createContext(false)
-/** on the page, the groups' bands are the same as Projects' and Estimates' — the same size, in the color of the box
- *  they're under (Today blue, Coming up indigo, Waiting amber, Done green); in a window they stay small and gray */
-const BandTone = React.createContext<BubbleColor | null>(null)
-/** the band itself: its classes, its colors, its name's classes — the page's (colored, like Projects') or a window's */
+/** on the page, the groups' bands are the size of Projects' and Estimates' — but gray: an address (a day, a person) isn't
+ *  a status, so it has no color (Projects' and Estimates' colors say the status). They scroll with the list — groups of
+ *  one or two lines pinned on top only piled up. In a window they're small */
+const BigBands = React.createContext(false)
+/** the band itself: its classes, its name's classes — the page's or a window's */
 function useBandLook() {
-  const sticky = React.useContext(StickyBands)
-  const tone = React.useContext(BandTone)
-  if (!tone) return { box: cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX, sticky && GROUP_STICKY), style: undefined, name: 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]', nameStyle: undefined }
-  const c = bandColorOf(tone)
-  return { box: cn('flex min-h-10 items-center gap-2 border-t border-line py-1.5', PX, sticky && GROUP_STICKY), style: { background: c.bg } as React.CSSProperties, name: 'min-w-0 break-words text-left text-[0.875rem] font-bold uppercase leading-5 tracking-[0.06em]', nameStyle: { color: c.fg } as React.CSSProperties }
+  const big = React.useContext(BigBands)
+  return big
+    ? { box: cn('flex min-h-10 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1.5', PX), name: 'min-w-0 break-words text-left text-[0.875rem] font-bold uppercase leading-5 tracking-[0.06em] text-[#4c5361]' }
+    : { box: cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX), name: 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]' }
 }
 /** one project's lines in the list: its address as the group's band — light gray, small capitals, how many (the same
  *  band as Estimates' and Projects' groups); tap it: the project — then its lines, a line between each */
@@ -1472,10 +1471,10 @@ function ProjectCard({ id, label, n, children }: { id?: string; label: string; n
   /* the whole address, never cut off — a long one takes a second line in its band */
   return (
     <section data-project-card={id || 'company'}>
-      <header className={look.box} style={look.style} data-card-head data-band>
+      <header className={look.box} data-card-head data-band>
         {id
-          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.name, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} style={look.nameStyle} data-card-label data-card-open={id}>{label}</button>
-          : <span className={look.name} style={look.nameStyle} data-card-label>{label}</span>}
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.name, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} data-card-label data-card-open={id}>{label}</button>
+          : <span className={look.name} data-card-label>{label}</span>}
         {n > 1 && <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-card-count>{n}</span>}
       </header>
       {children}
@@ -1527,8 +1526,8 @@ function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; 
     <PartOf.Provider value={p.key}>
     <section data-day={p.day || p.key} data-part={p.key}>
       {p.label && !byProject && (
-        <div className={look.box} style={look.style} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
-          <h2 className={look.name} style={look.nameStyle}>{p.label}</h2>
+        <div className={look.box} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
+          <h2 className={look.name}>{p.label}</h2>
           <BandCount n={p.lines.length} />
           {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.75rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
         </div>
@@ -1932,8 +1931,6 @@ function JobBar({ picked, onClear, sort }: { picked?: Job; onClear: () => void; 
 /** Today / Coming up / Waiting / Done: one clean switch (the picked one a white pill on a soft track), each with its
  *  number — not four boxes */
 /** sorting Today: the usual order is by project (a card each); picked here: one list in that order */
-/** each box's color on top — the bands of the list under it are in the same color */
-const VIEW_COLOR: Record<'today' | 'coming' | 'waiting' | 'done', BubbleColor> = { today: 'blue', coming: 'indigo', waiting: 'amber', done: 'green' }
 const TODAY_SORTS: SortCol[] = [{ k: 'when', label: 'When', kind: 'date' }, { k: 'project', label: 'Project' }, { k: 'todo', label: 'To do' }, { k: 'who', label: 'Who' }]
 
 export function MyTasksPage() {
@@ -2010,8 +2007,7 @@ export function MyTasksPage() {
       <Multi.Provider value={multi}>
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
-      <StickyBands.Provider value={true}>
-      <BandTone.Provider value={VIEW_COLOR[view]}>
+      <BigBands.Provider value={true}>
       <div className="flex flex-col" data-list-scope="mine" data-today-list>
         {/* the names of the columns (tap one to sort by it) */}
         {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} />}
@@ -2024,8 +2020,7 @@ export function MyTasksPage() {
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today' && p.key === 'today'} />)}
         {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
       </div>
-      </BandTone.Provider>
-      </StickyBands.Provider>
+      </BigBands.Provider>
       </TodaySort.Provider>
       </WaitView.Provider>
       </Multi.Provider>
@@ -2368,22 +2363,23 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       {poOfTask(t) && <div className="mb-5" data-task-po><LinkedPO t={t} /></div>}
       {/* a to-do about them, said in words: on top, ticked off right here */}
       {strays.length > 0 && (
-        <div className="mb-3 overflow-hidden rounded-2xl border border-line bg-white" data-task-strays>
+        <div className={cn('-mx-6 max-sm:-mx-4', !touch.length && 'mb-5 border-b border-line-2')} data-task-strays>
           {strays.map((x) => <StrayLine key={x.id} t={x} />)}
         </div>
       )}
-      {/* touch-ups: the checklist itself — tick them right here, change their words, add photos */}
+      {/* touch-ups: the checklist itself, on the window's own lines (the same as a to-do's list) — tick them right here,
+          change their words, add photos */}
       {touch.length > 0 && (
-        <div className="mb-5 overflow-hidden rounded-2xl border border-line bg-white [&>[data-touchup]:first-child]:border-t-0" data-task-touchups>
+        <div className="-mx-6 mb-5 border-b border-line-2 max-sm:-mx-4" data-task-touchups>
           {/* not decided yet who does them: one tap for all of them (or each one on its own line) */}
           {touch.some((p) => !p.owner && p.status !== 'verified') && t.state !== 'done' && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-line-2 bg-warn-50/60 px-5 py-2.5 max-sm:px-4" data-touchups-pick>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line-2 bg-warn-50/60 px-6 py-2.5 max-sm:px-4" data-touchups-pick>
               <span className="min-w-0 flex-1 text-[0.875rem] text-ink-2">Who does them isn’t decided yet</span>
               <WhoMenu pick={{ people: Array.from(new Set([...CREWS.filter((c) => !isOff(s, 'crew', c)), ...fieldPeople(s, job)])), me, current: undefined, onPick: (k) => setPunchOwner(touch.filter((p) => !p.owner).map((p) => p.id), k) }}
                 trigger={<Button size="sm" variant="primary" data-touchups-pick-who>Pick who does them</Button>} />
             </div>
           )}
-          {touch.map((p) => <TouchupLine key={p.id} p={p} />)}
+          {touch.map((p) => <TouchupLine key={p.id} p={p} win />)}
         </div>
       )}
       {/* only what people wrote — what the app did (Created, Reminded, Moved…) isn't a note — newest first, right here;
@@ -2451,11 +2447,15 @@ function TaskRecord({ t, me }: { t: Task; me: PersonKey }) {
   if (!first) return null
   const who = (w: string) => (w === 'system' ? 'Tile OS' : w === me ? 'you' : PEOPLE[w as PersonKey]?.short || w)
   const by = t.by && PEOPLE[t.by] ? t.by : first.who
+  /* done: when, and by whom — beside when it was made */
+  const doneL = t.state === 'done' ? [...log].reverse().find((l) => /^(done\b|marked done)/i.test(l.text)) : undefined
+  const doneDay = doneL?.date || (t.state === 'done' && t.doneOn ? md(t.doneOn) : '')
   return (
     <div className="mt-5 text-[0.8125rem] text-faint" data-task-record>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="-mx-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition hover:text-ink-2" data-record-toggle>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="-mx-1 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md px-1 py-0.5 text-left transition hover:text-ink-2" data-record-toggle>
         <History className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 truncate" data-record-made>Created {first.date}{first.time ? `, ${first.time}` : ''} by {who(by)}</span>
+        <span className="min-w-0" data-record-made>Created {first.date}{first.time ? `, ${first.time}` : ''} by {who(by)}</span>
+        {doneDay && <><span aria-hidden>·</span><span className="min-w-0" data-record-done>Done {doneDay}{doneL?.time ? `, ${doneL.time}` : ''}{doneL ? ` by ${who(doneL.who)}` : ''}</span></>}
         {log.length > 1 && <><span aria-hidden>·</span><span className="shrink-0 font-medium">{open ? 'Hide' : 'History'}</span></>}
       </button>
       {open && log.length > 1 && (

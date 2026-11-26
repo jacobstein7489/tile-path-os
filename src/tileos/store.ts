@@ -486,7 +486,7 @@ export const useStore = create<Store>()(
         t.doneAt = 'Just now'
         t.doneOn = TODAY_T
         if (result) t.result = result
-        ;(t.log ||= []).push({ date: NOW, who: meOf(s.role), text: result ? `Done · ${result}` : 'Marked done' })
+        ;(t.log ||= []).push({ date: NOW, time: clockNow(), who: meOf(s.role), text: result ? `Done · ${result}` : 'Marked done' })
         if (t.jobId) addHist(s, t.jobId, { who: meOf(s.role), kind: kindOfTask(t.type), title: `Done · ${t.title}`, detail: result })
         /* a request from the site: whoever asked hears it's there, in their inbox */
         const hear = Array.from(new Set([t.by, t.owner, ...(t.also || []), ...(t.followers || [])].filter((p): p is PersonKey => !!p && p !== meOf(s.role))))

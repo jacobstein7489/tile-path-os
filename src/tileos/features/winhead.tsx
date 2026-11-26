@@ -90,6 +90,19 @@ export function WinLine({ k, label, top, children }: { k: string; label: string;
   )
 }
 
+/** a list in a window (to-dos, touch-ups): every line on the same lines as the window's top — its tick under their
+ *  marks, its words under their names; then who and its day, each in a column of its own (straight down every line),
+ *  ··· last. One line each, a thin line between. A phone: who and the day under the words */
+export const WIN_LIST_ROW = 'border-t border-line-2 px-6 py-1 max-sm:px-4 max-sm:py-1.5'
+export const WIN_LIST_GRID = 'grid min-h-8 grid-cols-[1rem_minmax(0,1fr)_2rem_6.75rem_2rem] items-center gap-x-2.5 max-sm:grid-cols-[1rem_minmax(0,1fr)_2rem]'
+/** its tick: round, the size of the marks above it, centered under them */
+export const WIN_TICK = 'relative inline-flex h-[1.1875rem] w-[1.1875rem] shrink-0 items-center justify-center justify-self-center rounded-full transition before:absolute before:-inset-2.5'
+/** who and the day: two columns of the line — a phone: one row under the words (the line's ··· stays on top) */
+export const WIN_CELLS = 'contents max-sm:col-start-2 max-sm:row-start-2 max-sm:-mt-1.5 max-sm:flex max-sm:min-w-0 max-sm:items-center max-sm:gap-1'
+export const WIN_MORE = 'max-sm:col-start-3 max-sm:row-start-1'
+/** under the words (where it is, what it waits on, its photos): in line with the words */
+export const WIN_UNDER = 'pl-[1.625rem]'
+
 /** one person in a list of people — the same row in Who does it and in Who's watching: the mark (round: one; square:
  *  any), their circle, their name */
 function PersonOption({ p, me, on, round, lock, onClick, attrs }: { p: PersonKey; me: PersonKey; on: boolean; round?: boolean; lock?: boolean; onClick: () => void; attrs: Record<string, string> }) {

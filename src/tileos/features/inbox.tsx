@@ -3,9 +3,9 @@
  * quiet line. Newest on top, a blue count for what's new; tap one and the conversation opens. On a phone the list
  * and the conversation are two screens; on a desktop they sit side by side. */
 import * as React from 'react'
-import { Building2, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus, Package, FileText, Receipt, HardHat, Repeat, CheckCheck, BellDot } from 'lucide-react'
+import { Building2, Search, MoreHorizontal, Mail, MailOpen, Inbox, Archive, MessageSquarePlus, Package, FileText, Receipt, HardHat, Repeat, CheckCheck, BellDot, ChevronLeft, ArrowUpRight } from 'lucide-react'
 import { useStore, meOf } from '@/tileos/store'
-import { Avatar } from '@/tileos/components/ui/core'
+import { Avatar, Button } from '@/tileos/components/ui/core'
 import { Menu, MenuItem, MenuLabel, MenuSep, RightMenu } from '@/tileos/components/ui/overlay'
 import { cn } from '@/tileos/lib/utils'
 import { NOW } from '@/tileos/lib/today'
@@ -88,6 +88,23 @@ export function readUpdate(id?: string) {
   st.commit((x) => { x.notices.forEach((n) => { if (n.unread && (!id || n.id === id) && (!n.for || n.for.includes(me))) n.unread = false }) })
 }
 const UPD_ICON: Record<Notice['kind'], React.ElementType> = { material: Package, pricing: FileText, money: Receipt, field: HardHat, change: Repeat }
+/** what kind of update it is, in a word */
+const UPD_KIND: Record<Notice['kind'], string> = { material: 'Materials', pricing: 'Estimate', money: 'Billing', field: 'On site', change: 'Change order' }
+/** the one button for what an update is about — it opens that thing in its own window, only when you ask */
+function openWord(n: Notice): string {
+  const o = n.open
+  if (!o?.t) return n.jobId ? 'Open the project' : ''
+  if (o.t === 'po' || o.t === 'ipo') return `Open ${o.id || 'the PO'}`
+  if (o.t === 'estimate') return o.id ? `Open estimate ${o.id}` : 'Open the estimate'
+  if (o.t === 'money') return 'Open the bill'
+  if (o.t === 'task') return 'Open the to-do'
+  if (o.t === 'daily' || o.t === 'dailies') return 'Open the daily update'
+  if (o.t === 'event') return 'Open the meeting'
+  if (o.t === 'late') return 'See what’s late'
+  if (o.t === 'crewreport') return 'Open the crew list'
+  if (o.t === 'job') return o.tab === 'money' || o.tab === 'billing' ? 'Open its billing' : o.tab === 'install' || o.tab === 'progress' ? 'Open its progress' : 'Open the project'
+  return 'Open it'
+}
 
 /** opening a conversation: everything in it is read, for you */
 export function markRead(key: string, jobId?: string) {
@@ -142,6 +159,8 @@ export function InboxPage() {
   /* New: what you haven't seen. All: everything not archived. Archived: what you filed — a conversation comes back on its
      own when someone says something new in it */
   const [view, setView] = React.useState<'all' | 'new' | 'away' | 'updates'>('all')
+  /* an update tapped: it shows on the right, the same as a conversation — nothing pops up over the page */
+  const [pickedUpd, setPickedUpd] = React.useState<string | null>(null)
   const updates = updatesFor(s)
   const updN = updates.filter((n) => n.unread).length
   const oldUpdates = archivedUpdates(s)
@@ -152,6 +171,10 @@ export function InboxPage() {
   const fresh = (id: string): Convo | null => (s.jobs[id] ? { key: id, jobId: id, name: s.jobs[id].name, sub: s.jobs[id].client, preview: '', when: '', unread: 0, away: false, rank: 0 } : null)
   /* nothing opens by itself — opening a conversation reads it, so you pick it (like WhatsApp on a computer) */
   const cur = all.find((c) => c.key === picked) || (picked ? fresh(picked) : null) || null
+  const upd = pickedUpd ? s.notices.find((n) => n.id === pickedUpd) : undefined
+  /* the right side: an update (on Updates, or Archived), else the conversation */
+  const showUpd = !!upd && (view === 'updates' || view === 'away')
+  const side = showUpd || !!cur
   const startable = Object.values(s.jobs).filter((j) => (j.stage as string) !== 'lost').sort((a, b) => a.name.localeCompare(b.name))
   /* where you left off, taken before it's marked read — the "New" line goes there */
   const [from, setFrom] = React.useState<Record<string, { n: number }>>({})
@@ -162,7 +185,7 @@ export function InboxPage() {
     <div className="mx-auto flex w-full max-w-[72rem] min-h-0 flex-col px-7 pb-4 pt-5 max-xl:px-6 max-lg:px-0 max-lg:pb-0 max-lg:pt-0" style={{ height: 'calc(100dvh - var(--app-top, 0px) - var(--inbox-bottom, 0px))' }} data-inbox-frame>
       <div className={cn('grid min-h-0 flex-1 overflow-hidden rounded-[1rem] border border-[#ebe6dd] bg-white shadow-card max-lg:rounded-none max-lg:border-0 max-lg:shadow-none', 'grid-cols-[minmax(0,1fr)] lg:grid-cols-[22rem_minmax(0,1fr)]')}>
         {/* the conversations */}
-        <div className={cn('flex min-h-0 min-w-0 flex-col border-r border-line-2 max-lg:border-r-0', cur && 'max-lg:hidden')}>
+        <div className={cn('flex min-h-0 min-w-0 flex-col border-r border-line-2 max-lg:border-r-0', side && 'max-lg:hidden')}>
           <div className="flex items-center gap-2 border-b border-line-2 px-4 py-3">
             <h1 className="font-display text-[1.25rem] font-semibold text-ink max-lg:hidden">Messages</h1>
             <label className="relative ml-auto flex min-w-0 flex-1 items-center lg:max-w-[11rem]">
@@ -191,14 +214,14 @@ export function InboxPage() {
               const on = view === k
               const n = k === 'new' ? unreadN : k === 'updates' ? updN : k === 'away' ? all.filter((c) => c.away).length + oldUpdates.length : 0
               if (k === 'away' && !n) return null
-              return <button key={k} onClick={() => setView(k)} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
+              return <button key={k} onClick={() => { setView(k); if (k !== 'updates' && k !== 'away') setPickedUpd(null); if (k === 'updates') setPicked(null) }} data-inbox-view={k} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-semibold transition', on ? 'bg-brand-600 text-white' : 'text-ink-2 hover:bg-wash')}>{label}{n > 0 && <span className={cn('rounded-full px-1.5 text-[0.71875rem] tnum', on ? 'bg-white/20' : k === 'new' || k === 'updates' ? 'bg-brand-600 text-white' : 'bg-wash-2 text-ink-2')}>{n}</span>}</button>
             })}
           </div>
           <div className="scroll-soft min-h-0 flex-1 overflow-y-auto">
             {view === 'updates' && (
               <>
                 {updates.length > 0 && updN > 0 && <div className="flex justify-end border-b border-line-2 px-3 py-1.5"><button onClick={() => readUpdate()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[0.78125rem] font-semibold text-brand-700 hover:bg-brand-50"><CheckCheck className="h-3.5 w-3.5" />Mark all as seen</button></div>}
-                {updates.map((n) => <UpdateRow key={n.id} n={n} />)}
+                {updates.map((n) => <UpdateRow key={n.id} n={n} on={pickedUpd === n.id} onPick={() => { setPicked(null); setPickedUpd(n.id) }} />)}
                 {!updates.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">No updates yet. Deliveries, approvals and requests land here.</div>}
               </>
             )}
@@ -249,15 +272,23 @@ export function InboxPage() {
             {view === 'away' && oldUpdates.length > 0 && (
               <>
                 <div className="border-b border-line-2 px-4 pb-1.5 pt-3 text-[0.75rem] font-semibold text-muted">Archived updates</div>
-                {oldUpdates.map((n) => <UpdateRow key={n.id} n={n} archived />)}
+                {oldUpdates.map((n) => <UpdateRow key={n.id} n={n} archived on={pickedUpd === n.id} onPick={() => { setPicked(null); setPickedUpd(n.id) }} />)}
               </>
             )}
             {view !== 'updates' && !shown.length && <div className="px-4 py-12 text-center text-[0.875rem] text-muted">{q ? 'Nothing matches.' : view === 'new' ? 'Nothing new. You’ve seen it all.' : view === 'away' ? (oldUpdates.length ? 'No archived conversations.' : 'Nothing archived.') : 'No conversations yet. Tap the blue button to write on a project.'}</div>}
           </div>
         </div>
-        {/* the conversation */}
-        <div className={cn('flex min-h-0 min-w-0 flex-col', !cur && 'max-lg:hidden')}>
-          {cur ? (
+        {/* the conversation — or the update picked */}
+        <div className={cn('flex min-h-0 min-w-0 flex-col', !side && 'max-lg:hidden')}>
+          {showUpd ? (
+            <UpdateView n={upd!} onBack={() => setPickedUpd(null)} />
+          ) : view === 'updates' ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center max-lg:hidden">
+              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600"><BellDot className="h-7 w-7" /></span>
+              <div className="text-[1.0625rem] font-semibold text-ink">Pick an update</div>
+              <div className="max-w-xs text-[0.875rem] text-muted">What the app noticed for you: deliveries, approvals, requests, the daily updates. Tap one to see it here.</div>
+            </div>
+          ) : cur ? (
             <>
               {cur.jobId && <ConvoHead jobId={cur.jobId} onBack={() => setPicked(null)} backLabel="Back to the inbox" backClass="lg:hidden" right={<button onClick={() => s.open({ t: 'job', id: cur.jobId })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>} />}
               <div className="flex min-h-0 flex-1 flex-col">
@@ -268,7 +299,7 @@ export function InboxPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
               <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600"><MessageSquarePlus className="h-7 w-7" /></span>
               <div className="text-[1.0625rem] font-semibold text-ink">Pick a conversation</div>
-              <div className="max-w-xs text-[0.875rem] text-muted">One per project. The team, the crew and the GC. Updates from the app are under the bell.</div>
+              <div className="max-w-xs text-[0.875rem] text-muted">One per project: the team, the crew and the GC. What the app noticed for you is under Updates.</div>
             </div>
           )}
         </div>
@@ -277,8 +308,9 @@ export function InboxPage() {
   )
 }
 
-/** one update: tap it to open what it's about; archive it at the side or with a right-click */
-function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
+/** one update: tap it to see it on the right (and the button there opens what it's about); archive it at the side or
+ *  with a right-click. Calm: new ones in bold with a blue dot, no colored background */
+function UpdateRow({ n, archived, on, onPick }: { n: Notice; archived?: boolean; on?: boolean; onPick: () => void }) {
   const s = useStore()
   const Ic = UPD_ICON[n.kind] || BellDot
   const job = n.jobId ? s.jobs[n.jobId] : undefined
@@ -289,9 +321,9 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
   ]
   return (
     <RightMenu items={items}>
-      <div className="group relative border-b border-line-2 row-hover" data-update-row={n.id}>
-        <button data-update={n.id} onClick={() => { readUpdate(n.id); if (n.open) s.open(n.open); else if (n.jobId) s.open({ t: 'job', id: n.jobId }) }} className={cn('flex w-full items-start gap-3 px-4 py-3 pr-12 text-left lg:pr-4', n.unread && 'bg-[#f6f8fe]')}>
-          <span className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
+      <div className={cn('group relative border-b border-line-2 row-hover', on && 'bg-[#eef2fd]')} data-update-row={n.id} data-update-on={on || undefined}>
+        <button data-update={n.id} onClick={() => { readUpdate(n.id); onPick() }} className="flex w-full items-start gap-3 px-4 py-3 pr-12 text-left lg:pr-4">
+          <span className={cn('mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full', n.unread ? 'bg-brand-50 text-brand-600' : 'bg-wash text-muted')}><Ic className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
             <span className={cn('block text-[0.875rem] leading-snug', n.unread ? 'font-semibold text-ink' : 'text-ink-2')}>{n.text}</span>
             <span className="mt-0.5 block truncate text-[0.75rem] text-muted">{job ? `${job.name} · ` : ''}{n.when}</span>
@@ -299,8 +331,8 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
           {n.unread && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-600 lg:group-hover:invisible" aria-label="New" />}
         </button>
         {/* on a computer, pointing at it: seen and archive, one click each, plain icons at its side */}
-        <span className={cn('absolute right-0 top-1.5 hidden items-center gap-1 py-1 pl-1 pr-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 lg:flex', n.unread ? 'bg-[#f6f8fe]' : 'bg-white')} data-update-actions>
-          <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', n.unread ? 'from-[#f6f8fe]' : 'from-white')} aria-hidden />
+        <span className={cn('absolute right-0 top-1.5 hidden items-center gap-1 py-1 pl-1 pr-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 lg:flex', on ? 'bg-[#eef2fd]' : 'bg-white')} data-update-actions>
+          <span className={cn('pointer-events-none absolute inset-y-0 -left-8 w-8 bg-gradient-to-l to-transparent', on ? 'from-[#eef2fd]' : 'from-white')} aria-hidden />
           <button aria-label={n.unread ? 'Mark as seen' : 'Mark as unread'} title={n.unread ? 'Mark as seen' : 'Mark as unread'} onClick={() => (n.unread ? readUpdate(n.id) : unreadUpdate(n.id))} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink">{n.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}</button>
           <button aria-label={archived ? 'Move back to Updates' : 'Archive'} title={archived ? 'Move back to Updates' : 'Archive'} onClick={() => archiveUpdate(n.id, !archived)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink" data-archive-update>{archived ? <Inbox className="h-4 w-4" /> : <Archive className="h-4 w-4" />}</button>
           <Menu align="end" width={230} trigger={<button aria-label="More for this update" title="More" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><MoreHorizontal className="h-4 w-4" /></button>}>
@@ -315,6 +347,45 @@ function UpdateRow({ n, archived }: { n: Notice; archived?: boolean }) {
         </span>
       </div>
     </RightMenu>
+  )
+}
+
+/** an update, on the right (a phone: its own screen, Back on top): its project on top, what it is and when, what
+ *  happened in big words — and one button that opens what it's about in its own window. Archive it from here too */
+function UpdateView({ n, onBack }: { n: Notice; onBack: () => void }) {
+  const s = useStore()
+  const job = n.jobId ? s.jobs[n.jobId] : undefined
+  const Ic = UPD_ICON[n.kind] || BellDot
+  const word = openWord(n)
+  const open = () => { if (n.open) s.open(n.open as any); else if (job) s.open({ t: 'job', id: job.id }) }
+  const archived = !!s.seen?.[`u:${n.id}|${meOf(s.role)}`]?.away
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" data-update-view={n.id}>
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-line-2 bg-white px-4 py-2.5 max-sm:px-3" data-panelbar>
+        <button onClick={onBack} aria-label="Back to the updates" className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg pl-1 pr-2 text-[0.84375rem] font-semibold text-brand-700 transition hover:bg-brand-50 lg:hidden"><ChevronLeft className="h-5 w-5" />Updates</button>
+        {job ? <ProjectFace id={job.id} name={job.name} size={40} /> : <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-wash text-muted"><Ic className="h-5 w-5" /></span>}
+        <span className="min-w-0 flex-1">
+          <span className="block break-words text-[1rem] font-semibold leading-snug text-ink">{job?.name || 'The company'}</span>
+          {job?.client && <span className="block break-words text-[0.78125rem] leading-snug text-muted">{job.client}</span>}
+        </span>
+        {job && <button onClick={() => s.open({ t: 'job', id: job.id })} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[0.8125rem] font-semibold text-ink-2 hover:bg-wash"><Building2 className="h-4 w-4 text-faint" /><span className="max-sm:hidden">Open the project</span></button>}
+      </div>
+      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto px-8 py-8 max-sm:px-4 max-sm:py-5">
+        <div className="mx-auto w-full max-w-[34rem]">
+          <div className="flex items-center gap-2 text-[0.8125rem] text-muted">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-wash text-muted"><Ic className="h-3.5 w-3.5" /></span>
+            <span className="font-semibold text-ink-2">{UPD_KIND[n.kind] || 'Update'}</span>
+            <span aria-hidden>·</span>
+            <span>{n.when}</span>
+          </div>
+          <p className="mt-3 text-[1.25rem] font-semibold leading-snug tracking-[-0.01em] text-ink" data-update-text>{n.text}</p>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            {word && <Button variant="primary" icon={<ArrowUpRight />} onClick={open} data-update-open>{word}</Button>}
+            <Button onClick={() => { archiveUpdate(n.id, !archived); onBack() }} icon={archived ? <Inbox /> : <Archive />} data-update-archive>{archived ? 'Move back to Updates' : 'Archive'}</Button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
