@@ -100,7 +100,7 @@ export function Page({
         <div ref={headRef} className="bg-canvas max-md:contents lg:sticky lg:top-[var(--app-top,0px)] lg:z-[16]" data-page-head>
           {/* on a phone the bar on top already says which page this is — so no title here, only the line under it
               (when there is one: Today's "1 overdue" opens what's late) and the page's button */}
-          <header className={cn('flex min-h-[4.75rem] items-end justify-between gap-6 pb-4 pt-5 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
+          <header className={cn('flex min-h-[3.75rem] items-end justify-between gap-6 pb-3.5 pt-2 max-lg:min-h-0 max-lg:pt-4 max-md:flex-col max-md:items-start max-md:gap-2.5 max-sm:pb-3 max-sm:pt-3', !actions && !sub && !phoneTitle && 'max-sm:hidden', PAGE_PX)}>
             <div className={cn('min-w-0', !sub && !phoneTitle && 'max-sm:hidden')}>
               <h1 className={cn('font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.015em] text-ink', phoneTitle ? 'max-sm:text-[1.375rem]' : 'max-sm:hidden')} data-page-title>{title}</h1>
               {sub && <div className="mt-1 max-w-[51.25rem] text-[0.84375rem] leading-snug text-muted max-sm:mt-0">{sub}</div>}

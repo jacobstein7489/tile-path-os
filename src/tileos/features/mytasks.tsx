@@ -499,8 +499,8 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
         {/* what to do — whole, never cut off (a long one takes a second line); on a computer who's watching sits at the
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
+            {icon && <span className={cn('-mr-1 inline-flex h-[1.375rem] w-4 shrink-0 items-center justify-center self-start [&_svg]:h-4 [&_svg]:w-4', problem || urgent ? 'text-bad-600' : 'text-[#8a8478]')} aria-hidden data-row-icon={problem ? 'problem' : urgent ? 'urgent' : ''}>{problem ? <TriangleAlert /> : icon}</span>}
           <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:truncate max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
-            {icon && <span className={cn('mr-2 inline-flex h-[1.375rem] w-4 shrink-0 -translate-y-px items-center justify-center align-middle [&_svg]:h-4 [&_svg]:w-4', problem || urgent ? 'text-bad-600' : 'text-[#8a8478]')} aria-hidden data-row-icon={problem ? 'problem' : urgent ? 'urgent' : ''}>{problem ? <TriangleAlert /> : icon}</span>}
             {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
             {title}
           </div>
