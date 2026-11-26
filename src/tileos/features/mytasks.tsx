@@ -1177,7 +1177,7 @@ export function collapse(items: PlateItem[]): PlateItem[] {
 function TouchWords({ lead, items }: { lead: string; items: { id: string; text: string; status: string }[] }) {
   const small = useSmall()
   /* (a line that says its next step first — "Check the touch-ups · 4 to fix" — has room for two) */
-  const shown = small ? 0 : lead.length > 14 ? 2 : 4
+  const shown = small ? 0 : lead.length > 14 ? 2 : 3
   const open = items.filter((p) => p.status === 'open')
   const list = open.length ? open : items.filter((p) => p.status === 'verify')
   /* the numbered ones in their own column after "5 to fix": a second line starts under the first one, not under the
