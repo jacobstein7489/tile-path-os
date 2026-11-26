@@ -15,7 +15,7 @@ import { Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
-import { keepFiles, openFile, sizeLabel, fileBlob } from '@/tileos/lib/files'
+import { keepFiles, showFile, sizeLabel, fileBlob } from '@/tileos/lib/files'
 import { startReading, stepReading, endReading, failReading, useReadingOf } from '@/tileos/lib/reading'
 import { GROUTS, byTag, hasTile, tilesOn, floorsOf, type Tile, type Room, type Surface } from '@/tileos/data/jobs'
 import { DOC_GREEN, DOC_GRAY } from './docpaper'
@@ -167,7 +167,7 @@ export function PaperRead({ job }: { job: Job }) {
       {kept.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {kept.slice(-4).map((f) => (
-            <button key={f.id} onClick={() => openFile(f)} className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.78125rem] font-medium text-ink-2 hover:border-brand-200 hover:text-brand-700">
+            <button key={f.id} onClick={() => void showFile(f, kept)} className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-line bg-white px-3 text-[0.78125rem] font-medium text-ink-2 hover:border-brand-200 hover:text-brand-700">
               <FileText className="h-3.5 w-3.5 shrink-0 text-faint" /><span className="truncate">{f.name}</span><span className="shrink-0 text-faint">· {f.at} · {sizeLabel(f.size)}</span>
             </button>
           ))}

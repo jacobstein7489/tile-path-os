@@ -23,8 +23,10 @@ const split = (line: string) => {
 }
 
 type Line = { id: number; text: string; files: File[] }
-export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level: number }) {
+export function PunchNewModal({ jobId: jobId0, into, level }: { jobId?: string; /** more for a list that's already there: they join it (its to-do, its window) — not a second list */ into?: string; level: number }) {
   const s = useStore()
+  const list = into ? s.tasks.find((t) => t.id === into && t.state !== 'done') : undefined
+  const listOpen = list ? s.punch.filter((p) => p.taskId === list.id && p.status !== 'verified') : []
   const [jobId, setJobId] = React.useState(jobId0 || '')
   const job = s.jobs[jobId]
   /* one line per touch-up — each with its own photos; it starts with one, Enter (or Another one) adds the next */
@@ -36,8 +38,8 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
   const checkers = fieldPeople(s, job)
   /* who does them: the project's installer — or not decided yet (then it's on your Today to pick). Due today unless
      it's moved — like everything new */
-  const [who, setWho] = React.useState<PersonKey | 'none'>(crew0 || 'none')
-  const [due, setDue] = React.useState('Today')
+  const [who, setWho] = React.useState<PersonKey | 'none'>((list ? listOpen.find((p) => p.owner)?.owner : undefined) || crew0 || 'none')
+  const [due, setDue] = React.useState((list && listOpen.find((p) => p.due)?.due) || 'Today')
   const [checker, setChecker] = React.useState<PersonKey>(checkers[0] || meOf(s.role))
   const first = React.useRef(true)
   React.useEffect(() => {
@@ -63,6 +65,28 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
     const items = filled.map((r) => ({ ...split(r.text), files: r.files }))
     const stamp = Date.now()
     const ids = items.map((_, i) => `pu${stamp}${i}`)
+    const photos = async () => {
+      /* the photos go with each line, kept with the project's files */
+      for (let i = 0; i < items.length; i++) {
+        if (!items[i].files.length) continue
+        const { recs } = await keepFiles(jobId, items[i].files, 'photo', { quiet: true })
+        if (recs.length) useStore.getState().commit((st) => { const x = st.punch.find((y) => y.id === ids[i]); if (x) x.media = [...(x.media || []), ...recs.map((r) => r.id)] })
+      }
+    }
+    /* more for the list that's there: on the same list — the same to-do, the same window */
+    if (list) {
+      s.commit((st) => {
+        items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', due, taskId: list.id }))
+        const t = st.tasks.find((x) => x.id === list.id)
+        if (t) {
+          t.detail = [t.detail, ...items.map((it) => `• ${it.where !== 'To place' ? it.where + ' · ' : ''}${it.text}`)].filter(Boolean).join('\n')
+          ;(t.log ||= []).push({ date: NOW, who: me, text: `${items.length} more touch-up${items.length > 1 ? 's' : ''} logged` })
+        }
+        addHist(st, jobId, { who: me, kind: 'field', title: `${items.length} more touch-up${items.length > 1 ? 's' : ''} logged`, detail: owner ? PEOPLE[owner].name : 'Who does them not decided yet' })
+      }, `${items.length} touch-up${items.length > 1 ? 's' : ''} added`, { sub: 'On the same list.', close: true })
+      await photos()
+      return
+    }
     s.commit((st) => {
       const tid = 't' + stamp.toString(36)
       items.forEach((it, i) => st.punch.push({ id: ids[i], jobId, text: it.text, where: it.where, owner, status: 'open', due, taskId: tid }))
@@ -82,12 +106,7 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
       to: !owner ? [{ who: me, what: `Pick who does the ${items.length} touch-up${items.length > 1 ? 's' : ''}` }] : PEOPLE[owner]?.crew ? [{ who: owner, what: `${items.length} touch-ups · ${due}` }, { who: checker, what: 'Check them when fixed' }] : [{ who: owner, what: `${items.length} touch-ups · ${due}` }],
       close: true,
     })
-    /* the photos go with each line, kept with the project's files */
-    for (let i = 0; i < items.length; i++) {
-      if (!items[i].files.length) continue
-      const { recs } = await keepFiles(jobId, items[i].files, 'photo', { quiet: true })
-      if (recs.length) useStore.getState().commit((st) => { const x = st.punch.find((y) => y.id === ids[i]); if (x) x.media = [...(x.media || []), ...recs.map((r) => r.id)] })
-    }
+    await photos()
   }
   return (
     <Modal
@@ -139,7 +158,7 @@ export function PunchNewModal({ jobId: jobId0, level }: { jobId?: string; level:
           <SearchSelect label="Done by" value={due} onChange={setDue} options={['Today', 'Tomorrow', 'Wed', 'Thu', 'Fri', 'Next Mon', 'In 2 weeks'].map((d) => ({ key: d, label: `By ${d === 'Today' || d === 'Tomorrow' ? d.toLowerCase() : d}` }))} search={false} width={220} icon={<CalendarDays />} />
         </div>
       </FormRow>
-      {who !== 'none' && PEOPLE[who]?.crew && (
+      {!list && who !== 'none' && PEOPLE[who]?.crew && (
         <FormRow label="Who checks them">
           <SearchSelect label="Who checks them" value={checker} onChange={(k) => setChecker(k as PersonKey)} options={checkers.map((p) => ({ key: p, label: PEOPLE[p].name, hint: p === checkers[0] && job?.site ? `${PEOPLE[p].roleLabel || 'Site manager'} on this project` : PEOPLE[p].roleLabel, lead: <Avatar who={p} size={22} /> }))} search={false} width={300} icon={<CheckCheck />} plain />
         </FormRow>

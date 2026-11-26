@@ -17,7 +17,7 @@ import { qbLive, pushBill, pushPayment, emailBill, pushEstimate } from './qbsync
 import { mailLive, emailPO, emailIPO } from './mailout'
 import { stepsFor, siteOf } from './steps'
 import { REAL } from '@/tileos/lib/save'
-import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, isoFromLabel } from '@/tileos/lib/today'
+import { TODAY, MONDAY, addDays, md, dayShort, workday, shiftISO, shiftText, isoFromLabel, labelFromIso } from '@/tileos/lib/today'
 import { sameWords } from './todokinds'
 
 const S = () => useStore.getState()
@@ -485,6 +485,20 @@ export function assignCrew(jobId: string, o: { crew: PersonKey; start: string; d
     j.workers = o.workers
     if (!isReturn) s.prep[jobId] = { ...(s.prep[jobId] || {}), installer: o.crew, confirmed: o.confirm ? 'no' : 'yes', targetISO: o.start, target: `Starts ${isoLabel(o.start)}` }
     j.keyDate = { label: isReturn ? 'Return' : 'Starts', value: isoLabel(o.start) }
+    if (isReturn) {
+      /* the return visit is the touch-ups' day: what's still to fix is for that day — by that crew, where nobody was
+         picked — and their to-do moves with them */
+      const day = labelFromIso(o.start)
+      const lists = new Set<string>()
+      s.punch.forEach((p) => {
+        if (p.jobId !== jobId || (p.status !== 'open' && p.status !== 'working')) return
+        p.due = day
+        if (p.note && /^Due /.test(p.note)) p.note = undefined
+        if (!p.owner) p.owner = o.crew
+        if (p.taskId) lists.add(p.taskId)
+      })
+      s.tasks.forEach((t) => { if (lists.has(t.id) && t.state === 'now') { t.due = day; (t.log ||= []).push({ date: NOW, time: clockNow(), who: me(), text: `Return visit booked · ${PEOPLE[o.crew]?.short || 'the crew'}, ${isoLabel(o.start)}` }) } })
+    }
     j.next = { text: isReturn ? 'Verify the return visit' : 'Pre-start checks', owner: 'ys', due: isoLabel(o.start) }
     closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.type === 'Schedule').map((t) => t.id), 'Scheduled')
     if (!isReturn) {
@@ -1427,6 +1441,25 @@ export function setPunch(id: string, status: 'open' | 'working' | 'verify' | 've
     }
     addHist(s, p.jobId, { who: me(), kind: 'field', title: `Punch · ${p.text} · ${({ open: 'reopened', working: 'crew working', verify: 'ready to verify', verified: 'verified' } as any)[status]}` })
   }, allChecked ? 'All the touch-ups are checked' : allDone ? 'All done!' : undefined, allChecked || allDone ? { tone: 'done', sub: allDone ? 'The site manager checks them next.' : undefined } : undefined)
+}
+/** every touch-up still open on a list, checked in one tap (the site manager saw them all) — their to-do closes with
+ *  them, the same as ticking the last one */
+export function checkAllPunch(ids: string[]) {
+  const open = S().punch.filter((x) => ids.includes(x.id) && x.status !== 'verified')
+  if (!open.length) return
+  S().commit((s) => {
+    const lists = new Set<string>()
+    s.punch.forEach((p) => { if (ids.includes(p.id) && p.status !== 'verified') { p.status = 'verified'; if (p.taskId) lists.add(p.taskId) } })
+    lists.forEach((tid) => {
+      if (!s.punch.every((x) => x.taskId !== tid || x.status === 'verified')) return
+      const main = s.tasks.find((t) => t.id === tid)
+      closeTasks(s, [tid, ...(main ? s.tasks.filter((t) => t.id !== main.id && t.jobId === main.jobId && t.state !== 'done' && sameWords(t.title, main.title)).map((t) => t.id) : [])], 'Verified')
+    })
+    /* and the to-do to check them, if the crew's "done" made one */
+    const jobId = open[0].jobId
+    if (s.punch.every((x) => x.jobId !== jobId || x.status === 'verified')) closeTasks(s, s.tasks.filter((t) => t.jobId === jobId && t.state !== 'done' && /^check the touch-?ups/i.test(t.title)).map((t) => t.id), 'Verified')
+    addHist(s, jobId, { who: me(), kind: 'field', title: `${open.length} touch-up${open.length === 1 ? '' : 's'} checked` })
+  }, open.length === 1 ? 'Checked' : `All ${open.length} checked`, { tone: 'done' })
 }
 /** who does a touch-up — picked right on its line (or not decided yet). Its to-do follows: once every touch-up on it
  *  has someone, "Pick who does the touch-ups" becomes the crew's ("Check the touch-ups when Leo is done", for whoever
