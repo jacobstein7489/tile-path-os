@@ -10,8 +10,8 @@
  *   White   true white (--color-pure, `bg-pure`) is only for what you press or type in: buttons, fields, the boxes of
  *           numbers on top of a page, menus. A button or field written with `bg-white` gets it by itself (see the rule
  *           under the tokens).
- *   Green   Cobblestone's dark green (--color-forest) is the frame: the side menu, and every section's band in every
- *           list — one band, the same everywhere.
+ *   Green   Cobblestone's dark green (--color-forest) has one job: every section's band in every list — one band,
+ *           the same everywhere. (Not the side menu as well: one strong color, one job.)
  *   Blue    cobalt, for the one thing to press and for links.
  *   Status  colors only ever mean something: red = a problem or late, amber = waiting, green = done.
  * Headlines and big numbers are set in Archivo, a sturdy grotesk with a little width; everything else is Inter.
@@ -26,7 +26,8 @@
   --color-surface: #f3f1ec;
   /* true white: what you press or type in */
   --color-pure: #ffffff;
-  --color-side: #2c4a3e;
+  /* the side menu: a step under the ground — quiet, so the lists' green headers are the one strong color */
+  --color-side: #e2dfd7;
   --color-ink: #1c1b18;
   --color-ink-2: #3e3b35;
   --color-muted: #696559;

@@ -134,8 +134,9 @@ export function Sidebar() {
   const badge = useBadges()
   const active = activeNav(route.page)
 
-  /* on the dark green: paper-white words, the one you're on in a lighter green, and what's under the pointer plain to
-     see (a soft light behind it) */
+  /* quiet, a step under the page's ground: ink words, the one you're on a white pill with its mark in Cobblestone's
+     green, and what's under the pointer plain to see (it lifts to paper). The green is kept for the lists' headers —
+     one strong color, one job */
   const Item = ({ k, label, icon: Icon, n }: { k: string; label: string; icon: React.ElementType; n?: number }) => {
     const on = active === k
     return (
@@ -146,32 +147,32 @@ export function Sidebar() {
         className={cn(
           /* easy to read and to hit: a bit bigger than the page's small print (a short screen keeps them snug) */
           'group flex h-9 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.9375rem] transition-colors [@media(max-height:47.5rem)]:h-8 [@media(max-height:47.5rem)]:text-[0.875rem]',
-          on ? 'bg-white/[0.16] font-semibold text-white' : 'font-medium text-white/[0.8] hover:bg-white/[0.09] hover:text-white',
+          on ? 'bg-pure font-semibold text-ink shadow-xs' : 'font-medium text-ink-2 hover:bg-white hover:text-ink',
         )}
       >
-        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-white' : 'text-white/[0.55] group-hover:text-white/[0.9]')} strokeWidth={1.9} />
+        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-forest-700' : 'text-[#7b766b] group-hover:text-ink-2')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
-        {/* how many: what's new in the inbox and what's due today in a paper pill; the rest a plain number */}
+        {/* how many: what's new in the inbox and what's due today in a small green pill; the rest a plain number */}
         {!!n && (k === 'inbox' || k === 'today'
-          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-surface px-1.5 text-[0.6875rem] font-bold tnum leading-none text-forest-800" data-menu-count>{n}</span>
-          : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-white' : 'text-white/[0.6]')}>{n}</span>)}
+          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-forest-700 px-1.5 text-[0.6875rem] font-bold tnum leading-none text-white" data-menu-count>{n}</span>
+          : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-ink' : 'text-muted')}>{n}</span>)}
       </button>
     )
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col bg-side max-lg:hidden" data-side-menu>
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col border-r border-line bg-side max-lg:hidden" data-side-menu>
       <button onClick={() => go(homeOf(role))} className="flex shrink-0 items-center gap-2.5 px-4 pb-4 pt-[1.125rem] text-left">
-        <Logo size={28} dark />
+        <Logo size={28} />
         <span className="min-w-0 leading-[1.1]">
-          <span className="font-display block truncate text-[1rem] font-semibold tracking-[-0.01em] text-white">Cobblestone</span>
-          <span className="mt-0.5 block truncate text-[0.75rem] font-medium text-white/[0.6]">Tile OS</span>
+          <span className="font-display block truncate text-[1rem] font-semibold tracking-[-0.01em] text-ink">Cobblestone</span>
+          <span className="mt-0.5 block truncate text-[0.75rem] font-medium text-muted">Tile OS</span>
         </span>
       </button>
       <div className="shrink-0 px-3">
         <NewMenu
           trigger={
-            <button aria-label="New" className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-surface px-3 text-[0.9375rem] font-semibold text-forest-800 shadow-btn transition hover:bg-pure">
+            <button aria-label="New" className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-brand-600 px-3 text-[0.9375rem] font-semibold text-white shadow-btn transition hover:bg-brand-700">
               <Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />
               New
             </button>
@@ -183,7 +184,7 @@ export function Sidebar() {
           const keys = g.keys.filter((k) => keysFor.includes(k))
           if (!keys.length) return null
           return (
-            <div key={g.label || 'top'} className={cn(g.label && 'mt-3 border-t border-white/[0.12] pt-3 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')} role="group" aria-label={g.label || undefined}>
+            <div key={g.label || 'top'} className={cn(g.label && 'mt-3 border-t border-line pt-3 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')} role="group" aria-label={g.label || undefined}>
               <div className="flex flex-col gap-[0.1875rem]">
                 {keys.map((k) => <Item key={k} k={k} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
               </div>
@@ -373,15 +374,14 @@ export function TopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const title = NAV[activeNav(route.page)]?.label || ({ flow: 'How it works', settings: 'Settings' } as Record<string, string>)[route.page] || 'Cobblestone'
   return (
-    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 bg-side px-4 before:absolute before:inset-x-0 before:bottom-full before:h-[env(safe-area-inset-top,0px)] before:bg-side before:content-[''] lg:hidden" data-phone-top>
-      {/* the same frame as the side menu on a computer: Cobblestone's green, the stone and the page's name in paper white */}
+    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white px-4 lg:hidden" data-phone-top>
       <button onClick={() => go(homeOf(role))} aria-label="Home" className="shrink-0">
-        <Logo size={28} dark />
+        <Logo size={30} />
       </button>
-      <span className="font-display ml-1 min-w-0 flex-1 truncate text-[1.0625rem] font-semibold text-white">{title}</span>
+      <span className="font-display ml-1 min-w-0 flex-1 truncate text-[1.0625rem] font-semibold text-ink">{title}</span>
       {/* Today has its search in the line with All jobs and Mine (it finds everything else too) — not up here as well */}
       {!['today', 'tasks'].includes(route.page) && (
-        <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.14] px-3 text-[0.875rem] font-medium text-white hover:bg-white/[0.2]">
+        <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-pure px-3 text-[0.875rem] font-medium text-ink-2 hover:border-[#bdb6aa]">
           <Search className="h-4 w-4" />
           Search
         </button>

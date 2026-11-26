@@ -494,7 +494,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         {/* what to do — whole, never cut off (a long one takes a second line); on a computer who's watching sits at the
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
-          <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
+          <div className={cn('min-w-0 flex-1 break-words text-[0.9375rem] leading-[1.375rem] max-sm:truncate max-sm:text-[1rem]', done ? 'text-muted line-through decoration-faint' : 'text-ink')} data-row-title>
             {before && <span className={problem || urgent ? 'font-medium text-bad-600' : 'text-muted'} data-row-before={before}>{before} · </span>}
             {title}
           </div>
@@ -505,14 +505,16 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
         {/* the small line under it, only when there's something to see: (a phone) only what changes what you do — its
             time, or that it's late ("Late": how many days is in its window), who it's with on Waiting · what's new —
             "New from Yaakov" (blue), "Not seen yet" (amber). Who else has it, who's watching: in its window */}
-        {((pw && phoneWhen) || seenOrNew || phoneCircles) && (
+        {(seenOrNew || phoneCircles) && (
           <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !seenOrNew && 'md:hidden', !(pw && phoneWhen) && !seenOrNew && !phoneCircles && 'max-md:hidden')} data-row-meta>
-            {pw && phoneWhen && <span className={cn('tnum md:hidden', whenCls)} data-todo-when-phone>{pw}</span>}
+
             {seenOrNew && <span title={seenOrNew.tip} className={cn('font-medium', seenOrNew.tone === 'new' ? 'text-brand-700' : 'text-warn-700')} data-row-latest={seenOrNew.tone || ''}>{pw && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{seenOrNew.text}</span>}
             {phoneCircles && <span className="md:hidden">{circles}</span>}
           </div>
         )}
       </div>
+      {/* a phone: when, at the right of the one line (Late in red, a time, a day) */}
+      {pw && phoneWhen && <span className={cn('shrink-0 text-[0.875rem] tnum sm:hidden', whenCls)} data-todo-when-phone>{pw}</span>}
       {/* a computer: when · who · its next step — the same widths on every line */}
       <div className="flex w-[7.5rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
         {whenPick ? (
@@ -531,7 +533,7 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
       )}
       {/* its next step — a white pill with a fine line around it (white is what you press), the same size on every line (a phone: always there — no mouse to point with — but
           smaller); none: the line opens it (a quiet arrow says so) */}
-      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:bg-pure [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:border-[#bdb6aa] [&_button:hover]:bg-pure max-sm:[&_button]:h-8 max-sm:[&_button]:text-[0.8125rem]', action ? 'w-[7.75rem] max-sm:w-[6.5rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:bg-pure [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:border-[#bdb6aa] [&_button:hover]:bg-pure max-sm:[&_button]:h-8 max-sm:[&_button]:text-[0.8125rem]', action ? 'w-[7.75rem] max-sm:hidden' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
         {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
