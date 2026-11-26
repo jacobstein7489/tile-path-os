@@ -196,8 +196,7 @@ export function GamePlanPage() {
         </section>
         {/* beside it: what's ready to book — and, with the month, what's being worked on with no days booked */}
         <div className="flex min-w-0 flex-col gap-4">
-          <div className={cn('flex min-w-0 flex-col', view !== 'month' || !working.length ? 'xl:flex-1' : '', !booking && 'max-md:hidden')}><ReadyList /></div>
-          {view === 'month' && working.length > 0 && <div className={cn('flex min-w-0 flex-col xl:flex-1', booking && 'max-md:hidden')}><WorkingList items={working} /></div>}
+          <div className={cn('flex min-w-0 flex-col xl:flex-1', !booking && 'max-md:hidden')}><ReadyList /></div>
         </div>
       </div>
     </Page>
@@ -376,7 +375,8 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
   /* only the days really booked (or waiting for his OK) — what's only planned is under To book, what's being worked
      on with no days booked is beside the month */
   const booked = items.filter(onDays)
-  const MAX = 4
+  /* the whole month on one screen: three bars a day, the rest "+2 more" */
+  const MAX = 3
   const shown = booked.filter((it) => it.end >= (weeks[0]?.[0] || '') && it.start <= (weeks[weeks.length - 1]?.[6] || ''))
   const inView = Array.from(new Set(shown.filter((it) => !it.hold && it.crew).map((it) => it.crew!)))
   return (
@@ -392,9 +392,9 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
         const lanes = lanesOf(segs)
         const shownLanes = lanes.slice(0, MAX)
         const hidden = lanes.slice(MAX).flat()
-        const laneH = 26
+        const laneH = 22
         return (
-          <div key={a} className="relative flex-1 border-b border-line-2 last:border-0" style={{ minHeight: 34 + Math.max(2, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 22 : 10) }}>
+          <div key={a} className="relative flex-1 border-b border-line-2 last:border-0" style={{ minHeight: 30 + Math.max(1, Math.min(lanes.length, MAX)) * laneH + (hidden.length ? 18 : 6) }}>
             <div className="absolute inset-0 grid grid-cols-7">
               {wk.map((d, i) => {
                 const out = d.slice(0, 7) !== m
@@ -433,7 +433,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                     onClick={() => openItem(s, x.it)}
                     data-month-bar={x.it.jobId}
                     className={cn('absolute flex min-w-0 items-center gap-1 overflow-hidden px-2 text-left text-[0.75rem] font-semibold leading-none transition hover:brightness-[.97] max-sm:px-1 max-sm:text-[0.65625rem]', contL ? 'rounded-l-none' : 'rounded-l-md', contR ? 'rounded-r-none' : 'rounded-r-md', lk.className)}
-                    style={{ ...lk.style, left: `calc(${(si / 7) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 7) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 32 + li * laneH, height: laneH - 4 }}
+                    style={{ ...lk.style, left: `calc(${(si / 7) * 100}% + ${contL ? 0 : 3}px)`, width: `calc(${((ei - si + 1) / 7) * 100}% - ${(contL ? 0 : 3) + (contR ? 0 : 3)}px)`, top: 30 + li * laneH, height: laneH - 3 }}
                   >
                     {x.it.hold && <PauseCircle className="h-3 w-3 shrink-0" />}
                     <span className="truncate">{job?.name}</span>

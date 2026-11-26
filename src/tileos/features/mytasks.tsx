@@ -1587,11 +1587,10 @@ function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; 
     <section data-day={p.day || p.key} data-part={p.key}>
       {/* its band — THE band: Today too (its projects are the gray bands under it). Under a person's own band (Everyone's
           Today): a step down, and the day has none */}
-      {p.label && !(inPerson && byProject) && (
-        <div className={inPerson ? look.sub : look.box} data-group-head data-band data-band-level={inPerson ? '2' : '1'} data-group-tone={p.tone || 'neutral'}>
-          <h2 className={inPerson ? look.subName : look.name}>{p.label}</h2>
-          <BandCount n={p.lines.length} sub={inPerson} />
-          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className={cn('ml-auto inline-flex items-center text-[0.78125rem] font-semibold', inPerson ? 'text-muted hover:text-ink' : BAND_LINK)}>Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
+      {p.label && !byProject && (
+        <div className={look.sub} data-group-head data-band data-band-level={inPerson ? '2' : '1'} data-group-tone={p.tone || 'neutral'}>
+          <h2 className={look.subName}>{p.label}</h2>
+          <BandCount n={p.lines.length} sub />
         </div>
       )}
       <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} byProject={byProject} />
