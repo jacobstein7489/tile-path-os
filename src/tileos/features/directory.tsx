@@ -54,7 +54,7 @@ function DirTabs({ on }: { on: DirKey }) {
     <div className="no-scrollbar mb-3 flex items-center gap-7 overflow-x-auto border-b border-line max-sm:mb-2.5 max-sm:gap-5" role="tablist" aria-label="Contacts" data-contacts-tabs>
       {lists.map((k) => (
         <button key={k} type="button" role="tab" aria-selected={k === on} onClick={() => s.go({ page: k })}
-          className={cn('-mb-px shrink-0 border-b-2 pb-2 pt-0.5 text-[1rem] font-semibold transition-colors', k === on ? 'border-forest-700 text-ink' : 'border-transparent text-muted hover:text-ink')} data-contacts-tab={k}>{DIR_META[k].label}</button>
+          className={cn('-mb-px shrink-0 border-b-2 pb-2 pt-0.5 text-[1rem] font-semibold transition-colors', k === on ? 'border-ink text-ink' : 'border-transparent text-muted hover:text-ink')} data-contacts-tab={k}>{DIR_META[k].label}</button>
       ))}
     </div>
   )

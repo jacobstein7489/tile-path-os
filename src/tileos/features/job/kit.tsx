@@ -10,7 +10,7 @@ import * as React from 'react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
-import { BAND, BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
+import { BAND_GREEN, BAND_GREEN_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 /** Cobblestone's green — the bands on the scope of work */
@@ -54,8 +54,8 @@ export function PaperBar({ lead, children, className, mark, buttonsMark }: { lea
  *  rooms on it */
 export function FloorBand({ floor, rooms }: { floor: string; rooms: number }) {
   return (
-    <div className={cn(BAND, 'w-full px-5 max-sm:px-3')} data-floor-band data-band>
-      <span className={cn(BAND_LABEL, 'flex-1')}>{floor}</span>
+    <div className={cn(BAND_GREEN, 'w-full px-5 max-sm:px-3')} data-floor-band data-band>
+      <span className={cn(BAND_GREEN_LABEL, 'flex-1')}>{floor}</span>
       <span className="shrink-0 text-[0.78125rem] font-semibold text-white/[0.72]">{rooms} {rooms === 1 ? 'room' : 'rooms'}</span>
     </div>
   )
@@ -86,8 +86,8 @@ export const Empty = ({ children, className }: { children: React.ReactNode; clas
 /** a group inside a sheet — a floor, the bills, the contract: THE band, the same as every list's (its name in
  *  paper-white capitals, how many after it); what's on its right in paper white too */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className={cn(BAND, 'px-5 max-sm:px-4')} data-band data-group-tone={tone || undefined}>
-    <span className={BAND_LABEL}>{label}</span>{count != null && <BandCount n={count} />}
+  <div className={cn(BAND_GREEN, 'px-5 max-sm:px-4')} data-band data-group-tone={tone || undefined}>
+    <span className={BAND_GREEN_LABEL}>{label}</span>{count != null && <BandCount n={count} green />}
     {right != null && <span className="ml-auto shrink-0 text-[0.8125rem] font-semibold tnum text-white/[0.85] [&_button]:text-white/[0.85] [&_button:hover]:text-white">{right}</span>}
   </div>
 )

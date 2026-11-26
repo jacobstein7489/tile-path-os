@@ -349,11 +349,11 @@ function WatchDots({ who, eye, size = 20 }: { who: PersonKey[]; eye?: boolean; s
 }
 /** the names on top of Today's columns — the same row as Estimates' and Projects' (tap one to sort by it): To do ·
  *  When · Who · its button. The same widths as the cells on each line, so they line up */
-export function TodayHead({ waiting, sort, onSort }: { /** Waiting on others: Who is who it's with */ waiting?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void }) {
+export function TodayHead({ waiting, sort, onSort, boxed }: { /** Waiting on others: Who is who it's with */ waiting?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void; /** over a list of boxes: in line with the lines inside them */ boxed?: boolean }) {
   const who = React.useContext(WhoCol)
   const h = (k: string, label: string, right?: boolean, kind?: SortCol['kind']) => (onSort ? <SortHead k={k} sort={sort || null} onSort={onSort} right={right} kind={kind}>{label}</SortHead> : label)
   return (
-    <div className={cn(HEAD_ROW, 'flex gap-3 px-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
+    <div className={cn(HEAD_ROW, 'flex gap-3', boxed ? 'px-[2.0625rem]' : 'px-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span className="min-w-0 flex-1">{h('todo', 'To do')}</span>
       <span className="flex w-[7.5rem] shrink-0 justify-end" data-head-when>{h('when', 'When', true, 'date')}</span>
       {who && <span className="flex w-[3.75rem] shrink-0 justify-center" data-head-turn>{h('who', waiting ? 'With' : 'Who')}</span>}
@@ -1522,18 +1522,22 @@ function useBandLook() {
     sub: cn(BAND_SUB, 'min-h-[2.125rem] py-1', PX), subName: cn(BAND_SUB_LABEL, 'whitespace-normal break-words text-left text-[0.78125rem] tracking-[0.06em] text-ink'),
   }
 }
-/** one project's lines in the list: its address as the group's band — the gray band (a group inside Today), its name
- *  in capitals, how many; tap it: the project — then its lines, a line between each */
+/** (Nov 26) on the page's own list every group is a box of its own: a thin, slightly darker edge around it, its name on
+ *  the soft band on top, its lines under it — a little space between one box and the next */
+export const GROUP_BOX = 'mx-3 mt-3 overflow-hidden rounded-xl border border-[#dcd4c7] bg-white max-sm:mx-2 max-sm:mt-2.5'
+/** one project's lines in the list: its address on top — the soft band, its name in capitals, how many; tap it: the
+ *  project — then its lines, a line between each. On the page (Today), the project in a box of its own */
 function ProjectCard({ id, label, n, children }: { id?: string; label: string; n: number; children: React.ReactNode }) {
   const s = useStore()
   const look = useBandLook()
+  const boxed = React.useContext(BigBands)
   /* the whole address, never cut off — a long one takes a second line in its band */
   return (
-    <section data-project-card={id || 'company'}>
-      <header className={look.sub} data-card-head data-band data-band-level="2">
+    <section data-project-card={id || 'company'} className={boxed ? GROUP_BOX : undefined} data-group-box={boxed ? '' : undefined}>
+      <header className={boxed ? cn(look.box, 'border-t-0') : look.sub} data-card-head data-band data-band-level="2">
         {id
-          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.subName, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} data-card-label data-card-open={id}>{label}</button>
-          : <span className={look.subName} data-card-label>{label}</span>}
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(boxed ? look.name : look.subName, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} data-card-label data-card-open={id}>{label}</button>
+          : <span className={boxed ? look.name : look.subName} data-card-label>{label}</span>}
         {n > 1 && <BandCount n={n} sub />}
       </header>
       {children}
@@ -1545,6 +1549,8 @@ function ProjectCard({ id, label, n, children }: { id?: string; label: string; n
 function Lines({ lines: lines0, me, showOwner, on, byProject }: { lines: Line[]; me: PersonKey; day?: string; showOwner?: boolean; on?: Record<string, PersonKey[]>; byProject?: boolean }) {
   const sort = React.useContext(TodaySort)
   const s = useStore()
+  /* Today on the page, sorted by a column: its lines in one box (the projects' boxes when it isn't) */
+  const boxed = React.useContext(BigBands) && !!byProject
   const row = (l: Line, card: { label: string; first: boolean }) => (
     <InCard.Provider key={l.key} value={card}><LineOn.Provider value={on?.[l.key] || null}><Safe name={`Today line ${l.key}`}><LineRow l={l} me={me} showOwner={showOwner} /></Safe></LineOn.Provider></InCard.Provider>
   )
@@ -1553,7 +1559,7 @@ function Lines({ lines: lines0, me, showOwner, on, byProject }: { lines: Line[];
     const lines = sort ? sortLines(s, lines0, sort) : cardsOf(lines0).flatMap((c) => c.lines)
     let prev = ''
     return (
-      <section data-runs={sort ? 'sorted' : ''}>
+      <section data-runs={sort ? 'sorted' : ''} className={boxed ? GROUP_BOX : undefined}>
         {lines.map((l) => {
           const k = projectKeyOf(l)
           const same = k === prev
@@ -1582,14 +1588,16 @@ function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; 
   const s = useStore()
   const look = useBandLook()
   const inPerson = React.useContext(InPerson)
+  /* on the page: a part with a name (For everyone, Starred, a day, who it waits on) is a box of its own, like a project's */
+  const boxed = React.useContext(BigBands) && !!p.label && !byProject && !inPerson
   return (
     <PartOf.Provider value={p.key}>
-    <section data-day={p.day || p.key} data-part={p.key}>
-      {/* its band — THE band: Today too (its projects are the gray bands under it). Under a person's own band (Everyone's
-          Today): a step down, and the day has none */}
+    <section data-day={p.day || p.key} data-part={p.key} className={boxed ? GROUP_BOX : undefined} data-group-box={boxed ? '' : undefined}>
+      {/* its band — the soft band, its name in capitals and how many. Under a person's own band (Everyone's Today): a
+          step down, and the day has none */}
       {p.label && !byProject && (
-        <div className={look.sub} data-group-head data-band data-band-level={inPerson ? '2' : '1'} data-group-tone={p.tone || 'neutral'}>
-          <h2 className={look.subName}>{p.label}</h2>
+        <div className={boxed ? cn(look.box, 'border-t-0') : look.sub} data-group-head data-band data-band-level={inPerson ? '2' : '1'} data-group-tone={p.tone || 'neutral'}>
+          <h2 className={boxed ? look.name : look.subName}>{p.label}</h2>
           <BandCount n={p.lines.length} sub />
         </div>
       )}
@@ -1776,7 +1784,7 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
       <div className={cn(BAND, 'min-h-10', PX)} data-person-band data-band data-band-level="1">
         <Avatar who={l.key} size={22} />
         <b className={BAND_LABEL}>{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
-        <span className="text-[0.75rem] font-semibold tnum text-white/[0.6]" data-person-count>{n}</span>
+        <span className="text-[0.75rem] font-semibold tnum text-muted" data-person-count>{n}</span>
       </div>
       <InPerson.Provider value={true}>
       <Viewer.Provider value={l.key}>
@@ -2072,9 +2080,9 @@ export function MyTasksPage() {
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
       <BigBands.Provider value={true}>
-      <div className="flex flex-col" data-list-scope="mine" data-today-list>
-        {/* the names of the columns (tap one to sort by it) */}
-        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} />}
+      <div className="flex flex-col pb-3 max-sm:pb-2.5" data-list-scope="mine" data-today-list>
+        {/* the names of the columns (tap one to sort by it) — over the boxes' own columns */}
+        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} boxed />}
         {/* Waiting on others, in one line: only what you're waiting for */}
         {view === 'waiting' && n(view) > 0 && !q && <div className={cn('py-2 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch.</div>}
         {/* searching: how many match, on this list */}

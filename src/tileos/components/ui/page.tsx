@@ -297,23 +297,28 @@ export const ROW_H = 'min-h-[3rem]'
 /** a list's column names, on top: easy to read (dark gray, semibold, near the size of the rows), pinned while the rows
  *  scroll. Its line under it is the first row's (or band's) line — every line in a list is the same one line. */
 export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-semibold text-ink-2 shadow-[0_0.0625rem_0_var(--color-line)]'
-/** THE band — a section's name in every list, on every screen: Cobblestone's dark green the full width, the name in
- *  paper-white capitals, how many after it (a status on Projects and Estimates, a part of the day on Today, a floor on a
- *  scope, a category on Items, "To fix" in a window). One look everywhere — a list never has its own. A quiet link on
- *  the right if any (paper-white, a little see-through). */
-export const BAND = 'flex min-h-[2.125rem] items-center gap-2 bg-forest-700 text-white'
-/** a band's name: capitals, bold, paper white — the same on every list */
-export const BAND_LABEL = 'min-w-0 truncate text-[0.78125rem] font-bold uppercase leading-5 tracking-[0.08em] text-white'
-/** a group inside a group (a room on a floor, a part inside one person's list): the same band a step down — soft gray,
- *  its name in ink. Never the first level: that's the green one */
-export const BAND_SUB = 'flex min-h-8 items-center gap-2 border-t border-line bg-wash-2'
+/** THE band — a section's name in every list, on every screen (Nov 26: light, never dark green): a soft beige band the
+ *  full width, the name in dark capitals, how many after it (a status on Projects and Estimates, a part of the day on
+ *  Today, a floor on a scope, a category on Items, "To fix" in a window). A status says its own color with its small
+ *  mark. One look everywhere — a list never has its own. A quiet link on the right if any. */
+export const BAND = 'flex min-h-[2.125rem] items-center gap-2 border-t border-line bg-wash-2 text-ink'
+/** a band's name: capitals, bold, dark — the same on every list */
+export const BAND_LABEL = 'min-w-0 truncate text-[0.78125rem] font-bold uppercase leading-5 tracking-[0.08em] text-ink-2'
+/** a group inside a group (a room on a floor, a part inside one person's list): the same band a step down — lighter,
+ *  its name in gray */
+export const BAND_SUB = 'flex min-h-8 items-center gap-2 border-t border-line-2 bg-wash'
 export const BAND_SUB_LABEL = 'min-w-0 truncate text-[0.75rem] font-bold uppercase leading-5 tracking-[0.07em] text-ink-2'
-/** something to press on a band (a link, an arrow): paper white, soft until pointed at */
-export const BAND_LINK = 'text-white/[0.72] transition hover:text-white'
+/** something to press on a band (a link, an arrow): gray until pointed at */
+export const BAND_LINK = 'text-muted transition hover:text-ink'
 /** how many in a group, after its name */
-export function BandCount({ n, sub }: { n: number; /** on a gray band (a group inside a group) */ sub?: boolean }) {
-  return <span className={cn('shrink-0 text-[0.75rem] font-semibold leading-none tnum', sub ? 'text-muted' : 'text-white/[0.6]')} data-band-count>{n}</span>
+export function BandCount({ n, green }: { n: number; /** (a group inside a group — the same gray now) */ sub?: boolean; /** on the green band */ green?: boolean }) {
+  return <span className={cn('shrink-0 text-[0.75rem] font-semibold leading-none tnum', green ? 'text-white/[0.6]' : 'text-muted')} data-band-count>{n}</span>
 }
+/** (Nov 26) the green band — only where a project's sheet is read like a document, a few sections each with a lot under
+ *  it: a scope of work's floors, the tile and materials, the progress. Never on a list of records (Projects, Estimates)
+ *  or where groups come one after another (Billing): those are the soft band */
+export const BAND_GREEN = 'flex min-h-[2.125rem] items-center gap-2 bg-forest-700 text-white'
+export const BAND_GREEN_LABEL = 'min-w-0 truncate text-[0.78125rem] font-bold uppercase leading-5 tracking-[0.08em] text-white'
 /** (every band is the one band now — these stay for the lists written with them) */
 export const BAND_STRONG = BAND
 export const bandStyle = (_tone?: Tone): React.CSSProperties => ({})
@@ -327,7 +332,7 @@ export function Group({ label, count, tone, open = true, onToggle, right, strong
       <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-center gap-2 text-left disabled:cursor-default">
         <span className={BAND_LABEL}>{label}</span>
         {count !== undefined && <BandCount n={count} />}
-        {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-white/[0.6]" />)}
+        {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-muted" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-muted" />)}
       </button>
       {right && <div className={cn('ml-auto flex items-center gap-2', BAND_LINK)}>{right}</div>}
     </div>
@@ -708,15 +713,15 @@ const FIRST = 'pl-5 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      {/* THE band, in a table: the same dark green, paper-white capitals and count as every list's */}
-      <td className={cn('h-[2.125rem] whitespace-nowrap bg-forest-700 py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
+      {/* THE band, in a table: the same soft beige, dark capitals and count as every list's */}
+      <td className={cn('h-[2.125rem] whitespace-nowrap border-t border-line bg-wash-2 py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2 text-left disabled:cursor-default">
           <span className={BAND_LABEL}>{label}</span>
           {count !== undefined && <BandCount n={count} />}
-          {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-white/[0.6]" />)}
+          {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-muted" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-muted" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="bg-forest-700 max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-t border-line bg-wash-2 max-md:hidden" />}
     </tr>
   )
 }

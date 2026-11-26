@@ -142,7 +142,7 @@ export function MoneyTab({ job }: { job: Job }) {
           {!bills.length && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted max-sm:px-4">Nothing billed on this project yet.</div>}
         </div>
         <div data-changes-table>
-          <Group label="Contract" right={canChange ? <button type="button" onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-white/[0.85] hover:text-white hover:underline" data-add-co><Plus className="h-3.5 w-3.5" />Change order</button> : undefined} />
+          <Group label="Contract" right={canChange ? <button type="button" onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-600 hover:text-brand-700 hover:underline" data-add-co><Plus className="h-3.5 w-3.5" />Change order</button> : undefined} />
           {ests.map((e) => {
             const r = curRev(e)
             return (
@@ -213,7 +213,7 @@ function InstallerSheet({ job }: { job: Job }) {
       <span className="flex min-w-0 flex-1 items-center gap-2.5 max-sm:flex-wrap max-sm:gap-y-0.5">
         <span className={BAND_LABEL}>Installer PO</span>
         {/* on the band: who, which PO, where it stands — in paper white (the words say it; no colors on the green) */}
-        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-white/[0.8] max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 break-words"><b className="font-semibold text-white">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Draft' ? '' : 'font-semibold text-white'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
+        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-muted max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 break-words"><b className="font-semibold text-ink-2">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Draft' ? '' : 'font-semibold text-ink-2'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
       </span>
       {right && <span className="flex shrink-0 items-center gap-2">{right}</span>}
     </header>

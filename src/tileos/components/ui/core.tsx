@@ -226,8 +226,8 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
             data-tab={it.key}
           >
             {it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}
-            {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-forest-100 text-forest-800') : 'bg-wash-2 text-muted')}>{it.count}</span>}
-            <span className={cn('absolute inset-x-0 bottom-0 rounded-full transition-colors', size === 'lg' ? 'h-[0.1875rem]' : 'h-[0.125rem]', on ? 'bg-forest-700' : 'bg-transparent')} />
+            {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-brand-50 text-brand-700') : 'bg-wash-2 text-muted')}>{it.count}</span>}
+            <span className={cn('absolute inset-x-0 bottom-0 rounded-full transition-colors', size === 'lg' ? 'h-[0.1875rem]' : 'h-[0.125rem]', on ? 'bg-ink' : 'bg-transparent')} />
           </button>
         )
       })}

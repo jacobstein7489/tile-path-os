@@ -7,7 +7,7 @@ import * as React from 'react'
 import { ClipboardList, ChevronRight, TriangleAlert } from 'lucide-react'
 import { useStore, NOW } from '@/tileos/store'
 import { Button, Avatar } from '@/tileos/components/ui/core'
-import { BAND, BAND_LABEL, BandCount, PX } from '@/tileos/components/ui/page'
+import { BAND_GREEN as BAND, BAND_GREEN_LABEL as BAND_LABEL, BandCount, PX } from '@/tileos/components/ui/page'
 import { Bar } from '@/tileos/components/ui/progress'
 import { cn } from '@/tileos/lib/utils'
 import { PEOPLE, type Job } from '@/tileos/data/model'
@@ -54,7 +54,7 @@ export function ProgressTab({ job, open }: { job: Job; open: (v: BoardView) => v
         </div>
         {rooms.length > 0 && (
           <>
-            <div className={cn(BAND, PX)} data-band><span className={BAND_LABEL}>Rooms</span><BandCount n={rooms.length} /></div>
+            <div className={cn(BAND, PX)} data-band><span className={BAND_LABEL}>Rooms</span><BandCount n={rooms.length} green /></div>
             {rooms.map((r) => {
               const p = roomPct(r)
               const d = r.surfaces.filter((x) => x.state === 'done').length
@@ -83,7 +83,7 @@ export function ProgressTab({ job, open }: { job: Job; open: (v: BoardView) => v
         </header>
         {days.map((g) => (
           <div key={g.label} data-progress-day={g.label}>
-            <div className={cn(BAND, PX)} data-band><span className={BAND_LABEL}>{g.label}</span>{g.entries.length > 1 && <BandCount n={g.entries.length} />}</div>
+            <div className={cn(BAND, PX)} data-band><span className={BAND_LABEL}>{g.label}</span>{g.entries.length > 1 && <BandCount n={g.entries.length} green />}</div>
             {g.entries.map((e) => <Update key={e.id} e={e} day={g.label} />)}
           </div>
         ))}

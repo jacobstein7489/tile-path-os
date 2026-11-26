@@ -150,11 +150,11 @@ export function Sidebar() {
           on ? 'bg-pure font-semibold text-ink shadow-xs' : 'font-medium text-ink-2 hover:bg-wash-2 hover:text-ink',
         )}
       >
-        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-forest-700' : 'text-[#7b766b] group-hover:text-ink-2')} strokeWidth={1.9} />
+        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-brand-600' : 'text-[#7b766b] group-hover:text-ink-2')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
-        {/* how many: what's new in the inbox and what's due today in a small green pill; the rest a plain number */}
+        {/* how many: what's due today in a small blue pill, what's new in the inbox in red; the rest a plain number */}
         {!!n && (k === 'inbox' || k === 'today'
-          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-forest-700 px-1.5 text-[0.6875rem] font-bold tnum leading-none text-white" data-menu-count>{n}</span>
+          ? <span className={cn('inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-bold tnum leading-none text-white', k === 'inbox' ? 'bg-bad-600' : 'bg-brand-600')} data-menu-count>{n}</span>
           : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-ink' : 'text-muted')}>{n}</span>)}
       </button>
     )
@@ -327,11 +327,11 @@ export function BottomNav() {
             <React.Fragment key={k}>
               {/* + New in the very middle, where the thumb is */}
               {i === 2 && <PhonePlus />}
-              <button onClick={() => go({ page: menuPage(k, keys0) as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-forest-700' : 'text-muted')} data-phone-tab={k}>
-                {/* where you are: its icon and its name in Cobblestone's green — nothing behind it */}
+              <button onClick={() => go({ page: menuPage(k, keys0) as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-brand-600' : 'text-muted')} data-phone-tab={k}>
+                {/* where you are: its icon and its name in blue — nothing behind it */}
                 <span className="relative">
                   <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2.1 : 1.7} />
-                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-forest-700 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white" data-phone-count>{n}</span>}
+                  {!!n && <span className={cn('absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white', k === 'inbox' ? 'bg-bad-600' : 'bg-brand-600')} data-phone-count>{n}</span>}
                 </span>
                 <span className="max-w-full truncate">{NAV[k].label}</span>
               </button>
@@ -343,7 +343,7 @@ export function BottomNav() {
           align="end"
           width={240}
           trigger={
-            <button className={cn('flex flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', moreOn ? 'text-forest-700' : 'text-muted')}>
+            <button className={cn('flex flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', moreOn ? 'text-brand-600' : 'text-muted')}>
               <Ellipsis className="h-[1.3125rem] w-[1.3125rem]" strokeWidth={moreOn ? 2 : 1.7} />
               More
             </button>
