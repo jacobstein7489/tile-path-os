@@ -349,12 +349,13 @@ function WatchDots({ who, eye, size = 20 }: { who: PersonKey[]; eye?: boolean; s
 }
 /** the names on top of Today's columns — the same row as Estimates' and Projects' (tap one to sort by it): To do ·
  *  When · Who · its button. The same widths as the cells on each line, so they line up */
-export function TodayHead({ waiting, sort, onSort, boxed }: { /** Waiting on others: Who is who it's with */ waiting?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void; /** over a list of boxes: in line with the lines inside them */ boxed?: boolean }) {
+export function TodayHead({ waiting, sort, onSort, boxed, flat }: { /** Waiting on others: Who is who it's with */ waiting?: boolean; /** sorted by a column: tap its name */ sort?: Sort; onSort?: (k: string) => void; /** over a list of boxes: in line with the lines inside them */ boxed?: boolean; /** not grouped by project: a Project column */ flat?: boolean }) {
   const who = React.useContext(WhoCol)
   const h = (k: string, label: string, right?: boolean, kind?: SortCol['kind']) => (onSort ? <SortHead k={k} sort={sort || null} onSort={onSort} right={right} kind={kind}>{label}</SortHead> : label)
   return (
     <div className={cn(HEAD_ROW, 'flex gap-3', boxed ? 'px-[2.0625rem]' : 'px-5', STICKY_HEAD, 'max-md:hidden')} data-list-head data-subrow>
       <span className="min-w-0 flex-1">{h('todo', 'To do')}</span>
+      {flat && <span className="w-[11rem] shrink-0" data-head-project>{h('project', 'Project')}</span>}
       <span className="flex w-[7.5rem] shrink-0 justify-end" data-head-when>{h('when', 'When', true, 'date')}</span>
       {who && <span className="flex w-[3.75rem] shrink-0 justify-center" data-head-turn>{h('who', waiting ? 'With' : 'Who')}</span>}
       <span className="w-[7.75rem] shrink-0" aria-hidden data-head-next />
@@ -371,6 +372,9 @@ const stop = (e: React.SyntheticEvent) => e.stopPropagation()
 /** the card a line is in — its address on top (a line in it doesn't say it again) and whether it's the card's first
  *  line. A sorted list is one card with no address on top: each line says its own */
 const InCard = React.createContext<{ label: string; first: boolean } | null>(null)
+/** (Nov 26) a list that isn't grouped by project (sorted by a column; Coming up, Waiting, Done): on a computer each
+ *  line's project in a column of its own, one line each — never over its words */
+const FlatCols = React.createContext(false)
 /** a line on Today: a dot when it's new to you · what to do (a small gray line under it: when, seen, updated) · on a
  *  computer when, who (circles) and its next step, each the same width on every line so they line up down the page;
  *  a phone: when and who in the small line, its button at the end. Every button the same size: a soft pill */
@@ -410,6 +414,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
 }) {
   const who = React.useContext(WhoCol)
   const card = React.useContext(InCard)
+  const flat = React.useContext(FlatCols)
   const me = meOf(useStore((x) => x.role))
   const w = when === 'Anytime' ? '' : when
   const whenCls = whenTone === 'bad' ? 'font-medium text-bad-600' : whenTone === 'warn' ? 'font-medium text-warn-700' : whenTone === 'strong' ? 'text-ink-2' : 'text-muted'
@@ -496,7 +501,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
       {isNew && <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-brand-600 max-sm:left-1.5" aria-hidden data-row-dot="new" />}
       {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
       <div className="min-w-0 flex-1">
-        {whereLine && <div className="mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5" data-row-where>{whereLine}</div>}
+        {whereLine && <div className={cn('mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5', flat && 'md:hidden')} data-row-where>{whereLine}</div>}
         {/* what to do — whole, never cut off (a long one takes a second line); on a computer who's watching sits at the
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
@@ -522,6 +527,8 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
       {pw && phoneWhen && (pw === 'Late'
         ? <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-bad-500 sm:hidden" role="img" aria-label="Late" title="Late" data-todo-when-phone="Late" />
         : <span className={cn('shrink-0 text-[0.875rem] tnum sm:hidden', whenCls)} data-todo-when-phone>{pw}</span>)}
+      {/* a list not grouped by project: its project, in its own column (a computer) */}
+      {flat && <div className="w-[11rem] shrink-0 break-words text-[0.875rem] leading-snug text-ink-2 max-md:hidden" data-row-project-cell>{where}</div>}
       {/* a computer: when · who · its next step — the same widths on every line */}
       <div className="flex w-[7.5rem] shrink-0 items-center justify-end max-md:hidden" onClick={whenPick ? stop : undefined} data-todo-when-cell>
         {whenPick ? (
@@ -2047,6 +2054,8 @@ export function MyTasksPage() {
   }
 
   /* on top: the name, the day, how much is on it (and how much is late — it opens what's late) */
+  /* not grouped by project (sorted by a column, or Coming up, Waiting, Done): each line's project in a column */
+  const flatList = !!sorter.sort || view !== 'today'
   const lateN = view === 'today' && !multi ? parts.reduce((k, p) => k + p.lines.filter((l) => l.k === 'plate' ? l.x.b === 'overdue' : l.k === 'task' ? taskBucket(l.t) === 'overdue' : false).length, 0) : 0
   return (
     <Page
@@ -2080,9 +2089,10 @@ export function MyTasksPage() {
       <WaitView.Provider value={view === 'waiting'}>
       <TodaySort.Provider value={sorter.sort}>
       <BigBands.Provider value={true}>
+      <FlatCols.Provider value={flatList}>
       <div className="flex flex-col pb-3 max-sm:pb-2.5" data-list-scope="mine" data-today-list>
         {/* the names of the columns (tap one to sort by it) — over the boxes' own columns */}
-        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} boxed />}
+        {n(view) > 0 && <TodayHead waiting={view === 'waiting'} sort={sorter.sort} onSort={sorter.toggle} boxed flat={flatList} />}
         {/* Waiting on others, in one line: only what you're waiting for */}
         {view === 'waiting' && n(view) > 0 && !q && <div className={cn('py-2 text-[0.8125rem] leading-snug text-muted', PX)} data-waiting-says>Only what you’re waiting for: things you gave someone or asked for, and things you watch.</div>}
         {/* searching: how many match, on this list */}
@@ -2092,6 +2102,7 @@ export function MyTasksPage() {
         {multi ? lists.map((l) => <PersonList key={l.key} l={l} view={view} job={job} me={meOf(role)} q={q} />) : parts.map((p) => <PartBlock key={p.key} p={p} me={me} showOwner={view === 'waiting'} byProject={view === 'today' && p.key === 'today'} />)}
         {n(view) === 0 && !q && <EmptyState icon={<Check />} title={view === 'today' && doneN ? 'All done for today' : empty[view].title} sub={view === 'today' && doneN ? 'New work lands here the moment it’s yours.' : empty[view].sub} />}
       </div>
+      </FlatCols.Provider>
       </BigBands.Provider>
       </TodaySort.Provider>
       </WaitView.Provider>

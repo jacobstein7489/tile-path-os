@@ -770,11 +770,11 @@ export function SayItBar({ jobId, onOpen }: { jobId?: string; onOpen?: () => voi
   const open = (listen?: boolean) => { onOpen?.(); s.open({ t: 'capture', jobId, listen }) }
   return (
     <div role="button" tabIndex={0} onClick={() => open()} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open() }}
-      className="group flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-3.5 py-3 transition hover:border-brand-200 max-sm:py-2" data-say-it>
-      <Helper size={40} mood="idle" />
+      className="group flex min-w-0 cursor-pointer items-center gap-3.5 rounded-2xl border border-brand-100 bg-gradient-to-r from-[#f3f6fe] to-white px-4 py-3.5 transition hover:border-brand-200 max-sm:gap-3 max-sm:px-3.5 max-sm:py-2" data-say-it>
+      <Helper size={56} mood="idle" />
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block text-[0.9375rem] font-semibold text-ink">What’s going on?</span>
-        <span className="block truncate text-[0.8125rem] text-muted">Ask me, or tell me what to do</span>
+        <span className="block text-[1.0625rem] font-semibold text-ink">What’s going on?</span>
+        <span className="mt-0.5 block text-[0.875rem] text-muted">Ask me, or tell me what to do</span>
       </span>
       <button type="button" onClick={(e) => { e.stopPropagation(); open(true) }} aria-label="Talk" className="inline-flex h-11 w-11 max-sm:h-10 max-sm:w-10 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white shadow-[0_8px_18px_-10px_rgba(38,80,207,.9)] transition hover:bg-brand-700 active:scale-95" data-say-mic><Mic className="h-5 w-5" /></button>
     </div>

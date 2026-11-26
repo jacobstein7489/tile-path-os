@@ -8,10 +8,16 @@ import { REAL } from '@/tileos/lib/save'
 /** long enough to need one: more than fits on a phone's line (beside its icon and its time) */
 export const LONG = 24
 const tried = new Set<string>()
-/** without the AI: its first sentence or clause, if that's short enough — else nothing (the line wraps) */
+/** without the AI: its first sentence or clause, if that's short enough and says something (two words at least) —
+ *  else nothing (the line wraps). "Yakov, please call the plumber": who it's for isn't the to-do — "Call the plumber" */
 export function shortFrom(title: string): string | undefined {
-  const first = title.split(/(?<=[a-z0-9)])[.?!;]\s|\s[-–—]\s|,\s/i)[0].replace(/^(please|pls)\s+/i, '').trim()
-  return first && first.length < title.length && first.length <= 34 ? first : undefined
+  let t = title.trim()
+  const named = t.match(/^([A-Z][a-z]+),\s+(.+)$/)
+  if (named) t = named[2]
+  t = t.replace(/^(please|pls)\s+/i, '')
+  const first = t.split(/(?<=[a-z0-9)])[.?!;]\s|\s[-–—]\s|,\s/i)[0].trim()
+  const out = first.charAt(0).toUpperCase() + first.slice(1)
+  return out && out.length < title.length && out.length <= 34 && out.split(/\s+/).length >= 2 ? out : undefined
 }
 async function aiShort(title: string): Promise<string | undefined> {
   const ai = (REAL as any).ai as undefined | ((p: string, pages: Blob[], signal?: AbortSignal, o?: { fast?: boolean }) => Promise<string>)

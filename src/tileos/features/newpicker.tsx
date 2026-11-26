@@ -145,27 +145,29 @@ export const PART_TINT: Record<Part | 'bad', { bg: string; fg: string; dot: stri
 const partOf = (k: string): Part => KIND[k]?.g || 'office'
 
 /** the phone's tile is small: a shorter name where the whole one doesn't fit */
-const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More tile', question: 'Site question' }
+const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More tile', question: 'Site question', po: 'PO' }
 /** a choice on + New: a white card with its icon in its part's soft color, every one the same size; Problem is red.
  *  A computer: the icon and the name on one line. A phone: a tile — the icon on top, the name under it, three
  *  across, every tile the same height (room for a name on two lines: "Purchase order") */
 function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
-  /* one line of a list: its icon in its part's color (a problem's red), its name — no boxes */
+  /* (Nov 26, evening) a big tile, like an app on a phone: its icon on top in its part's soft color (a problem's red),
+     its name under it — whole, never cut off. Everything on one screen, nothing to scroll for */
   const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
   return (
     <button type="button" onClick={onClick} title={x.h} data-new={x.k} data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
-      className="flex min-h-11 min-w-0 items-center gap-3 bg-pure px-3.5 text-left transition hover:bg-wash active:bg-wash-2 max-sm:min-h-12">
-      <x.i className="h-[1.125rem] w-[1.125rem] shrink-0" style={{ color: tint.fg }} strokeWidth={2} />
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-ink">{x.l}</span>
+      className="group flex min-h-[5.75rem] min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-line bg-pure px-1.5 py-2.5 text-center transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)] active:translate-y-0 max-sm:min-h-[4.25rem] max-sm:gap-1 max-sm:py-1.5">
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl max-sm:h-9 max-sm:w-9" style={{ background: tint.bg, color: tint.fg }}>
+        <x.i className="h-[1.375rem] w-[1.375rem] max-sm:h-5 max-sm:w-5" strokeWidth={2} />
+      </span>
+      <span className="text-[0.84375rem] font-semibold leading-tight text-ink max-sm:text-[0.8125rem]"><span className={cn(SHORT[x.k] && 'max-sm:hidden')}>{x.l}</span>{SHORT[x.k] && <span className="sm:hidden">{SHORT[x.k]}</span>}</span>
     </button>
   )
 }
-/** the choices of a part, as a list: one box, a line between each — two columns on a computer, one on a phone */
+/** the choices of a part: big tiles — three across on a phone, a row of five on a computer */
 function ChoiceList({ list, go, attrs }: { list: (Pick & { c: TileColor })[]; go: (x: Pick) => void; attrs?: Record<string, string> }) {
   return (
-    <div className="grid gap-px overflow-hidden rounded-xl border border-line bg-line-2 sm:grid-cols-2" {...attrs}>
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5" {...attrs}>
       {list.map((y) => <Choice key={y.k} x={y} onClick={() => go(y)} />)}
-      {list.length % 2 === 1 && <span className="bg-pure max-sm:hidden" aria-hidden />}
     </div>
   )
 }
@@ -214,13 +216,13 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
       ) : (
         <>
           {groups.map((x, i) => (
-            <section key={x.g} className={cn(i > 0 && 'mt-4 max-sm:mt-3.5')} data-new-group={x.g}>
+            <section key={x.g} className={cn(i > 0 && 'mt-4 max-sm:mt-2.5')} data-new-group={x.g}>
               <div className={head}>{dot(x.g)}{x.label}</div>
               <ChoiceList list={x.list} go={go} />
             </section>
           ))}
           {starts.length > 0 && (
-            <section className="mt-4 max-sm:mt-3.5" data-new-group="start">
+            <section className="mt-4 max-sm:mt-2.5" data-new-group="start">
               <div className={head}>{dot('start')}Start something new</div>
               <ChoiceList list={starts} go={go} />
             </section>
