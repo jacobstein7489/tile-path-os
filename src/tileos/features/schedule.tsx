@@ -297,9 +297,11 @@ export function AssignModal({ jobId: initialJob, crew: initialCrew, start: initi
   const job = s.jobs[jobId]
   /* the project's installer, unless another was picked */
   const [crew, setCrew] = React.useState<PersonKey | ''>(initialCrew || ((initialJob && (s.jobs[initialJob]?.crew || (s.prep[initialJob]?.installer !== 'tbd' ? s.prep[initialJob]?.installer : undefined))) as PersonKey) || '')
-  const [start, setStart] = React.useState(initialStart || workday(addDaysT(TODAY, 3)))
-  const [days, setDays] = React.useState(r?.days || 3)
-  const [workers, setWorkers] = React.useState(r?.workers || 2)
+  /* a return visit (for the touch-ups): one person for a day, the next work day — unless it says otherwise */
+  const back = ['punch', 'closeout'].includes(job?.stage || '')
+  const [start, setStart] = React.useState(initialStart || workday(addDaysT(TODAY, back ? 1 : 3)))
+  const [days, setDays] = React.useState(r?.days || (back ? 1 : 3))
+  const [workers, setWorkers] = React.useState(r?.workers || (back ? 1 : 2))
   const [areas, setAreas] = React.useState<string[]>(r?.areas || [])
   const [confirm, setConfirm] = React.useState(false)
   React.useEffect(() => {

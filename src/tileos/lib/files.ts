@@ -108,6 +108,19 @@ export async function openFile(rec: FileRec) {
   }
 }
 
+const isVideoFile = (f: { name: string; type?: string }) => /^video\//i.test(f.type || '') || /\.(mov|mp4|m4v|webm|3gp)$/i.test(f.name)
+/** a photo or a video — what opens in the viewer you flip through */
+export const isMediaFile = (f: { name: string; type?: string; kind?: string }) => f.kind === 'photo' || isImage(f) || isVideoFile(f)
+/** a kept file opened right here, in the app — never a new tab: a photo or a video in the viewer (with the others it
+ *  came with, to flip through), anything else (a PDF, a document) in its own window, page by page */
+export async function showFile(rec: FileRec, among: FileRec[] = [rec], o: { /** what it's a picture of (a touch-up's words) — else the file's name */ cap?: string; /** where that is ("Guest bath") */ room?: string } = {}) {
+  const S = useStore.getState()
+  if (!isMediaFile(rec)) { S.open({ t: 'file', id: rec.id }); return }
+  const list = (among.some((f) => f.id === rec.id) ? among : [rec, ...among]).filter(isMediaFile)
+  const items = await Promise.all(list.map(async (p) => ({ id: p.id, kind: isVideoFile(p) ? ('video' as const) : ('photo' as const), url: (await fileUrl(p).catch(() => undefined)) || p.thumb, cap: o.cap || p.name, room: o.room, day: p.at, who: p.by })))
+  S.open({ t: 'media', items, index: Math.max(0, items.findIndex((x) => x.id === rec.id)) })
+}
+
 /** take a file off a project (and out of storage) */
 export async function removeFile(rec: FileRec) {
   if (rec.path && REAL.files) { try { await REAL.files.remove(rec.path) } catch { /* the record goes either way */ } }

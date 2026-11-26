@@ -16,7 +16,7 @@ import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role,
 import { Safe } from '@/tileos/components/ui/safe'
 import { TODAY_LABEL } from '@/tileos/data/jobs'
 import { REPEAT_LABEL, type Task, type TaskType } from '@/tileos/data/work'
-import { runTaskAction, setPunchOwner } from './flows'
+import { runTaskAction, setPunchOwner, checkAllPunch } from './flows'
 import { sendCrewReport } from './flows2'
 import { ActivityRow } from './activity'
 import { agendaFor, eventWhen } from './agenda'
@@ -54,6 +54,7 @@ import { isGc, isGcWait, isQuestion, toldGc, gcState, gcSoFar, gcWaits, gcWords,
 import { TouchupLine, StrayLine } from './touchups'
 import { holdWords } from './common'
 import { tagOfTask, todosOf, touchupsWords, strayTouchups, TOUCH_WORDS } from './todokinds'
+import { touchNext } from './touchnext'
 import { nextOf, doneWord, isCall, isOrder } from './nextstep'
 import { OrderedPanel, NotYetPanel, cameIn } from './ordered'
 import { autoWho } from './autowho'
@@ -584,7 +585,11 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
   /* touch-ups: the checklist, how far along — "1 of 4 done" (tap it: the four) */
   const touch = s.punch.filter((p) => p.taskId === t.id)
   const noOne = touch.filter((p) => !p.owner && p.status !== 'verified').length
-  const touchWords = !touch.length ? '' : noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} ${noOne === 1 ? 'touch-up' : 'touch-ups'}` : touchupsWords(touch)
+  /* the touch-ups' next step (pick who · book the return visit · check them) — this to-do's own when it carries all of
+     them (the one list on the project): its words and its button say that step */
+  const tn0 = touch.length && job && !done ? touchNext(s, job) : null
+  const tn = tn0 && tn0.task?.id === t.id ? tn0 : null
+  const touchWords = !touch.length ? '' : tn && tn.step !== 'fix' ? tn.what : noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} ${noOne === 1 ? 'touch-up' : 'touch-ups'}` : touchupsWords(touch)
   /* its next step, in its own word: a call → Called (what did they say?), an order → Ordered (who brings it, when —
      then it waits for it), waiting → Follow up, someone else's → Remind them; anything else → the word for doing it */
   /* one tap is one: a quick second tap on the same spot never does it twice */
@@ -602,7 +607,13 @@ function TaskRow({ t, showOwner, followed, when }: { t: Task; showOwner?: boolea
             : t.state === 'now' && isCallTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, call: true })} data-row-act="call">{callWordOf(t.title)}</Button>
             : t.state === 'now' && isOrderTask(t) ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id, ordered: true })} data-row-act="ordered">{doneWordOf(t.title)}</Button>
             : t.state === 'now' && !touch.length ? <Button size="sm" className={TBTN} onClick={() => { if (once.current) return; once.current = true; setLeaving(true); setTimeout(() => s.completeTask(t.id), 220) }} data-row-act="done">{doneWordOf(t.title)}</Button>
-              : touch.length ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })} data-row-act="list">Open list</Button>
+              /* touch-ups: their next step, right on the line — pick who (the same Who as everywhere), book the return
+                 visit (its short window), check them (the list) */
+              : touch.length ? (
+                tn?.step === 'who' ? <WhoMenu pick={{ people: Array.from(new Set([...CREWS.filter((c) => !isOff(s, 'crew', c)), ...fieldPeople(s, job)])), me: me0, current: undefined, onPick: (k) => setPunchOwner(touch.filter((p) => !p.owner && p.status !== 'verified').map((p) => p.id), k) }} trigger={<Button size="sm" className={TBTN} data-row-act="pick">{tn.short}</Button>} />
+                  : tn?.step === 'book' ? <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'assign', jobId: t.jobId, crew: tn.crew, start: tn.iso })} data-row-act="book">{tn.short}</Button>
+                    : <Button size="sm" className={TBTN} onClick={() => s.open({ t: 'task', id: t.id })} data-row-act="list">{tn?.step === 'check' ? tn.short : 'Open list'}</Button>
+              )
               : undefined
   return (
     <TodoRow
@@ -2275,6 +2286,9 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
   const touch = s.punch.filter((p) => p.taskId === t.id)
   /* to-dos about these touch-ups said in words (same project, same person): here, on top — they're not lines of their own */
   const strays = touch.length ? strayTouchups(s, t) : []
+  /* the touch-ups' next step — this window's main button (anyone who can change them; not the crew, not the client) */
+  const tnWin = touch.length && job && t.state !== 'done' && !['crew', 'client', 'accounting'].includes(s.role) ? touchNext(s, job) : null
+  const touchStep = tnWin && tnWin.step !== 'add' && tnWin.open.some((p) => p.taskId === t.id) ? tnWin : null
   const about = touch.length ? '' : (isRequest(t) ? (t.detail || '').replace(/(^|\s*·\s*)[^·]*\basked for it\s*$/i, '') : t.detail || '').trim()
   const header = (
     <WinHead
@@ -2319,6 +2333,21 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
     <Button variant="ghost" icon={<ChevronLeft />} onClick={() => setPanel(null)} data-task-back>Back</Button>
   ) : t.state === 'done' ? (
     (!theirs || admin) ? <>{right}<Button icon={<RotateCcw />} onClick={() => s.reopenTask(t.id)} data-reopen-task>Reopen</Button></> : undefined
+  ) : touchStep ? (
+    /* touch-ups: more of them at the left; the main button is their next step — pick who does them, book the return
+       visit, or (he's been) all checked in one tap. Each one done, the next shows by itself */
+    <>
+      {job && <Button icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId: job.id, into: t.id })} data-touchups-add><span className="max-sm:hidden">Add touch-ups</span><span className="sm:hidden">Add</span></Button>}
+      {right}
+      {touchStep.step === 'who' ? (
+        <WhoMenu pick={{ people: Array.from(new Set([...CREWS.filter((c) => !isOff(s, 'crew', c)), ...fieldPeople(s, job)])), me, current: undefined, onPick: (k) => setPunchOwner(touch.filter((p) => !p.owner && p.status !== 'verified').map((p) => p.id), k) }}
+          trigger={<Button variant="primary" className="max-sm:flex-1" data-touchups-pick-who data-touch-step="who">{touchStep.button}</Button>} />
+      ) : touchStep.step === 'book' ? (
+        <Button variant="primary" className="max-sm:flex-1" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId: t.jobId, crew: touchStep.crew, start: touchStep.iso })} data-touch-step="book">{touchStep.button}</Button>
+      ) : (
+        <Button variant="primary" className="max-sm:flex-1" icon={<Check />} onClick={() => { checkAllPunch(touch.map((p) => p.id)); s.close() }} data-touch-step={touchStep.step}>{touchStep.button}</Button>
+      )}
+    </>
   ) : theirs ? (
     <>{right}<Button variant="primary" className="max-sm:flex-1" icon={<BellRing />} onClick={() => { remindTask(t); s.close() }} data-remind-task>Remind {owner}</Button></>
   ) : gcw ? (
@@ -2405,14 +2434,6 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
           change their words, add photos */}
       {touch.length > 0 && (
         <div className="-mx-6 mb-5 border-b border-line-2 max-sm:-mx-4" data-task-touchups>
-          {/* not decided yet who does them: one tap for all of them (or each one on its own line) */}
-          {touch.some((p) => !p.owner && p.status !== 'verified') && t.state !== 'done' && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-line-2 bg-warn-50/60 px-6 py-2.5 max-sm:px-4" data-touchups-pick>
-              <span className="min-w-0 flex-1 text-[0.875rem] text-ink-2">Who does them isn’t decided yet</span>
-              <WhoMenu pick={{ people: Array.from(new Set([...CREWS.filter((c) => !isOff(s, 'crew', c)), ...fieldPeople(s, job)])), me, current: undefined, onPick: (k) => setPunchOwner(touch.filter((p) => !p.owner).map((p) => p.id), k) }}
-                trigger={<Button size="sm" variant="primary" data-touchups-pick-who>Pick who does them</Button>} />
-            </div>
-          )}
           {touch.map((p) => <TouchupLine key={p.id} p={p} win />)}
         </div>
       )}

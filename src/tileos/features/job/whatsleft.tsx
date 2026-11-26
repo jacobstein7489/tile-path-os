@@ -6,7 +6,7 @@
  *   What can't start yet, and what's done, aren't on it — just what's left.
  * Tap a line: that one thing in its own window — done there, it closes by itself; it never jumps to another step. */
 import * as React from 'react'
-import { ChevronRight, Plus, Sparkles } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useStore, meOf, type Store } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { Filter } from '@/tileos/components/ui/page'
@@ -20,7 +20,8 @@ import { readyForCrew, startProject } from '../flows'
 import { firstName } from './kit'
 import { installerOf } from '../upcoming'
 import { KindTag } from '../winhead'
-import { tagOfTask, plainTodo, todosOf, touchupsWords, TOUCH_WORDS } from '../todokinds'
+import { tagOfTask, TOUCH_WORDS } from '../todokinds'
+import { touchNext, touchWindow } from '../touchnext'
 
 export type LeftRow = {
   key: string
@@ -42,7 +43,8 @@ export type LeftRow = {
   next?: boolean
 }
 /** the project's next big thing once getting ready is done — the first line of To do, not a box of its own:
- *  schedule the crew, start the job (its check starts it), book the return visit, send the final invoice */
+ *  schedule the crew, start the job (its check starts it), send the final invoice. (At the touch-ups, the touch-ups'
+ *  own line is it: features/touchnext) */
 export function nextRow(s: Store, job: Job): LeftRow | null {
   if (['client', 'crew', 'site'].includes(s.role)) return null
   const tracks = tracksFor(s, job)
@@ -53,7 +55,8 @@ export function nextRow(s: Store, job: Job): LeftRow | null {
   const noop = () => {}
   if (phase === 'crew' && !booked) return { key: 'next:crew', kind: 'Schedule', what: 'Schedule the crew', who: pm, when: 'Getting ready is done', tone: 'now', next: true, noCheck: true, open: () => { readyForCrew(job.id); s.open({ t: 'assign', jobId: job.id }) }, done: noop }
   if ((phase === 'crew' || phase === 'ready') && booked && b) return { key: 'next:start', kind: 'Schedule', what: 'Start the job', who: pm, iso: b.start, when: `Crew from ${labelFromIso(b.start)}`, tone: 'now', next: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: () => startProject(job.id) }
-  if (phase === 'punch') return { key: 'next:return', kind: 'Touch-ups', what: 'Book the return visit', who: pm, when: 'For the touch-ups', tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'assign', jobId: job.id }), done: noop }
+  /* at the touch-ups: the touch-ups' own line says what's next (add them, pick who, book the return visit…) — not a
+     second line */
   const fin = s.money.find((m) => m.jobId === job.id && m.kind === 'final')
   if (job.stage === 'closeout' && fin) return { key: 'next:final', kind: 'Billing', what: 'Send the final invoice', who: pm, tone: 'now', next: true, noCheck: true, open: () => s.open({ t: 'money', id: fin.id }), done: noop }
   return null
@@ -151,39 +154,29 @@ export function WhatsLeft({ job }: { job: Job }) {
      a problem first, then by its day — one list, each line with its kind, who has it and when (the same as Today) */
   const nx = nextRow(s, job)
   const punch = s.punch.filter((p) => p.jobId === job.id)
-  const punchOpen = punch.filter((p) => p.status !== 'verified')
   const left = leftRows(s, job)
-  /* the return visit: a to-do of its own that books it (Schedule the return) is that line — not a second one */
-  const retTask = nx?.key === 'next:return' ? left.find((r) => s.tasks.find((t) => t.id === r.key)?.action?.kind === 'assign') : undefined
-  const ret: LeftRow | null = nx?.key === 'next:return' ? { ...(retTask || nx), kind: 'Touch-ups', next: true } : null
-  const touchIds = new Set(punch.map((p) => p.taskId).filter(Boolean) as string[])
-  /* the touch-ups: one line — how far along ("1 of 4 done"), whose, when; tap it: the checklist */
-  const touchRow: LeftRow | null = punchOpen.length ? (() => {
-    const owners = punchOpen.map((p) => p.owner).filter(Boolean) as PersonKey[]
-    const who = owners.sort((a, b) => owners.filter((x) => x === b).length - owners.filter((x) => x === a).length)[0]
-    /* some with nobody yet: say so — whoever logged them picks */
-    const noOne = punchOpen.filter((p) => !p.owner).length
-    const days = punchOpen.map((p) => (p.due ? isoFromLabel(p.due) : undefined)).filter(Boolean).sort() as string[]
-    const iso = days[0]
-    const late = !!iso && iso < TODAY
-    return { key: 'touchups', kind: 'Touch-ups', what: noOne ? `Pick who does ${noOne === 1 ? 'it' : 'them'} · ${noOne} not decided yet` : touchupsWords(punch), who, iso, when: iso ? (late ? `Was due ${labelFromIso(iso)}` : labelFromIso(iso)) : undefined, late, tone: 'now' as const, open: () => s.open({ t: 'touchups', jobId: job.id }), done: () => {}, noCheck: true }
-  })() : null
-  /* plain to-dos: each its own line, the same as on Today — each opens the same window as every to-do */
-  const folded = new Set<string>()
-  const todoRows: LeftRow[] = []
-  /* a touch-ups task, or (with the list there) a to-do about them said in words: inside the one touch-ups line */
-  const touchTask = (k: string) => punch.some((p) => p.taskId === k) || (!!touchRow && TOUCH_WORDS.test(s.tasks.find((t) => t.id === k && t.state === 'now')?.title || ''))
-  const rest = [...(touchRow && !ret ? [touchRow] : []), ...todoRows, ...left.filter((r) => !touchTask(r.key) && r !== retTask && !folded.has(r.key))]
+  /* the touch-ups: ONE line — it says its next step (add them · pick who fixes them · book the return visit · "3 to
+     fix" while the installer has them · check them), whose turn that is, and their day. Tap it: their window, with that
+     step as its button. Each step done, the next shows by itself */
+  const tn = touchNext(s, job)
+  const touchRow: LeftRow | null = tn ? { key: 'touchups', kind: 'Touch-ups', what: tn.what, who: tn.who, iso: tn.iso, when: tn.when, late: tn.late, tone: 'now', next: tn.step !== 'fix', noCheck: true, open: () => s.open(touchWindow(tn, job.id)), done: () => {} } : null
+  /* inside that one line: the touch-ups' own to-dos, a to-do about them said in words, and a to-do that books the
+     return visit (that's the line's own step) */
+  const inTouch = (k: string) => {
+    if (!touchRow) return false
+    const t = s.tasks.find((x) => x.id === k)
+    return punch.some((p) => p.taskId === k) || (!!t && t.state === 'now' && (TOUCH_WORDS.test(t.title) || (job.stage === 'punch' && t.action?.kind === 'assign')))
+  }
+  const rest = [...(touchRow && job.stage !== 'punch' ? [touchRow] : []), ...left.filter((r) => !inTouch(r.key))]
     .sort((a, b) => Number(b.tone === 'bad') - Number(a.tone === 'bad') || (a.iso || '9999').localeCompare(b.iso || '9999'))
-  /* at the touch-ups, they're the next big thing: the return visit, then the touch-ups, first */
-  const rows = [...(nx && nx.key !== 'next:return' ? [nx] : []), ...(ret ? [ret] : []), ...(ret && touchRow ? [touchRow] : []), ...rest]
+  /* at the touch-ups, they're the next big thing: their line first */
+  const rows = [...(nx ? [nx] : []), ...(touchRow && job.stage === 'punch' ? [touchRow] : []), ...rest]
   const canAdd = !['crew', 'client', 'accounting'].includes(s.role)
   return (
     <section data-whats-left className="overflow-hidden rounded-[0.875rem] border border-line bg-white">
       <header className="flex min-h-[3.25rem] min-w-0 items-center gap-3 px-5 py-2 max-sm:px-4">
         <h3 className="text-[1.0625rem] font-semibold text-ink">To do</h3>
         <span className="text-[0.9375rem] font-medium tnum text-faint" data-left-count>{rows.length}</span>
-        {canAdd && punch.length === 0 && job.stage === 'punch' && <button type="button" onClick={() => s.open({ t: 'punchnew', jobId: job.id })} className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50" data-left-touchups-add><Plus className="h-3.5 w-3.5" />Add touch-ups</button>}
       </header>
       <div data-left-rows>
         {rows.map((r) => <LeftLine key={r.key} r={r} />)}

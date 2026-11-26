@@ -16,7 +16,7 @@ import { MultiSelect } from '@/tileos/components/ui/select'
 import { TileImg, GroutDot } from '@/tileos/components/ui/swatch'
 import { cn } from '@/tileos/lib/utils'
 import { toast } from '@/tileos/lib/pop'
-import { keepFiles, openFile, sizeLabel } from '@/tileos/lib/files'
+import { keepFiles, showFile, sizeLabel } from '@/tileos/lib/files'
 import { PEOPLE, fmtMoney, type Job, type PersonKey, type Tone } from '@/tileos/data/model'
 import { GROUTS, JOINTS, byTag, tilesOf, hasTile, sfFor, type Tile, type Surface } from '@/tileos/data/jobs'
 import { METHODS, type MethodKey } from '@/tileos/data/takeoff'
@@ -846,7 +846,7 @@ function Tiling({ job }: { job: Job }) {
   return (
     <ResultBox title="What we’re tiling" empty="No rooms on it yet.">
       {rooms.length > 0 && <ResultRow icon={<Ruler />} title={`${rooms.length} ${rooms.length === 1 ? 'room' : 'rooms'}${sf ? ` · ${sf.toLocaleString('en-US')} SF` : ''}`} sub={rooms.map((r) => r.name).join(', ')} onClick={() => s.open({ t: 'scopewin', jobId: job.id })} />}
-      {files.map((f) => <ResultRow key={f.id} icon={<FileText />} title={f.name} sub={[PEOPLE[f.by]?.short, f.at].filter(Boolean).join(' · ')} onClick={() => openFile(f)} />)}
+      {files.map((f) => <ResultRow key={f.id} icon={<FileText />} title={f.name} sub={[PEOPLE[f.by]?.short, f.at].filter(Boolean).join(' · ')} onClick={() => void showFile(f, files)} />)}
     </ResultBox>
   )
 }
@@ -900,7 +900,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
       {kept.length > 0 && (
         <Block title="The paperwork" right={`${kept.length} file${kept.length === 1 ? '' : 's'}`}>
           {kept.map((f) => (
-            <OpenRow key={f.id} onClick={() => openFile(f)} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
+            <OpenRow key={f.id} onClick={() => void showFile(f, kept)} className="flex w-full items-center gap-3 border-t border-line-2 px-4 py-2.5 text-left first:border-t-0 hover:bg-wash/60">
               <FileText className="h-4 w-4 shrink-0 text-faint" />
               <span className="min-w-0 flex-1 truncate text-[0.875rem] font-semibold text-ink">{f.name}</span>
               <span className="shrink-0 text-[0.78125rem] text-muted">{f.at} · {sizeLabel(f.size)}</span>

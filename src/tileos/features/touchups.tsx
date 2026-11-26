@@ -3,20 +3,21 @@
  * yet says what it's waiting on ("the tile delivery"). The project shows them as one line on What's open.
  * And a note on a project: say it (or type it), add photos or videos — it goes into the project's Latest. */
 import * as React from 'react'
-import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, RotateCcw, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react'
+import { Plus, Check, Camera, Play, MoreHorizontal, Hourglass, Trash2, RotateCcw, ChevronDown, ChevronRight, CalendarDays, Sparkles, History } from 'lucide-react'
 import { useStore, meOf, NOW, addHist } from '@/tileos/store'
 import { Button, Avatar, TextArea, Field } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop } from '@/tileos/components/ui/overlay'
 import { BAND, BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { cn } from '@/tileos/lib/utils'
-import { keepFiles, openFile } from '@/tileos/lib/files'
+import { keepFiles, showFile } from '@/tileos/lib/files'
 import { PEOPLE, CREWS, type PersonKey, type Job } from '@/tileos/data/model'
 import type { FileRec } from '@/tileos/data/jobs'
 import type { PunchItem, Task } from '@/tileos/data/work'
-import { setPunch, setPunchOwner } from './flows'
-import { WhoMenu, WhenPop, WIN_LIST_ROW, WIN_LIST_GRID, WIN_TICK, WIN_CELLS, WIN_MORE, WIN_UNDER, type WhoPick, type WhenPick } from './winhead'
+import { setPunch, setPunchOwner, checkAllPunch } from './flows'
+import { ListHead, WhoMenu, WhenPop, WIN_LIST_ROW, WIN_LIST_GRID, WIN_TICK, WIN_CELLS, WIN_MORE, WIN_UNDER, type WhoPick, type WhenPick } from './winhead'
 import { isOff } from './active'
-import { TOUCH_WORDS, sameWords } from './todokinds'
+import { TOUCH_WORDS, sameWords, touchupsWords } from './todokinds'
+import { touchNext } from './touchnext'
 import { FormHead, FormRow, ProjectField, PhotoButton } from './formkit'
 import { fieldPeople } from './steps-ui'
 import { Whose } from './job/whatsleft'
@@ -58,7 +59,8 @@ export function TouchupsList({ job, bare, win }: { job: Job; /** inside the proj
       )}
       {/* the project's To do: what's left, one list (the ones fixed and waiting to be checked last); checked ones aren't on it */}
       {bare && [...open, ...check].map((p) => <TouchupLine key={p.id} p={p} />)}
-      {!bare && open.length > 0 && <Part label="To fix" n={open.length} win={win}>{open.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}</Part>}
+      {/* in a window with nothing fixed yet: just the lines, the same as a to-do's window (its top says "3 to fix") */}
+      {!bare && open.length > 0 && (win && !check.length && !done.length ? open.map((p) => <TouchupLine key={p.id} p={p} win />) : <Part label="To fix" n={open.length} win={win}>{open.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}</Part>)}
       {!bare && check.length > 0 && <Part label="Fixed · to check" n={check.length} win={win}>{check.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}</Part>}
       {!bare && done.length > 0 && (
         <div>
@@ -96,6 +98,9 @@ export function StrayLine({ t }: { t: Task }) {
     </div>
   )
 }
+/** a project's touch-ups in their own window — the same window as every to-do (what it is and the project on top, how
+ *  far along, whose turn and their day; the list; who logged them; and their next step as the main button). It opens
+ *  when no single to-do carries them all (two lists logged, or a list brought in from before) */
 export function TouchupsModal({ jobId, level }: { jobId: string; level: number }) {
   const s = useStore()
   const job = s.jobs[jobId]
@@ -106,27 +111,47 @@ export function TouchupsModal({ jobId, level }: { jobId: string; level: number }
   /* (a to-do with the same words as one of theirs is that one, written twice: not shown again) */
   const mains = s.tasks.filter((t) => linked.has(t.id))
   const strays = items.length ? s.tasks.filter((t) => t.jobId === jobId && t.state === 'now' && !linked.has(t.id) && TOUCH_WORDS.test(t.title) && !mains.some((m) => sameWords(m.title, t.title))) : []
-  const open = items.filter((p) => p.status === 'open' || p.status === 'working')
-  const check = items.filter((p) => p.status === 'verify')
-  const done = items.filter((p) => p.status === 'verified')
+  const me = meOf(s.role)
   const canAdd = !['accounting', 'client'].includes(s.role)
+  const canStep = canAdd && s.role !== 'crew'
+  const tn = touchNext(s, job)
+  const people: PersonKey[] = Array.from(new Set([...CREWS.filter((c) => !isOff(s, 'crew', c)), ...fieldPeople(s, job)]))
+  const open = items.filter((p) => p.status !== 'verified')
+  const step = canStep && tn && tn.step !== 'add' ? tn : null
   return (
     <Modal
       level={level}
-      size="lg"
-      tall
+      size="md"
       onClose={s.close}
       title="Touch-ups"
-      sub={`${job.name} · ${[open.length ? `${open.length} to do` : '', check.length ? `${check.length} to check` : '', done.length ? `${done.length} checked` : ''].filter(Boolean).join(' · ') || 'none yet'}`}
+      inlineClose
+      header={<ListHead kind={{ icon: <Sparkles />, label: 'Touch-ups' }} place={job.name} onPlace={() => s.open({ t: 'job', id: job.id })} title={items.length ? touchupsWords(items) : 'No touch-ups yet'} who={tn?.who} me={me} when={tn?.when} whenTone={tn?.late ? 'late' : undefined} attrs={{ 'data-touchups-head': '' }} />}
       footer={
         <>
-          {canAdd && <Button icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId })}>Add touch-ups</Button>}
-          <Button className="ml-auto" variant="primary" onClick={s.close}>Done</Button>
+          {canAdd && <Button icon={<Plus />} onClick={() => s.open({ t: 'punchnew', jobId, into: tn?.task?.id })} data-touchups-add><span className="max-sm:hidden">Add touch-ups</span><span className="sm:hidden">Add</span></Button>}
+          <div className="ml-auto" aria-hidden />
+          {/* their next step — pick who does them, book the return visit, or all checked in one tap */}
+          {step?.step === 'who' ? (
+            <WhoMenu pick={{ people, me, current: undefined, onPick: (k) => setPunchOwner(open.filter((p) => !p.owner).map((p) => p.id), k) }} trigger={<Button variant="primary" className="max-sm:flex-1" data-touch-step="who">{step.button}</Button>} />
+          ) : step?.step === 'book' ? (
+            <Button variant="primary" className="max-sm:flex-1" icon={<CalendarDays />} onClick={() => s.open({ t: 'assign', jobId, crew: step.crew, start: step.iso })} data-touch-step="book">{step.button}</Button>
+          ) : step ? (
+            <Button variant="primary" className="max-sm:flex-1" icon={<Check />} onClick={() => { checkAllPunch(open.map((p) => p.id)); s.close() }} data-touch-step={step.step}>{step.button}</Button>
+          ) : (
+            <Button variant="primary" className="max-sm:flex-1" onClick={s.close}>Done</Button>
+          )}
         </>
       }
+      bodyClass="px-6 pb-4 pt-0 max-sm:px-4"
     >
-      {strays.length > 0 && <div className="-mx-6 -mt-5 mb-5 border-b border-line-2 max-sm:-mx-4" data-task-strays>{strays.map((t) => <StrayLine key={t.id} t={t} />)}</div>}
-      <div className={cn('-mx-6 -my-5 max-sm:-mx-4', strays.length > 0 && 'mt-0')}><TouchupsList job={job} win /></div>
+      {strays.length > 0 && <div className="-mx-6 border-b border-line-2 max-sm:-mx-4" data-task-strays>{strays.map((t) => <StrayLine key={t.id} t={t} />)}</div>}
+      <div className="-mx-6 border-b border-line-2 max-sm:-mx-4" data-touchups-list><TouchupsList job={job} win /></div>
+      {/* who logged them, and when — one quiet line, the same as on every to-do */}
+      {tn?.by && tn.on && (
+        <div className="mt-5 flex items-center gap-1.5 text-[0.8125rem] text-faint" data-touchups-record>
+          <History className="h-3.5 w-3.5 shrink-0" /><span>Logged {tn.on} by {tn.by === me ? 'you' : PEOPLE[tn.by]?.short || tn.by}</span>
+        </div>
+      )}
     </Modal>
   )
 }
@@ -233,7 +258,7 @@ export function TouchupLine({ p, win }: { p: PunchItem; /** in a window: one lin
   const mediaEl = (pad: string) => media.length > 0 && (
     <div className={cn('mt-2 flex flex-wrap items-center gap-1.5', pad)}>
       {media.map((f) => (
-        <button key={f.id} onClick={() => void openFile(f)} aria-label={`Open ${f.name}`} className="relative h-11 w-11 overflow-hidden rounded-lg border border-line-2 bg-wash-2">
+        <button key={f.id} onClick={() => void showFile(f, media, { cap: p.text, room: where || undefined })} aria-label={`Open ${f.name}`} data-touchup-media={f.id} className="relative h-11 w-11 overflow-hidden rounded-lg border border-line-2 bg-wash-2">
           {f.thumb ? <img src={f.thumb} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center bg-ink text-white">{isVideo(f) ? <Play className="h-4 w-4" /> : <Camera className="h-4 w-4" />}</span>}
           {isVideo(f) && f.thumb && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white"><Play className="h-4 w-4" /></span>}
         </button>

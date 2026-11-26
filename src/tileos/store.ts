@@ -19,7 +19,7 @@ import {
   type PunchItem, type Task, type MoneyItem, type PO, type OurMat, type TileCheck, type Booking, type ReadyItem, type Notice, type LogLine,
 } from '@/tileos/data/work'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
-import { NOW as NOW_T, TODAY as TODAY_T, shiftDeep, shiftText, isoFromLabel, md } from '@/tileos/lib/today'
+import { NOW as NOW_T, TODAY as TODAY_T, shiftDeep, shiftText, isoFromLabel, md, addDays } from '@/tileos/lib/today'
 import { sampleHistory } from '@/tileos/data/history'
 import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
@@ -343,6 +343,26 @@ function pinDates(s: Data) {
     const c = pinDate(t.laterUntil); if (c !== t.laterUntil) t.laterUntil = c
   })
   Object.values(s.jobs).forEach((j) => { if (j.next?.due) { const d = pinDate(j.next.due); if (d !== j.next.due) j.next.due = d } })
+  /* a touch-up's day too: "Today" when it was logged is that date from then on (so it goes late like everything else) */
+  s.punch.forEach((p) => { if (p.due && p.status !== 'verified') { const d = pinDate(p.due); if (d && d !== p.due) p.due = d } })
+}
+/** touch-ups saved before their days were kept as dates: "Today", "Tomorrow", "Fri" meant the day they were logged (and
+ *  on from it) — worked out from that day (the first line of their to-do), not from today. One logged "Today" three
+ *  days ago is three days late, not due today. Done once, when the data comes in */
+function healPunchDays(s: Data) {
+  const DOWS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+  s.punch.forEach((p) => {
+    if (!p.due || p.status === 'verified' || MD_RE.test(p.due) || /^\d{4}-/.test(p.due) || /\d{4}$/.test(p.due)) return
+    const t = p.taskId ? s.tasks.find((x) => x.id === p.taskId) : undefined
+    const from = t?.log?.[0]?.date && MD_RE.test(t.log[0].date) ? isoFromLabel(t.log[0].date) : undefined
+    if (!from || from > TODAY_T) { const d = pinDate(p.due); if (d) p.due = d; return }
+    const l = p.due.trim().toLowerCase()
+    const wd = DOWS.findIndex((k) => l.startsWith(k))
+    const next = (day: number, start: string) => { let d = start; while (new Date(d + 'T12:00:00').getDay() !== day) d = addDays(d, 1); return d }
+    const meant = l === 'today' || l === 'now' ? from : l === 'tomorrow' ? addDays(from, 1) : l === 'next mon' || l === 'next week' ? next(1, addDays(from, 1)) : l === 'in 2 weeks' ? addDays(from, 14) : wd >= 0 && l.length <= 9 ? next(wd, from) : undefined
+    const d = meant ? md(meant) : pinDate(p.due)
+    if (d) p.due = d
+  })
 }
 export const DATA_KEYS: (keyof Data)[] = ['jobs', 'clients', 'tiles', 'tasks', 'money', 'pos', 'mats', 'checks', 'bookings', 'ready', 'pricing', 'hist', 'rooms', 'notices', 'lost', 'punch', 'diary', 'ipos', 'prep', 'notes', 'items', 'estimates', 'designers', 'suppliers', 'rules', 'events', 'pay', 'team', 'access', 'shortages', 'messages', 'files', 'stepRecs', 'jobSteps', 'inactive', 'seen']
 /** a clean start for testing: no projects, estimates, tasks or clients — the team, logins, items and settings stay */
@@ -453,6 +473,7 @@ export const useStore = create<Store>()(
         let base: Data | undefined
         DATA_KEYS.forEach((k) => ((s as any)[k] = (d as any)[k] ?? (k === 'tiles' ? {} : ((base ||= startData()) as any)[k])))
         ensureTiles(s)
+        healPunchDays(s)
         moveLogins(s.team)
         s.tasks = s.tasks.filter((x) => !(x.state === 'later' && x.laterUntil === 'When setup is ready' && /^Review the .+ setup$/.test(x.title)))
         s.past = []
