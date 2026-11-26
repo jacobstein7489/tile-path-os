@@ -422,7 +422,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
   let lastDay = ''
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f3efe8] bg-[radial-gradient(#e2dbcf_0.0625rem,transparent_0.0625rem)] px-5 py-4 [background-size:1.125rem_1.125rem] max-sm:px-2.5">
+      <div className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-wash-2 bg-[radial-gradient(#e2dbcf_0.0625rem,transparent_0.0625rem)] px-5 py-4 [background-size:1.125rem_1.125rem] max-sm:px-2.5">
         {items.map((x, idx) => {
           if (x.k !== 'msg') return null
           const day = dayOfMs(x.t)
@@ -501,7 +501,7 @@ export function Thread({ jobId, outside, newFrom }: { jobId: string; outside?: b
           <div className="flex items-end gap-2">
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" aria-label="Photos to send" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void addPhotos(f) }} />
             <input ref={docRef} type="file" multiple className="hidden" aria-label="Files to send" onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; void addDocs(f) }} />
-            <div className={cn('flex min-w-0 flex-1 items-end rounded-[1.375rem] border pl-1 transition focus-within:border-brand-300', internal ? 'border-warn-200 bg-[#fffaf0]' : 'border-line bg-white')}>
+            <div className={cn('flex min-w-0 flex-1 items-end rounded-[1.375rem] border pl-1 transition focus-within:border-brand-300', internal ? 'border-warn-200 bg-[#fffaf0]' : 'border-line bg-pure')}>
               <Pop open={emojiOpen} onOpenChange={setEmojiOpen} side="top" align="start" width={360} trigger={<button aria-label="Emoji" className={cn('mb-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition hover:bg-wash hover:text-ink', emojiOpen ? 'text-brand-600' : 'text-muted')}><Smile className="h-5 w-5" /></button>}>
                 <EmojiPicker onPick={insert} className="w-full max-w-full" />
               </Pop>

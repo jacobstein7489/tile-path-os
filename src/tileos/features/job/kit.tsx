@@ -10,7 +10,7 @@ import * as React from 'react'
 import { useStore, meOf } from '@/tileos/store'
 import { Avatar } from '@/tileos/components/ui/core'
 import { cn } from '@/tileos/lib/utils'
-import { BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
+import { BAND, BAND_LABEL, BandCount } from '@/tileos/components/ui/page'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 
 /** Cobblestone's green — the bands on the scope of work */
@@ -25,8 +25,10 @@ export const SHEET = 'overflow-hidden rounded-[0.875rem] border border-line bg-w
 export const PAPER = 'overflow-clip rounded-[0.875rem] border border-line bg-white'
 /** a line on the paper — a computer: 40px; a phone: two lines with the big picture */
 export const PAPER_ROW = 'min-h-[3.5rem] border-t border-line-2 px-5 py-2.5 max-sm:px-3 lg:min-h-[2.5rem] lg:py-1'
-/** a room's gray band (the scope's and the tile's) */
-export const ROOM_BAND = 'flex min-h-9 min-w-0 items-center gap-2.5 text-[0.8125rem] text-[#222]'
+/** a room's gray band (the scope's and the tile's) — a group inside a floor: the gray band, a step under the green */
+export const ROOM_BAND = 'flex min-h-9 min-w-0 items-center gap-2.5 text-[0.8125rem] text-ink'
+/** its gray, on the screen (the printed papers keep their own) */
+export const ROOM_GRAY = 'var(--color-wash-2)'
 export const ROOM_NAME = 'font-bold uppercase tracking-[0.02em]'
 /** the picture on a line: small on a computer, big on a phone */
 export const PIC_LG = 24
@@ -48,12 +50,13 @@ export function PaperBar({ lead, children, className, mark, buttonsMark }: { lea
   )
 }
 
-/** a floor in Cobblestone's dark green band — a heading, nothing to open — and how many rooms on it */
+/** a floor: THE band (Cobblestone's dark green, paper-white capitals) — a heading, nothing to open — and how many
+ *  rooms on it */
 export function FloorBand({ floor, rooms }: { floor: string; rooms: number }) {
   return (
-    <div className="flex h-9 w-full items-center gap-2.5 px-5 text-[0.78125rem] font-bold uppercase tracking-[0.06em] text-white max-sm:px-3" style={{ background: GREEN }} data-floor-band>
-      <span className="min-w-0 flex-1 truncate">{floor}</span>
-      <span className="shrink-0 font-semibold normal-case tracking-normal text-white/80">{rooms} {rooms === 1 ? 'room' : 'rooms'}</span>
+    <div className={cn(BAND, 'w-full px-5 max-sm:px-3')} data-floor-band data-band>
+      <span className={cn(BAND_LABEL, 'flex-1')}>{floor}</span>
+      <span className="shrink-0 text-[0.78125rem] font-semibold text-white/[0.72]">{rooms} {rooms === 1 ? 'room' : 'rooms'}</span>
     </div>
   )
 }
@@ -80,12 +83,12 @@ export function Section({ title, count, sub, right, action, children, className,
   )
 }
 export const Empty = ({ children, className }: { children: React.ReactNode; className?: string }) => <div className={cn('px-5 py-4 text-[0.84375rem] text-muted max-sm:px-4', className)}>{children}</div>
-/** a group inside a sheet — a floor, a kind of tile, the orders: the same soft gray band as every list's (its name in
- *  small capitals, how many in a white pill), with the same line above it as every row, so the lines never change */
+/** a group inside a sheet — a floor, the bills, the contract: THE band, the same as every list's (its name in
+ *  paper-white capitals, how many after it); what's on its right in paper white too */
 export const Group = ({ label, count, right, tone }: { label: React.ReactNode; count?: number; right?: React.ReactNode; tone?: 'bad' }) => (
-  <div className="flex h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] px-5 max-sm:px-4" data-band>
-    <span className={cn(BAND_LABEL, 'min-w-0', tone === 'bad' && 'text-bad-700')}>{label}</span>{count != null && <BandCount n={count} />}
-    {right != null && <span className="ml-auto shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2">{right}</span>}
+  <div className={cn(BAND, 'px-5 max-sm:px-4')} data-band data-group-tone={tone || undefined}>
+    <span className={BAND_LABEL}>{label}</span>{count != null && <BandCount n={count} />}
+    {right != null && <span className="ml-auto shrink-0 text-[0.8125rem] font-semibold tnum text-white/[0.85] [&_button]:text-white/[0.85] [&_button:hover]:text-white">{right}</span>}
   </div>
 )
 /** the few numbers on top of a tab — big, plain, the same everywhere */
@@ -103,7 +106,7 @@ export function Strip({ stats, footer }: { stats: Stat[]; footer?: React.ReactNo
           </div>
         ))}
       </div>
-      {footer && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 max-sm:px-4">{footer}</div>}
+      {footer && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line-2 bg-wash px-5 py-2.5 max-sm:px-4">{footer}</div>}
     </section>
   )
 }

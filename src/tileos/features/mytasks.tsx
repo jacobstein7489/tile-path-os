@@ -9,7 +9,7 @@ import { useStore, meOf, NOW, isRequest, DATA_KEYS, clockNow, type Store } from 
 import { RowStar, starredBy, toggleTaskStar, toggleStepStar, type StarPick } from './star'
 import { Button, Avatar, TextInput, TextArea, Field, Chip, Stepper, NO_SUGGEST } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel, MenuSep, Pop, DatePresets, WaitPicker, LaterPicker, MonthCal } from '@/tileos/components/ui/overlay'
-import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
+import { Page, Group, EmptyState, Status, Bubbles, PX, HEAD_ROW, BAND, BAND_LABEL, BAND_SUB, BAND_SUB_LABEL, BAND_LINK, BAND_STRONG, bandStyle, bandLabel, BandCount, STICKY_HEAD } from '@/tileos/components/ui/page'
 import { SearchSelect, MultiSelect } from '@/tileos/components/ui/select'
 import { cn, greeting } from '@/tileos/lib/utils'
 import { PRICING_STAGES, PEOPLE, CREWS, fmtMoney, loginOf, crewWords, type Role, type PersonKey, type Job } from '@/tileos/data/model'
@@ -292,7 +292,7 @@ export type Turn = { keys?: PersonKey[]; name?: string }
 export function NameDot({ name, size = 20 }: { name: string; size?: number }) {
   const w = name.replace(/^the\s+/i, '').split(/\s+/).filter(Boolean)
   const ini = /^gc$/i.test(w[0] || '') ? 'GC' : (w.length > 1 && /^[A-Z]/.test(w[1]) ? w[0][0] + w[1][0] : (w[0] || '?')[0]).toUpperCase()
-  return <span title={name} className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#ece8e1] font-semibold leading-none text-[#4a5361]" style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * (ini.length > 1 ? 0.36 : 0.42))) }}>{ini}</span>
+  return <span title={name} className="inline-flex shrink-0 items-center justify-center rounded-full bg-wash-3 font-semibold leading-none text-[#4a5361]" style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * (ini.length > 1 ? 0.36 : 0.42))) }}>{ini}</span>
 }
 /** a name someone typed ("Alex", "Yakov") that is one of the people in the app — their circle, not a plain one */
 export function keyNamed(name?: string): PersonKey | undefined {
@@ -529,9 +529,9 @@ function TodoRow({ when, whenTone, title, detail, project, projectId, action: ow
           {whoPick && !waitTurn ? <WhoMenu pick={whoPick} trigger={<button type="button" onClick={stop} className={cn(CELL_BTN, 'justify-center px-1', justYou && 'opacity-0 focus-visible:opacity-100 group-hover/row:opacity-100')} aria-label="Who does it · change it" data-row-who-pick>{circles || <UserRound className="h-4 w-4 text-faint" />}</button>} /> : circles}
         </div>
       )}
-      {/* its next step — a soft pill, the same size on every line (a phone: always there — no mouse to point with — but
+      {/* its next step — a white pill with a fine line around it (white is what you press), the same size on every line (a phone: always there — no mouse to point with — but
           smaller); none: the line opens it (a quiet arrow says so) */}
-      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-[#f1ede6] [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:bg-[#e7e1d6] max-sm:[&_button]:h-8 max-sm:[&_button]:text-[0.8125rem]', action ? 'w-[7.75rem] max-sm:w-[6.5rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
+      <div className={cn('flex shrink-0 items-center justify-end [&_button]:h-8 max-md:[&_button]:h-9 [&_button]:w-full [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:bg-pure [&_button]:px-2 [&_button]:text-[0.8125rem] [&_button]:font-semibold [&_button]:text-ink [&_button]:shadow-none [&_button:hover]:border-[#bdb6aa] [&_button:hover]:bg-pure max-sm:[&_button]:h-8 max-sm:[&_button]:text-[0.8125rem]', action ? 'w-[7.75rem] max-sm:w-[6.5rem]' : 'w-[7.75rem] max-md:hidden')} onClick={action ? stop : undefined} data-todo-next data-reveal={action && !leaving ? '' : undefined}>
         {action || (onClick ? <ChevronRight className="h-4 w-4 text-faint opacity-0 transition group-hover/row:opacity-100" aria-hidden /> : null)}
       </div>
     </div>
@@ -1166,7 +1166,8 @@ export function collapse(items: PlateItem[]): PlateItem[] {
  *  (the line's too narrow for a list — Open list has them) */
 function TouchWords({ lead, items }: { lead: string; items: { id: string; text: string; status: string }[] }) {
   const small = useSmall()
-  const shown = small ? 0 : 4
+  /* (a line that says its next step first — "Check the touch-ups · 4 to fix" — has room for two) */
+  const shown = small ? 0 : lead.length > 14 ? 2 : 4
   const open = items.filter((p) => p.status === 'open')
   const list = open.length ? open : items.filter((p) => p.status === 'verify')
   /* the numbered ones in their own column after "5 to fix": a second line starts under the first one, not under the
@@ -1178,7 +1179,7 @@ function TouchWords({ lead, items }: { lead: string; items: { id: string; text: 
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-3.5 gap-y-0.5">
           {list.slice(0, shown).map((p, i) => (
             <span key={p.id} className="inline-flex min-w-0 max-w-full items-baseline gap-1.5 text-muted" data-touch-item>
-              <span className="inline-flex h-[1.0625rem] min-w-[1.0625rem] shrink-0 -translate-y-px items-center justify-center self-center rounded-full bg-[#eeece7] px-1 text-[0.6875rem] font-semibold leading-none tnum text-ink-2" aria-hidden>{i + 1}</span>
+              <span className="inline-flex h-[1.0625rem] min-w-[1.0625rem] shrink-0 -translate-y-px items-center justify-center self-center rounded-full bg-wash-2 px-1 text-[0.6875rem] font-semibold leading-none tnum text-ink-2" aria-hidden>{i + 1}</span>
               <span className="min-w-0 break-words">{p.text.replace(/\.$/, '')}</span>
             </span>
           ))}
@@ -1497,30 +1498,33 @@ function cardsOf(lines: Line[]): { key: string; lines: Line[] }[] {
   lines.forEach((l) => { const k = projectKeyOf(l); if (!groups.has(k)) { groups.set(k, []); order.push(k) } groups.get(k)!.push(l) })
   return order.map((key) => ({ key, lines: groups.get(key)! }))
 }
-/** on the page, the groups' bands are the size of Projects' and Estimates' — but gray: an address (a day, a person) isn't
- *  a status, so it has no color (Projects' and Estimates' colors say the status). They scroll with the list — groups of
- *  one or two lines pinned on top only piled up. In a window they're small */
+/** the page's own list (not a list inside a window) */
 const BigBands = React.createContext(false)
-/** the band itself: its classes, its name's classes — the page's or a window's */
+/** inside one person's list on Everyone's Today: the person is THE band (dark green) — the parts under their name are a
+ *  step down (gray, like the projects), and their day has no band of its own */
+const InPerson = React.createContext(false)
+/** the two bands of a to-do list, the same two as a scope of work's: THE band (dark green) for a part of the list —
+ *  Today, For everyone, a day, who it waits on — and the gray band a step under it for each project inside Today (as a
+ *  room is inside a floor). They scroll with the list — groups of one or two lines pinned on top only piled up */
 function useBandLook() {
-  const big = React.useContext(BigBands)
-  return big
-    ? { box: cn('flex min-h-10 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1.5', PX), name: 'min-w-0 break-words text-left text-[0.875rem] font-bold uppercase leading-5 tracking-[0.06em] text-[#4c5361]' }
-    : { box: cn('flex min-h-8 items-center gap-2 border-t border-line bg-[#f6f6f4] py-1', PX), name: 'min-w-0 break-words text-left text-[0.71875rem] font-semibold uppercase leading-4 tracking-[0.07em] text-[#4c5361]' }
+  return {
+    box: cn(BAND, 'py-1', PX), name: cn(BAND_LABEL, 'whitespace-normal break-words text-left'),
+    sub: cn(BAND_SUB, 'min-h-[2.125rem] py-1', PX), subName: cn(BAND_SUB_LABEL, 'whitespace-normal break-words text-left text-[0.78125rem] tracking-[0.06em] text-ink'),
+  }
 }
-/** one project's lines in the list: its address as the group's band — light gray, small capitals, how many (the same
- *  band as Estimates' and Projects' groups); tap it: the project — then its lines, a line between each */
+/** one project's lines in the list: its address as the group's band — the gray band (a group inside Today), its name
+ *  in capitals, how many; tap it: the project — then its lines, a line between each */
 function ProjectCard({ id, label, n, children }: { id?: string; label: string; n: number; children: React.ReactNode }) {
   const s = useStore()
   const look = useBandLook()
   /* the whole address, never cut off — a long one takes a second line in its band */
   return (
     <section data-project-card={id || 'company'}>
-      <header className={look.box} data-card-head data-band>
+      <header className={look.sub} data-card-head data-band data-band-level="2">
         {id
-          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.name, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} data-card-label data-card-open={id}>{label}</button>
-          : <span className={look.name} data-card-label>{label}</span>}
-        {n > 1 && <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-card-count>{n}</span>}
+          ? <button type="button" onClick={() => s.open({ t: 'job', id })} className={cn(look.subName, 'rounded-sm underline-offset-[0.1875rem] hover:underline')} data-card-label data-card-open={id}>{label}</button>
+          : <span className={look.subName} data-card-label>{label}</span>}
+        {n > 1 && <BandCount n={n} sub />}
       </header>
       {children}
     </section>
@@ -1567,14 +1571,17 @@ const PartOf = React.createContext('')
 function PartBlock({ p, me, showOwner, lateLink = true, byProject }: { p: Part; me: PersonKey; showOwner?: boolean; lateLink?: boolean; byProject?: boolean }) {
   const s = useStore()
   const look = useBandLook()
+  const inPerson = React.useContext(InPerson)
   return (
     <PartOf.Provider value={p.key}>
     <section data-day={p.day || p.key} data-part={p.key}>
-      {p.label && !byProject && (
-        <div className={look.box} data-group-head data-band data-group-tone={p.tone || 'neutral'}>
-          <h2 className={look.name}>{p.label}</h2>
-          <BandCount n={p.lines.length} />
-          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className="ml-auto inline-flex items-center text-[0.75rem] font-medium text-muted hover:text-ink">Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
+      {/* its band — THE band: Today too (its projects are the gray bands under it). Under a person's own band (Everyone's
+          Today): a step down, and the day has none */}
+      {p.label && !(inPerson && byProject) && (
+        <div className={inPerson ? look.sub : look.box} data-group-head data-band data-band-level={inPerson ? '2' : '1'} data-group-tone={p.tone || 'neutral'}>
+          <h2 className={inPerson ? look.subName : look.name}>{p.label}</h2>
+          <BandCount n={p.lines.length} sub={inPerson} />
+          {p.lateLink && lateLink && <button onClick={() => s.open({ t: 'late' })} data-late-open className={cn('ml-auto inline-flex items-center text-[0.78125rem] font-semibold', inPerson ? 'text-muted hover:text-ink' : BAND_LINK)}>Move or remind<ChevronRight className="ml-0.5 h-3.5 w-3.5" /></button>}
         </div>
       )}
       <Lines lines={p.lines} me={me} day={p.day} showOwner={showOwner} on={p.on} byProject={byProject} />
@@ -1755,12 +1762,14 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
   if (!n) return null
   return (
     <section data-person-list={l.key}>
-      {/* whose list: their circle and name, over their lines — a heading of its own, bigger than the bands under it */}
-      <div className={cn('flex min-h-[3.25rem] items-center gap-2.5 border-t border-line bg-white py-2', PX)} data-person-band>
-        <Avatar who={l.key} size={26} />
-        <b className="min-w-0 truncate text-[1rem] font-semibold tracking-[-0.01em] text-ink">{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
-        <span className="text-[0.875rem] font-semibold text-faint tnum" data-person-count>{n}</span>
+      {/* whose list: THE band — their circle and name on the dark green, how many; their parts and projects under it
+          are the gray bands */}
+      <div className={cn(BAND, 'min-h-10', PX)} data-person-band data-band data-band-level="1">
+        <Avatar who={l.key} size={22} />
+        <b className={BAND_LABEL}>{l.key === me ? 'You' : PEOPLE[l.key]?.name || l.key}</b>
+        <span className="text-[0.75rem] font-semibold tnum text-white/[0.6]" data-person-count>{n}</span>
       </div>
+      <InPerson.Provider value={true}>
       <Viewer.Provider value={l.key}>
         <Multi.Provider value={false}>
           <ShowNow.Provider value={false}>
@@ -1768,6 +1777,7 @@ function PersonList({ l, view, job, me, q = '' }: { l: ListOf; view: View; job: 
           </ShowNow.Provider>
         </Multi.Provider>
       </Viewer.Provider>
+      </InPerson.Provider>
     </section>
   )
 }
@@ -1817,7 +1827,7 @@ export function JobPickModal({ level }: { level: number }) {
       {cur === j.id && <Check className="h-4 w-4 shrink-0 text-brand-600" />}
     </button>
   )
-  const head = (t: string, n?: number) => <div className="flex items-baseline gap-2 bg-wash/60 px-6 pb-1.5 pt-3 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-[#4c5361] max-sm:px-4">{t}{n != null && <span className="font-semibold text-faint">{n}</span>}</div>
+  const head = (t: string, n?: number) => <div className={cn(BAND, 'px-6 max-sm:px-4')} data-band><span className={BAND_LABEL}>{t}</span>{n != null && <BandCount n={n} />}</div>
   return (
     <Modal level={level} size="md" onClose={s.close} title="Pick a job" sub="See just its things. Your jobs first" bodyClass="px-0 pb-4 pt-0">
       <div className="sticky top-0 z-[1] bg-white px-6 pb-3 pt-1 max-sm:px-4">
@@ -2686,7 +2696,7 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       </>}
     >
       {msg && (
-        <div className="mb-3 flex min-w-0 items-start gap-2.5 rounded-xl bg-[#f6f3ee] px-3 py-2.5 text-[0.8125rem]" data-from-msg>
+        <div className="mb-3 flex min-w-0 items-start gap-2.5 rounded-xl bg-wash px-3 py-2.5 text-[0.8125rem]" data-from-msg>
           <Avatar who={msg.who} size={24} />
           <span className="min-w-0 leading-snug"><b className="font-semibold text-ink">{PEOPLE[msg.who]?.name || 'Someone'}</b> <span className="text-muted">· {msg.time}</span><span className="mt-0.5 block text-ink-2">{msg.text}</span></span>
         </div>

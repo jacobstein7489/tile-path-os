@@ -65,8 +65,8 @@ export function TouchupsList({ job, bare, win }: { job: Job; /** inside the proj
       {!bare && done.length > 0 && (
         <div>
           <button onClick={() => setShowDone(!showDone)} className={cn(BAND, 'group w-full text-left max-sm:px-4', win ? 'px-6' : 'px-5')}>
-            <span className={cn(BAND_LABEL, 'group-hover:text-ink')}>Checked</span><BandCount n={done.length} />
-            {showDone ? <ChevronDown className="h-3.5 w-3.5 text-faint" /> : <ChevronRight className="h-3.5 w-3.5 text-faint" />}
+            <span className={BAND_LABEL}>Checked</span><BandCount n={done.length} />
+            {showDone ? <ChevronDown className="h-3.5 w-3.5 text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 text-white/[0.6]" />}
           </button>
           {showDone && done.map((p) => <TouchupLine key={p.id} p={p} win={win} />)}
         </div>

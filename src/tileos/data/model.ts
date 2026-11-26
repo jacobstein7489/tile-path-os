@@ -77,18 +77,18 @@ export interface Person {
 export const PEOPLE: Record<PersonKey, Person> = {
   ys: { key: 'ys', name: 'Yaakov Stein', short: 'Yaakov', initials: 'YS', bg: 'bg-[#dde5f9]', fg: 'text-[#1f42ad]', roleLabel: 'Owner · COO' },
   yakov: { key: 'yakov', name: 'Yakov', short: 'Yakov', initials: 'YK', bg: 'bg-[#d8edf5]', fg: 'text-[#0b5f80]', roleLabel: 'Site manager' },
-  office: { key: 'office', name: 'Back office', short: 'Office', initials: 'BO', bg: 'bg-[#e4e7ec]', fg: 'text-[#46505f]', roleLabel: 'Back office' },
+  office: { key: 'office', name: 'Back office', short: 'Office', initials: 'BO', bg: 'bg-wash-2', fg: 'text-[#46505f]', roleLabel: 'Back office' },
   takeoff: { key: 'takeoff', name: 'Takeoff estimator', short: 'Takeoff', initials: 'TK', bg: 'bg-[#d6efea]', fg: 'text-[#0d6b61]', roleLabel: 'Takeoff estimator' },
   estimator: { key: 'estimator', name: 'Estimator', short: 'Estimator', initials: 'ES', bg: 'bg-[#e8e3f9]', fg: 'text-[#5536ad]', roleLabel: 'Estimator · office' },
   materials: { key: 'materials', name: 'Materials', short: 'Materials', initials: 'MA', bg: 'bg-[#f9e8d6]', fg: 'text-[#8c4609]', roleLabel: 'Materials' },
   accounting: { key: 'accounting', name: 'Accounting', short: 'Accounting', initials: 'AC', bg: 'bg-[#d8efe2]', fg: 'text-[#1b6a40]', roleLabel: 'Accounting' },
-  gcpp: { key: 'gcpp', name: 'GC super (Park Place)', short: 'GC super', initials: 'GS', bg: 'bg-[#e4e7ec]', fg: 'text-[#3e4757]', roleLabel: 'GC · Client' },
+  gcpp: { key: 'gcpp', name: 'GC super (Park Place)', short: 'GC super', initials: 'GS', bg: 'bg-wash-2', fg: 'text-[#3e4757]', roleLabel: 'GC · Client' },
   walter: { key: 'walter', name: 'Walter', short: 'Walter', initials: 'W', bg: 'bg-[#e2efd9]', fg: 'text-[#3d6a1d]', crew: true },
   leo: { key: 'leo', name: 'Leo', short: 'Leo', initials: 'L', bg: 'bg-[#ebe4fa]', fg: 'text-[#5a3eae]', crew: true },
   alex: { key: 'alex', name: 'Alex', short: 'Alex', initials: 'A', bg: 'bg-[#d9eff0]', fg: 'text-[#11666a]', crew: true },
   philip: { key: 'philip', name: 'Philip', short: 'Philip', initials: 'P', bg: 'bg-[#fbe6d6]', fg: 'text-[#9c470d]', crew: true },
   caesar: { key: 'caesar', name: 'Caesar', short: 'Caesar', initials: 'C', bg: 'bg-[#f9e0e4]', fg: 'text-[#a12841]', crew: true },
-  giovanni: { key: 'giovanni', name: 'Giovanni', short: 'Giovanni', initials: 'G', bg: 'bg-[#e1e7f0]', fg: 'text-[#36507a]', crew: true },
+  giovanni: { key: 'giovanni', name: 'Giovanni', short: 'Giovanni', initials: 'G', bg: 'bg-wash-2', fg: 'text-[#36507a]', crew: true },
   jose: { key: 'jose', name: 'Jose (Jersey)', short: 'Jose', initials: 'J', bg: 'bg-[#efe6da]', fg: 'text-[#74532c]', crew: true },
   system: { key: 'system', name: 'Tile OS', short: 'Tile OS', initials: 'OS', bg: 'bg-ink', fg: 'text-white' },
 }
@@ -177,7 +177,7 @@ export const TEAM0: Member[] = [
   { key: 'accounting', first: 'Accounting', role: 'accounting', status: 'active' },
   { key: 'gcpp', first: 'GC super', last: '(Park Place)', role: 'client', status: 'active', clientId: 'parkplace' },
 ]
-const AV: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#d6efea]', 'text-[#0d6b61]'], ['bg-[#e8e3f9]', 'text-[#5536ad]'], ['bg-[#f9e0ee]', 'text-[#9b1f63]'], ['bg-[#f9e8d6]', 'text-[#8c4609]'], ['bg-[#d8efe2]', 'text-[#1b6a40]'], ['bg-[#e4e7ec]', 'text-[#46505f]'], ['bg-[#d8edf5]', 'text-[#0b5f80]']]
+const AV: [string, string][] = [['bg-[#dde5f9]', 'text-[#1f42ad]'], ['bg-[#d6efea]', 'text-[#0d6b61]'], ['bg-[#e8e3f9]', 'text-[#5536ad]'], ['bg-[#f9e0ee]', 'text-[#9b1f63]'], ['bg-[#f9e8d6]', 'text-[#8c4609]'], ['bg-[#d8efe2]', 'text-[#1b6a40]'], ['bg-wash-2', 'text-[#46505f]'], ['bg-[#d8edf5]', 'text-[#0b5f80]']]
 /* installers added on the Installers page are team members with the installer role — they join the crews */
 const BASE_CREWS = [...CREWS]
 const CREW_COLORS: { bg: string; bar: string; text: string; av: [string, string] }[] = [

@@ -21,7 +21,7 @@ export function Ring({ pct, size = 40, stroke = 4, tone = 'info', label, classNa
 
 export function Bar({ pct, tone = 'info', className, h = 8 }: { pct: number; tone?: Tone; className?: string; h?: number }) {
   return (
-    <span className={cn('relative block w-full overflow-hidden rounded-full bg-[#E9EDF3]', className)} style={{ height: h }}>
+    <span className={cn('relative block w-full overflow-hidden rounded-full bg-wash-2', className)} style={{ height: h }}>
       <span className={cn('absolute inset-y-0 left-0 rounded-full transition-[width] duration-500', TONE[tone].bar)} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
     </span>
   )
@@ -29,7 +29,7 @@ export function Bar({ pct, tone = 'info', className, h = 8 }: { pct: number; ton
 
 export function StackBar({ parts, h = 14, className }: { parts: { pct: number; className: string; label?: string }[]; h?: number; className?: string }) {
   return (
-    <span className={cn('flex w-full overflow-hidden rounded-full bg-[#E9EDF3]', className)} style={{ height: h }}>
+    <span className={cn('flex w-full overflow-hidden rounded-full bg-wash-2', className)} style={{ height: h }}>
       {parts.map((p, i) => (p.pct > 0 ? <span key={i} title={p.label} className={cn('h-full first:rounded-l-full', p.className)} style={{ width: `${p.pct}%` }} /> : null))}
     </span>
   )
@@ -54,7 +54,7 @@ export function StageTrack({ stage, className, blocked }: { stage: Stage; classN
                   'h-[0.4375rem] w-[0.5625rem] rounded-[0.1875rem] transition-colors',
                   done && 'bg-brand-500',
                   isCur && (blocked ? 'bg-bad-500 ring-2 ring-bad-100' : 'bg-brand-600 ring-2 ring-brand-100'),
-                  !done && !isCur && 'bg-[#e6e1d8]',
+                  !done && !isCur && 'bg-wash-3',
                 )}
               />
             )
@@ -128,7 +128,7 @@ export function StepSummary({ nodes, onOpen, className }: { nodes: StepNode[]; o
       </span>
       <span className="mt-2.5 flex gap-1">
         {nodes.map((n) => (
-          <span key={n.key} className={cn('h-1.5 flex-1 rounded-full', n.state === 'done' ? 'bg-ok-500' : n.state === 'current' ? 'bg-brand-600' : n.state === 'blocked' ? 'bg-bad-500' : 'bg-[#e6e1d8]')} />
+          <span key={n.key} className={cn('h-1.5 flex-1 rounded-full', n.state === 'done' ? 'bg-ok-500' : n.state === 'current' ? 'bg-brand-600' : n.state === 'blocked' ? 'bg-bad-500' : 'bg-wash-3')} />
         ))}
       </span>
     </Tag>
@@ -151,7 +151,7 @@ export function MiniSteps({ steps, at, tone = 'info', className, showLabels = tr
                   done ? 'bg-[#2c4a3e]' : cur ? (late ? 'bg-bad-500 ring-4 ring-bad-100' : 'bg-ink ring-4 ring-[#e8e3da]') : 'border-2 border-[#D5DBE4] bg-white',
                 )}
               />
-              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-[#2c4a3e]' : 'bg-[#e6e1d8]')} />}
+              {i < steps.length - 1 && <span className={cn('h-[0.125rem] flex-1', i < at ? 'bg-[#2c4a3e]' : 'bg-wash-3')} />}
             </React.Fragment>
           )
         })}

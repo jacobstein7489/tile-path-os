@@ -296,48 +296,40 @@ export const ROW_H = 'min-h-[3rem]'
 
 /** a list's column names, on top: easy to read (dark gray, semibold, near the size of the rows), pinned while the rows
  *  scroll. Its line under it is the first row's (or band's) line — every line in a list is the same one line. */
-export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-semibold text-[#4a4741] shadow-[0_0.0625rem_0_var(--color-line-2)]'
-/** a group inside a list (Overdue, Today, On hold, a project, a person…): a slim, very light gray band the full width —
- *  no yellow, no colors — with the name in small capitals and how many after it, so it reads as a heading and never
- *  as one more line of the list, without filling the screen with gray (a list grouped by project, one task each, is
- *  half bands). The same line above it as every row, so the lines never change. A quiet link on the right if any. */
-export const BAND = 'flex h-8 items-center gap-2 border-t border-line bg-[#f6f6f4]'
-/** a band's name: small capitals, bold, dark gray — the same on every list */
-export const BAND_LABEL = 'truncate text-[0.71875rem] font-semibold uppercase tracking-[0.07em] text-[#4c5361]'
+export const HEAD_ROW = 'h-10 items-center bg-white text-[0.8125rem] font-semibold text-ink-2 shadow-[0_0.0625rem_0_var(--color-line)]'
+/** THE band — a section's name in every list, on every screen: Cobblestone's dark green the full width, the name in
+ *  paper-white capitals, how many after it (a status on Projects and Estimates, a part of the day on Today, a floor on a
+ *  scope, a category on Items, "To fix" in a window). One look everywhere — a list never has its own. A quiet link on
+ *  the right if any (paper-white, a little see-through). */
+export const BAND = 'flex min-h-[2.125rem] items-center gap-2 bg-forest-700 text-white'
+/** a band's name: capitals, bold, paper white — the same on every list */
+export const BAND_LABEL = 'min-w-0 truncate text-[0.78125rem] font-bold uppercase leading-5 tracking-[0.08em] text-white'
+/** a group inside a group (a room on a floor, a part inside one person's list): the same band a step down — soft gray,
+ *  its name in ink. Never the first level: that's the green one */
+export const BAND_SUB = 'flex min-h-8 items-center gap-2 border-t border-line bg-wash-2'
+export const BAND_SUB_LABEL = 'min-w-0 truncate text-[0.75rem] font-bold uppercase leading-5 tracking-[0.07em] text-ink-2'
+/** something to press on a band (a link, an arrow): paper white, soft until pointed at */
+export const BAND_LINK = 'text-white/[0.72] transition hover:text-white'
 /** how many in a group, after its name */
-export function BandCount({ n }: { n: number }) {
-  return <span className="shrink-0 text-[0.75rem] font-medium leading-none tnum text-faint" data-band-count>{n}</span>
+export function BandCount({ n, sub }: { n: number; /** on a gray band (a group inside a group) */ sub?: boolean }) {
+  return <span className={cn('shrink-0 text-[0.75rem] font-semibold leading-none tnum', sub ? 'text-muted' : 'text-white/[0.6]')} data-band-count>{n}</span>
 }
-/** a group that has to be seen at a glance (Today's Overdue, Today, Check in on the team…): taller, in its own soft
- *  color with a line of the color on the left, the name bigger — each part of the list plain to see */
-export const BAND_STRONG = 'flex h-10 items-center gap-2 border-t border-line'
-/* soft on purpose — a hint of the color behind the name and a thin line of it on the left, so the parts stand out
-   without the page turning into stripes */
-const STRONG: Record<string, { bg: string; fg: string; bar: string }> = {
-  bad: { bg: '#fef6f5', fg: '#b42318', bar: '#e0705f' },
-  info: { bg: '#f5f8fe', fg: '#2347bf', bar: '#6f8fe6' },
-  warn: { bg: '#fefaf2', fg: '#8f5207', bar: '#e2ac55' },
-  ok: { bg: '#f4faf6', fg: '#1f6b45', bar: '#6fb58f' },
-  vio: { bg: '#f8f6fe', fg: '#5b3fc4', bar: '#a28be9' },
-  neutral: { bg: '#f7f7f5', fg: '#30343c', bar: '#c4c8ce' },
-}
-export const bandStyle = (tone?: Tone): React.CSSProperties => { const c = STRONG[tone || 'neutral'] || STRONG.neutral; return { background: c.bg } }
-/* written out whole, so the styles are there for each */
-const STRONG_FG: Record<string, string> = { bad: 'text-[#b42318]', info: 'text-[#2347bf]', warn: 'text-[#8f5207]', ok: 'text-[#1f6b45]', vio: 'text-[#5b3fc4]', neutral: 'text-[#30343c]' }
-/* the name big and bold — a heading you see from arm's length (Today, Overdue…), not one more line */
-export const bandLabel = (tone?: Tone) => cn('truncate text-[0.875rem] font-bold uppercase tracking-[0.06em]', STRONG_FG[tone || 'neutral'] || STRONG_FG.neutral)
+/** (every band is the one band now — these stay for the lists written with them) */
+export const BAND_STRONG = BAND
+export const bandStyle = (_tone?: Tone): React.CSSProperties => ({})
+export const bandLabel = (_tone?: Tone) => BAND_LABEL
 /** a group's band stays on top while its rows scroll by — under the column names on a computer, under the boxes on top
  *  on a phone — so you always see which group you're in (Projects, Estimates, Today: the same) */
 export const GROUP_STICKY = 'sticky z-[4] top-[calc(var(--app-top,0px)+var(--ptop,0px))] md:top-[calc(var(--app-top,0px)+var(--bar,0px)+2.5rem)] lg:top-[calc(var(--app-top,0px)+var(--head,0px)+var(--bar,0px)+2.5rem)]'
 export function Group({ label, count, tone, open = true, onToggle, right, strong, sticky }: { label: string; count?: number; tone?: Tone; open?: boolean; onToggle?: () => void; hint?: React.ReactNode; right?: React.ReactNode; strong?: boolean; /** stays on top while its rows scroll by */ sticky?: boolean }) {
   return (
-    <div className={cn(strong ? BAND_STRONG : BAND, PX, sticky && GROUP_STICKY)} style={strong ? bandStyle(tone) : undefined} data-group-tone={tone || 'neutral'} data-band data-strong={strong || undefined}>
+    <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-group-tone={tone || 'neutral'} data-band data-strong={strong || undefined}>
       <button onClick={onToggle} disabled={!onToggle} className="inline-flex min-w-0 items-center gap-2 text-left disabled:cursor-default">
-        <span className={strong ? bandLabel(tone) : BAND_LABEL}>{label}</span>
+        <span className={BAND_LABEL}>{label}</span>
         {count !== undefined && <BandCount n={count} />}
-        {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
+        {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-white/[0.6]" />)}
       </button>
-      {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
+      {right && <div className={cn('ml-auto flex items-center gap-2', BAND_LINK)}>{right}</div>}
     </div>
   )
 }
@@ -523,22 +515,21 @@ const BC: Record<BubbleColor, { tint: string; solid: string }> = {
   orange: { tint: '#fcefe6', solid: '#c25a1a' },
   cyan: { tint: '#e6f3f8', solid: '#1a7c9c' },
 }
-/** a status group's band, under the boxes (Projects, Estimates): in the soft color of its own box on top, with that
- *  box's mark and its name in that color, and how many — so the list reads with the boxes over it, and you see where
- *  one group ends and the next starts. Pinned while its rows scroll by. (A list grouped by address or day — Today —
- *  keeps the plain gray band: an address isn't one of the boxes) */
+/** a status group's band, under the boxes (Projects, Estimates): THE band — dark green, its name in paper white, how
+ *  many — and on it the status's own little mark in its own color: the very same mark as in its box on top, so you see
+ *  which box a section is. Color is only ever that small mark; the band is the same band as on every list. Pinned while
+ *  its rows scroll by */
 const BAND_TINT: Record<BubbleColor, string> = {
   blue: '#f4f7fd', indigo: '#f6f7fd', violet: '#f8f6fd', green: '#f4faf6', amber: '#fdf8f0', red: '#fdf5f4',
   rose: '#fdf5f8', teal: '#f3f9f8', slate: '#f6f4f1', orange: '#fdf7f2', cyan: '#f2f9fb',
 }
-/** a band's two colors for a box's color: its soft background, and its name's color */
+/** a box's two colors (its soft background, its name's color) — for a box of numbers, not for a band */
 export const bandColorOf = (color: BubbleColor) => ({ bg: BAND_TINT[color], fg: BC[color].solid })
 export function StatusBand({ color, icon, label, count, sticky = true, attrs }: { color: BubbleColor; icon?: React.ReactNode; label: string; count?: number; sticky?: boolean; attrs?: Record<string, string> }) {
-  const c = BC[color]
   return (
-    <div className={cn(BAND_STRONG, PX, sticky && GROUP_STICKY)} style={{ background: BAND_TINT[color] }} data-band data-strong data-band-color={color} {...attrs}>
-      {icon && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4" style={{ color: c.solid }} aria-hidden>{icon}</span>}
-      <span className="truncate text-[0.875rem] font-bold uppercase tracking-[0.06em]" style={{ color: c.solid }}>{label}</span>
+    <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-band data-strong data-band-color={color} {...attrs}>
+      {icon && <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-[0.3125rem] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: BC[color].tint, color: BC[color].solid }} aria-hidden data-band-mark>{icon}</span>}
+      <span className={BAND_LABEL}>{label}</span>
       {count !== undefined && <BandCount n={count} />}
     </div>
   )
@@ -717,14 +708,15 @@ const FIRST = 'pl-5 max-sm:pl-4'
 export function GroupRow({ label, count, colSpan, open = true, onToggle, tone, hint }: { label: string; count?: number; colSpan: number; open?: boolean; onToggle?: () => void; tone?: Tone; hint?: string }) {
   return (
     <tr>
-      <td className={cn('h-8 whitespace-nowrap border-b border-line-2 bg-[#f6f6f4] py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
+      {/* THE band, in a table: the same dark green, paper-white capitals and count as every list's */}
+      <td className={cn('h-[2.125rem] whitespace-nowrap bg-forest-700 py-0', FIRST)} data-group-tone={tone || 'neutral'} data-band>
         <button onClick={onToggle} disabled={!onToggle} className="inline-flex items-center gap-2 text-left disabled:cursor-default">
           <span className={BAND_LABEL}>{label}</span>
           {count !== undefined && <BandCount n={count} />}
-          {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-faint" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-faint" />)}
+          {onToggle && (open ? <ChevronDown className="h-3.5 w-3.5 self-center text-white/[0.6]" /> : <ChevronRight className="h-3.5 w-3.5 self-center text-white/[0.6]" />)}
         </button>
       </td>
-      {colSpan > 1 && <td colSpan={colSpan - 1} className="border-b border-line-2 bg-[#f6f6f4] max-md:hidden" />}
+      {colSpan > 1 && <td colSpan={colSpan - 1} className="bg-forest-700 max-md:hidden" />}
     </tr>
   )
 }
@@ -768,7 +760,7 @@ export const PILL = CHIP
  * it appears or changes width when you switch. */
 export function ViewSwitch<K extends string | boolean>({ value, onChange, items, label, className }: { value: K; onChange: (k: K) => void; items: { key: K; label: string; short?: string; icon?: React.ReactNode; count?: number }[]; label: string; className?: string }) {
   return (
-    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] bg-[#efebe4] p-[0.1875rem]', className)}>
+    <div role="tablist" aria-label={label} className={cn('inline-flex h-9 shrink-0 items-center rounded-[0.625rem] bg-wash-2 p-[0.1875rem]', className)}>
       {items.map((it) => {
         const on = it.key === value
         /* the one you're on is white, lifted a little — calm, like a light switch; no blue */
@@ -798,7 +790,7 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
         const on = at === st.key
         return (
           <li key={st.key} className="flex min-w-0 flex-1 items-center">
-            <button onClick={st.onClick} disabled={!st.onClick} aria-label={st.aria} aria-current={on ? 'step' : undefined} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left disabled:cursor-default', on ? 'bg-[#f6f3ee] ring-1 ring-[#e9e4db]' : st.onClick && 'hover:bg-[#f6f3ee]/70')}>
+            <button onClick={st.onClick} disabled={!st.onClick} aria-label={st.aria} aria-current={on ? 'step' : undefined} className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 py-1 text-left disabled:cursor-default', on ? 'bg-wash ring-1 ring-[#e9e4db]' : st.onClick && 'hover:bg-wash/70')}>
               <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.75rem] font-bold', st.state === 'done' && 'bg-ok-500 text-white', st.state === 'current' && 'bg-white text-brand-600 ring-[0.1875rem] ring-brand-600', st.state === 'blocked' && 'bg-bad-500 text-white', st.state === 'future' && 'bg-white text-faint ring-2 ring-[#e5e0d7]')}>
                 {st.state === 'done' ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : st.state === 'current' ? <span className="h-2 w-2 rounded-full bg-brand-600" /> : st.state === 'blocked' ? '!' : n}
               </span>
@@ -807,7 +799,7 @@ export function Path({ steps, className, at, label, compact }: { steps: { key: s
                 {(st.sub || st.date) && <span title={[st.sub, st.date].filter(Boolean).join(' · ')} className={cn('block truncate text-[0.71875rem]', st.dateTone === 'bad' ? 'font-semibold text-bad-600' : st.state === 'done' ? 'text-ok-700' : st.state === 'current' ? 'text-brand-700' : st.state === 'blocked' ? 'text-bad-700' : 'text-faint')}>{st.state === 'done' ? (st.date ? `Done ${st.date.replace(/^Done\s*/, '')}` : st.sub) : st.sub || st.date}</span>}
               </span>
             </button>
-            {i < steps.length - 1 && <span className={cn('mx-0.5 h-[0.125rem] w-3 shrink-0 rounded-full max-sm:hidden', st.state === 'done' ? 'bg-ok-500' : 'bg-[#e5e0d7]')} />}
+            {i < steps.length - 1 && <span className={cn('mx-0.5 h-[0.125rem] w-3 shrink-0 rounded-full max-sm:hidden', st.state === 'done' ? 'bg-ok-500' : 'bg-wash-3')} />}
           </li>
         )
       })}
@@ -878,7 +870,7 @@ const C_SUB: Record<CircleState, string> = { done: 'text-muted', now: 'text-bran
 export function Link({ pct, className, style }: { pct: number; className?: string; style?: React.CSSProperties }) {
   const p = Math.max(0, Math.min(100, Math.round(pct)))
   return (
-    <span aria-hidden data-link={p} className={cn('relative block overflow-hidden rounded-full bg-[#e5e0d7]', className)} style={style}>
+    <span aria-hidden data-link={p} className={cn('relative block overflow-hidden rounded-full bg-wash-3', className)} style={style}>
       {p > 0 && <span className="line-grow absolute inset-y-0 left-0 rounded-full bg-[#2c8a5b] transition-[width] duration-700 ease-out" style={{ width: `${p}%` }} />}
     </span>
   )

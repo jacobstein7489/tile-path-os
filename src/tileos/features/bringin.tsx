@@ -341,7 +341,7 @@ export function BringInModal({ level }: { level: number }) {
             onClick={() => input.current?.click()}
             role="button"
             tabIndex={0}
-            className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed transition max-sm:flex-wrap', cards.length ? 'px-4 py-3' : 'px-5 py-8', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5] hover:border-brand-300')}
+            className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed transition max-sm:flex-wrap', cards.length ? 'px-4 py-3' : 'px-5 py-8', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-wash hover:border-brand-300')}
             data-bringin-drop
           >
             <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
@@ -397,7 +397,7 @@ function AsanaList() {
         onClick={() => input.current?.click()}
         role="button"
         tabIndex={0}
-        className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed px-5 py-7 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5] hover:border-brand-300')}
+        className={cn('flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed px-5 py-7 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-wash hover:border-brand-300')}
         data-asana-drop
       >
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Table2 className="h-5 w-5" /></span>
@@ -435,7 +435,7 @@ function AsanaList() {
         const closed = shut.includes(g.key)
         return (
           <section key={g.key} className="overflow-hidden rounded-xl border border-line bg-white" data-asana-group={g.key}>
-            <header className="flex min-w-0 items-center gap-3 bg-[#f6f4f0] px-3 py-2">
+            <header className="flex min-w-0 items-center gap-3 bg-wash px-3 py-2">
               <input type="checkbox" checked={all} onChange={() => setOn(all ? on.filter((k) => !keys.includes(k)) : Array.from(new Set([...on, ...keys])))} aria-label={`All of ${g.label}`} className="h-4 w-4 shrink-0 accent-[#2650cf]" />
               <button type="button" onClick={() => setShut(closed ? shut.filter((x) => x !== g.key) : [...shut, g.key])} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                 <span className="min-w-0 truncate text-[0.875rem] font-semibold text-ink">{g.label}</span>
@@ -445,7 +445,7 @@ function AsanaList() {
               </button>
             </header>
             {!closed && g.rows.map((j) => (
-              <label key={j.key} className="flex cursor-pointer items-center gap-3 border-t border-line-2 px-3 py-2 text-[0.84375rem] hover:bg-[#faf8f5]" data-asana-job={j.key}>
+              <label key={j.key} className="flex cursor-pointer items-center gap-3 border-t border-line-2 px-3 py-2 text-[0.84375rem] hover:bg-wash" data-asana-job={j.key}>
                 <input type="checkbox" checked={on.includes(j.key)} onChange={() => toggle(j.key)} className="h-4 w-4 shrink-0 accent-[#2650cf]" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-ink">{j.name}</span>
@@ -482,7 +482,7 @@ function EstCard({ c }: { c: Card }) {
   const where = WHERE.find((w) => w.key === c.where)!
   return (
     <section className="overflow-hidden rounded-[0.875rem] border border-line bg-white" data-est-card={c.st} data-est-into={c.into || undefined}>
-      <header className="flex min-w-0 items-center gap-3 border-b border-line-2 bg-[#fbfaf7] px-4 py-2.5">
+      <header className="flex min-w-0 items-center gap-3 border-b border-line-2 bg-wash px-4 py-2.5">
         {c.st === 'reading' || c.st === 'waiting' ? <Loader2 className={cn('h-4 w-4 shrink-0 text-brand-600', c.st === 'reading' && 'animate-spin')} /> : c.st === 'bad' ? <CircleAlert className="h-4 w-4 shrink-0 text-bad-600" /> : <FileText className="h-4 w-4 shrink-0 text-muted" />}
         <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium text-ink-2">{c.file.name}</span>
         {r && (r.number || r.total) && <span className="shrink-0 text-[0.8125rem] tnum text-muted">{[r.number, r.total ? fmtMoney(r.total) : ''].filter(Boolean).join(' · ')}</span>}

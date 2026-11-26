@@ -538,7 +538,7 @@ export function CaptureModal({ level, jobId, listen, ask }: { level: number; job
           {/* the box, like ChatGPT's: the pictures going with it on top, what you write or say (it grows with it), and under
               it + on the left (a photo, a file), the mic and send on the right. Talking: ✕ on the left, the sound in the
               middle, ✓ on the right — ✓ sends it */}
-          <div className={cn('flex w-full flex-col rounded-[1.5rem] border bg-white shadow-[0_0.125rem_0.5rem_rgba(16,24,40,.06)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50', mic.on ? 'border-brand-300' : 'border-line')} data-capture-box>
+          <div className={cn('flex w-full flex-col rounded-[1.5rem] border bg-pure shadow-[0_0.125rem_0.5rem_rgba(16,24,40,.06)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50', mic.on ? 'border-brand-300' : 'border-line')} data-capture-box>
             {(pics.length > 0 || adding) && (
               <div className="flex gap-2 overflow-x-auto px-3 pt-3" data-capture-pics>
                 {pics.map((p) => (
@@ -639,7 +639,7 @@ function Offer({ t, me, team, onItem, onDropItem, onDropAct, onYes, onNo }: { t:
   if (t.state !== 'ask') {
     const what = [...punch.map(([jid, xs]) => `Punch list for ${s.jobs[jid]?.name || 'the project'} (${xs.length})`), ...rest.map((x) => x.title), ...acts.map((a) => `${ACT_WORDS[a.do](a)}: ${s.tasks.find((y) => y.id === a.taskId)?.title || ''}`)]
     return (
-      <div className={cn('ml-9 rounded-2xl border px-4 py-2.5 text-[0.84375rem]', t.state === 'done' ? 'border-[#cfe8d9] bg-[#f3faf6] text-[#1f6b43]' : 'border-line bg-[#faf9f7] text-muted')} data-capture-offer={t.state}>
+      <div className={cn('ml-9 rounded-2xl border px-4 py-2.5 text-[0.84375rem]', t.state === 'done' ? 'border-[#cfe8d9] bg-[#f3faf6] text-[#1f6b43]' : 'border-line bg-wash text-muted')} data-capture-offer={t.state}>
         <span className="flex items-center gap-1.5 font-semibold">{t.state === 'done' ? <><Check className="h-4 w-4" /> Done</> : 'Left out'}</span>
         <span className="mt-0.5 block leading-snug">{what.join(' · ')}</span>
       </div>

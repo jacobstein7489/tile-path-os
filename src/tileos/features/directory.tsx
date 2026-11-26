@@ -43,6 +43,22 @@ export function DirectoryPage({ first }: { first: string }) {
   return <ClientsPage />
 }
 
+/** Contacts: the four lists of people outside the company, one page — the one you're on underlined in green (the same
+ *  tabs as a project's), the others a tap away. A login with only one of them: no tabs */
+function DirTabs({ on }: { on: DirKey }) {
+  const s = useStore()
+  const nav = roleDef(s.role).nav
+  const lists = (['clients', 'designers', 'subs', 'suppliers'] as DirKey[]).filter((k) => nav.includes(k))
+  if (lists.length < 2) return null
+  return (
+    <div className="no-scrollbar mb-3 flex items-center gap-7 overflow-x-auto border-b border-line max-sm:mb-2.5 max-sm:gap-5" role="tablist" aria-label="Contacts" data-contacts-tabs>
+      {lists.map((k) => (
+        <button key={k} type="button" role="tab" aria-selected={k === on} onClick={() => s.go({ page: k })}
+          className={cn('-mb-px shrink-0 border-b-2 pb-2 pt-0.5 text-[1rem] font-semibold transition-colors', k === on ? 'border-forest-700 text-ink' : 'border-transparent text-muted hover:text-ink')} data-contacts-tab={k}>{DIR_META[k].label}</button>
+      ))}
+    </div>
+  )
+}
 /** the ⋯ at the end of a row: mark inactive, or bring back */
 function ActiveMenu({ kind, id, name }: { kind: DirKind; id: string; name: string }) {
   const s = useStore()
@@ -88,9 +104,11 @@ export function ClientsPage() {
   const owedAll = live.reduce((n, c) => n + owed(c.id), 0)
   return (
     <Page
-      title="Clients"
+      title="Contacts"
       actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'importclients' })} data-import-clients data-import="client">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'newclient' })}>New client</Button></>}
       top={
+        <>
+        <DirTabs on="clients" />
         <Bubbles
           soft
           items={[
@@ -101,6 +119,7 @@ export function ClientsPage() {
             offBubble(offList.length, tab === 'off', pick('off')),
           ]}
         />
+        </>
       }
       toolbar={
         <>
@@ -161,9 +180,11 @@ export function DesignersPage() {
   const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   return (
     <Page
-      title="Designers"
+      title="Contacts"
       actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'designer' })} data-import="designer">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'designerform' })}>New designer</Button></>}
       top={
+        <>
+        <DirTabs on="designers" />
         <Bubbles
           items={[
             { key: 'all', label: 'All designers', count: live.length, icon: <PenTool />, color: 'slate', on: tab === 'all', onClick: () => setTab('all') },
@@ -172,6 +193,7 @@ export function DesignersPage() {
             offBubble(offList.length, tab === 'off', () => setTab(tab === 'off' ? 'all' : 'off')),
           ]}
         />
+        </>
       }
       toolbar={
         <>
@@ -234,9 +256,11 @@ export function SubsPage() {
   const pick = (k: typeof tab) => () => setTab(tab === k ? 'all' : k)
   return (
     <Page
-      title="Installers"
+      title="Contacts"
       actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'installer' })} data-import="installer">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'installerform' })}>New installer</Button></>}
       top={
+        <>
+        <DirTabs on="subs" />
         <Bubbles
           items={[
             { key: 'all', label: 'All installers', count: live.length, icon: <HardHat />, color: 'slate', on: tab === 'all', onClick: () => setTab('all') },
@@ -246,6 +270,7 @@ export function SubsPage() {
             offBubble(offList.length, tab === 'off', pick('off')),
           ]}
         />
+        </>
       }
       toolbar={
         <>
@@ -313,9 +338,11 @@ export function SuppliersPage() {
   const th = (k: string, kind?: SortCol['kind']) => ({ k, on: so.sort, onSort: so.toggle, kind })
   return (
     <Page
-      title="Suppliers"
+      title="Contacts"
       actions={<><Button icon={<Upload />} onClick={() => s.open({ t: 'import', kind: 'supplier' })} data-import="supplier">Import</Button><Button variant="primary" icon={<Plus />} onClick={() => s.open({ t: 'supplierform' })}>New supplier</Button></>}
       top={
+        <>
+        <DirTabs on="suppliers" />
         <Bubbles
           items={[
             { key: 'all', label: 'All suppliers', count: live.length, icon: <Truck />, color: 'slate', on: tab === 'all', onClick: () => setTab('all') },
@@ -324,6 +351,7 @@ export function SuppliersPage() {
             offBubble(offList.length, tab === 'off', () => setTab(tab === 'off' ? 'all' : 'off')),
           ]}
         />
+        </>
       }
       toolbar={
         <>

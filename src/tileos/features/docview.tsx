@@ -132,7 +132,7 @@ export function DocPanel({ jobId, doc, fileId, onBack, back, rename }: { jobId: 
   const word = doc ? doc.toLowerCase().replace(/^plans$/, 'plans') : 'file'
   return (
     <div
-      className="relative flex h-full min-h-[70vh] flex-col bg-[#e9e6e0]"
+      className="relative flex h-full min-h-[70vh] flex-col bg-wash-2"
       data-panel="doc"
       onDragOver={(e) => { if (!doc) return; e.preventDefault(); setOver(true) }}
       onDragLeave={() => setOver(false)}

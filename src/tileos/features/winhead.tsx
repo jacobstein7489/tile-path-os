@@ -70,7 +70,7 @@ export const kindTone = (label: string) => KIND_TONES.find(([re]) => re.test(lab
  *  Touch-ups, Materials, Problem, Meeting…): you know right away what it's about */
 export function KindTag({ label, className }: { label: string; className?: string }) {
   /* quiet: one gray for every kind, the same width, so the words after it line up — only a problem is red */
-  const c = /problem/i.test(label) ? { background: '#fdecea', color: '#c4311f' } : { background: '#f1efea', color: '#57534c' }
+  const c = /problem/i.test(label) ? { background: '#fdecea', color: '#c4311f' } : { background: 'var(--color-wash-2)', color: '#4f4b44' }
   return <span className={cn('inline-flex h-[1.25rem] w-[5.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.3125rem] px-1 text-[0.6875rem] font-semibold leading-none', className)} style={{ background: c.background, color: c.color }} data-kind-tag={label}>{label}</span>
 }
 
@@ -335,13 +335,12 @@ export function WinHead({ kind, place, onPlace, title, sub, edit, remove, lines,
   const stateCls = toneCls(tone)
   return (
     <div className="relative isolate px-6 pb-1 pt-4 max-sm:px-4 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5" data-win-head {...attrs}>
-      {/* a soft wash of what it is behind the top of the window — you know what you opened before you read a word */}
-      {kind && <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-40" style={{ background: `linear-gradient(180deg, ${kindTone(kind.label).background} 0%, rgba(255,255,255,0) 100%)` }} data-win-wash />}
+      {/* (the top of every window is the same plain paper — what kind of thing it is: its tag, in its own soft color) */}
       {/* what it is, and its project — clear of the window's ✕ (a phone too: the ✕ is on this line) */}
       <div className="relative flex min-h-7 min-w-0 items-start gap-2 pr-10 max-sm:min-h-10 max-sm:pr-12 [[data-stacked]_&]:pr-0">
         {/* the project goes on to the next line when there isn't room — never cut short */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-2.5 text-[0.8125rem] font-semibold shadow-[0_1px_2px_rgba(20,26,36,.06)] ring-1 ring-inset ring-black/[0.04] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: kindTone(kind.label).color }} data-win-kind>{kind.icon}{kind.label}</span>}
+          {kind && <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[0.8125rem] font-semibold [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ color: kindTone(kind.label).color, background: kindTone(kind.label).background }} data-win-kind>{kind.icon}{kind.label}</span>}
           {onPlace ? (
             <button type="button" onClick={onPlace} className="inline-flex min-h-7 min-w-0 max-w-full items-center gap-0.5 text-left text-[0.875rem] font-medium text-muted transition hover:text-brand-700" data-win-place aria-label="Open the project"><span className="min-w-0">{place}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" /></button>
           ) : <span className="inline-flex min-h-7 min-w-0 items-center text-[0.875rem] font-medium text-muted" data-win-place>{place}</span>}

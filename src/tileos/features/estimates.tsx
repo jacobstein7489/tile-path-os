@@ -580,7 +580,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
   )
 
   const desk = (
-    <div className="min-h-full bg-[#f3f0ea]" data-desk>
+    <div className="min-h-full bg-wash-2" data-desk>
       <div className="mx-auto w-full max-w-[72rem] px-6 pb-8 pt-3 max-sm:px-2 max-sm:pt-2">
         <EstDocs e={e} onDoc={(doc) => setPanel({ t: 'doc', doc })} />
         {/* review notes: how many are checked off, and a note for the whole estimate */}
@@ -627,7 +627,7 @@ export function EstimateModal({ id, level }: { id: string; level: number }) {
     panel?.t === 'doc' ? (
       <DocPanel jobId={e.jobId} doc={panel.doc} onBack={back} back="Back to the estimate" />
     ) : panel?.t === 'paper' ? (
-      <div className="min-h-full bg-[#f3f0ea]" data-panel="paper">
+      <div className="min-h-full bg-wash-2" data-panel="paper">
         <PanelBar
           title={panel.prices ? 'The estimate the client gets' : 'Scope of work'}
           sub={panel.prices ? 'with prices, ready to print or save as PDF' : 'what we install, room by room · no prices'}
@@ -867,7 +867,7 @@ export function AiPlansModal({ estId, level }: { estId: string; level: number })
           <div className="mt-4 overflow-hidden rounded-xl border border-line">
             {rooms.map((room, ri) => (
               <section key={room} className={cn(ri > 0 && 'border-t border-line')}>
-                <div className="bg-[#f1eee8] px-4 py-2 text-[0.78125rem] font-semibold text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
+                <div className="bg-wash-2 px-4 py-2 text-[0.78125rem] font-semibold text-ink">{room}{d.rows.find((r) => r.room === room)?.option ? <span className="ml-2 normal-case tracking-normal text-warn-700">· option</span> : null}</div>
                 {d.rows.filter((r) => r.room === room).map((r) => {
                   const t = tileOf(e.jobId, r.tile)
                   return (
@@ -998,7 +998,7 @@ function NumIn({ value, onChange, label, money }: { value: number; onChange: (n:
       onChange={(x) => setV(x.target.value)}
       onBlur={() => { setOn(false); if (cancel.current) return; const n = Number(v.replace(/[^0-9.]/g, '')); if (v.trim() !== '' && !isNaN(n) && n !== value) onChange(n) }}
       onKeyDown={(x) => { if (x.key === 'Enter') (x.target as HTMLInputElement).blur(); if (x.key === 'Escape') { cancel.current = true; (x.target as HTMLInputElement).blur() } }}
-      className="h-7 w-full max-w-[5.75rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-[0.875rem] tnum text-ink transition hover:border-[#e2dcd2] hover:bg-[#faf8f4] focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 max-sm:w-[4.75rem] max-sm:border-[#e2dcd2] max-sm:bg-[#faf8f4]"
+      className="h-7 w-full max-w-[5.75rem] rounded-md border border-transparent bg-transparent px-1.5 text-right text-[0.875rem] tnum text-ink transition hover:border-[#e2dcd2] hover:bg-wash focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100 max-sm:w-[4.75rem] max-sm:border-[#e2dcd2] max-sm:bg-wash"
     />
   )
 }

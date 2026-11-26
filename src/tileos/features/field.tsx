@@ -115,7 +115,7 @@ export function MediaModal({ items, index: start, level }: { items: MediaX[]; in
 /* ================= progress bits ================= */
 function Delta({ from, to }: { from: number; to: number }) {
   return (
-    <span className="relative block h-2 w-full overflow-hidden rounded-full bg-[#E9EDF3]">
+    <span className="relative block h-2 w-full overflow-hidden rounded-full bg-wash-2">
       <span className={cn('absolute inset-y-0 left-0 rounded-full', from >= 100 ? 'bg-ok-500/60' : 'bg-brand-200')} style={{ width: `${from}%` }} />
       <span className={cn('absolute inset-y-0 rounded-full', to >= 100 ? 'bg-ok-500' : 'bg-brand-600')} style={{ left: `${from}%`, width: `${Math.max(0, to - from)}%` }} />
     </span>
@@ -418,7 +418,7 @@ export function DailyModal({ jobId, room: startRoom, level }: { jobId: string; r
                 const open = rm.surfaces.filter((x) => x.state !== 'done')
                 return (
                   <div key={rm.name} className="border-t border-line-2 first:border-t-0" data-daily-room={rm.name}>
-                    <div className="flex items-center gap-3 bg-[#f6f5f2] px-4 py-2">
+                    <div className="flex items-center gap-3 bg-wash px-4 py-2">
                       <span className="min-w-0 flex-1 text-[0.875rem] font-semibold text-ink">{rm.name}<span className="ml-2 font-normal text-muted">{rm.pct}%</span></span>
                       <button type="button" onClick={() => pickPhotos(rm.name)} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-[0.8125rem] font-semibold text-brand-700 hover:bg-white" data-daily-photos={rm.name}><ImagePlus className="h-4 w-4" />Photo{(media[rm.name] || []).length ? ` · ${(media[rm.name] || []).length}` : ''}</button>
                     </div>

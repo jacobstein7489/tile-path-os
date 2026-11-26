@@ -71,7 +71,7 @@ export function ChecklistModal({ jobId, level }: { jobId: string; level: number 
             <section key={ph.key} data-part={ph.key} className={cn('flex flex-col overflow-hidden rounded-[0.875rem] border bg-white', bad ? 'border-bad-200' : 'border-line')}>
               <h3><button onClick={() => setPart(ph.key)} aria-label={`${ph.label} · ${all ? 'done' : bad ? 'problem' : `${done} of ${items.length} done`}`} className="flex w-full items-center gap-3 px-4 pb-2 pt-3.5 text-left transition row-hover">
                 <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{ph.label}</span>
-                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#ece8e1]" aria-hidden>
+                <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-wash-3" aria-hidden>
                   <span className={cn('block h-full rounded-full', all ? 'bg-[#2c4a3e]' : bad ? 'bg-bad-500' : 'bg-brand-600')} style={{ width: `${Math.round((done / items.length) * 100)}%` }} />
                 </span>
                 <span className={cn('shrink-0 text-[0.8125rem] tnum', all ? 'font-semibold text-[#2c4a3e]' : bad ? 'font-semibold text-bad-600' : 'text-ink-2')}>{all ? 'Done' : bad ? 'Problem' : `${done} of ${items.length}`}</span>

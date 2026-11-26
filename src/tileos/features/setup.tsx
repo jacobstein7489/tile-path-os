@@ -65,7 +65,7 @@ export function SetupPage() {
       top={
         <div className="flex items-center gap-3 text-[0.9375rem]" data-setup-progress>
           <span className="font-semibold text-ink tnum" data-setup-count>{setN} of {jobs.length} set up</span>
-          <span className="h-2 w-48 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-24" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pct}%` }} /></span>
+          <span className="h-2 w-48 overflow-hidden rounded-full bg-wash-3 max-sm:w-24" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pct}%` }} /></span>
         </div>
       }
     >

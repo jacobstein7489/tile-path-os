@@ -36,6 +36,8 @@
   /* a step and two steps darker than the paper: a soft fill, what's under the pointer */
   --color-wash: #eae7e0;
   --color-wash-2: #e1ddd5;
+  /* a third step: the track of a bar, a quiet pill */
+  --color-wash-3: #d8d3c9;
 
   /* Cobblestone's dark green — the frame: the side menu and every section's band */
   --color-forest-50: #eaf0ec;

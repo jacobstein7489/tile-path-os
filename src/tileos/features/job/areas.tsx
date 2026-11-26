@@ -4,7 +4,7 @@
 import * as React from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/tileos/lib/utils'
-import { DOC_GREEN, DOC_GRAY } from '../docpaper'
+import { DOC_GREEN } from '../docpaper'
 
 /** which areas are open — none at first; kept while the project is open (each tab its own) */
 export function useOpenAreas() {
@@ -40,7 +40,7 @@ export function FloorBand({ floor, count }: { floor: string; count: number }) {
 /** an area's band — tap it to open or close what's in it; on the right, what it has in a few words */
 export function AreaBand({ name, note, open, onToggle, right, className }: { name: string; note?: string; open: boolean; onToggle: () => void; right?: React.ReactNode; className?: string }) {
   return (
-    <button type="button" onClick={onToggle} aria-expanded={open} className={cn('flex min-h-10 w-full min-w-0 items-center gap-2.5 border-t border-line px-5 py-1.5 text-left transition hover:brightness-[.98] max-sm:px-3', className)} style={{ background: DOC_GRAY }} data-area-band={name} data-open={open || undefined}>
+    <button type="button" onClick={onToggle} aria-expanded={open} className={cn('flex min-h-10 w-full min-w-0 items-center gap-2.5 border-t border-line px-5 py-1.5 text-left transition hover:brightness-[.98] max-sm:px-3', className)} style={{ background: 'var(--color-wash-2)' }} data-area-band={name} data-open={open || undefined}>
       {open ? <ChevronDown className="h-4 w-4 shrink-0 text-[#6b6f78]" /> : <ChevronRight className="h-4 w-4 shrink-0 text-[#6b6f78]" />}
       <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-[#222]"><b className="font-bold uppercase tracking-[0.02em]">{name}</b>{note ? <span className="text-[#555]"> | {note}</span> : null}</span>
       {right && <span className="flex min-w-0 shrink-0 items-center gap-2 text-[0.8125rem] text-[#555]">{right}</span>}

@@ -264,17 +264,17 @@ export function ScopeSheet({ job, hits, compact }: { job: Job; hits?: Hits; comp
             return (
               <div key={r.name}>
                 {compact ? (
-                  <button onClick={() => setOpenRooms((o) => ({ ...o, [r.name]: !o[r.name] }))} aria-expanded={shown} aria-label={`Room ${r.name}`} className={cn('flex min-h-[3rem] w-full items-center gap-3 px-5 text-left transition row-hover max-sm:px-4', shown ? 'bg-[#f4f1eb]' : 'border-t border-line-2')}>
+                  <button onClick={() => setOpenRooms((o) => ({ ...o, [r.name]: !o[r.name] }))} aria-expanded={shown} aria-label={`Room ${r.name}`} className={cn('flex min-h-[3rem] w-full items-center gap-3 px-5 text-left transition row-hover max-sm:px-4', shown ? 'bg-wash-2' : 'border-t border-line-2')}>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.9375rem] font-semibold text-ink">{r.name}</span>
                       <span className={cn('block truncate text-[0.78125rem]', problems ? 'font-medium text-bad-600' : 'text-muted')}>{problems ? `${problems} ${problems === 1 ? 'wall or floor is' : 'walls or floors are'} waiting` : `${r.surfaces.length} ${r.surfaces.length === 1 ? 'wall or floor' : 'walls and floors'}${r.note ? ` · ${r.note}` : ''}`}</span>
                     </span>
-                    {inField && <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-12"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-[#2c4a3e]' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></span>}
+                    {inField && <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-wash-3 max-sm:w-12"><span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-[#2c4a3e]' : 'bg-brand-600')} style={{ width: `${pct}%` }} /></span>}
                     <span className={cn('w-[3.5rem] shrink-0 text-right text-[0.9375rem] font-semibold tnum', inField && pct >= 100 ? 'text-[#2c4a3e]' : 'text-ink')}>{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')}` : ''}</span>
                     {shown ? <ChevronDown className="h-4 w-4 shrink-0 text-faint" /> : <ChevronRight className="h-4 w-4 shrink-0 text-faint" />}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-3 bg-[#efece5] px-5 py-1 max-sm:px-4">
+                  <div className="flex items-center gap-3 bg-wash-2 px-5 py-1 max-sm:px-4">
                     <span className="min-w-0 truncate text-[0.8125rem] font-semibold text-ink">{r.name}{r.note && <span className="font-normal text-muted"> · {r.note}</span>}</span>
                     <span className="ml-auto shrink-0 text-[0.75rem] font-bold tnum text-ink">{inField ? `${pct}%` : rsf ? `${rsf.toLocaleString('en-US')} SF` : ''}</span>
                     {canEdit && !hits && <RoomMenu jobId={job.id} room={r} />}

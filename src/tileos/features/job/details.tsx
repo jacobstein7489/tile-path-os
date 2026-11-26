@@ -7,7 +7,6 @@
  *   Documents     — the latest tile paperwork, the plans, the spec book, photos — open right here */
 import * as React from 'react'
 import { sheetRooms, RoomSheets, coverageOf } from '../roomsheets'
-import { DOC_GRAY } from '../docpaper'
 import { Camera, Check, ChevronDown, ChevronRight, MoveVertical, MoreHorizontal, FileText, Upload, Mic, Paperclip, Package, History, Phone, Mail, CalendarDays, Lock, Printer, Pencil, Plus, Search, MessageCircle, MessageSquareText, HardHat, LayoutGrid, Palette, Trash2, ArrowUpRight, Image as ImageIcon } from 'lucide-react'
 import { useStore, meOf, addHist, type Store } from '@/tileos/store'
 import { Avatar, Segmented } from '@/tileos/components/ui/core'
@@ -31,7 +30,7 @@ import { TODO, todoOf } from '../stepwin'
 import type { BoardView } from './board'
 import { ScopeDoc } from './scopedoc'
 import { RoomScope, plainLines } from './roomscope'
-import { firstName, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
+import { firstName, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_GRAY, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
 import { printNode } from '@/tileos/lib/print'
 import { useSmall } from '@/tileos/lib/phone'
 import { Button } from '@/tileos/components/ui/core'
@@ -369,13 +368,13 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
     <div data-room={room.name} data-room-state={view.state} data-room-open={open ? '' : undefined} className={cn(!first && 'border-t border-line')}>
       {/* the room's line: its name in capitals and its short note — then where it's up to and its square feet. Tap it to
           open (or close) its walls and floors; ↗ opens the room itself */}
-      <div className={cn('flex min-h-11 min-w-0 items-center pr-2 max-sm:pr-1', open && 'sticky top-0 z-[5] md:top-[var(--scope-bar,0px)]')} style={{ background: DOC_GRAY }} data-room-band>
+      <div className={cn('flex min-h-11 min-w-0 items-center pr-2 max-sm:pr-1', open && 'sticky top-0 z-[5] md:top-[var(--scope-bar,0px)]')} style={{ background: ROOM_GRAY }} data-room-band>
         <button type="button" onClick={onToggle} aria-expanded={open} data-room-head className={cn(ROOM_BAND, 'group flex-1 gap-3 py-1.5 pl-3 pr-2 text-left max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:py-2 max-sm:pl-2')}>
           <ChevronRight className={cn('h-4 w-4 shrink-0 text-[#8a8f98] transition-transform group-hover:text-brand-700', open && 'rotate-90')} aria-hidden />
           {/* a phone: the name and its note wrap rather than end in "…" */}
           <span className="min-w-0 flex-1 truncate max-sm:whitespace-normal max-sm:leading-snug"><b className={cn(ROOM_NAME, 'group-hover:text-brand-700')}>{room.name}</b>{room.note && <span className="text-[#555]" data-room-cover> | {room.note}</span>}</span>
           {/* installing: how far it is, a small bar */}
-          {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-[#e2ded6] max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
+          {inField && view.pct > 0 && <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-wash-3 max-sm:hidden" aria-hidden data-room-bar><span className={cn('block h-full rounded-full', view.state === 'stopped' ? 'bg-bad-500' : view.state === 'done' ? 'bg-[#2c8a5b]' : 'bg-brand-600')} style={{ width: `${view.pct}%` }} /></span>}
           {/* where it's up to, whole (never cut short): a phone, on its own line under the name */}
           {said.text && <span data-room-why className={cn('min-w-0 max-w-[45%] text-right text-[0.8125rem] leading-snug max-sm:order-last max-sm:w-full max-sm:max-w-none max-sm:pl-6 max-sm:text-left', said.cls)} title={view.chips.map((c) => c.text).join(' · ')}>{said.text}</span>}
           <span className="w-[4.25rem] shrink-0 text-right text-[0.8125rem] tnum text-[#555] max-sm:hidden">{view.sf > 0 ? `${view.sf.toLocaleString('en-US')} SF` : ''}</span>
@@ -399,10 +398,10 @@ function ScopeRoom({ job, room, view, inField, canEdit, first, ticking, onTickin
             <div key={x.name} role="button" tabIndex={0} onClick={openLine} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openLine() }} data-surface-line={x.name}
               className={cn('flex w-full min-w-0 cursor-pointer flex-wrap items-start gap-x-3 gap-y-2 border-t border-line-2 px-5 py-2.5 text-left transition row-hover first:border-t-0 max-sm:px-3 lg:flex-nowrap', ticks ? LINE_GRID_TICKS : LINE_GRID)}>
               {/* its tile's picture */}
-              {tile ? <TileImg tile={tile} size={36} radius={5} className="max-lg:hidden" /> : <span className={cn('h-9 w-9 shrink-0 rounded-[5px] max-lg:hidden', takes ? 'border border-dashed border-[#cfc8bc] bg-[#faf9f6]' : 'bg-[#f3f1ec]')} />}
+              {tile ? <TileImg tile={tile} size={36} radius={5} className="max-lg:hidden" /> : <span className={cn('h-9 w-9 shrink-0 rounded-[5px] max-lg:hidden', takes ? 'border border-dashed border-[#cfc8bc] bg-wash' : 'bg-wash-2')} />}
               {tile ? <TileImg tile={tile} size={PIC_SM} radius={6} className="lg:hidden" />
-                : takes ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-[#cfc8bc] bg-[#faf9f6] text-[0.625rem] font-semibold leading-tight text-muted lg:hidden" data-surface-notile>No tile</span>
-                  : <span className="h-11 w-11 shrink-0 rounded-md bg-[#f3f1ec] lg:hidden" />}
+                : takes ? <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-[#cfc8bc] bg-wash text-[0.625rem] font-semibold leading-tight text-muted lg:hidden" data-surface-notile>No tile</span>
+                  : <span className="h-11 w-11 shrink-0 rounded-md bg-wash-2 lg:hidden" />}
               {/* what it is, and what we're doing on it — in words */}
               <span className="min-w-0 flex-1 lg:flex-none">
                 <span className="flex min-w-0 items-baseline gap-3">
@@ -575,7 +574,7 @@ function Contact({ initials, who, name, role, r, sub, onName, onMessage, tone, n
   return (
     <div data-person={role} data-subrow className={PERSON_ROW} {...(mark ? { [mark]: '' } : {})}>
       <span className="flex min-w-0 flex-1 items-center gap-3">
-        {who ? <Avatar who={who} size={30} /> : <span className={cn('inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-[#ece8e1] text-[#4a5361]')}>{initials}</span>}
+        {who ? <Avatar who={who} size={30} /> : <span className={cn('inline-flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold', tone || 'bg-wash-3 text-[#4a5361]')}>{initials}</span>}
         <span className="min-w-0 leading-snug">
           {onName ? <button onClick={onName} className="block max-w-full break-words text-left text-[0.9375rem] text-ink hover:text-brand-700">{name}</button> : <span className="block max-w-full break-words text-[0.9375rem] text-ink">{name}</span>}
           {/* a phone: what they are, and what they have on this job, under the name — whole */}
@@ -752,7 +751,7 @@ function DocsPart({ job, open, onStep }: { job: Job; open: (v: BoardView) => voi
   const top = [paper, plans, spec].filter(Boolean) as typeof files
   const rest = files.filter((f) => !top.includes(f) && f.kind !== 'photo').slice(-3).reverse()
   const n = files.length + sample.length
-  const row = 'flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-[#f6f3ee]'
+  const row = 'flex w-full min-w-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition hover:bg-wash'
   /* the papers the job has by name — each one here (tap to open it) or missing; never a step */
   const rooms = s.rooms[job.id] || []
   const sf = rooms.reduce((a, r) => a + r.surfaces.reduce((b, x) => b + (x.sf || 0), 0), 0)

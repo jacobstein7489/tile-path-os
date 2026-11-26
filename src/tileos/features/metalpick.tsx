@@ -89,7 +89,7 @@ export function EdgePicker({ value, onChange }: { value: string; onChange: (v: s
         {EDGE_KINDS.map((k) => <button key={k.key || 'none'} type="button" data-edge-kind={k.key || 'none'} onClick={() => pick(k.key)} className={cn(CHIP, kind === k.key ? ON : OFF)}>{k.label}</button>)}
       </div>
       {kind === 'metal' && (
-        <div className="mt-3 rounded-[0.75rem] border border-line bg-[#faf9f7] p-3.5">
+        <div className="mt-3 rounded-[0.75rem] border border-line bg-wash p-3.5">
           <MetalPicker value={metal} onChange={(m) => { setMetal(m); onChange(edgeValue('metal', m, other)) }} />
         </div>
       )}

@@ -55,7 +55,7 @@ export function RoomScope({ jobId, innerRef }: { jobId: string; innerRef: React.
                         const where = whereIn(room, tag, t?.trim)
                         return (
                           <div key={tag} className="min-w-0" data-room-scope-tile={tag}>
-                            {t?.photo || t?.swatch ? <TileImg tile={t} size={52} radius={2} /> : <div className="flex h-[3.25rem] w-[3.25rem] items-center justify-center bg-[#f3f3f1] text-[0.5625rem] font-bold text-[#888]">Photo pending</div>}
+                            {t?.photo || t?.swatch ? <TileImg tile={t} size={52} radius={2} /> : <div className="flex h-[3.25rem] w-[3.25rem] items-center justify-center bg-wash-2 text-[0.5625rem] font-bold text-[#888]">Photo pending</div>}
                             <div className="mt-1.5 text-[0.6875rem] font-bold leading-tight">{t?.name || tag}</div>
                             {t?.size && <div className="text-[0.6875rem] leading-tight text-[#333]">{t.size}</div>}
                             {where && <div className="mt-0.5 text-[0.625rem] leading-tight" style={{ color: DOC_GREEN }}>{where}</div>}

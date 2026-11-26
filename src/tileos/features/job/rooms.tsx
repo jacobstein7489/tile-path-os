@@ -240,7 +240,7 @@ export function RoomPanel({ job, room: name }: { job: Job; room?: string }) {
           const grout = x.grout ? GROUTS[x.grout] : undefined
           const what = [tile ? `${x.tile} ${tile.name}` : x.tile || 'No tile yet', grout ? `${grout.name} grout` : ''].filter(Boolean).join(' · ')
           return (
-            <button key={x.name} data-surface={x.name} onClick={() => open({ t: 'install-surface', jobId: job.id, room: room.name, surface: x.name })} className="flex w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-[#f6f3ee]">
+            <button key={x.name} data-surface={x.name} onClick={() => open({ t: 'install-surface', jobId: job.id, room: room.name, surface: x.name })} className="flex w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-wash">
               {stateIcon(x)}
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.875rem] font-medium leading-[1.25rem] text-ink">{x.name}<span className="font-normal text-muted"> · {what}</span></span>

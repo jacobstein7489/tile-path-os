@@ -51,7 +51,7 @@ export function TilePicker({ jobId, room, value, onPick, onAdd, disabled }: { jo
   const pick = (tag: string) => { onPick(tag); setOpen(false); setQ('') }
   const face = (
     <button type="button" disabled={disabled} aria-label="The tile · pick it" className={cn('flex min-h-12 w-full min-w-0 items-center gap-3 rounded-[0.625rem] border border-line bg-white px-2.5 py-1.5 text-left transition enabled:hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50')} data-tile-pick={value || 'none'}>
-      {cur ? <TileImg tile={cur} size={36} radius={6} /> : <span className="h-9 w-9 shrink-0 rounded-md border border-dashed border-[#cfc8bc] bg-[#faf9f6]" />}
+      {cur ? <TileImg tile={cur} size={36} radius={6} /> : <span className="h-9 w-9 shrink-0 rounded-md border border-dashed border-[#cfc8bc] bg-wash" />}
       <span className="min-w-0 flex-1 leading-snug">
         {cur ? <><span className="block text-[0.9375rem] text-ink"><b className="font-semibold">{cur.tag}</b> {cur.name}</span><span className="block text-[0.8125rem] text-muted">{[cur.size, cur.finish].filter(Boolean).join(' · ')}</span></>
           : <span className="text-[0.9375rem] text-faint">Pick the tile</span>}

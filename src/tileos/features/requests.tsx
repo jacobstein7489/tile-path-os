@@ -106,7 +106,7 @@ export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number 
           <button type="button" data-need-metal onClick={() => setMetal((m) => (m ? null : { profile: '', finish: '' }))} className={cn('inline-flex h-9 items-center rounded-full border px-3.5 text-[0.84375rem] font-medium transition', metal ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-line bg-white text-ink-2 hover:border-brand-300 hover:text-brand-700')}>+ Metal edge…</button>
         </div>
         {metal && (
-          <div className="mt-2.5 rounded-[0.75rem] border border-line bg-[#faf9f7] p-3.5" data-need-metal-pick>
+          <div className="mt-2.5 rounded-[0.75rem] border border-line bg-wash p-3.5" data-need-metal-pick>
             <MetalPicker value={metal} onChange={setMetal} pieces />
             <div className="mt-3 flex items-center gap-2 border-t border-line-2 pt-3">
               <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-ink-2">{metal.profile ? metalText(metal, { piece: true }) : 'Pick the profile, the finish and the size'}</span>

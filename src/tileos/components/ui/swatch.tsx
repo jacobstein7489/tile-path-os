@@ -433,7 +433,7 @@ export function TileImg({ tile, size = 44, radius, className }: { tile?: Tile; s
     )
   if (tile?.swatch) return <Swatch kind={tile.swatch} size={size} radius={r} className={className} />
   return (
-    <span className={cn('inline-flex shrink-0 items-center justify-center bg-[#f1eee8] font-bold tracking-[-0.01em] text-[#8c8374] shadow-[inset_0_0_0_0.0625rem_rgba(16,24,40,.08)]', className)} style={{ width: size, height: size, borderRadius: r, fontSize: Math.max(9, Math.round(size * 0.24)) }}>
+    <span className={cn('inline-flex shrink-0 items-center justify-center bg-wash-2 font-bold tracking-[-0.01em] text-[#8c8374] shadow-[inset_0_0_0_0.0625rem_rgba(16,24,40,.08)]', className)} style={{ width: size, height: size, borderRadius: r, fontSize: Math.max(9, Math.round(size * 0.24)) }}>
       {tile?.tag || ''}
     </span>
   )

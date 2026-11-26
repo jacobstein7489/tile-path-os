@@ -237,7 +237,7 @@ export function RoundsModal({ level }: { level: number }) {
       <div className="-mx-6 -my-5 max-sm:-mx-4" data-rounds>
         {/* the day's drive, before Google Maps opens: how long, how far, from where */}
         {left.length > 0 && (
-          <div className="flex items-start gap-3 border-b border-line-2 bg-[#f7f6f3] px-6 py-3.5 max-sm:px-4" data-rounds-plan>
+          <div className="flex items-start gap-3 border-b border-line-2 bg-wash px-6 py-3.5 max-sm:px-4" data-rounds-plan>
             <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-brand-700 shadow-[0_0_0_1px_rgba(0,0,0,.06)]"><Car className="h-[1.125rem] w-[1.125rem]" /></span>
             <div className="min-w-0 flex-1">
               <div className="text-[0.9375rem] font-semibold text-ink" data-rounds-total>
@@ -260,7 +260,7 @@ export function RoundsModal({ level }: { level: number }) {
           return (
             <React.Fragment key={j.id}>
             {/* Google Maps takes ten stops at a time: where the first trip ends, and that the rest come after */}
-            {i === 10 && <div className="border-b border-line-2 bg-[#f6f6f4] px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time · these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
+            {i === 10 && <div className="border-b border-line-2 bg-wash px-6 py-2 text-[0.8125rem] text-muted max-sm:px-4" data-rounds-split>Google Maps takes 10 stops at a time · these {order.length - 10} come next: once 1–10 have their videos, Start takes these.</div>}
             <div className={cn(WIN_ROW_GRID, 'border-b border-line-2 px-6 py-2.5 max-sm:px-4')} data-rounds-stop={j.id}>
               <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center justify-self-center rounded-full bg-brand-50 text-[0.75rem] font-bold text-brand-700 tnum">{i + 1}</span>
               <div className="min-w-0">

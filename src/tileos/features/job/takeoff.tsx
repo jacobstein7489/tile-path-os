@@ -23,13 +23,12 @@ import type { Job } from '@/tileos/data/model'
 import { takeoff, qtyLabel, GROUPS, type TakeLine } from '../takeoff'
 import { tileStatus } from './scope-tab'
 import { useSaveStatus } from '@/tileos/lib/save'
-import { Word, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
+import { Word, PaperBar, FloorBand, PAPER, PAPER_ROW, ROOM_BAND, ROOM_GRAY, ROOM_NAME, PIC_LG, PIC_SM } from './kit'
 import { openTilePOs } from '../tilepo'
 import { tileStoreOf } from '../tiles'
 import { scopeLock } from '../steps'
 import { PaperPanel, usePaperPicker, usePaperReview } from '../paperread'
 import { useReadingOf } from '@/tileos/lib/reading'
-import { DOC_GRAY } from '../docpaper'
 
 /** what · where it goes · how much we need · where it's at (and its button) */
 const QGRID = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_6.5rem_19rem_2rem] items-center gap-x-6 max-lg:grid-cols-[minmax(0,1fr)_6rem_15rem_2rem] max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-x-3'
@@ -95,7 +94,7 @@ export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: 
                 <section key={r.name} data-tile-room-group={r.name}>
                   {/* the room's band — the same as on the scope of work: its name in bold capitals; it stays under the
                       column names while its tiles go by */}
-                  <div className={cn(ROOM_BAND, 'px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]', (i > 0 || !floors) && 'border-t border-line')} style={{ background: DOC_GRAY }} data-band data-tile-room-band>
+                  <div className={cn(ROOM_BAND, 'px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]', (i > 0 || !floors) && 'border-t border-line')} style={{ background: ROOM_GRAY }} data-band data-tile-room-band>
                     <b className={cn(ROOM_NAME, 'min-w-0 truncate')}>{r.name}</b>
                     <span className="text-[#555] tnum">{uses.length}</span>
                   </div>
@@ -107,7 +106,7 @@ export function TileOrders({ job, onScope, simple, lead }: { job: Job; onScope: 
         ))}
         {unused.length > 0 && (
           <section data-tile-room-group="">
-            <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3')} style={{ background: DOC_GRAY }} data-band data-tile-room-band><b className={cn(ROOM_NAME, 'min-w-0 truncate text-warn-700')}>Not on a wall or floor yet</b><span className="text-[#555] tnum">{unused.length}</span></div>
+            <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3')} style={{ background: ROOM_GRAY }} data-band data-tile-room-band><b className={cn(ROOM_NAME, 'min-w-0 truncate text-warn-700')}>Not on a wall or floor yet</b><span className="text-[#555] tnum">{unused.length}</span></div>
             {unused.map((tag) => <TileLine key={tag} job={job} tag={tag} xs={[]} simple={simple} />)}
           </section>
         )}
@@ -235,7 +234,7 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }
           </div>
         )}
         {t.skipped.length > 0 && t.counted > 0 && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-[#faf8f5] px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line-2 bg-wash px-5 py-2.5 text-[0.8125rem] text-ink-2 max-sm:px-3">
             <span className="font-semibold text-ink">Not counted yet</span>
             <span className="min-w-0 flex-1">{t.skipped.slice(0, 4).map((k) => `${k.room} ${k.surface.toLowerCase()} · ${k.why.toLowerCase()}`).join(' · ')}{t.skipped.length > 4 ? ` and ${t.skipped.length - 4} more` : ''}</span>
             <button onClick={onScope} className="font-semibold text-ink underline-offset-2 hover:underline">Scope of work</button>
@@ -249,7 +248,7 @@ export function MaterialsNeed({ job, onScope, simple, orders, orderOnTop, lead }
  *  its name in bold capitals, how many next to it; it stays under the column names while its lines go by */
 function MatBand({ label, n }: { label: string; n?: number }) {
   return (
-    <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]')} style={{ background: DOC_GRAY }} data-band data-mat-band={label}>
+    <div className={cn(ROOM_BAND, 'border-t border-line px-5 max-sm:px-3 lg:sticky lg:top-10 lg:z-[4]')} style={{ background: ROOM_GRAY }} data-band data-mat-band={label}>
       <b className={cn(ROOM_NAME, 'min-w-0 truncate')}>{label}</b>
       {n != null && <span className="text-[#555] tnum">{n}</span>}
     </div>

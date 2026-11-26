@@ -237,9 +237,9 @@ export function QtyModal({ jobId, tag, level }: { jobId: string; tag: string; le
               </button>
             ))}
             {!lines.length && <div className={row}><span className="text-[0.875rem] text-muted">It isn’t on a wall or floor anymore.</span></div>}
-            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Walls and floors</span><span className="text-[0.9375rem] font-semibold tnum text-ink" data-qty-measured>{boxes && live <= 0 ? `${measured} ${unit}` : sfWords(measured)}</span></div>
-            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] text-ink-2">Extra for cuts · {pct}%</span><span className="text-[0.9375rem] tnum text-ink">+ {boxes && live <= 0 ? `${Math.round(measured * pct) / 100} ${unit}` : sfWords((measured * pct) / 100)}</span></div>
-            <div className={cn(row, 'bg-[#faf8f5]')}><span className="flex-1 text-[0.9375rem] font-semibold text-ink">Needed</span><span className="text-[1.0625rem] font-bold tnum text-ink" data-qty-need>{need.toLocaleString('en-US')} {unit}</span></div>
+            <div className={cn(row, 'bg-wash')}><span className="flex-1 text-[0.9375rem] text-ink-2">Walls and floors</span><span className="text-[0.9375rem] font-semibold tnum text-ink" data-qty-measured>{boxes && live <= 0 ? `${measured} ${unit}` : sfWords(measured)}</span></div>
+            <div className={cn(row, 'bg-wash')}><span className="flex-1 text-[0.9375rem] text-ink-2">Extra for cuts · {pct}%</span><span className="text-[0.9375rem] tnum text-ink">+ {boxes && live <= 0 ? `${Math.round(measured * pct) / 100} ${unit}` : sfWords((measured * pct) / 100)}</span></div>
+            <div className={cn(row, 'bg-wash')}><span className="flex-1 text-[0.9375rem] font-semibold text-ink">Needed</span><span className="text-[1.0625rem] font-bold tnum text-ink" data-qty-need>{need.toLocaleString('en-US')} {unit}</span></div>
           </div>
           {none.length > 0 && <div className="mt-2 text-[0.8125rem] font-medium text-warn-700" data-qty-none>{none.length} {none.length === 1 ? 'wall or floor has' : 'walls and floors have'} no square feet yet, so what’s needed is low. Tap {none.length === 1 ? 'it' : 'each one'} to put them in.</div>}
           {moved && <div className="mt-2 text-[0.8125rem] text-muted" data-qty-moved>When their order went in, the walls and floors came to {sfWords(c!.measured)}. They’re {sfWords(live)} now, and that’s what it goes by.</div>}

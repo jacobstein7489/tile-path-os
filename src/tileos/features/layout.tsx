@@ -293,7 +293,7 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[#ece8e1]"><span className="block h-full rounded-full bg-[#2c4a3e]" style={{ width: `${Math.round((set / all.length) * 100)}%` }} /></span>
+        <span className="h-1.5 w-24 overflow-hidden rounded-full bg-wash-3"><span className="block h-full rounded-full bg-[#2c4a3e]" style={{ width: `${Math.round((set / all.length) * 100)}%` }} /></span>
         <span className="text-[0.8125rem] tnum text-ink-2"><b className="font-semibold text-ink">{set} of {all.length}</b> set</span>
         {action && <span className="ml-auto">{action}</span>}
       </div>
@@ -308,7 +308,7 @@ export function LayoutsList({ job, action }: { job: Job; action?: React.ReactNod
               return (
                 <button key={x.name} onClick={() => s.open({ t: 'layout', jobId: job.id, room: r.name, surface: x.name })} className="flex w-full items-center gap-3 border-t border-line-2 px-3.5 py-2.5 text-left transition first:border-t-0 row-hover" aria-label={`Layout · ${r.name} ${x.name}`}>
                   {/* measured: a small drawing of it, at its size — else just its tile */}
-                  {x.dims ? <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span> : <span className="flex h-10 w-12 shrink-0 items-center justify-center" data-layout-tile>{tile ? <TileImg tile={tile} size={40} radius={6} /> : <span className="h-10 w-10 rounded-md bg-wash-2" />}</span>}
+                  {x.dims ? <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-wash-2" data-layout-small><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span> : <span className="flex h-10 w-12 shrink-0 items-center justify-center" data-layout-tile>{tile ? <TileImg tile={tile} size={40} radius={6} /> : <span className="h-10 w-10 rounded-md bg-wash-2" />}</span>}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[0.875rem] font-semibold text-ink">{x.name} <span className="font-normal text-muted">· {tile ? `${tile.tag} ${tile.size}` : x.tile}</span></span>
                     {x.layout
@@ -386,7 +386,7 @@ function LayoutLine({ job, room, x }: { job: Job; room: string; x: Surface }) {
   return (
     <button type="button" onClick={() => s.open({ t: 'layout', jobId: job.id, room, surface: x.name })} data-layout-card={`${room}|${x.name}`} aria-label={`Layout · ${room} ${x.name}`} className={cn('group block min-h-14 w-full border-t border-line-2 px-5 py-2 text-left transition row-hover max-sm:px-3', LAY_COLS)}>
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-[#f4f1ec]"><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span>
+        <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-md bg-wash-2"><LayoutThumb jobId={job.id} x={x} max={44} maxH={34} /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[0.9375rem] font-semibold text-ink group-hover:text-brand-700">{x.name}</span>
           <span className="block truncate text-[0.8125rem] text-muted md:hidden">{[tile ? `${tile.tag} ${tile.name}` : x.tile, state.t].filter(Boolean).join(' · ')}</span>
@@ -505,7 +505,7 @@ export function LayoutModal({ jobId, room, surface, tile: tileTag, level }: { jo
     >
       {/* a computer: the drawing stays put while the settings beside it scroll */}
       <div className="grid min-h-full grid-cols-[minmax(0,1fr)_21rem] max-lg:grid-cols-1 lg:h-full">
-        <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-[#f4f1eb] px-6 py-6 lg:min-h-0 lg:overflow-hidden">
+        <div ref={drawRef} className="flex min-w-0 flex-col items-center justify-center gap-3 bg-wash-2 px-6 py-6 lg:min-h-0 lg:overflow-hidden">
           {!sized && (
             <div className="max-w-[26rem] py-10 text-center" data-layout-need-size>
               <Ruler className="mx-auto h-7 w-7 text-faint" />

@@ -258,7 +258,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
               {(areas.groups.length > 1 || g.floor !== 'Rooms') && <div className="mt-2 px-1 pb-1 text-[0.6875rem] font-bold uppercase tracking-[0.07em] text-[#2c4a3e]">{g.floor}</div>}
               {g.rooms.map((r) => (
                 <div key={r.room} data-tile-room={r.room}>
-                  <div className="rounded-md bg-[#f2f1ee] px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">{r.room}</div>
+                  <div className="rounded-md bg-wash-2 px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">{r.room}</div>
                   {r.tiles.map(({ tag, where }) => areaLine(r.room, tag, where))}
                 </div>
               ))}
@@ -266,7 +266,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
           ))}
           {byArea && areas.loose.length > 0 && (
             <div data-tile-room="">
-              <div className="mt-2 rounded-md bg-[#f2f1ee] px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">Not on a wall or floor yet</div>
+              <div className="mt-2 rounded-md bg-wash-2 px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-[0.02em] text-[#333]">Not on a wall or floor yet</div>
               {areas.loose.map((tag) => areaLine('', tag))}
             </div>
           )}

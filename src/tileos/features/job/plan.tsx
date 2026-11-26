@@ -227,7 +227,7 @@ export function todoRows(s: Store, job: Job, setTab: SetTab): TodoRow[] {
 
 function RowMark({ m, size = 24 }: { m: Mark; size?: number }) {
   if (m.kind === 'step') return <StepIcon state={m.state} size={size} />
-  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-[#ece8e1] text-ink-2"><CalendarDays className="h-3 w-3" /></span>
+  if (m.kind === 'meet') return <span style={{ width: size, height: size }} className="inline-flex items-center justify-center rounded-full bg-wash-3 text-ink-2"><CalendarDays className="h-3 w-3" /></span>
   if (m.kind === 'task') return <StepIcon state={m.waiting ? 'wait' : 'now'} size={size} />
   const st = m.status
   return <StepIcon state={st === 'bad' ? 'bad' : st === 'wait' ? 'wait' : st === 'done' ? 'done' : 'now'} size={size} />

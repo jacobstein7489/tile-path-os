@@ -346,7 +346,7 @@ function ShareCard({ r, locked }: { r: CommRow; /** the rate is the client's —
   const paid = r.share.paid || []
   return (
     <section className="overflow-hidden rounded-xl border border-line" data-share={r.share.who}>
-      <header className="flex items-center gap-3 border-b border-line-2 bg-[#faf9f7] px-4 py-2.5">
+      <header className="flex items-center gap-3 border-b border-line-2 bg-wash px-4 py-2.5">
         <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-ink">{r.person?.name || 'Salesperson'}</span>
         {locked ? <span className="shrink-0 text-[0.8125rem] font-semibold tnum text-ink-2" data-share-rate-shown>{pct(r.share.rate)}</span> : (
           <label className="flex shrink-0 items-center gap-1.5 text-[0.8125rem] text-muted">
@@ -374,7 +374,7 @@ function ShareCard({ r, locked }: { r: CommRow; /** the rate is the client's —
         </div>
       )}
       {r.owed > 0.004 && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#faf9f7] px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-wash px-4 py-2.5">
           <span className="text-[0.8125rem] text-muted">Pay them</span>
           <input inputMode="decimal" aria-label="How much" placeholder={money(r.owed)} value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} className="h-9 w-28 rounded-md border border-line bg-white px-2 text-right text-[0.875rem] tnum text-ink focus:border-brand-300 focus:outline-none" data-pay-amount />
           <input aria-label="Check number or a note" placeholder="Check # or a note" value={note} onChange={(e) => setNote(e.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-line bg-white px-2 text-[0.875rem] text-ink focus:border-brand-300 focus:outline-none" />

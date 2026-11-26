@@ -205,7 +205,7 @@ export function Menu({ trigger, children, align = 'end', width = 248 }: { trigge
     <DM.Root modal={false}>
       <DM.Trigger asChild>{trigger}</DM.Trigger>
       <DM.Portal>
-        <DM.Content {...scrollHere} align={align} sideOffset={6} collisionPadding={12} className="scroll-soft z-[300] max-h-[min(28.75rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto overscroll-contain rounded-[0.625rem] border border-line bg-white p-1 shadow-pop animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <DM.Content {...scrollHere} align={align} sideOffset={6} collisionPadding={12} className="scroll-soft z-[300] max-h-[min(28.75rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto overscroll-contain rounded-[0.625rem] border border-line bg-pure p-1 shadow-pop animate-pop-in" style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </DM.Content>
       </DM.Portal>
@@ -261,7 +261,7 @@ export function Pop({ trigger, children, align = 'start', side = 'bottom', width
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[300] animate-overlay-in bg-[rgba(17,19,24,.3)]" />
         <Dialog.Content aria-describedby={undefined} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} onOpenAutoFocus={(e) => e.preventDefault()}
-          className={cn('fixed inset-x-0 bottom-0 z-[301] max-h-[90dvh] overflow-y-auto rounded-t-[1.25rem] bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-modal outline-none animate-modal-in', className)} data-pop-sheet>
+          className={cn('fixed inset-x-0 bottom-0 z-[301] max-h-[90dvh] overflow-y-auto rounded-t-[1.25rem] bg-pure pb-[env(safe-area-inset-bottom,0px)] shadow-modal outline-none animate-modal-in', className)} data-pop-sheet>
           <Dialog.Title className="sr-only">Pick</Dialog.Title>
           <span className="mx-auto mt-1.5 block h-1 w-9 rounded-full bg-[#d9d4cb]" aria-hidden />
           {children}
@@ -273,7 +273,7 @@ export function Pop({ trigger, children, align = 'start', side = 'bottom', width
     <PO.Root open={open} onOpenChange={onOpenChange}>
       <PO.Trigger asChild>{trigger}</PO.Trigger>
       <PO.Portal>
-        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} className={cn('scroll-soft z-[300] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain rounded-xl border border-line bg-white p-4 shadow-pop outline-none animate-pop-in', className)} style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
+        <PO.Content {...scrollHere} align={align} side={side} sideOffset={6} collisionPadding={16} onEscapeKeyDown={onEscape ? () => onEscape() : undefined} className={cn('scroll-soft z-[300] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto overscroll-contain rounded-xl border border-line bg-pure p-4 shadow-pop outline-none animate-pop-in', className)} style={{ width: typeof width === 'number' ? `${width / 16}rem` : width, maxWidth: 'calc(100vw - 24px)' }}>
           {children}
         </PO.Content>
       </PO.Portal>
@@ -472,7 +472,7 @@ export function RightMenu({ children, items }: { children: React.ReactNode; item
     <CM.Root modal={false}>
       <CM.Trigger asChild>{children}</CM.Trigger>
       <CM.Portal>
-        <CM.Content collisionPadding={12} className="z-[300] min-w-[13.5rem] rounded-[0.625rem] border border-line bg-white p-1 shadow-pop animate-pop-in" data-right-menu>
+        <CM.Content collisionPadding={12} className="z-[300] min-w-[13.5rem] rounded-[0.625rem] border border-line bg-pure p-1 shadow-pop animate-pop-in" data-right-menu>
           {list.map((it) => (
             <CM.Item key={it.label} onSelect={it.onSelect} className={cn('flex min-h-9 cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[0.875rem] outline-none data-[highlighted]:bg-wash-2', it.danger ? 'text-bad-600' : 'text-ink-2 data-[highlighted]:text-ink')}>
               {it.icon && <span className="inline-flex w-5 justify-center text-muted">{it.icon}</span>}

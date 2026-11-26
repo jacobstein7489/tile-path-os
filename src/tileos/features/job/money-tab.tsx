@@ -13,7 +13,7 @@ import { MONEY_STEPS, MONEY_KIND_LABEL, PO_STEPS, type MoneyItem } from '@/tileo
 import { pictureOf, LAST_WEEK } from '../progressbill'
 import { InstallerPOCard } from '../field'
 import { Section, Empty, Strip } from './kit'
-import { HEAD_ROW, Group, BAND_LABEL } from '@/tileos/components/ui/page'
+import { HEAD_ROW, Group, BAND, BAND_LABEL } from '@/tileos/components/ui/page'
 import { curRev, revTotal } from '@/tileos/data/estimates'
 import { poRatio } from '../poratio'
 import type { IPO } from '@/tileos/data/field'
@@ -111,7 +111,7 @@ export function MoneyTab({ job }: { job: Job }) {
         <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
           <div className="min-w-0 flex-1">
             <div className="text-[1rem] text-ink-2"><b className="text-[1.125rem] font-semibold tnum text-ink">{fmtMoney(b.billed)}</b> billed of <span className="font-semibold tnum text-ink">{fmtMoney(contract)}</span> <span className="font-semibold tnum text-ink" data-billed-pct>({pct}%)</span><span className="text-faint"> · </span><span className="tnum">{fmtMoney(b.paid)}</span> paid</div>
-            <div className="mt-2 h-1.5 max-w-[32rem] overflow-hidden rounded-full bg-[#ece8e1]" title={`${pct}% billed · ${paidPct}% paid`}>
+            <div className="mt-2 h-1.5 max-w-[32rem] overflow-hidden rounded-full bg-wash-3" title={`${pct}% billed · ${paidPct}% paid`}>
               <div className="relative h-full rounded-full bg-[#b9c7ee]" style={{ width: `${pct}%` }}><div className="absolute inset-y-0 left-0 rounded-full bg-brand-600" style={{ width: pct ? `${(paidPct / pct) * 100}%` : 0 }} /></div>
             </div>
             <div className="mt-1.5 text-[0.75rem] text-muted">{b.retainage ? <>{fmtMoney(b.retainage)} held back ({s.rules.retainage}%) until the end · </> : null}QuickBooks sends the bills</div>
@@ -142,7 +142,7 @@ export function MoneyTab({ job }: { job: Job }) {
           {!bills.length && <div className="border-t border-line-2 px-5 py-3 text-[0.875rem] text-muted max-sm:px-4">Nothing billed on this project yet.</div>}
         </div>
         <div data-changes-table>
-          <Group label="Contract" right={canChange ? <button type="button" onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-brand-700 hover:underline" data-add-co><Plus className="h-3.5 w-3.5" />Change order</button> : undefined} />
+          <Group label="Contract" right={canChange ? <button type="button" onClick={() => s.open({ t: 'sitechange', jobId: job.id })} className="inline-flex items-center gap-1 text-[0.8125rem] font-semibold text-white/[0.85] hover:text-white hover:underline" data-add-co><Plus className="h-3.5 w-3.5" />Change order</button> : undefined} />
           {ests.map((e) => {
             const r = curRev(e)
             return (
@@ -209,10 +209,11 @@ function InstallerSheet({ job }: { job: Job }) {
   const ipo = blank ? undefined : ipo0
   /* its own band, like Bills and Contract — the installer's circle, which PO, where it stands; the button on the right */
   const head = (right?: React.ReactNode) => (
-    <header className="flex min-h-12 items-center gap-x-3 gap-y-0.5 border-b border-line-2 bg-[#f6f6f4] px-5 py-2 max-sm:px-4" data-band>
+    <header className={cn(BAND, 'min-h-11 gap-x-3 gap-y-0.5 px-5 py-1.5 max-sm:px-4')} data-band>
       <span className="flex min-w-0 flex-1 items-center gap-2.5 max-sm:flex-wrap max-sm:gap-y-0.5">
         <span className={BAND_LABEL}>Installer PO</span>
-        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-ink-2 max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 break-words"><b className="font-medium text-ink">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Accepted' ? 'font-medium text-[#2c8a5b]' : ipo.status === 'Sent' ? 'font-medium text-warn-700' : 'text-muted'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
+        {/* on the band: who, which PO, where it stands — in paper white (the words say it; no colors on the green) */}
+        {ipo && <span className="inline-flex min-w-0 items-center gap-2 text-[0.8125rem] text-white/[0.8] max-sm:basis-full"><Avatar who={ipo.crew} size={20} /><span className="min-w-0 break-words"><b className="font-semibold text-white">{PEOPLE[ipo.crew]?.name}</b> · {ipo.id}{ipo.rev ? ` · rev ${ipo.rev}` : ''} · <span className={ipo.status === 'Draft' ? '' : 'font-semibold text-white'}>{ipo.status === 'Accepted' ? `accepted ${ipo.date}` : ipo.status === 'Sent' ? 'waiting for his OK' : 'draft, not sent'}</span></span></span>}
       </span>
       {right && <span className="flex shrink-0 items-center gap-2">{right}</span>}
     </header>
@@ -278,7 +279,7 @@ function InstallerSheet({ job }: { job: Job }) {
         {r.sold ? (
           <>
             <div className="text-[0.9375rem] text-ink-2">His PO is <b className={cn('font-semibold tnum', tone === 'bad' ? 'text-bad-600' : 'text-ink')}>{r.pct}%</b> of the estimate<span className="text-faint"> · </span><span className="tnum">{fmtMoney(r.total)}</span> of <span className="tnum">{fmtMoney(r.sold)}</span><span className="text-faint"> · </span>keep it under {r.line}%</div>
-            <div className="relative mt-2 h-1.5 max-w-[32rem] rounded-full bg-[#ece8e1]">
+            <div className="relative mt-2 h-1.5 max-w-[32rem] rounded-full bg-wash-3">
               <div className={cn('h-full rounded-full', tone === 'bad' ? 'bg-bad-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-[#2c8a5b]')} style={{ width: `${Math.min(100, Math.max(2, r.pct))}%` }} />
               <span className="absolute -bottom-1 -top-1 w-[0.1875rem] rounded-full bg-ink" style={{ left: `calc(${r.line}% - 0.09375rem)` }} title={`The line: ${r.line}% of the estimate`} />
             </div>

@@ -145,7 +145,7 @@ export function PaperRead({ job }: { job: Job }) {
         onDragOver={(e) => { e.preventDefault(); setOver(true) }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); void go(Array.from(e.dataTransfer.files || [])) }}
-        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-3.5 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
+        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-3.5 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-wash')}
       >
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Sparkles className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
@@ -234,12 +234,12 @@ function Entered({ job, res, file, problem, before, tags, onDone }: { job: Job; 
         <div data-paper-loose>
           {loose.length > 0
             ? <div className="border-t border-warn-100 bg-warn-50/60 px-4 py-2 text-[0.8125rem] font-semibold text-warn-800">Not placed yet <span className="font-normal">· pick where each one goes</span></div>
-            : <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">Placed by hand</div>}
+            : <div className="border-t border-line-2 bg-wash px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">Placed by hand</div>}
           {byHand.map((t) => <MatchRow key={t.tag} job={job} t={t} />)}
         </div>
       )}
       <div data-paper-areas>
-        <div className="border-t border-line-2 bg-[#faf8f5] px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">By area <span className="font-normal text-muted">· tap a tile to change it</span></div>
+        <div className="border-t border-line-2 bg-wash px-4 py-2 text-[0.8125rem] font-semibold text-ink-2">By area <span className="font-normal text-muted">· tap a tile to change it</span></div>
         {groups.map((g) => (
           <div key={g.floor}>
             {several && <div className="px-4 py-1.5 text-[0.71875rem] font-bold uppercase tracking-[0.06em] text-white" style={{ background: DOC_GREEN }}>{g.floor}</div>}

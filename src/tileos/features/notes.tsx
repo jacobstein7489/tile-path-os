@@ -42,7 +42,7 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
               {/* who and when over it, what they wrote in a soft bubble — like a message */}
               <span className="min-w-0 flex-1">
                 <span className="block text-[0.8125rem] leading-tight text-muted"><b className="font-semibold text-ink-2">{name(l.who)}</b><span className="tnum"> · {l.date}{l.time ? `, ${l.time}` : ''}</span></span>
-                <span className="mt-1 inline-block max-w-full rounded-2xl rounded-tl-md bg-[#f3f1ec] px-3.5 py-2 text-[0.9375rem] leading-snug text-ink">{l.text}</span>
+                <span className="mt-1 inline-block max-w-full rounded-2xl rounded-tl-md bg-wash-2 px-3.5 py-2 text-[0.9375rem] leading-snug text-ink">{l.text}</span>
               </span>
             </li>
           ))}
@@ -50,7 +50,7 @@ export function Notes({ notes, onAdd, me, kind, className, focus }: {
       )}
       {onAdd && (
         /* one box: type it (or the mic, to say it) — the arrow adds it */
-        <div className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-white py-1 pl-4 pr-1.5 shadow-[0_1px_2px_rgba(20,26,36,.04)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50" data-note-box>
+        <div className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-pure py-1 pl-4 pr-1.5 shadow-[0_1px_2px_rgba(20,26,36,.04)] transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50" data-note-box>
           <input
             {...NO_SUGGEST}
             value={text}

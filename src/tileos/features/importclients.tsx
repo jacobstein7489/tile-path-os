@@ -462,7 +462,7 @@ export function ImportModal({ kind, level }: { kind: ImportKind; level: number }
             onDragOver={(e) => { e.preventDefault(); setOver(true) }}
             onDragLeave={() => setOver(false)}
             onDrop={(e) => { e.preventDefault(); setOver(false); void read(e.dataTransfer.files?.[0]) }}
-            className={cn('flex flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
+            className={cn('flex flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-wash')}
           >
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><FileSpreadsheet className="h-6 w-6" /></span>
             <div className="text-[0.96875rem] font-semibold text-ink">{w.drop}</div>

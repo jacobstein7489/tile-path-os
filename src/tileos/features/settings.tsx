@@ -587,7 +587,7 @@ function ChecklistTab() {
 function FlowRow({ n, last, name, what, starts, then, who, more, off, ...rest }: { n: number; last?: boolean; name: React.ReactNode; what?: string; starts: string; then: string; who?: React.ReactNode; more?: React.ReactNode; off?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
   /* one line: its number, its name (what it is and when it starts on hover), who does it, ··· */
   return (
-    <div className={cn('grid min-h-[2.875rem] grid-cols-[1.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-3 border-t border-line-2 px-4 py-2', off && 'bg-[#faf9f6]')} title={[`Starts ${starts}`, `Then ${then}`].join(' · ')} {...rest}>
+    <div className={cn('grid min-h-[2.875rem] grid-cols-[1.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-3 border-t border-line-2 px-4 py-2', off && 'bg-wash')} title={[`Starts ${starts}`, `Then ${then}`].join(' · ')} {...rest}>
       <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold tnum', off ? 'bg-wash text-faint' : 'bg-[#e9edf9] text-brand-700')}>{n}</span>
       <span className="min-w-0">
         <span className={cn('block break-words text-[0.875rem] font-medium leading-snug', off ? 'text-faint line-through decoration-[#cfc8bc]' : 'text-ink')}>{name}</span>
@@ -677,7 +677,7 @@ function EstimateSteps() {
           )
         })}
         {adding ? (
-          <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-est-step>
+          <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-wash px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-est-step>
             <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen · e.g. Check the supplier’s prices" className="min-w-[14rem] flex-1" />
             <Menu align="start" width={240} trigger={<Button type="button" iconRight={<ChevronDown />}>After {steps.find((x) => x.key === after)?.label.toLowerCase() || 'office review'}</Button>}>
               <MenuLabel>It comes after</MenuLabel>
@@ -710,7 +710,7 @@ function PartSteps({ part, label, list, all }: { part: string; label: string; li
       </div>
       {list.map((d, i) => <StepSetting key={d.key} d={d} n={i + 1} all={all} last={i === list.length - 1} part={part} keys={list.map((x) => x.key)} />)}
       {part !== 'other' && (adding ? (
-        <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-[#fbfaf7] px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
+        <form className="flex flex-wrap items-center gap-2 border-t border-line-2 bg-wash px-5 py-3 max-sm:px-4" onSubmit={(e) => { e.preventDefault(); add() }} data-add-step-form={part}>
           <TextInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="What has to happen · e.g. Drains confirmed with the plumber" className="min-w-[14rem] flex-1" />
           <OwnerPick value={owner} onChange={(p) => setOwner(p as PersonKey)} label={name || 'the new step'} />
           <Button type="submit" variant="primary" icon={<Plus />} disabled={!name.trim()}>Add</Button>

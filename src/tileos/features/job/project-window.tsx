@@ -175,7 +175,7 @@ function StageBar({ job, onChange }: { job: Job; /** tap it: Where it's up to (i
           const on = i === at
           return (
             <li key={x.key} data-line={x.key} data-state={x.state} aria-current={on ? 'step' : undefined} className="min-w-0">
-              <span className="block h-1 overflow-hidden rounded-full bg-[#ebe7e0]">
+              <span className="block h-1 overflow-hidden rounded-full bg-wash-2">
                 {/* green when it's done, blue as far as it's got — a problem is said in red under it, not by the bar */}
                 <span className={cn('block h-full rounded-full', x.state === 'done' ? 'bg-[#3d9a6a]' : 'bg-brand-500')} style={{ width: `${Math.max(fill(x), on ? 8 : 0)}%` }} />
               </span>

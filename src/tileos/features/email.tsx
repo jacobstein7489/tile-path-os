@@ -162,7 +162,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
   return (
     <Modal level={level} size="lg" onClose={s.close} title="What they get" sub={REAL.cloud ? 'What goes out from Tile OS. Replies go back to the address it comes from.' : 'Sent from your connected Gmail. Their click comes back here by itself.'}>
       <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-xs">
-        <div className="flex items-center gap-2 border-b border-line-2 bg-[#f8f6f2] px-4 py-2">
+        <div className="flex items-center gap-2 border-b border-line-2 bg-wash px-4 py-2">
           <span className="h-2.5 w-2.5 rounded-full bg-[#fda29b]" /><span className="h-2.5 w-2.5 rounded-full bg-[#fedf89]" /><span className="h-2.5 w-2.5 rounded-full bg-[#a6f4c5]" />
           <span className="ml-2 inline-flex items-center gap-1.5 text-[0.78125rem] font-semibold text-muted"><Mail className="h-3.5 w-3.5" />Inbox</span>
         </div>
@@ -174,7 +174,7 @@ export function EmailModal({ what, level }: { what: EmailWhat; level: number }) 
             {cc.length > 0 && <><span className="text-muted">Cc</span><span className="truncate text-ink-2" data-email-cc-line>{cc.join(', ')}</span></>}
           </div>
         </div>
-        <div className="bg-[#f1eee8] px-5 py-5 max-sm:px-3">
+        <div className="bg-wash-2 px-5 py-5 max-sm:px-3">
           <div className="mx-auto max-w-[35rem] rounded-xl bg-white p-6 shadow-[0_0.0625rem_0.1875rem_rgba(16,24,40,.08)] max-sm:p-4">
             <div className="flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#101828] text-[0.8125rem] font-black text-white">C</span>

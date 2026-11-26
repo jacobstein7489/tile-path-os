@@ -100,7 +100,7 @@ function MaterialsStrip({ job }: { job: Job }) {
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">
           <div className="text-[1rem] text-ink-2"><b className="text-[1.125rem] font-semibold tnum text-ink">{here} of {total}</b> on site{bits.length ? <><span className="text-faint"> · </span><span className={tileShort ? 'text-ink' : undefined}>{bits.join(' · ')}</span></> : <span className="text-[#2c8a5b]"> · everything is here</span>}</div>
-          <div className="mt-2 h-1.5 max-w-[32rem] overflow-hidden rounded-full bg-[#ece8e1]" title={`${pct}% on site`}><div className="h-full rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(here ? 3 : 0, pct)}%` }} /></div>
+          <div className="mt-2 h-1.5 max-w-[32rem] overflow-hidden rounded-full bg-wash-3" title={`${pct}% on site`}><div className="h-full rounded-full bg-[#2c8a5b]" style={{ width: `${Math.max(here ? 3 : 0, pct)}%` }} /></div>
           <div className="mt-1.5 text-[0.75rem] text-muted">Tile {tileHere} of {tiles.length} here · our materials {matHere} of {t.lines.length} here</div>
         </div>
         {matOrder > 0 && <Button variant="primary" className="max-sm:w-full" icon={<ShoppingCart />} onClick={() => s.open({ t: 'newpo', jobId: job.id, fromTakeoff: true })}>Order what’s missing · {matOrder}</Button>}

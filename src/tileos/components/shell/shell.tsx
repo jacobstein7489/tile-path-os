@@ -36,9 +36,9 @@ const paletteFilter = (value: string, search: string) => {
   return v.startsWith(words[0]) ? 1 : v.includes(' ' + words[0]) ? 0.9 : 0.7
 }
 
-export function Logo({ size = 34 }: { size?: number; dark?: boolean }) {
+export function Logo({ size = 34, dark }: { size?: number; /** on the dark green (the side menu, a phone's top bar): the stone in paper white */ dark?: boolean }) {
   /* Cobblestone's stone */
-  return <img src={markUrl} width={size} height={size} alt="" aria-hidden style={{ width: size, height: size, objectFit: 'contain' }} />
+  return <img src={markUrl} width={size} height={size} alt="" aria-hidden style={{ width: size, height: size, objectFit: 'contain', filter: dark ? 'brightness(0) invert(0.95) sepia(0.08)' : undefined }} />
 }
 
 /** + New: one window of colored tiles — start something, or log something that happened */
@@ -67,6 +67,8 @@ export const NAV: Record<string, { label: string; icon: React.ElementType }> = {
   subs: { label: 'Installers', icon: HardHat },
   suppliers: { label: 'Suppliers', icon: Truck },
   team: { label: 'Team report', icon: Gauge },
+  /* clients, designers, installers and suppliers: one entry — its page has the four on top */
+  contacts: { label: 'Contacts', icon: ContactRound },
 }
 /** what a role sees in the menu, in menu order */
 export function navKeys(nav: string[]) {
@@ -74,12 +76,20 @@ export function navKeys(nav: string[]) {
   /* Commissions come with Billing */
   return nav.filter((k) => k !== 'directory').flatMap((k) => (k === 'today' ? ['today', 'inbox'] : k === 'money' ? ['money', 'commissions'] : [k]))
 }
+/* the menu, short: the day on top, then the work, the money, the people — a thin line between them, no names over
+   them (the words say it). The four lists of people outside the company are one entry, Contacts */
 const GROUPS: { label: string; keys: string[] }[] = [
   { label: '', keys: ['today', 'inbox'] },
-  { label: 'Work', keys: ['setup', 'estimates', 'projects', 'upcoming'] },
+  { label: 'Work', keys: ['estimates', 'projects', 'upcoming', 'setup'] },
   { label: 'Money', keys: ['pos', 'pay', 'money', 'commissions', 'items'] },
-  { label: 'People', keys: ['team', 'clients', 'designers', 'subs', 'suppliers'] },
+  { label: 'People', keys: ['team', 'contacts'] },
 ]
+/** the four lists behind Contacts, in their order */
+export const CONTACT_PAGES = ['clients', 'designers', 'subs', 'suppliers']
+/** the menu's entries for what a login may see: the four lists as one (Contacts), where it has any */
+export const menuKeys = (keys: string[]) => { const out = keys.filter((k) => !CONTACT_PAGES.includes(k)); return keys.some((k) => CONTACT_PAGES.includes(k)) ? [...out, 'contacts'] : out }
+/** where an entry goes: Contacts → the first of its lists this login has */
+export const menuPage = (k: string, keys: string[]) => (k === 'contacts' ? CONTACT_PAGES.find((x) => keys.includes(x)) || 'clients' : k)
 /** what a login has in the menu — and the team report for the admin, on his own view */
 function useNav(): string[] {
   const role = useStore((s) => s.role)
@@ -90,7 +100,7 @@ function useNav(): string[] {
   const nav = setup ? ['setup', ...nav0] : nav0
   return report ? [...nav, 'team'] : nav
 }
-export const activeNav = (page: string) => (page === 'job' ? 'projects' : page === 'tasks' ? 'today' : page === 'directory' ? 'clients' : page === 'schedule' ? 'upcoming' : page)
+export const activeNav = (page: string) => (page === 'job' ? 'projects' : page === 'tasks' ? 'today' : page === 'directory' || CONTACT_PAGES.includes(page) ? 'contacts' : page === 'schedule' ? 'upcoming' : page)
 
 function useBadges() {
   const s = useStore()
@@ -119,61 +129,63 @@ export function Sidebar() {
   const role = useStore((s) => s.role)
   const route = useStore((s) => s.route)
   const go = useStore((s) => s.go)
-  const open = useStore((s) => s.open)
-  const keysFor = navKeys(useNav())
+  const keys0 = navKeys(useNav())
+  const keysFor = menuKeys(keys0)
   const badge = useBadges()
   const active = activeNav(route.page)
 
-  const Item = ({ k, label, icon: Icon, n }: { k: Page; label: string; icon: React.ElementType; n?: number }) => {
+  /* on the dark green: paper-white words, the one you're on in a lighter green, and what's under the pointer plain to
+     see (a soft light behind it) */
+  const Item = ({ k, label, icon: Icon, n }: { k: string; label: string; icon: React.ElementType; n?: number }) => {
     const on = active === k
     return (
       <button
-        onClick={() => go({ page: k })}
+        onClick={() => go({ page: menuPage(k, keys0) as Page })}
         aria-current={on ? 'page' : undefined}
+        data-menu-item={k}
         className={cn(
           /* easy to read and to hit: a bit bigger than the page's small print (a short screen keeps them snug) */
           'group flex h-9 w-full shrink-0 items-center gap-2.5 rounded-[0.5rem] px-2.5 text-[0.9375rem] transition-colors [@media(max-height:47.5rem)]:h-8 [@media(max-height:47.5rem)]:text-[0.875rem]',
-          on ? 'bg-brand-50 font-semibold text-brand-800' : 'font-medium text-ink-2 hover:bg-wash hover:text-ink',
+          on ? 'bg-white/[0.16] font-semibold text-white' : 'font-medium text-white/[0.8] hover:bg-white/[0.09] hover:text-white',
         )}
       >
-        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-brand-600' : 'text-[#6f7886] group-hover:text-ink-2')} strokeWidth={1.9} />
+        <Icon className={cn('h-[1.125rem] w-[1.125rem] shrink-0', on ? 'text-white' : 'text-white/[0.55] group-hover:text-white/[0.9]')} strokeWidth={1.9} />
         <span className="flex-1 truncate text-left">{label}</span>
-        {/* the red badge, like a phone: what's new in the inbox, what's due today */}
+        {/* how many: what's new in the inbox and what's due today in a paper pill; the rest a plain number */}
         {!!n && (k === 'inbox' || k === 'today'
-          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1.5 text-[0.6875rem] font-bold tnum leading-none text-white">{n}</span>
-          : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-brand-700' : 'text-muted')}>{n}</span>)}
+          ? <span className="inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-surface px-1.5 text-[0.6875rem] font-bold tnum leading-none text-forest-800" data-menu-count>{n}</span>
+          : <span className={cn('text-[0.78125rem] font-semibold tnum', on ? 'text-white' : 'text-white/[0.6]')}>{n}</span>)}
       </button>
     )
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col border-r border-line bg-side max-lg:hidden">
-      <button onClick={() => go(homeOf(role))} className="flex shrink-0 items-center gap-2.5 px-4 pb-3.5 pt-4 text-left">
-        <Logo size={28} />
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[14rem] flex-col bg-side max-lg:hidden" data-side-menu>
+      <button onClick={() => go(homeOf(role))} className="flex shrink-0 items-center gap-2.5 px-4 pb-4 pt-[1.125rem] text-left">
+        <Logo size={28} dark />
         <span className="min-w-0 leading-[1.1]">
-          <span className="font-display block truncate text-[1rem] font-semibold tracking-[-0.01em] text-ink">Cobblestone</span>
-          <span className="mt-0.5 block truncate text-[0.75rem] font-medium text-muted">Tile OS</span>
+          <span className="font-display block truncate text-[1rem] font-semibold tracking-[-0.01em] text-white">Cobblestone</span>
+          <span className="mt-0.5 block truncate text-[0.75rem] font-medium text-white/[0.6]">Tile OS</span>
         </span>
       </button>
       <div className="shrink-0 px-3">
         <NewMenu
           trigger={
-            <button aria-label="New" className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-brand-600 px-3 text-[0.9375rem] font-semibold text-white shadow-btn transition hover:bg-brand-700">
+            <button aria-label="New" className="flex h-10 w-full items-center justify-center gap-2 rounded-[0.5625rem] bg-surface px-3 text-[0.9375rem] font-semibold text-forest-800 shadow-btn transition hover:bg-pure">
               <Plus className="h-[1.125rem] w-[1.125rem]" strokeWidth={2.4} />
               New
             </button>
           }
         />
       </div>
-      <nav className="scroll-soft mt-3 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3" aria-label="Main">
+      <nav className="scroll-soft mt-4 flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3" aria-label="Main">
         {GROUPS.map((g) => {
           const keys = g.keys.filter((k) => keysFor.includes(k))
           if (!keys.length) return null
           return (
-            <div key={g.label || 'top'} className={cn(g.label && 'mt-2.5 border-t border-line-2 pt-2.5 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')}>
-              {g.label && <div className="px-2.5 pb-1 text-[0.8125rem] font-semibold text-muted">{g.label}</div>}
-              <div className="flex flex-col gap-[0.125rem]">
-                {keys.map((k) => <Item key={k} k={k as Page} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
+            <div key={g.label || 'top'} className={cn(g.label && 'mt-3 border-t border-white/[0.12] pt-3 [@media(max-height:47.5rem)]:mt-2 [@media(max-height:47.5rem)]:pt-2')} role="group" aria-label={g.label || undefined}>
+              <div className="flex flex-col gap-[0.1875rem]">
+                {keys.map((k) => <Item key={k} k={k} label={NAV[k].label} icon={NAV[k].icon} n={badge(k)} />)}
               </div>
             </div>
           )
@@ -243,7 +255,7 @@ function UserMenuItems({ withPages }: { withPages?: boolean }) {
         phoneNav(nav, role).more.map((k) => {
           const Icon = NAV[k].icon
           return (
-            <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: k as Page })}>
+            <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: menuPage(k, navKeys(nav)) as Page })}>
               {NAV[k].label}
             </MenuItem>
           )
@@ -274,11 +286,11 @@ export function UpdatePill() {
 }
 
 /* Phones and tablets: four pages sit in a bar at the bottom; everything else is under More. */
-const PHONE_ORDER = ['today', 'inbox', 'projects', 'estimates', 'upcoming', 'money', 'pos', 'items', 'clients', 'designers', 'subs', 'suppliers']
+const PHONE_ORDER = ['today', 'inbox', 'projects', 'estimates', 'upcoming', 'money', 'pos', 'items', 'contacts']
 /** the phone's bar: two on each side of the + — the fifth is More when there's more than four */
 export function phoneNav(navIn: string[], role?: string) {
   /* the site manager's phone: his day, messages, projects and the schedule — nothing else (no installers list) */
-  const nav = navKeys(navIn).filter((k) => role !== 'site' || !['subs', 'clients', 'designers', 'suppliers', 'directory'].includes(k))
+  const nav = menuKeys(navKeys(navIn).filter((k) => role !== 'site' || !['subs', 'clients', 'designers', 'suppliers', 'directory'].includes(k)))
   const order = PHONE_ORDER.filter((k) => nav.includes(k))
   const rest = nav.filter((k) => !order.includes(k))
   const all = [...order, ...rest]
@@ -299,7 +311,9 @@ export function BottomNav() {
   const go = useStore((s) => s.go)
   const badge = useBadges()
   const active = activeNav(route.page)
-  const { bar, more } = phoneNav(useNav(), role)
+  const nav0 = useNav()
+  const keys0 = navKeys(nav0)
+  const { bar, more } = phoneNav(nav0, role)
   const moreOn = more.includes(active)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom,0)] backdrop-blur-md lg:hidden" aria-label="Main" data-phone-tabs>
@@ -312,11 +326,11 @@ export function BottomNav() {
             <React.Fragment key={k}>
               {/* + New in the very middle, where the thumb is */}
               {i === 2 && <PhonePlus />}
-              <button onClick={() => go({ page: k as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-brand-600' : 'text-muted')} data-phone-tab={k}>
-                {/* where you are: its icon and its name in blue, as on the computer — nothing behind it */}
+              <button onClick={() => go({ page: menuPage(k, keys0) as Page })} aria-current={on ? 'page' : undefined} className={cn('flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', on ? 'text-forest-700' : 'text-muted')} data-phone-tab={k}>
+                {/* where you are: its icon and its name in Cobblestone's green — nothing behind it */}
                 <span className="relative">
                   <Icon className="h-[1.375rem] w-[1.375rem]" strokeWidth={on ? 2.1 : 1.7} />
-                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bad-600 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white">{n}</span>}
+                  {!!n && <span className="absolute -right-2.5 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-forest-700 px-1 text-[0.625rem] font-semibold text-white ring-2 ring-white" data-phone-count>{n}</span>}
                 </span>
                 <span className="max-w-full truncate">{NAV[k].label}</span>
               </button>
@@ -328,7 +342,7 @@ export function BottomNav() {
           align="end"
           width={240}
           trigger={
-            <button className={cn('flex flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', moreOn ? 'text-brand-600' : 'text-muted')}>
+            <button className={cn('flex flex-1 flex-col items-center justify-center gap-1 text-[0.71875rem] font-semibold', moreOn ? 'text-forest-700' : 'text-muted')}>
               <Ellipsis className="h-[1.3125rem] w-[1.3125rem]" strokeWidth={moreOn ? 2 : 1.7} />
               More
             </button>
@@ -337,7 +351,7 @@ export function BottomNav() {
           {more.map((k) => {
             const Icon = NAV[k].icon
             return (
-              <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: k as Page })} checked={active === k}>
+              <MenuItem key={k} icon={<Icon className="h-4 w-4" />} onSelect={() => go({ page: menuPage(k, keys0) as Page })} checked={active === k}>
                 {NAV[k].label}
               </MenuItem>
             )
@@ -359,14 +373,15 @@ export function TopBar() {
   const setPalette = useStore((s) => s.setPalette)
   const title = NAV[activeNav(route.page)]?.label || ({ flow: 'How it works', settings: 'Settings' } as Record<string, string>)[route.page] || 'Cobblestone'
   return (
-    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 border-b border-line bg-white px-4 lg:hidden" data-phone-top>
+    <header className="sticky top-[env(safe-area-inset-top,0)] z-20 flex h-14 items-center gap-2 bg-side px-4 before:absolute before:inset-x-0 before:bottom-full before:h-[env(safe-area-inset-top,0px)] before:bg-side before:content-[''] lg:hidden" data-phone-top>
+      {/* the same frame as the side menu on a computer: Cobblestone's green, the stone and the page's name in paper white */}
       <button onClick={() => go(homeOf(role))} aria-label="Home" className="shrink-0">
-        <Logo size={30} />
+        <Logo size={28} dark />
       </button>
-      <span className="ml-1 min-w-0 flex-1 truncate text-[1rem] font-bold text-ink">{title}</span>
+      <span className="font-display ml-1 min-w-0 flex-1 truncate text-[1.0625rem] font-semibold text-white">{title}</span>
       {/* Today has its search in the line with All jobs and Mine (it finds everything else too) — not up here as well */}
       {!['today', 'tasks'].includes(route.page) && (
-        <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-wash px-3 text-[0.875rem] font-medium text-ink-2 hover:bg-wash-2">
+        <button onClick={() => setPalette(true)} aria-label="Search" data-phone-search className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white/[0.14] px-3 text-[0.875rem] font-medium text-white hover:bg-white/[0.2]">
           <Search className="h-4 w-4" />
           Search
         </button>

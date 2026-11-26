@@ -70,7 +70,7 @@ export function RoomBody({ job, name, tab: tab0, surface }: { job: Job; name: st
               const g = x.grout || tile?.grout
               const waiting = ['blocked', 'waitmat', 'hold', 'unknown'].includes(x.state)
               return (
-                <button key={x.name} type="button" data-surface={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: r.name, surface: x.name })} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 row-hover', surface === x.name && 'bg-[#f6f3ee]')}>
+                <button key={x.name} type="button" data-surface={x.name} onClick={() => s.open({ t: 'surface', jobId: job.id, room: r.name, surface: x.name })} className={cn('flex w-full items-center gap-3 border-t border-line-2 px-5 py-2.5 text-left transition first:border-t-0 row-hover', surface === x.name && 'bg-wash')}>
                   <TileImg tile={tile} size={34} radius={8} />
                   <span className="min-w-0 flex-1">
                     {/* its name and its tile; under it where it is, its square feet and its grout */}
@@ -168,7 +168,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
   React.useEffect(() => { top.current?.scrollTo?.({ top: 0 }) }, [view, tab])
   if (view) {
     const full = FULL.includes(view.t)
-    return <div className={cn('h-full min-h-0 min-w-0 bg-[#f7f5f1]', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
+    return <div className={cn('h-full min-h-0 min-w-0 bg-wash', full ? 'flex flex-col max-lg:h-[78dvh]' : 'scroll-soft overflow-y-auto')} data-board-main><InPlace job={job} view={view} back={() => setView(null)} setView={setView} /></div>
   }
   const money = seesMoney(s.role)
   /* how far it is and the daily updates, day by day — once it's on site (or has an update) */
@@ -200,7 +200,7 @@ export function ProjectBoard({ job, open, setOpen, view, setView, onStep, tab, s
         ]}
       />
       {/* every tab scrolls the same way, in the same place — the window doesn't change size from one to the next */}
-      <div ref={top} data-board-tab={at} className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-[#f7f5f1]">
+      <div ref={top} data-board-tab={at} className="scroll-soft min-h-0 flex-1 overflow-y-auto bg-wash">
         {at === 'stands'
           ? <div data-side="stands" className="mx-auto w-full max-w-[96rem] px-5 pb-8 pt-4 max-sm:px-3"><Stands job={job} open={open} setOpen={setOpen} onStep={onStep || (() => {})} setView={setView} /></div>
           : at === 'progress' ? sheet(<ProgressTab job={job} open={setView} />)

@@ -30,7 +30,7 @@ const dow = (iso: string) => new Date(iso + 'T12:00:00').getDay()
 const isWeekend = (iso: string) => { const d = dow(iso); return d === 0 || d === 6 }
 /** the Sunday a week starts on — like Google Calendar, Sunday to Saturday */
 const sundayOf = (iso: string) => addDays(iso, -dow(iso))
-const WEEKEND = 'bg-[#f6f5f1]'
+const WEEKEND = 'bg-wash'
 
 /* ---------------- what's on the calendar ---------------- */
 export type Kind = 'booked' | 'pending' | 'planned' | 'tobook' | 'ongoing'
@@ -115,7 +115,7 @@ export function crewColor(crew?: string) {
 function look(it: Item, clash: boolean) {
   const ring = clash && 'ring-2 ring-bad-500 ring-offset-1'
   /* on hold: a quiet gray with the pause mark — it's waiting, not on fire */
-  if (it.hold) return { className: cn('border border-[#e2ddd4] bg-[#f3f1ec] text-[#5b5f68]', ring), style: {} as React.CSSProperties }
+  if (it.hold) return { className: cn('border border-[#e2ddd4] bg-wash-2 text-[#5b5f68]', ring), style: {} as React.CSSProperties }
   if (it.kind === 'tobook') return { className: 'border border-dashed border-[#bcc3cc] bg-white text-ink-2', style: {} }
   const c = crewColor(it.crew)
   /* waiting for his OK, or only planned: his color, dashed, on white */
@@ -131,7 +131,7 @@ function CrewKey({ crews, hold }: { crews: string[]; hold: boolean }) {
       {crews.map((c) => (
         <span key={c} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[0.1875rem]" style={{ background: crewColor(c).bar }} />{PEOPLE[c as PersonKey]?.short || c}</span>
       ))}
-      {hold && <span className="inline-flex items-center gap-1.5 text-muted"><span className="h-2.5 w-2.5 rounded-[0.1875rem] border border-[#d6d0c6] bg-[#f3f1ec]" />On hold</span>}
+      {hold && <span className="inline-flex items-center gap-1.5 text-muted"><span className="h-2.5 w-2.5 rounded-[0.1875rem] border border-[#d6d0c6] bg-wash-2" />On hold</span>}
     </div>
   )
 }
@@ -400,7 +400,7 @@ function MonthGrid({ anchor, items, clashes }: { anchor: string; items: Item[]; 
                 const out = d.slice(0, 7) !== m
                 const more = hidden.filter((h) => h.start <= d && h.end >= d)
                 return (
-                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out ? 'bg-[#fafaf8]' : (i === 0 || i === 6) && WEEKEND)} data-month-day={d}>
+                  <div key={d} className={cn('group relative min-w-0', i > 0 && 'border-l border-line-2', out ? 'bg-wash' : (i === 0 || i === 6) && WEEKEND)} data-month-day={d}>
                     <div className="flex items-center justify-between px-2 pt-1.5">
                       <span className={cn('inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[0.78125rem] font-semibold tnum', d === TODAY ? 'bg-brand-600 text-white' : out ? 'text-faint' : 'text-ink-2')}>{Number(d.slice(8)) === 1 ? <><span className="max-sm:hidden">{fmt(d, { month: 'short' })}&nbsp;</span>1</> : Number(d.slice(8))}</span>
                       {d >= TODAY && (

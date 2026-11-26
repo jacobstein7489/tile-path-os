@@ -124,7 +124,7 @@ export function SchedulePage() {
                             key={b.id}
                             onClick={() => s.open({ t: 'booking', id: b.id })}
                             title={`${job?.name} · ${b.label}`}
-                            className={cn('pointer-events-auto absolute bottom-2 top-2 flex min-w-0 flex-col justify-center overflow-hidden rounded-lg border bg-[#F3F6FA] px-3 text-left transition hover:border-[#C9D3E0] hover:bg-[#EDF1F7]', b.status === 'pending' ? 'border-dashed border-[#AEB9C9]' : 'border-[#E1E7EF]')}
+                            className={cn('pointer-events-auto absolute bottom-2 top-2 flex min-w-0 flex-col justify-center overflow-hidden rounded-lg border bg-wash px-3 text-left transition hover:border-[#C9D3E0] hover:bg-wash', b.status === 'pending' ? 'border-dashed border-[#AEB9C9]' : 'border-[#E1E7EF]')}
                             style={{ left: `calc(${(si / cols) * 100}% + 5px)`, width: `calc(${(span / cols) * 100}% - 10px)` }}
                           >
                             <div className="flex min-w-0 items-center gap-1.5 leading-tight">
@@ -135,7 +135,7 @@ export function SchedulePage() {
                             <div className="mt-0.5 truncate text-[0.75rem] leading-tight text-muted">{b.status === 'pending' ? `Waiting for ${PEOPLE[crew].name} to confirm` : b.label}</div>
                             {job?.pct !== undefined && span >= 2 && (
                               <div className="mt-2 flex items-center gap-2">
-                                <div className="h-[0.25rem] flex-1 overflow-hidden rounded-full bg-[#DDE4EE]"><div className="h-full rounded-full bg-brand-500" style={{ width: `${job.pct}%` }} /></div>
+                                <div className="h-[0.25rem] flex-1 overflow-hidden rounded-full bg-wash-2"><div className="h-full rounded-full bg-brand-500" style={{ width: `${job.pct}%` }} /></div>
                                 <span className="text-[0.71875rem] font-semibold leading-none tnum text-ink-2">{job.pct}%</span>
                               </div>
                             )}

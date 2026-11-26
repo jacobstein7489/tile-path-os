@@ -128,7 +128,7 @@ export function Avatar({ who, size = 32, className, ring, plain }: { who: Person
   return (
     <span
       title={p.name}
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', plain ? 'bg-[#ece8e1] text-[#4a5361]' : [p.bg, p.fg], ring && 'ring-2 ring-white', className)}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full font-semibold leading-none', plain ? 'bg-wash-3 text-[#4a5361]' : [p.bg, p.fg], ring && 'ring-2 ring-white', className)}
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * (p.initials.length > 1 ? 0.36 : 0.42))) }}
     >
       {p.initials}
@@ -226,8 +226,8 @@ export function UnderlineTabs<T extends string>({ value, onChange, items, classN
             data-tab={it.key}
           >
             {it.short ? <><span className="max-sm:hidden">{it.label}</span><span className="sm:hidden">{it.short}</span></> : it.label}
-            {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-brand-50 text-brand-700') : 'bg-wash-2 text-muted')}>{it.count}</span>}
-            <span className={cn('absolute inset-x-0 bottom-0 rounded-full transition-colors', size === 'lg' ? 'h-[0.1875rem]' : 'h-[0.125rem]', on ? 'bg-brand-600' : 'bg-transparent')} />
+            {it.count !== undefined && <span className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[0.71875rem] font-semibold tnum', on ? (it.tone === 'bad' ? 'bg-bad-50 text-bad-700' : 'bg-forest-100 text-forest-800') : 'bg-wash-2 text-muted')}>{it.count}</span>}
+            <span className={cn('absolute inset-x-0 bottom-0 rounded-full transition-colors', size === 'lg' ? 'h-[0.1875rem]' : 'h-[0.125rem]', on ? 'bg-forest-700' : 'bg-transparent')} />
           </button>
         )
       })}

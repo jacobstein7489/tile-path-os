@@ -246,7 +246,7 @@ export function CatchUpModal({ level, id: one, all }: { level: number; id?: stri
     <div className="flex items-center gap-3 text-[0.8125rem] text-muted" data-catchup-progress>
       <span className="font-semibold text-ink-2">{title}</span>
       <span className="tnum" data-catchup-count>{setN} of {jobs.length} set up</span>
-      <span className="h-1.5 w-28 overflow-hidden rounded-full bg-[#ece8e1] max-sm:w-16" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pct}%` }} /></span>
+      <span className="h-1.5 w-28 overflow-hidden rounded-full bg-wash-3 max-sm:w-16" aria-hidden><span className="block h-full rounded-full bg-[#2c8a5b] transition-[width]" style={{ width: `${pct}%` }} /></span>
     </div>
   )
   /* ---- the list: what's set up and what isn't ---- */

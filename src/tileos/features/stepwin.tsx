@@ -216,8 +216,8 @@ function StepStatus({ job, v, me, mine, admin, onSite, take, goTo }: { job: Job;
     : v.state === 'bad' ? { box: 'border-bad-100 bg-bad-50/60', head: 'text-bad-700' }
       : v.state === 'wait' ? { box: 'border-[#f0dfbd] bg-[#fdf8ee]', head: 'text-warn-700' }
         : v.state === 'now' && mine ? { box: 'border-brand-100 bg-brand-50/60', head: 'text-brand-800' }
-          : v.state === 'later' ? { box: 'border-dashed border-[#d6cfc3] bg-[#faf8f5]', head: 'text-ink-2' }
-            : { box: 'border-line bg-[#faf8f5]', head: 'text-ink' }
+          : v.state === 'later' ? { box: 'border-dashed border-[#d6cfc3] bg-wash', head: 'text-ink-2' }
+            : { box: 'border-line bg-wash', head: 'text-ink' }
   const head = v.state === 'done' ? (v.note === BEFORE_TILE_OS ? BEFORE_TILE_OS : `Done${v.doneOn ? ` ${v.doneOn}` : ''}${v.doneBy ? ` · ${v.doneBy === me ? 'you' : PEOPLE[v.doneBy]?.short}` : ''}`)
     : v.state === 'na' ? 'Not needed on this project'
       : v.state === 'later' ? 'Not yet'
@@ -274,7 +274,7 @@ function ResultBox({ title, children, empty }: { title: string; children?: React
   const has = React.Children.toArray(children).filter(Boolean).length > 0
   return (
     <section className="overflow-hidden rounded-xl border border-line bg-white" data-step-result>
-      <header className="border-b border-line-2 bg-[#f7f7f5] px-3.5 py-2 text-[0.75rem] font-semibold text-muted">{title}</header>
+      <header className="border-b border-line-2 bg-wash px-3.5 py-2 text-[0.75rem] font-semibold text-muted">{title}</header>
       {has ? children : <div className="px-3.5 py-3 text-[0.84375rem] text-muted">{empty || 'Nothing kept with it.'}</div>}
     </section>
   )
@@ -493,7 +493,7 @@ export function PartPath({ job, list, at, onPick, label }: { job: Job; list: Ste
           <span className="mt-px shrink-0"><StepIcon state={x.state} size={15} /></span>
           <span className="min-w-0 text-[0.84375rem] font-semibold leading-snug text-ink max-sm:text-[0.8125rem]" data-step-name>{stepShort(s, job, x)}</span>
         </span>
-        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-[#ece8e1]" data-step-bar={w.pct}>
+        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-wash-3" data-step-bar={w.pct}>
           <span className={cn('block h-full rounded-full', w.bar)} style={{ width: `${w.pct}%` }} />
         </span>
         <span className={cn('mt-1.5 line-clamp-2 text-[0.75rem] leading-snug', w.tone)} data-step-now>{w.text}</span>
@@ -503,7 +503,7 @@ export function PartPath({ job, list, at, onPick, label }: { job: Job; list: Ste
   return (
     <div role="tablist" aria-label={label} className="flex flex-wrap items-stretch gap-2.5" data-step-bars>
       {groups.map((g) => g.length === 1 ? card(g[0]) : (
-        <div key={g[0].key} className="flex min-w-0 flex-[1_1_100%] flex-wrap items-stretch gap-y-2 rounded-[0.875rem] bg-[#f3f1ec] p-1.5" data-step-chain={g.length}>
+        <div key={g[0].key} className="flex min-w-0 flex-[1_1_100%] flex-wrap items-stretch gap-y-2 rounded-[0.875rem] bg-wash-2 p-1.5" data-step-chain={g.length}>
           {g.map((x, i) => (
             <React.Fragment key={x.key}>
               {i > 0 && <span className="flex w-5 shrink-0 items-center justify-center text-[#a39b8e]" aria-hidden><ChevronRight className="h-4 w-4" strokeWidth={2.25} /></span>}
@@ -743,7 +743,7 @@ function OpenRow({ onClick, className, children, ...rest }: React.HTMLAttributes
 function Block({ title, right, children, className }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
     <section className={cn('overflow-hidden rounded-xl border border-line', className)}>
-      <header className="flex min-h-10 items-center gap-3 border-b border-line-2 bg-[#faf8f5] px-4 py-2">
+      <header className="flex min-h-10 items-center gap-3 border-b border-line-2 bg-wash px-4 py-2">
         <h4 className="text-[0.8125rem] font-bold text-ink">{title}</h4>
         {right && <span className="ml-auto flex min-w-0 items-center gap-2 text-[0.78125rem] text-muted">{right}</span>}
       </header>
@@ -912,7 +912,7 @@ function GetPaper({ job, v }: { job: Job; v: StepView }) {
         onDragOver={(e) => { e.preventDefault(); setOver(true) }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); void up(Array.from(e.dataTransfer.files || [])) }}
-        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-4 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-[#faf8f5]')}
+        className={cn('flex items-center gap-4 rounded-xl border-2 border-dashed px-4 py-4 transition max-sm:flex-wrap', over ? 'border-brand-400 bg-brand-50/60' : 'border-[#d8d2c8] bg-wash')}
       >
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-xs"><Upload className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1">
@@ -1880,7 +1880,7 @@ function FloorLevels({ job, v }: { job: Job; v: StepView }) {
   const box = 'h-9 rounded-lg border border-line bg-white px-3 text-[0.875rem] text-ink outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-2 focus:ring-brand-100'
   return (
     <div>
-      <div className="rounded-xl border border-line bg-[#faf8f5] px-4 py-3" data-laser>
+      <div className="rounded-xl border border-line bg-wash px-4 py-3" data-laser>
         <div className="text-[0.875rem] font-semibold text-ink">How to measure</div>
         <ol className="mt-1.5 flex flex-col gap-1 text-[0.84375rem] leading-snug text-ink-2">
           <li className="flex gap-2"><b className="w-4 shrink-0 font-semibold text-ink">1</b><span>Set the laser on its tripod in the middle of the floor. At the door, raise it until the line is <b className="font-semibold text-ink">{at}″ off the floor</b> · mark it on the wall.</span></li>

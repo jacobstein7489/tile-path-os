@@ -189,7 +189,7 @@ function StepRow({ job, v }: { job: Job; v: StepView }) {
     ? (v.doneOn ? `Done ${v.doneOn}` : 'Done')
     : v.due ? (v.state === 'wait' ? labelFromIso(v.due) : `Due ${labelFromIso(v.due)}`) : ''
   return (
-    <div id={`step-${job.id}-${v.key}`} className={cn('group grid grid-cols-[1.75rem_minmax(0,1fr)_9.375rem_6.875rem_10.75rem_2rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-lg:grid-cols-[1.75rem_minmax(0,1fr)_2rem] max-lg:items-start max-sm:px-4', v.state === 'later' && 'bg-[#fbfbfc]')}>
+    <div id={`step-${job.id}-${v.key}`} className={cn('group grid grid-cols-[1.75rem_minmax(0,1fr)_9.375rem_6.875rem_10.75rem_2rem] items-center gap-3 border-t border-line-2 px-5 py-2.5 first:border-t-0 max-lg:grid-cols-[1.75rem_minmax(0,1fr)_2rem] max-lg:items-start max-sm:px-4', v.state === 'later' && 'bg-wash')}>
       <span className="max-lg:mt-0.5"><StepIcon state={v.state} /></span>
       <span className="min-w-0">
         <button disabled={!task} onClick={() => task && s.open({ t: 'task', id: task.id })} className="block w-full min-w-0 text-left disabled:cursor-default">
@@ -249,7 +249,7 @@ export function AddStep({ job, steps, onDone, compact }: { job: Job; steps: Step
 }
 
 /* ---------------- compact: one strip per project in the list ---------------- */
-const SEG: Record<StepState, string> = { done: 'bg-ok-500', now: 'bg-brand-500', wait: 'bg-warn-500', bad: 'bg-bad-500', later: 'bg-[#e1dcd2]', na: 'bg-transparent' }
+const SEG: Record<StepState, string> = { done: 'bg-ok-500', now: 'bg-brand-500', wait: 'bg-warn-500', bad: 'bg-bad-500', later: 'bg-wash-3', na: 'bg-transparent' }
 export function StepBar({ steps, w = 140 }: { steps: StepView[]; w?: number }) {
   const shown = steps.filter((x) => x.state !== 'na')
   return (
@@ -318,7 +318,7 @@ function SideStep({ job, v }: { job: Job; v: StepView }) {
   return (
     <li>
       <Pop open={open} onOpenChange={setOpen} side="left" align="start" width={340} trigger={
-        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition row-hover', open && 'bg-[#f3f5f8]')}>
+        <button className={cn('flex w-full items-center gap-2.5 px-4 py-[0.4375rem] text-left transition row-hover', open && 'bg-wash')}>
           <StepIcon state={v.state} size={20} />
           <span className="min-w-0 flex-1">
             <span className={cn('block truncate text-[0.84375rem] font-semibold leading-5', quiet ? 'text-muted' : v.state === 'later' ? 'text-ink-2' : 'text-ink')}>{v.short}</span>
