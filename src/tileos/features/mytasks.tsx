@@ -2765,7 +2765,8 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
       <FormRow label="What needs to be done?">
         <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Call the GC about the drain" listLabel="The usual ones. Tap to pick" className="[&_input]:h-10 [&_input]:text-[0.875rem] max-sm:[&_input]:h-12 max-sm:[&_input]:text-[1rem]" />
       </FormRow>
-      <div className="flex flex-col" data-task-chips>
+      {/* (the same space over Project as over every other question) */}
+      <div className="flex flex-col [&>[data-form-row]:first-child]:pt-2.5 max-sm:[&>[data-form-row]:first-child]:pt-2" data-task-chips>
         {/* (Nov 27) the project, asked: every to-do is on one — or, picked on purpose, for the company */}
         <FormRow label="Project">
           {/* the same project box as every form: type it on a computer, pick it on a phone — the company one of the picks */}
