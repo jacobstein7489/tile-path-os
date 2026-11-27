@@ -519,7 +519,7 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
             time, or that it's late ("Late": how many days is in its window), who it's with on Waiting · what's new —
             "New from Yaakov" (blue), "Not seen yet" (amber). Who else has it, who's watching: in its window */}
         {(seenOrNew || phoneCircles) && (
-          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', !seenOrNew && 'md:hidden', !(pw && phoneWhen) && !seenOrNew && !phoneCircles && 'max-md:hidden')} data-row-meta>
+          <div className={cn('mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem] leading-5', icon && 'pl-6', !seenOrNew && 'md:hidden', !(pw && phoneWhen) && !seenOrNew && !phoneCircles && 'max-md:hidden')} data-row-meta>
 
             {seenOrNew && <span title={seenOrNew.tip} className={cn('font-medium', seenOrNew.tone === 'new' ? 'text-brand-700' : 'text-warn-700')} data-row-latest={seenOrNew.tone || ''}>{pw && phoneWhen ? <span className="font-normal text-faint md:hidden" aria-hidden>· </span> : null}{seenOrNew.text}</span>}
             {phoneCircles && <span className="md:hidden">{circles}</span>}
