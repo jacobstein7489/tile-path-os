@@ -101,14 +101,26 @@ export function isoFromLabel(label?: string): string | undefined {
   if (late) return addDays(TODAY, -Number(late[1]))
   const wd = DOW_KEYS.findIndex((k) => l.startsWith(k))
   if (wd >= 0 && l.length <= 9) { let d = TODAY; while (dow(d) !== wd) d = addDays(d, 1); return d }
-  /* "Oct 21" is this year; "Jan 5, 2027" says its year (a day picked in another year) */
+  /* "Jan 5, 2027" says its year. "Oct 21" is the one nearest today: this year's, or around New Year the next one's or
+     the last one's. In December "Jan 5" is the January coming (not 11 months late); in January "Dec 28" is the one just
+     gone (late, not a year away) */
   const m = l.match(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* (\d{1,2})(?:,? (\d{4}))?$/)
-  if (m) return `${m[3] || TODAY.slice(0, 4)}-${pad(MON.findIndex((x) => x.toLowerCase() === m[1]) + 1)}-${pad(Number(m[2]))}`
+  if (m) {
+    const mmdd = `${pad(MON.findIndex((x) => x.toLowerCase() === m[1]) + 1)}-${pad(Number(m[2]))}`
+    if (m[3]) return `${m[3]}-${mmdd}`
+    const y = +TODAY.slice(0, 4)
+    const near = (iso: string) => Math.abs(daysBetween(TODAY, iso))
+    return [`${y}-${mmdd}`, `${y + 1}-${mmdd}`, `${y - 1}-${mmdd}`].reduce((a, b) => (near(b) < near(a) ? b : a))
+  }
   return undefined
 }
-/** a day picked on a calendar, in the words it's kept in: "Today", "Wed", "Oct 21" — and its year when it isn't this
- *  one ("Jan 5, 2027"), so it's never read as the January gone by */
-export const pickedLabel = (iso: string) => (iso.slice(0, 4) !== TODAY.slice(0, 4) ? `${md(iso)}, ${iso.slice(0, 4)}` : labelFromIso(iso))
+/** a day that isn't near today (another year's, or months away): kept with its year, so it's never read as another */
+const farDay = (iso: string) => iso.slice(0, 4) !== TODAY.slice(0, 4) || Math.abs(daysBetween(TODAY, iso)) > 150
+/** a day as it's kept on a to-do: "Oct 21" — "Jan 5, 2027" when it isn't near */
+export const keptLabel = (iso: string) => (farDay(iso) ? `${md(iso)}, ${iso.slice(0, 4)}` : md(iso))
+/** a day picked on a calendar, in the words it's kept in: "Today", "Wed", "Oct 21" — and its year when it isn't near
+ *  ("Jan 5, 2027"), so it's never read as the January gone by */
+export const pickedLabel = (iso: string) => (farDay(iso) ? `${md(iso)}, ${iso.slice(0, 4)}` : labelFromIso(iso))
 /** 2026-10-14 → "Wed" this week, "Today", "Tomorrow", or "Oct 21" */
 export function labelFromIso(iso?: string): string {
   if (!iso) return ''

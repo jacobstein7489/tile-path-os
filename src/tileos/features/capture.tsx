@@ -18,7 +18,7 @@ import { PEOPLE, CREWS, STAGE_LABEL, PRICING_STAGES, type Job, type PersonKey, t
 import type { Task, TaskType } from '@/tileos/data/work'
 import { REAL } from '@/tileos/lib/save'
 import { noteAnswered } from '@/tileos/lib/robottime'
-import { TODAY, addDays, dow, isoFromLabel, labelFromIso, dayLongFull, md } from '@/tileos/lib/today'
+import { TODAY, addDays, dow, isoFromLabel, labelFromIso, pickedLabel, dayLongFull, md } from '@/tileos/lib/today'
 import { insidePeople } from './steps-ui'
 import { siteOf } from './steps'
 import { projectIn, personIn, guessType, DAY_WORDS, todayCount } from './mytasks'
@@ -72,7 +72,7 @@ function dayOf(w?: string): string {
   const hit = DAY_WORDS.find(([re]) => re.test(t.toLowerCase()))
   if (hit) return hit[1]
   const iso = isoFromLabel(t) || (/^\d{4}-\d\d-\d\d$/.test(t) ? t : undefined)
-  return iso ? labelFromIso(iso) : ''
+  return iso ? pickedLabel(iso) : ''
 }
 
 /* ---------------- the AI ---------------- */

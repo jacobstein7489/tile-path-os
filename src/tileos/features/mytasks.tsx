@@ -739,6 +739,7 @@ function TodosRow({ x, showOwner, overdue }: { x: PlateItem; showOwner?: boolean
   return (
     <TodoRow
       kind="To do"
+      icon={<ListTodo />}
       onClick={open}
       /* one thing — a checklist: how many first, then what they are, lighter, so you read them right here (and how many
          are done, once some are) */
@@ -767,6 +768,7 @@ function DailiesRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   return (
     <TodoRow
       kind="Daily update"
+      icon={<ClipboardList />}
       onClick={open}
       title="Daily updates"
       detail={jobs.map((id) => s.jobs[id]?.name).filter(Boolean).join(' · ')}
@@ -789,6 +791,7 @@ function StepsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   return (
     <TodoRow
       kind="Getting ready"
+      icon={<ListChecks />}
       onClick={open}
       title={vs[0] ? todoOf(vs[0].v) : ''}
       detail={vs.map((y) => y.job.name).join(' · ')}
@@ -814,6 +817,7 @@ function TripsRow({ x, showOwner }: { x: PlateItem; showOwner?: boolean }) {
   return (
     <TodoRow
       kind="To bring"
+      icon={<Truck />}
       onClick={open}
       title={`Bring to the ${jobs.length > 1 ? 'jobs' : 'job'}: ${ts.map((t) => t.req?.what || t.title.replace(/^Bring to [^:]+:\s*/i, '')).join(', ')}`}
       detail={ts.map((t) => t.req?.what || t.title).join(' · ')}
@@ -838,6 +842,7 @@ function CheckinRow({ x }: { x: PlateItem }) {
   return (
     <TodoRow
       kind="Check-in"
+      icon={<UserRoundCheck />}
       onClick={open}
       title={`Check in with ${PEOPLE[g.who]?.short || 'them'}`}
       detail={g.items.map((c) => c.title).join(' · ')}
@@ -934,6 +939,7 @@ function GcRow({ t }: { t: Task }) {
     <div data-gc-row={t.id} data-gc-flag={st.flag ? '' : undefined} data-contents>
       <TodoRow
       kind="GC"
+        icon={<HardHat />}
         onClick={() => s.open({ t: 'task', id: t.id })}
         title={<>{gcWords(t.title)}{t.said ? <span className="font-normal text-muted"> · GC: “{t.said.text}”</span> : null}</>}
         owner={t.owner}

@@ -7,7 +7,7 @@ import * as React from 'react'
 import { useStore, DATA_KEYS, initialData, freshData, pickData, seedTasks, signInAs, meOf, type Data } from '@/tileos/store'
 import { seedLines } from '@/tileos/features/flows2'
 import { seedRefs } from '@/tileos/lib/utils'
-import { TODAY, addDays, dow, labelFromIso } from '@/tileos/lib/today'
+import { TODAY, addDays, dow, pickedLabel } from '@/tileos/lib/today'
 import { showPop } from '@/tileos/lib/pop'
 import type { Role, PersonKey } from '@/tileos/data/model'
 import type { QbStatus, InvoiceIn, InvoiceOut, EstimateIn, EstimateOut, QbPaid, QbBilled } from '@/lib/quickbooks'
@@ -142,7 +142,7 @@ export function redate<T>(x: T, ref: string, key = ''): T {
   if (typeof x === 'string') {
     if (KEEP_KEYS.has(key) || !REL.test(x)) return x
     const iso = isoAt(x, ref)
-    return (iso ? labelFromIso(iso) : x) as unknown as T
+    return (iso ? pickedLabel(iso) : x) as unknown as T
   }
   if (Array.isArray(x)) return x.map((v) => redate(v, ref, key)) as unknown as T
   if (x && typeof x === 'object') {

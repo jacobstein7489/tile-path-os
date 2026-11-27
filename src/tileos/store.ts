@@ -19,7 +19,7 @@ import {
   type PunchItem, type Task, type MoneyItem, type PO, type OurMat, type TileCheck, type Booking, type ReadyItem, type Notice, type LogLine,
 } from '@/tileos/data/work'
 import { nextRef, nextPO } from '@/tileos/lib/utils'
-import { NOW as NOW_T, TODAY as TODAY_T, shiftDeep, shiftText, isoFromLabel, md, addDays } from '@/tileos/lib/today'
+import { NOW as NOW_T, TODAY as TODAY_T, shiftDeep, shiftText, isoFromLabel, keptLabel, addDays } from '@/tileos/lib/today'
 import { sampleHistory } from '@/tileos/data/history'
 import type { StepDef, StepRec } from '@/tileos/features/steps'
 import type { EstTeam } from '@/tileos/data/estimates'
@@ -324,9 +324,10 @@ export function ensureTiles(d: Pick<Data, 'tiles' | 'rooms' | 'checks' | 'shorta
 const MD_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{1,2}$/
 /** "Tomorrow", "Thu", "Next Mon" → "Oct 15": once it's saved, a date stays that date (tomorrow becomes today, then late) */
 export function pinDate(label?: string) {
-  if (!label || MD_RE.test(label) || /this week/i.test(label)) return label
+  if (!label || MD_RE.test(label) || /, \d{4}$/.test(label) || /this week/i.test(label)) return label
   const iso = isoFromLabel(label)
-  return iso ? md(iso) : label
+  /* (Nov 27) a day in the new year keeps its year: "In 2 weeks" on Dec 22 is Jan 5, 2027, never a January gone by */
+  return iso ? keptLabel(iso) : label
 }
 function pinDates(s: Data) {
   s.tasks.forEach((t) => {
@@ -360,7 +361,7 @@ function healPunchDays(s: Data) {
     const wd = DOWS.findIndex((k) => l.startsWith(k))
     const next = (day: number, start: string) => { let d = start; while (new Date(d + 'T12:00:00').getDay() !== day) d = addDays(d, 1); return d }
     const meant = l === 'today' || l === 'now' ? from : l === 'tomorrow' ? addDays(from, 1) : l === 'next mon' || l === 'next week' ? next(1, addDays(from, 1)) : l === 'in 2 weeks' ? addDays(from, 14) : wd >= 0 && l.length <= 9 ? next(wd, from) : undefined
-    const d = meant ? md(meant) : pinDate(p.due)
+    const d = meant ? keptLabel(meant) : pinDate(p.due)
     if (d) p.due = d
   })
 }
@@ -412,13 +413,33 @@ const startData = (): Data => (REAL_APP ? freshData(initialData()) : initialData
    top; Back takes it off and closes the top window (another one under it: the entry goes back on). Closed any other
    way, the entry goes too. A page change while one is open takes the entry's place */
 let winEntry = false
-let skipPops = 0
 let navigating = false
-const toPage = (h: string, push: boolean) => {
-  if (winEntry) { winEntry = false; history.replaceState(null, '', h) }
-  else if (push) history.pushState(null, '', h)
-  else location.hash = h
+/* our own Backs (a window closed another way) arrive later, each as a popstate we don't act on. Until they have, the
+   history is left alone: putting our entry back, a page change — they wait for them and happen then (done at once,
+   a window closed and the next one opened in the same moment, then closed, went one entry too far: off the app) */
+let backs = 0
+let lastBack = 0
+let waiting: (() => void)[] = []
+const settled = (f: () => void) => { if (backs > 0) waiting.push(f); else f() }
+const flush = () => { const fs = waiting; waiting = []; fs.forEach((f) => f()) }
+const ourBack = () => {
+  backs++
+  lastBack = Date.now()
+  history.back()
+  /* never stuck: a Back that hasn't arrived in 2 seconds isn't coming */
+  setTimeout(() => { if (backs > 0 && Date.now() - lastBack >= 1900) { backs = 0; flush() } }, 2000)
 }
+/* (never location.hash = …: that fires a Back of its own, right then, and Back closes windows) */
+const toPage = (h: string) => settled(() => {
+  if (winEntry) { winEntry = false; history.replaceState(null, '', h) }
+  else if (location.hash !== h) history.pushState(null, '', h)
+})
+/** a window is open and our entry isn't on top: it goes on */
+const putEntry = () => settled(() => {
+  if (winEntry || !useStore.getState().modals.length) return
+  history.pushState({ tileosWin: 1 }, '', location.href)
+  winEntry = true
+})
 
 export const useStore = create<Store>()(
   immer((set, get) => ({
@@ -437,7 +458,7 @@ export const useStore = create<Store>()(
         s.route = homeOf(r)
       })
       navigating = false
-      if (typeof window !== 'undefined') toPage(routeToHash(homeOf(r)), false)
+      if (typeof window !== 'undefined') toPage(routeToHash(homeOf(r)))
       window.scrollTo(0, 0)
     },
     go: (r) => {
@@ -447,8 +468,7 @@ export const useStore = create<Store>()(
         s.modals = []
       })
       navigating = false
-      const h = routeToHash(r)
-      if (location.hash !== h || winEntry) toPage(h, true)
+      toPage(routeToHash(r))
       window.scrollTo(0, 0)
     },
     open: (m) =>
@@ -757,17 +777,22 @@ if (typeof window !== 'undefined') {
   /* a window opened (none was): our entry on top. The last one closed any other way than Back: the entry goes */
   useStore.subscribe((s, prev) => {
     if (navigating) return
-    if (!prev.modals.length && s.modals.length && !winEntry) { history.pushState({ tileosWin: 1 }, '', location.href); winEntry = true }
-    else if (prev.modals.length && !s.modals.length && winEntry) { winEntry = false; skipPops++; history.back() }
+    if (!prev.modals.length && s.modals.length) putEntry()
+    else if (prev.modals.length && !s.modals.length && winEntry) { winEntry = false; ourBack() }
   })
   window.addEventListener('popstate', () => {
-    if (skipPops > 0) { skipPops--; return }
+    /* one of our own Backs: nothing to do — then whatever waited for it */
+    if (backs > 0) {
+      backs--
+      if (!backs) flush()
+      return
+    }
     const s = useStore.getState()
     /* Back with a window open: the top window closes (more under it: our entry goes back on, for the next Back) */
     if (winEntry && s.modals.length) {
       winEntry = false
       useStore.setState({ modals: s.modals.slice(0, -1) } as any)
-      if (s.modals.length > 1) { history.pushState({ tileosWin: 1 }, '', location.href); winEntry = true }
+      if (s.modals.length > 1) putEntry()
       return
     }
     winEntry = false
