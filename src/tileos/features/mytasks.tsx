@@ -67,7 +67,7 @@ const ROLE_OF: Partial<Record<PersonKey, Role[]>> = { ys: ['owner', 'pm'], yakov
 const TYPE_ICON: Record<TaskType, React.ElementType> = { Pricing: FileText, Setup: ClipboardList, Materials: Package, Field: HardHat, Changes: ArrowLeftRight, Schedule: CalendarDays, Money: Receipt }
 /** a to-do's icon at the start of its line — the same icons as + New: a problem, touch-ups, a call, something to bring,
  *  a meeting, an order, the money; a plain one: To-do */
-const lineIcon = (t: Task, kind: string): React.ElementType =>
+export const lineIcon = (t: Task, kind: string): React.ElementType =>
   kind === 'Problem' ? TriangleAlert : kind === 'Touch-ups' ? Sparkles : kind === 'To bring' ? Truck : isCallTask(t) ? Phone : t.type === 'Schedule' ? CalendarPlus : t.type === 'Materials' ? Package : t.type === 'Money' ? Receipt : t.type === 'Changes' ? ArrowLeftRight : t.type === 'Pricing' ? FileText : ListTodo
 /** what kind of thing a task is, in its window's top line — so you know what you opened */
 const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'Task', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
@@ -457,7 +457,8 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
      sites"), and on a sorted list, where every line says its own */
   const company = project === 'Company'
   const where = project || ''
-  const ownWhere = !!where && !company && where !== card?.label
+  /* (Nov 27) a list not grouped by project: every line says its project (small, under its words) */
+  const ownWhere = !!where && !company && (flat || where !== card?.label)
   /* the star is yours: on your own list only — not on someone else's you're looking at */
   const ownList = viewer === me && !multi
   /* no tags: the words say what it is. Only a few get a word before them — a problem and something urgent (red: they
@@ -473,8 +474,8 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
   const tip = typeof detail === 'string' && detail ? detail : ''
   const whereLine = ownWhere ? (
     projectId && !done
-      ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left font-semibold text-ink-2 hover:underline" data-row-project-link={projectId}>{where}</button>
-      : <span className="font-semibold text-ink-2">{where}</span>
+      ? <button type="button" onClick={(e) => { e.stopPropagation(); useStore.getState().open({ t: 'job', id: projectId }) }} className="rounded-sm text-left text-muted hover:text-ink hover:underline" data-row-project-link={projectId}>{where}</button>
+      : <span className="text-muted">{where}</span>
   ) : null
   const whenEl = w ? <span className={cn('text-right text-[0.8125rem] tnum', whenCls)} data-todo-when>{w}</span> : null
   return (
@@ -501,7 +502,6 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
       {isNew && <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-brand-600 max-sm:left-1.5" aria-hidden data-row-dot="new" />}
       {done && <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ok-50 text-ok-600 [&_svg]:h-3 [&_svg]:w-3"><Check strokeWidth={3} /></span>}
       <div className="min-w-0 flex-1">
-        {whereLine && <div className={cn('mb-0.5 min-w-0 break-words text-[0.8125rem] leading-5', flat && 'md:hidden')} data-row-where>{whereLine}</div>}
         {/* what to do — whole, never cut off (a long one takes a second line); on a computer who's watching sits at the
             end of the same line (tap the circles to add or take someone off), so the line stays one line */}
         <div className="flex min-w-0 items-center gap-3">
@@ -512,6 +512,9 @@ function TodoRow({ when, whenTone, icon, title, detail, project, projectId, acti
           </div>
           {/* (who's watching: in its window — not on the line) */}
         </div>
+        {/* (Nov 27) its project, when the list isn't grouped by it: small and gray under its words, in line with them —
+            never a bold line over them (a computer, on a list sorted by a column: its own column) */}
+        {whereLine && <div className={cn('mt-0.5 min-w-0 break-words text-[0.8125rem] leading-5', icon && 'pl-6', flat && 'md:hidden')} data-row-where>{whereLine}</div>}
         {/* the small line under it, only when there's something to see: (a phone) only what changes what you do — its
             time, or that it's late ("Late": how many days is in its window), who it's with on Waiting · what's new —
             "New from Yaakov" (blue), "Not seen yet" (amber). Who else has it, who's watching: in its window */}

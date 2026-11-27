@@ -407,6 +407,19 @@ export const REAL_APP = typeof globalThis !== 'undefined' && !!(globalThis as an
 /** what the app holds before anything is opened: the sample in the preview, a clean start in the real app */
 const startData = (): Data => (REAL_APP ? freshData(initialData()) : initialData())
 
+/* (Nov 27) the phone's back (an Android's swipe from the edge, a browser's Back): with a window open it closes that
+   window — one at a time — instead of leaving the page. While any window is open, one history entry of ours sits on
+   top; Back takes it off and closes the top window (another one under it: the entry goes back on). Closed any other
+   way, the entry goes too. A page change while one is open takes the entry's place */
+let winEntry = false
+let skipPops = 0
+let navigating = false
+const toPage = (h: string, push: boolean) => {
+  if (winEntry) { winEntry = false; history.replaceState(null, '', h) }
+  else if (push) history.pushState(null, '', h)
+  else location.hash = h
+}
+
 export const useStore = create<Store>()(
   immer((set, get) => ({
     ...startData(),
@@ -417,21 +430,25 @@ export const useStore = create<Store>()(
     paletteOpen: false,
 
     setRole: (r) => {
+      navigating = true
       set((s) => {
         s.role = r
         s.modals = []
         s.route = homeOf(r)
       })
-      location.hash = routeToHash(homeOf(r))
+      navigating = false
+      if (typeof window !== 'undefined') toPage(routeToHash(homeOf(r)), false)
       window.scrollTo(0, 0)
     },
     go: (r) => {
+      navigating = true
       set((s) => {
         s.route = r
         s.modals = []
       })
+      navigating = false
       const h = routeToHash(r)
-      if (location.hash !== h) history.pushState(null, '', h)
+      if (location.hash !== h || winEntry) toPage(h, true)
       window.scrollTo(0, 0)
     },
     open: (m) =>
@@ -737,7 +754,23 @@ export function canSee(role: Role, what: 'money' | 'materials' | 'rooms' | 'jobs
 export const roleNav = (r: Role) => roleDef(r).nav
 
 if (typeof window !== 'undefined') {
+  /* a window opened (none was): our entry on top. The last one closed any other way than Back: the entry goes */
+  useStore.subscribe((s, prev) => {
+    if (navigating) return
+    if (!prev.modals.length && s.modals.length && !winEntry) { history.pushState({ tileosWin: 1 }, '', location.href); winEntry = true }
+    else if (prev.modals.length && !s.modals.length && winEntry) { winEntry = false; skipPops++; history.back() }
+  })
   window.addEventListener('popstate', () => {
+    if (skipPops > 0) { skipPops--; return }
+    const s = useStore.getState()
+    /* Back with a window open: the top window closes (more under it: our entry goes back on, for the next Back) */
+    if (winEntry && s.modals.length) {
+      winEntry = false
+      useStore.setState({ modals: s.modals.slice(0, -1) } as any)
+      if (s.modals.length > 1) { history.pushState({ tileosWin: 1 }, '', location.href); winEntry = true }
+      return
+    }
+    winEntry = false
     useStore.setState({ route: parseHash(), modals: [] } as any)
   })
 }

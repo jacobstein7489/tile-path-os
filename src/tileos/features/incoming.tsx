@@ -6,18 +6,19 @@
  * whose time came can be put off a little ("Remind me in 10 minutes"). With the app closed the phone's notifications
  * say the same (lib/remind.server). */
 import * as React from 'react'
-import { Inbox, ChevronRight, CalendarDays, BellRing, AlarmClock, ChevronDown, HardHat, ClipboardList } from 'lucide-react'
+import { ChevronRight, CalendarDays, BellRing, AlarmClock, ChevronDown, HardHat, ClipboardList, Megaphone, Repeat } from 'lucide-react'
 import { useStore, meOf, NOW, type Store } from '@/tileos/store'
-import { Avatar, Button } from '@/tileos/components/ui/core'
+import { Button } from '@/tileos/components/ui/core'
 import { Modal, Menu, MenuItem, MenuLabel } from '@/tileos/components/ui/overlay'
 import { PEOPLE, type PersonKey } from '@/tileos/data/model'
 import { REAL } from '@/tileos/lib/save'
 import { cn } from '@/tileos/lib/utils'
 import type { Task } from '@/tileos/data/work'
-import { TODAY, TOMORROW, labelFromIso, isoFromLabel, dow } from '@/tileos/lib/today'
+import { TODAY, TOMORROW, labelFromIso, isoFromLabel, dow, md } from '@/tileos/lib/today'
 import { isGcWait, toldGc, askLabel } from './gcwait'
 import { timeLabel, parseTime, type CalEvent } from '@/tileos/data/calendar'
-import { taskIso, crewsOn, crewSentFor, crewDay, crewHour, crewEvening, crewReportOn, crewWhen, dailyDue } from './mytasks'
+import { taskIso, crewsOn, crewSentFor, crewDay, crewHour, crewEvening, crewReportOn, crewWhen, dailyDue, lineIcon } from './mytasks'
+import { tagOfTask } from './todokinds'
 import { autoWho } from './autowho'
 import { useNotifyState } from '@/tileos/lib/notify'
 import { markTaskSeen } from './latest'
@@ -135,9 +136,18 @@ export function markSeen(keys: string[]) {
   write(k, Array.from(new Set([...(read(k) || []), ...keys])))
 }
 
-/** one line, the same for everything new: who did it (their circle), what it is — and under it, in a few words, why it's
- *  here and its project. Red only for what's urgent or late */
-type Row = { key: string; who?: PersonKey; icon?: React.ReactNode; title: string; why: string; tone?: 'bad' | 'warn' | 'now'; job?: string; urgent?: boolean; open: () => void; /** its time came (a to-do, a meeting) */ timed?: boolean }
+/** (Nov 27) one line, the same as on Today: its icon, what it is (its short name) and on the right its day or time — red
+ *  only when it's late; under it, small and gray, why it's here and its project ("Yaakov reminded you · 10 Blinky") */
+type Row = { key: string; who?: PersonKey; icon?: React.ReactNode; title: string; why: string; tone?: 'bad' | 'warn' | 'now'; job?: string; urgent?: boolean; open: () => void; /** its time came (a to-do, a meeting) */ timed?: boolean; /** on the right: its day or time */ right?: { text: string; late?: boolean }; /** a problem: its icon red, like on Today */ problem?: boolean }
+/** a to-do's day, as Today says it: its time today, Today, a day — or, late, the day it was due (red) */
+function dayOf(t: Task, now: number): { text: string; late?: boolean } | undefined {
+  const iso = taskIso(t)
+  if (!iso) return undefined
+  if (iso < TODAY) return { text: md(iso), late: true }
+  const tm = parseTime(t.at)
+  if (iso === TODAY) return tm != null ? { text: timeLabel(tm), late: now - tm > 10 } : { text: 'Today' }
+  return { text: labelFromIso(iso) }
+}
 export function IncomingModal({ keys, level }: { keys: string[]; level: number }) {
   const s = useStore()
   const me = meOf(s.role)
@@ -152,28 +162,29 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
   /* a to-do whose time came, a meeting about to start */
   const tnow = nowMin()
   const dn = dueNow(s, tnow)
+  const iconOf = (t: Task) => t.everyone ? <Megaphone /> : t.repeat ? <Repeat /> : React.createElement(lineIcon(t, tagOfTask(s, t)))
   const dueRows = dn.tasks.filter((x) => keys.includes(dueTag(x.t.id, x.iso, x.min))).map((x): Row => ({
-    key: dueTag(x.t.id, x.iso, x.min), icon: <AlarmClock className="h-4 w-4" />, title: x.t.title, timed: true,
-    why: tnow - x.min <= 10 ? `Due now · ${timeLabel(x.min)}` : `Was due at ${timeLabel(x.min)}`, tone: tnow - x.min <= 10 ? 'now' : 'warn',
+    key: dueTag(x.t.id, x.iso, x.min), icon: iconOf(x.t), problem: tagOfTask(s, x.t) === 'Problem', title: x.t.short || x.t.title, timed: true,
+    why: tnow - x.min <= 10 ? 'Due now' : 'Its time came', right: { text: timeLabel(x.min), late: tnow - x.min > 10 },
     job: s.jobs[x.t.jobId]?.name, open: go(() => s.open({ t: 'task', id: x.t.id })),
   }))
   const soonRows = dn.meets.filter((e) => keys.includes(soonTag(e))).map((e): Row => ({
-    key: soonTag(e), icon: <CalendarDays className="h-4 w-4" />, title: e.title, timed: true, tone: 'now',
-    why: e.start > tnow ? `In ${e.start - tnow} min · ${timeLabel(e.start)}` : `Starting now · ${timeLabel(e.start)}`,
+    key: soonTag(e), icon: <CalendarDays />, title: e.title, timed: true,
+    why: e.start > tnow ? `In ${e.start - tnow} min` : 'Starting now', right: { text: timeLabel(e.start) },
     job: e.jobId ? s.jobs[e.jobId]?.name : undefined, open: go(() => s.open({ t: 'event', id: e.id })),
   }))
   /* the crew list's time came */
   const cw = dn.crew
   const crewRows: Row[] = cw && keys.includes(crewTag(cw.day)) ? [{
-    key: crewTag(cw.day), icon: <HardHat className="h-4 w-4" />, title: `Send ${cw.day === TOMORROW ? 'tomorrow’s' : `${crewWhen(cw.day)}’s`} crew list`, timed: true,
-    why: tnow - cw.min <= 10 ? `Due now · ${timeLabel(cw.min)}` : `Was due at ${timeLabel(cw.min)}`, tone: tnow - cw.min <= 10 ? 'now' : 'warn',
+    key: crewTag(cw.day), icon: <HardHat />, title: `Send ${cw.day === TOMORROW ? 'tomorrow’s' : `${crewWhen(cw.day)}’s`} crew list`, timed: true,
+    why: tnow - cw.min <= 10 ? 'Due now' : 'Its time came', right: { text: timeLabel(cw.min), late: tnow - cw.min > 10 },
     job: `${crewsOn(s, cw.day).length} ${crewsOn(s, cw.day).length === 1 ? 'project' : 'projects'}`, open: go(() => s.open({ t: 'crewreport', day: cw.day })),
   }] : []
   /* the daily updates still not sent */
   const dl = dn.daily
   const dailyRows: Row[] = dl && keys.includes(dailyTag(TODAY)) ? [{
-    key: dailyTag(TODAY), icon: <ClipboardList className="h-4 w-4" />, title: dl.jobs.length === 1 ? 'Send today’s daily update' : 'Send today’s daily updates', timed: true,
-    why: tnow - dl.min <= 10 ? `Due now · ${timeLabel(dl.min)}` : `Was due at ${timeLabel(dl.min)}`, tone: tnow - dl.min <= 10 ? 'now' : 'warn',
+    key: dailyTag(TODAY), icon: <ClipboardList />, title: dl.jobs.length === 1 ? 'Send today’s daily update' : 'Send today’s daily updates', timed: true,
+    why: tnow - dl.min <= 10 ? 'Due now' : 'Its time came', right: { text: timeLabel(dl.min), late: tnow - dl.min > 10 },
     job: dl.jobs.length === 1 ? s.jobs[dl.jobs[0]]?.name : `${dl.jobs.length} projects`,
     open: go(() => s.open(dl.jobs.length === 1 ? { t: 'daily', jobId: dl.jobs[0] } : { t: 'dailies', who: meOf(s.role), jobs: dl.jobs })),
   }] : []
@@ -186,16 +197,17 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
       const nudged = !!t.nudge && t.owner === me && t.nudge.by !== me && tag(t, me).includes(':n')
       const from = nudged ? t.nudge!.by : t.log?.[0]?.who && t.log[0].who !== 'system' ? (t.log[0].who as PersonKey) : undefined
       const gc = isGcWait(t) && t.owner === me
+      /* (Nov 27) a reminder doesn't make it late: late is the red day on the right, only when it is */
       const why = t.urgent && t.owner === me ? `Urgent · ${from ? `${short(from)} gave it to you` : 'for you'}`
-        : nudged ? `${short(from)} reminded you${gc ? '' : ' · it’s late'}`
+        : nudged ? `${short(from)} reminded you`
           : gc ? `${askLabel(t)} today`
             : t.owner !== me && t.also?.includes(me) ? `${short(from || t.owner)} shared it with you`
               : t.owner !== me ? `${short(t.owner)} has it · you’re watching`
                 : from && from !== me ? `${short(from)} gave it to you` : 'New on your list'
-      return { key: t.id, who: from || (t.owner !== me ? t.owner : undefined), icon: <Inbox className="h-4 w-4" />, title: t.title, why, tone: t.urgent && t.owner === me ? 'bad' : nudged ? 'bad' : gc ? 'warn' : undefined, job: s.jobs[t.jobId]?.name, urgent: !!t.urgent && t.owner === me, open: go(() => s.open({ t: 'task', id: t.id })) }
+      return { key: t.id, who: from || (t.owner !== me ? t.owner : undefined), icon: iconOf(t), problem: tagOfTask(s, t) === 'Problem', title: t.short || t.title, why, tone: t.urgent && t.owner === me ? 'bad' : undefined, right: dayOf(t, tnow), job: s.jobs[t.jobId]?.name, urgent: !!t.urgent && t.owner === me, open: go(() => s.open({ t: 'task', id: t.id })) }
     }),
-    ...meets.map((e): Row => ({ key: e.id, who: e.by, icon: <CalendarDays className="h-4 w-4" />, title: e.title, why: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'} · ${labelFromIso(e.date)} at ${timeLabel(e.start)}${e.by && e.by !== me ? ` · set by ${short(e.by)}` : ''}`, job: e.jobId ? s.jobs[e.jobId]?.name : undefined, open: go(() => s.open({ t: 'event', id: e.id })) })),
-    ...steps.map(({ job, step, n: nu }): Row => ({ key: `${job.id}:${step.key}`, who: nu?.by, icon: <BellRing className="h-4 w-4" />, title: step.short || step.label, why: `${short(nu?.by)} reminded you · it’s late`, tone: 'bad', job: job.name, open: go(() => openStep(job.id, step.key)) })),
+    ...meets.map((e): Row => ({ key: e.id, who: e.by, icon: <CalendarDays />, title: e.title, why: `${e.kind === 'walkthrough' ? 'Walkthrough' : 'Meeting'}${e.by && e.by !== me ? ` · set by ${short(e.by)}` : ''}`, right: { text: e.date === TODAY ? timeLabel(e.start) : `${labelFromIso(e.date)} ${timeLabel(e.start)}` }, job: e.jobId ? s.jobs[e.jobId]?.name : undefined, open: go(() => s.open({ t: 'event', id: e.id })) })),
+    ...steps.map(({ job, step, n: nu }): Row => ({ key: `${job.id}:${step.key}`, who: nu?.by, icon: <BellRing />, title: step.short || step.label, why: `${short(nu?.by)} reminded you`, right: step.due ? (step.due < TODAY ? { text: md(step.due), late: true } : { text: labelFromIso(step.due) }) : undefined, job: job.name, open: go(() => openStep(job.id, step.key)) })),
   ]
   const notify = useNotifyState()
   if (!rows.length) return null
@@ -214,7 +226,6 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
       className="max-sm:mt-auto max-sm:h-auto max-sm:max-h-[85dvh]"
       onClose={done}
       title={allTimed ? (n === 1 ? (soonRows.length ? 'Starting soon' : 'Due now') : `${n} due now`) : urgent ? (n === 1 ? 'Urgent for you' : `${n} new for you · ${urgent} urgent`) : n === 1 ? 'New for you' : `${n} new for you`}
-      sub={allTimed ? 'Tap it to open it.' : 'Tap one to open it. They’re all on your Today.'}
       footer={<>
         {timed.length > 0 && (
           <Menu align="start" width={240} trigger={<button className="inline-flex h-9 items-center gap-1.5 rounded-[0.5625rem] px-3 text-[0.84375rem] font-semibold text-ink-2 hover:bg-wash max-sm:h-11" data-due-later><AlarmClock className="h-4 w-4 text-faint" />Remind me later<ChevronDown className="h-3.5 w-3.5 text-faint" /></button>}>
@@ -231,13 +242,15 @@ export function IncomingModal({ keys, level }: { keys: string[]; level: number }
       <ul className="flex flex-col" data-incoming-list>
         {rows.slice(0, SHOW).map((r) => (
           <li key={r.key} className="border-t border-line-2 first:border-t-0">
-            <button type="button" onClick={r.open} className="group flex min-h-[3.75rem] w-full items-center gap-3 px-6 py-2.5 text-left transition hover:bg-wash/70 max-sm:px-4" data-incoming-row {...(r.urgent ? { 'data-incoming-urgent': '' } : {})}>
-              {r.who && PEOPLE[r.who] ? <Avatar who={r.who} size={32} /> : <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash-2 text-muted">{r.icon}</span>}
+            <button type="button" onClick={r.open} className="group flex min-h-14 w-full items-start gap-3 px-6 py-3 text-left transition hover:bg-wash/70 max-sm:px-4" data-incoming-row {...(r.urgent ? { 'data-incoming-urgent': '' } : {})}>
+              <span className={cn('mt-[0.1875rem] inline-flex h-4 w-4 shrink-0 items-center justify-center [&_svg]:h-4 [&_svg]:w-4', r.tone === 'bad' || r.problem ? 'text-bad-600' : 'text-[#8a8478]')} aria-hidden>{r.icon}</span>
               <span className="min-w-0 flex-1">
-                <span className="block break-words text-[0.9375rem] font-semibold leading-snug text-ink">{r.title}</span>
-                <span className="block break-words text-[0.8125rem] leading-snug"><span className={r.tone === 'bad' ? 'font-medium text-bad-600' : r.tone === 'warn' ? 'font-medium text-warn-700' : r.tone === 'now' ? 'font-medium text-brand-700' : 'text-muted'} {...(r.timed ? { 'data-due-why': '' } : {})}>{r.why}</span>{r.job && <span className="text-muted"> · {r.job}</span>}</span>
+                <span className="flex min-w-0 items-start gap-3">
+                  <span className="min-w-0 flex-1 break-words text-[0.9375rem] font-medium leading-[1.375rem] text-ink max-sm:text-[1rem]" data-incoming-title>{r.title}</span>
+                  {r.right && <span className={cn('shrink-0 text-[0.8125rem] leading-[1.375rem] tnum', r.right.late ? 'font-medium text-bad-600' : 'text-muted')} data-incoming-when={r.right.late ? 'late' : ''}>{r.right.text}</span>}
+                </span>
+                <span className="mt-0.5 block break-words text-[0.8125rem] leading-5 text-muted"><span className={r.tone === 'bad' ? 'font-medium text-bad-600' : undefined} {...(r.timed ? { 'data-due-why': '' } : {})}>{r.why}</span>{r.job && <span> · {r.job}</span>}</span>
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint transition group-hover:text-brand-600" />
             </button>
           </li>
         ))}
