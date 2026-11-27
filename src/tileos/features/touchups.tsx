@@ -359,11 +359,11 @@ export function NoteModal({ jobId: j0, level }: { jobId?: string; level: number 
       size="md"
       onClose={s.close}
       title="A note"
-      header={<FormHead k="note" kicker={j0 && job ? job.name : undefined} title="A note" />}
+      header={<FormHead k="note" kicker={j0 && job ? job.name : undefined} title="Note" />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>
-          <PhotoButton photos={files} onAdd={(l) => setFiles((x) => [...x, ...l])} label="Photos or videos" />
+          <PhotoButton photos={files} onAdd={(l) => setFiles((x) => [...x, ...l])} video />
           <div className="ml-auto" aria-hidden />
           <Button variant="primary" disabled={!text.trim() || !job} onClick={save}>Save the note</Button>
         </>

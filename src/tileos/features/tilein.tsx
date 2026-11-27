@@ -79,7 +79,7 @@ export function TileInModal({ jobId: jobId0, tag, level }: { jobId?: string; tag
       size="md"
       onClose={s.close}
       title="The tile came in"
-      header={<FormHead k="delivery" kicker={job ? job.name : undefined} title="The tile came in" />}
+      header={<FormHead k="delivery" kicker={job ? job.name : undefined} title="Tile came in" />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>

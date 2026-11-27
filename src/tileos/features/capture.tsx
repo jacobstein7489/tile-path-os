@@ -35,16 +35,17 @@ import { parseTime, timeLabel } from '@/tileos/data/calendar'
 
 /* ---------------- the kinds of things ---------------- */
 export type CapKind = 'task' | 'problem' | 'question' | 'gc' | 'touchup' | 'bring' | 'change' | 'measure' | 'meeting'
+/* (Nov 27) one color throughout: every kind the app's one blue — red only for a problem */
 export const CAP_KINDS: { k: CapKind; label: string; hint: string; icon: LucideIcon; fg: string; bg: string }[] = [
   { k: 'task', label: 'To do', hint: 'Something one of us does', icon: ListTodo, fg: '#2650cf', bg: '#eaf0fc' },
   { k: 'problem', label: 'Problem', hint: 'Something wrong. It holds the job up', icon: TriangleAlert, fg: '#c03a2d', bg: '#fbecea' },
-  { k: 'question', label: 'Question', hint: 'To answer, or to ask the client or the designer', icon: HelpCircle, fg: '#6b55c9', bg: '#f1eefb' },
-  { k: 'gc', label: 'The GC’s', hint: 'The GC does it or answers it. We remind him until it’s done', icon: HardHat, fg: '#b06a0c', bg: '#fbf2e2' },
-  { k: 'touchup', label: 'Touch-up', hint: 'Fix or finish our own work', icon: Sparkles, fg: '#b83a5e', bg: '#fbecf1' },
-  { k: 'bring', label: 'Bring to the job', hint: 'Material or a tool, picked up and brought', icon: Truck, fg: '#c25a1a', bg: '#fcefe6' },
-  { k: 'change', label: 'Change', hint: 'The designer or the client changed it. Price it, get the OK', icon: ArrowLeftRight, fg: '#4b4fc6', bg: '#eeeffc' },
-  { k: 'measure', label: 'Measure', hint: 'Go measure a job', icon: Ruler, fg: '#23854f', bg: '#e9f5ee' },
-  { k: 'meeting', label: 'Meeting', hint: 'On the calendar of everyone in it', icon: CalendarDays, fg: '#0e7490', bg: '#e6f4f7' },
+  { k: 'question', label: 'Question', hint: 'To answer, or to ask the client or the designer', icon: HelpCircle, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'gc', label: 'The GC’s', hint: 'The GC does it or answers it. We remind him until it’s done', icon: HardHat, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'touchup', label: 'Touch-up', hint: 'Fix or finish our own work', icon: Sparkles, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'bring', label: 'Bring to the job', hint: 'Material or a tool, picked up and brought', icon: Truck, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'change', label: 'Change', hint: 'The designer or the client changed it. Price it, get the OK', icon: ArrowLeftRight, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'measure', label: 'Measure', hint: 'Go measure a job', icon: Ruler, fg: '#2650cf', bg: '#eaf0fc' },
+  { k: 'meeting', label: 'Meeting', hint: 'On the calendar of everyone in it', icon: CalendarDays, fg: '#2650cf', bg: '#eaf0fc' },
 ]
 const KIND = Object.fromEntries(CAP_KINDS.map((x) => [x.k, x])) as Record<CapKind, (typeof CAP_KINDS)[number]>
 

@@ -87,7 +87,7 @@ export function NewClientModal({ level, id: editId }: { level: number; id?: stri
       size="lg"
       onClose={s.close}
       title={editId ? 'Client details' : 'New client'}
-      header={<FormHead k="newclient" kicker={editId ? 'Client details' : 'Start something new'} title={editId ? was?.name : 'New client'} right={editId ? undefined : <span className="hidden text-[0.8125rem] text-muted sm:inline">QuickBooks gets the same client by itself</span>} />}
+      header={<FormHead k="newclient" kicker={editId ? 'Client details' : undefined} title={editId ? was?.name : 'New client'} right={editId ? undefined : <span className="hidden text-[0.8125rem] text-muted sm:inline">QuickBooks gets the same client by itself</span>} />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={<>{missing.length > 0 && <span className="min-w-0 text-[0.8125rem] text-muted" data-client-missing>To save, add {missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0]}</span>}<div className="ml-auto" aria-hidden /><Button variant="primary" icon={<Check />} disabled={!ok} onClick={save}>{editId ? 'Save' : 'Add the client'}</Button></>}
     >

@@ -156,7 +156,8 @@ const SHORT: Record<string, string> = { need: 'Need on site', moretile: 'More ti
 function Choice({ x, onClick }: { x: Pick & { c: TileColor }; onClick: () => void; big?: boolean }) {
   /* (Nov 26, evening) a big tile, like an app on a phone: its icon on top in its part's soft color (a problem's red),
      its name under it — whole, never cut off. Everything on one screen, nothing to scroll for */
-  const tint = PART_TINT[x.k === 'problem' ? 'bad' : partOf(x.k)]
+  /* (Nov 27) one color throughout: every icon on the app's one soft blue — red only for a problem */
+  const tint = PART_TINT[x.k === 'problem' ? 'bad' : 'office']
   return (
     <button type="button" onClick={onClick} title={x.h} data-new={x.k} data-part={x.k === 'problem' ? 'bad' : partOf(x.k)}
       className="group flex min-h-[5.75rem] min-w-0 flex-col items-center justify-center gap-2 rounded-xl border border-line bg-pure px-1.5 py-2.5 text-center transition duration-150 hover:-translate-y-px hover:border-[#d6cfc3] hover:shadow-[0_0.5rem_1rem_-0.75rem_rgba(20,26,36,.35)] active:translate-y-0 max-sm:min-h-[4.25rem] max-sm:gap-1 max-sm:py-1.5">
@@ -201,7 +202,8 @@ export function NewPickerModal({ level, jobId: given }: { level: number; jobId?:
   /* each form asks for the project itself (typed) if it isn't picked here */
   const go = (x: Pick) => s.swap(x.m(jobId || undefined))
   const head = 'mb-2 flex items-center gap-2 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-muted max-sm:mb-1.5 max-sm:text-[0.6875rem]'
-  const dot = (p: Part) => <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PART_TINT[p].dot }} />
+  /* (one color: no colored dots before the parts' names) */
+  const dot = (_p: Part) => null
   /* (Nov 26, evening) + is one way in: say it, type it or take a photo — it works out what it is and follows it
      through. Under it four shortcuts — what you add most (it learns: what you pick goes first), like Maps' — and More
      for everything else. Too many shortcuts aren't shortcuts */

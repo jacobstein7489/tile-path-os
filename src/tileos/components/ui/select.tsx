@@ -57,7 +57,8 @@ export function SearchSelect({
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        {trigger || <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        {/* (Nov 27) the same box as every answer on a form: 40px on a computer, 48px on a phone */}
+        {trigger || <button type="button" aria-label={label} className={cn('flex h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', !/(^|\s)h-/.test(className || '') && 'max-sm:h-12 max-sm:gap-2.5 max-sm:rounded-xl max-sm:px-3.5 max-sm:text-[1rem]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {cur?.lead && <span className="inline-flex shrink-0">{cur.lead}</span>}
           <span className={cn('min-w-0 flex-1 truncate', !cur && !(emptyLabel && value === '') && 'text-faint')}>
@@ -162,7 +163,7 @@ export function MultiSelect({ values, options, onChange, placeholder = 'Pick', c
   return (
     <PO.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ('') }}>
       <PO.Trigger asChild>
-        {trigger || <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
+        {trigger || <button type="button" aria-label={label} className={cn('flex min-h-10 w-full items-center gap-2 rounded-[0.625rem] border border-line bg-white px-3 py-1.5 text-left text-[0.875rem] transition hover:border-[#cdc7bc] max-sm:min-h-12 max-sm:gap-2.5 max-sm:rounded-xl max-sm:px-3.5 max-sm:text-[1rem]', open && 'border-brand-300 ring-[0.1875rem] ring-brand-50', className)}>
           {icon && <span className="inline-flex shrink-0 text-faint [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}
           {/* what's picked, whole — a long list takes a second line rather than being cut off */}
           <span className={cn('min-w-0 flex-1 whitespace-normal break-words text-left leading-snug', !picked.length && 'text-faint')}>{picked.length ? (summary ? summary(picked) : picked.map((o) => o.label).join(', ')) : placeholder}</span>

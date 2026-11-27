@@ -151,7 +151,7 @@ export function EstimatesPage() {
             <Filter icon={<UserRound />} label="Who" value={who} options={(insidePeople(s).length ? insidePeople(s) : EST_PEOPLE).map((p) => ({ key: p, label: PEOPLE[p]?.name || p, hint: PEOPLE[p]?.roleLabel }))} onChange={setWho} />
             <ClearFilters show={client !== 'all' || who !== 'all' || !!q} onClear={() => { setClient('all'); setWho('all'); setQ('') }} />
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search estimates" />
-            <SortMenu sort={sorter.sort} set={sorter.set} cols={EST_SORT} className="md:hidden" />
+            <SortMenu sort={sorter.sort} set={sorter.set} cols={EST_SORT} />
           </div>
         </>
       }

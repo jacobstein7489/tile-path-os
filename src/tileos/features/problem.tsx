@@ -79,20 +79,14 @@ export function ProblemModal({ jobId: j0, level }: { jobId?: string; level: numb
       size="md"
       onClose={s.close}
       title="Log a problem"
-      header={<FormHead k="problem" kicker={j0 && job ? job.name : undefined} title="Log a problem" />}
+      header={<FormHead k="problem" kicker={j0 && job ? job.name : undefined} title="Problem" />}
       bodyClass="px-6 py-5 max-sm:px-4"
-      footer={small ? (
-        <>
-          <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} label="Photos" big />
-          <Button className="flex-1 max-md:h-12 max-md:text-[1rem]" variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
-        </>
-      ) : (
-        <>
-          <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} label="Add photos" />
-          <div className="ml-auto" aria-hidden />
-          <Button variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
-        </>
-      )}
+      footer={<>
+        {/* (Nov 27) the same footer as every form: Add photo, then the one button that saves it */}
+        <PhotoButton photos={photos} onAdd={(l) => setPhotos((p) => [...p, ...l])} />
+        <div className="ml-auto" aria-hidden />
+        <Button variant="primary" disabled={!ok} onClick={save} data-problem-log>Log it</Button>
+      </>}
     >
       {!j0 && <FormRow label="Project"><ProjectField value={jobId} onChange={(id) => { setJobId(id); setTag('') }} keep={keepJob} autoFocus /></FormRow>}
       {/* on a phone the project comes first — the rest once it's picked */}

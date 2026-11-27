@@ -533,7 +533,8 @@ export const bandColorOf = (color: BubbleColor) => ({ bg: BAND_TINT[color], fg: 
 export function StatusBand({ color, icon, label, count, sticky = true, attrs }: { color: BubbleColor; icon?: React.ReactNode; label: string; count?: number; sticky?: boolean; attrs?: Record<string, string> }) {
   return (
     <div className={cn(BAND, PX, sticky && GROUP_STICKY)} data-band data-strong data-band-color={color} {...attrs}>
-      {icon && <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-[0.3125rem] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: BC[color].tint, color: BC[color].solid }} aria-hidden data-band-mark>{icon}</span>}
+      {/* (Nov 27) one color: the mark quiet gray — red only for a problem */}
+      {icon && <span className="inline-flex h-[1.375rem] w-[1.375rem] shrink-0 items-center justify-center rounded-[0.3125rem] [&_svg]:h-3.5 [&_svg]:w-3.5" style={{ background: oneColor(color).tint, color: oneColor(color).solid }} aria-hidden data-band-mark>{icon}</span>}
       <span className={BAND_LABEL}>{label}</span>
       {count !== undefined && <BandCount n={count} />}
     </div>
@@ -542,6 +543,8 @@ export function StatusBand({ color, icon, label, count, sticky = true, attrs }: 
 /** a little color, not a lot: each status its own soft color — its icon on a computer, a small dot on a phone, and the
  *  picked one in its own soft shade */
 const QUIET = { tint: '#f1efea', solid: '#646a74' }
+/** (Nov 27) one color throughout: every status's mark the same quiet gray — red only for a problem */
+const oneColor = (color: BubbleColor) => (color === 'red' ? BC.red : QUIET)
 export type Bubble = { key: string; label: string; /** its name on a phone, where they're all on one row ("Waiting") */ short?: string; count: React.ReactNode; sub?: React.ReactNode; subBad?: boolean; icon: React.ReactNode; color: BubbleColor; on?: boolean; onClick?: () => void; gapBefore?: boolean; plainBefore?: boolean }
 /** a phone's panel: up to four in a row (Today's five too); six go three by two; with five or seven the first ("All")
  *  is twice as tall, so the rest fill two even rows — never a row left part empty */
@@ -570,7 +573,9 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
       data-phone-cols={g.cols}
     >
       {items.map((b, i) => {
-        const c = BC[b.color] || QUIET
+        /* (Nov 27) one color: the picked one in the app's one blue; its mark quiet gray, red only for a problem */
+        const c = BC.blue
+        const mark = oneColor(b.color)
         const tall = i === 0 && g.tall
         /* every bubble always shows, even at 0 — they're the shape of the page, and the same every day */
         return (
@@ -600,12 +605,12 @@ export function Bubbles({ items, arrows, wrap, four, row }: { items: Bubble[]; a
               style={b.on && soft ? { background: c.tint, borderColor: `${c.solid}59`, boxShadow: `inset 0 0 0 1.5px ${c.solid}73` } : undefined}
             >
               {/* its icon small in the corner — the same on every page, however many there are */}
-              <span className="flex shrink-0 items-center justify-center max-sm:hidden sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3" style={b.on ? (soft ? { background: '#fff', color: c.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: c.tint, color: c.solid }}>
+              <span className="flex shrink-0 items-center justify-center max-sm:hidden sm:absolute sm:right-2 sm:top-2 sm:h-5 sm:w-5 sm:rounded-[0.3125rem] sm:[&_svg]:h-3 sm:[&_svg]:w-3" style={b.on ? (soft ? { background: '#fff', color: mark === QUIET ? c.solid : mark.solid } : { background: 'rgba(255,255,255,.16)', color: '#fff' }) : { background: mark.tint, color: mark.solid }}>
                 {b.icon}
               </span>
               {/* a phone: a small dot of its color in the corner — a little color, and the name keeps its whole width */}
               {/* (Today's row has its icon before the number instead — one color mark, not two) */}
-              {!row && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: c.solid }} aria-hidden data-bubble-dot />}
+              {!row && b.color === 'red' && <span className="pointer-events-none absolute right-2 top-2 h-[0.4375rem] w-[0.4375rem] rounded-full sm:hidden" style={{ background: mark.solid }} aria-hidden data-bubble-dot />}
               {/* just the number and the name — nothing else crowds the top of the page */}
               <span className="min-w-0 flex-1 max-sm:w-full max-sm:flex-none" data-bubble-text>
                 {/* a phone (Today's row): the same little color as on a computer — its icon, small, before the number */}

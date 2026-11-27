@@ -73,6 +73,8 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   /* photos picked for this record — they go onto the project's photos when it's saved */
   const [photos, setPhotos] = React.useState<File[]>([])
   const [jobId, setJobId] = React.useState(initialJob || '')
+  /* (Nov 27) a meeting for the company: picked on purpose, like a project — never left out */
+  const [company, setCompany] = React.useState(false)
   const [invoice, setInvoice] = React.useState('')
   const [full, setFull] = React.useState(true)
   const [part, setPart] = React.useState('')
@@ -122,7 +124,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   const where = room ? (room === 'Whole project' ? 'Whole project' : surface && surface !== 'Whole room' ? `${room} · ${surface}` : room) : ''
   const needWait = !!tpl?.wait && kind !== 'They approved it'
   const ready = type === 'payment' ? !!inv && !!amount && amount <= open
-    : type === 'meeting' ? people.length > 0 && !!date
+    : type === 'meeting' ? people.length > 0 && !!date && (!!jobId || company)
       : type === 'delivery' ? !!jobId && !!delivery && !!kind
         : !!jobId && (!tpl?.kinds || !!kind) && (type !== 'change' || kind !== 'Tile height' || (!!from && !!to)) && (!needWait || !!waitOn)
   const save = () => {
@@ -174,12 +176,13 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
     const hit = busy.find((b) => m < b.start + b.dur && m + dur > b.start)
     return { key: String(m), label: timeLabel(m).replace(/^(\d+) /, '$1:00 '), hint: hit ? `Busy · ${hit.title} ${rangeLabel(hit.start, hit.dur)}` : undefined }
   })
-  const dayOpts = Array.from({ length: 28 }, (_, i) => addDays(TODAY, i)).filter((d) => dow(d) !== 6 || d === TODAY).map((d) => ({ key: d, label: dayLabel(d) === 'Today' || dayLabel(d) === 'Tomorrow' ? `${dayLabel(d)} · ${dayShort(d)}` : dayShort(d) }))
+  /* (Nov 27) short in the box, whole in the list: "Today" (its date beside it on a computer) — never cut off */
+  const dayOpts = Array.from({ length: 28 }, (_, i) => addDays(TODAY, i)).filter((d) => dow(d) !== 6 || d === TODAY).map((d) => (dayLabel(d) === 'Today' || dayLabel(d) === 'Tomorrow' ? { key: d, label: dayLabel(d), hint: dayShort(d) } : { key: d, label: dayShort(d) }))
 
   const header = (
     <FormHead
       k={type || 'none'}
-      kicker={initialJob && job ? job.name : 'Log what happened'}
+      kicker={initialJob && job ? job.name : undefined}
       title={tpl ? (KIND[tpl.key]?.l || tpl.label) : 'What happened?'}
       right={tpl && !initialType ? <button onClick={() => { setType(''); setKind('') }} className="text-[0.8125rem] font-semibold text-brand-700 hover:underline">Change</button> : undefined}
     />
@@ -200,12 +203,10 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
   )
   const ids = new Set(projects.map((j) => j.id))
   const projectRow = !initialJob && (
-    <FormRow label={type === 'meeting' ? 'About' : 'Project'}>
+    <FormRow label="Project">
       {type === 'meeting' ? (
-        <div className="flex items-center gap-2 max-sm:flex-col max-sm:items-stretch">
-          <div className="min-w-0 flex-1"><ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} placeholder="Type the project, or leave it for a company meeting" picks={false} /></div>
-          {jobId && <Button variant="ghost" icon={<Building2 className="h-4 w-4" />} onClick={() => setJobId('')}>Company meeting</Button>}
-        </div>
+        /* the same project box as every form — the company one of its picks */
+        <ProjectField value={jobId} onChange={(k) => { setJobId(k); setCompany(!k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} company none={company && !jobId} />
       ) : (
         <ProjectField value={jobId} onChange={(k) => { setJobId(k); setRoom(''); setSurface(''); setDelivery('') }} keep={(j) => ids.has(j.id)} autoFocus={!jobId} />
       )}
@@ -231,7 +232,7 @@ export function RecordModal({ jobId: initialJob, type: initialType, where: initi
               <Segmented value={meetKind} onChange={setMeetKind} items={[{ key: 'meeting', label: 'Meeting' }, { key: 'walkthrough', label: 'Walkthrough on site' }]} />
             </FormRow>
             <FormRow label="When" hint={clash.length ? undefined : busy.length ? 'Busy times are marked in the list' : undefined}>
-              <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <SearchSelect label="Day" value={date} onChange={setDate} options={dayOpts} width={280} search={false} icon={<CalendarDays />} />
                 <SearchSelect label="Time" value={String(start)} onChange={(k) => setStart(Number(k))} options={timeOpts} width={300} search={false} icon={<Clock3 />} />
               </div>

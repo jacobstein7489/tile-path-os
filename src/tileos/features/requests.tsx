@@ -113,7 +113,7 @@ export function NeedModal({ jobId: j0, level }: { jobId?: string; level: number 
           </div>
         )}
         <div>
-          <SearchSelect label="What do you need" value="" placeholder="Thinset, grout, a saw blade… type or pick" options={options} onChange={pick} onCreate={(t) => { const x = t.trim(); if (x.length > 1) add(x) }} createLabel={(t) => `Add “${t}”`} search width={380} />
+          <SearchSelect label="What do you need" value="" placeholder="Thinset, grout, a saw blade" options={options} onChange={pick} onCreate={(t) => { const x = t.trim(); if (x.length > 1) add(x) }} createLabel={(t) => `Add “${t}”`} search width={380} />
         </div>
         {lines.length > 0 && (
           <div className="mt-3 overflow-hidden rounded-[0.625rem] border border-line" data-need-lines>

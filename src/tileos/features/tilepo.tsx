@@ -202,7 +202,7 @@ export function NewTilePOModal({ jobId, tags, qty, units, more, shortId, level }
       size="lg"
       onClose={s.close}
       title={j ? `${more ? 'Order more tile' : 'Tile PO'} · ${j.name}` : more ? 'Order more tile' : 'Tile PO'}
-      header={<FormHead k={more ? 'moretile' : 'po'} kicker={j ? j.name : 'Tile'} title={more ? 'Order more tile' : 'Tile PO'} />}
+      header={<FormHead k={more ? 'moretile' : 'po'} kicker={j ? j.name : undefined} title={more ? 'Order more tile' : 'Tile PO'} />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={rev ? (
         /* the review: back to change it, or send it as it is */

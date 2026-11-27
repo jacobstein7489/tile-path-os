@@ -105,7 +105,7 @@ export function ProjectsPage() {
             { key: 'active', label: 'All open', count: won.filter((j) => typeOf(j) !== 'done').length, icon: <Layers />, color: 'indigo', on: view === 'active', onClick: () => setView('active') },
             { key: 'coming', label: 'Getting ready', count: n('coming'), icon: <ClipboardList />, color: 'violet', on: view === 'coming', onClick: pick('coming'), gapBefore: true },
             { key: 'progress', label: 'In progress', count: n('progress'), icon: <HardHat />, color: 'green', on: view === 'progress', onClick: pick('progress') },
-            { key: 'hold', label: 'On hold', count: n('hold'), icon: <PauseCircle />, color: 'red', on: view === 'hold', onClick: pick('hold') },
+            { key: 'hold', label: 'On hold', count: n('hold'), icon: <PauseCircle />, color: 'slate', on: view === 'hold', onClick: pick('hold') },
             { key: 'touchups', label: 'Touch-ups', count: n('touchups'), icon: <Sparkles />, color: 'amber', on: view === 'touchups', onClick: pick('touchups') },
             { key: 'repairs', label: 'Repairs', count: n('repairs'), icon: <Wrench />, color: 'rose', on: view === 'repairs', onClick: pick('repairs') },
             { key: 'done', label: 'Finished', count: n('done'), icon: <CircleCheckBig />, color: 'teal', on: view === 'done', onClick: pick('done'), gapBefore: true },
@@ -120,7 +120,7 @@ export function ProjectsPage() {
             <ClearFilters show={client !== 'all' || crew !== 'all' || att !== 'all' || !!q} onClear={() => { setClient('all'); setCrew('all'); setAtt('all'); setQ('') }} />
             {/* on a phone the search on top finds a project — the filters fit on one line, nothing slides sideways */}
             <ToolbarSearch value={q} onChange={setQ} placeholder="Search projects" className="max-md:hidden" />
-            <SortMenu sort={sorter.sort} set={sorter.set} cols={PROJECT_SORT} className="ml-auto md:hidden" />
+            <SortMenu sort={sorter.sort} set={sorter.set} cols={PROJECT_SORT} className="max-md:ml-auto" />
           </div>
         </>
       }
@@ -147,7 +147,7 @@ export function ProjectsPage() {
 
 const TYPE_TONE: Record<ProjType, 'info' | 'ok' | 'warn' | 'vio' | 'neutral' | 'bad'> = { hold: 'bad', coming: 'vio', progress: 'ok', touchups: 'warn', repairs: 'vio', done: 'neutral' }
 /** each group's color and mark: the same as its box on top */
-const TYPE_COLOR: Record<ProjType, BubbleColor> = { hold: 'red', coming: 'violet', progress: 'green', touchups: 'amber', repairs: 'rose', done: 'teal' }
+const TYPE_COLOR: Record<ProjType, BubbleColor> = { hold: 'slate', coming: 'violet', progress: 'green', touchups: 'amber', repairs: 'rose', done: 'teal' }
 const TYPE_ICON: Record<ProjType, React.ReactNode> = { hold: <PauseCircle />, coming: <ClipboardList />, progress: <HardHat />, touchups: <Sparkles />, repairs: <Wrench />, done: <CircleCheckBig /> }
 /** All open: each group's name in the color of its box on top, with its mark and how many — it stays on top while its
  *  projects scroll by (under the column names on a computer), so you always see which group you're in */
@@ -408,7 +408,7 @@ export function NewRepairModal({ level }: { level: number }) {
       size="md"
       onClose={s.close}
       title="New repair"
-      header={<FormHead k="newrepair" kicker="Start something new" />}
+      header={<FormHead k="newrepair" />}
       bodyClass="px-6 py-5 max-sm:px-4"
       footer={
         <>

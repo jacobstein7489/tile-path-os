@@ -77,7 +77,8 @@ export function Modal({
   const z = 60 + level * 4
   /* a window opened from another window: Back takes you to that one — never closed and opened again */
   const stacked = level > 0
-  const inline = !!inlineClose && !stacked
+  /* the close button on the head's own line (a phone): asked for, or a form's head (it asks by itself) */
+  const inline = (!!inlineClose || (React.isValidElement(header) && !!(header.type as { inlineClose?: boolean })?.inlineClose)) && !stacked
   const { hidden, noShade, side } = useWinStack(level, size, sideAsked)
   /* a phone: pull the window down by its top to close it — like any app */
   const sheet = React.useRef<HTMLDivElement | null>(null)
@@ -191,7 +192,7 @@ export function Modal({
             )}
             {/* the bottom bar — the same on every window: a hairline over it, and every button a real button (the main
                 one blue, the others white with a thin edge — never gray words) */}
-            {footer && <div className={cn("flex shrink-0 items-center gap-2.5 border-t border-line-2 bg-white px-6 py-4 max-sm:flex-wrap [&_button[data-variant=ghost]]:border [&_button[data-variant=ghost]]:border-[#d9d3c9] [&_button[data-variant=ghost]]:bg-white [&_button[data-variant=ghost]]:shadow-xs [&_button[data-variant=ghost]:hover]:border-[#c9c2b7] [&_button[data-variant=ghost]:hover]:bg-wash max-sm:items-stretch max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem] max-sm:[&>button]:ml-0 max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:min-w-fit max-sm:[&>div[aria-hidden]:empty]:hidden max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto", footerClass)} data-modal-footer>{footer}</div>}
+            {footer && <div className={cn("flex shrink-0 items-center gap-2.5 border-t border-line-2 bg-white px-6 py-4 max-sm:flex-wrap [&_button[data-variant=ghost]]:border [&_button[data-variant=ghost]]:border-[#d9d3c9] [&_button[data-variant=ghost]]:bg-white [&_button[data-variant=ghost]]:shadow-xs [&_button[data-variant=ghost]:hover]:border-[#c9c2b7] [&_button[data-variant=ghost]:hover]:bg-wash max-sm:items-stretch max-sm:gap-2 max-sm:px-4 max-sm:pb-[calc(0.875rem+env(safe-area-inset-bottom,0))] max-sm:pt-3 max-sm:[&>span]:w-full max-sm:[&>span]:text-[0.78125rem] max-sm:[&>button]:ml-0 max-sm:[&>button]:h-auto max-sm:[&>button]:min-h-11 max-sm:[&>button]:flex-1 max-sm:[&>button]:basis-0 max-sm:[&>button]:min-w-0 max-sm:[&>button]:px-3 max-sm:[&>button]:gap-1.5 max-sm:[&>div[aria-hidden]:empty]:hidden max-sm:[&>button]:whitespace-normal max-sm:[&>button]:py-2 max-sm:[&>button]:text-center max-sm:[&:has(>button:nth-of-type(3))]:flex-col max-sm:[&:has(>button:nth-of-type(3))>button]:basis-auto", footerClass)} data-modal-footer>{footer}</div>}
           </Dialog.Content>
         </div>
       </Dialog.Portal>

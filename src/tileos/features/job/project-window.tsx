@@ -265,7 +265,7 @@ export function ProjectHeader({ job, mode, pricing, onChat, onMoney }: { job: Jo
           {!pricing && (
             <Button size="sm" icon={<MessageCircle />} onClick={() => s.open({ t: 'chat', jobId: job.id })} aria-label={`Messages${unread ? ` · ${unread} new` : ''}`} className="relative max-sm:w-10 max-sm:border-transparent max-sm:bg-wash-2 max-sm:px-0 max-sm:shadow-none max-sm:[&>span]:hidden" data-project-messages>
               <span>Messages</span>
-              {unread > 0 && <span className="absolute -right-1.5 -top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-bad-500 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-white">{unread}</span>}
+              {unread > 0 && <span className="absolute -right-1.5 -top-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-brand-600 px-1 text-[0.6875rem] font-bold text-white ring-2 ring-white">{unread}</span>}
             </Button>
           )}
           {!pricing && !['accounting', 'client'].includes(role) && <AddToProject job={job} />}

@@ -40,7 +40,7 @@ import { insidePeople, fieldPeople } from './steps-ui'
 import { isOff } from './active'
 import { TripButtons, ROW_BTN } from './requests'
 import { markMessageTask } from './messages'
-import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP } from './formkit'
+import { FormHead, FormRow, ProjectField, ProjectChip, PICK_CHIP, FIELD_BOX, SIDE_BTN } from './formkit'
 import { WinHead, WinLine, ListHead, WhoMenu, WhenPop, WatchPop, CHIP, KindTag, TIMES, clock, WIN_ROW, WIN_ROW_GRID, type WinKind, type WatchPick, type WhenPick, type WhoPick } from './winhead'
 import { offerNotify } from '@/tileos/lib/notify'
 import { latestOf, markTaskSeen, type Latest } from './latest'
@@ -72,7 +72,10 @@ export const lineIcon = (t: Task, kind: string): React.ElementType =>
 /** what kind of thing a task is, in its window's top line — so you know what you opened */
 const TYPE_KIND: Record<TaskType, string> = { Pricing: 'Estimate', Setup: 'Task', Materials: 'Materials', Field: 'Task', Changes: 'Change order', Schedule: 'Schedule', Money: 'Billing' }
 export function taskKind(t: Task): WinKind {
-  if (isGcWait(t)) return { icon: <Hourglass />, label: 'Waiting on the GC' }
+  /* (Nov 27) the same word as on its line and on + New: a problem says Problem (not its kind of work), the GC's says
+     so in two words — the top line stays one line on a phone */
+  if (isGcWait(t)) return { icon: <HardHat />, label: 'The GC’s' }
+  if (t.tone === 'bad' && t.state !== 'done') return { icon: <TriangleAlert />, label: 'Problem' }
   if (isRequest(t)) return { icon: <Truck />, label: 'Bring to the job' }
   if (t.everyone) return { icon: <Megaphone />, label: 'For everyone' }
   /* the touch-ups' to-do: said so, the same as its line on Today */
@@ -2050,7 +2053,7 @@ export function MyTasksPage() {
   const filters = (
     <div className="flex w-full min-w-0 flex-1 items-center" data-today-filters>
       {/* (a computer sorts by tapping a column's name; a phone: Sort) */}
-      <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" className="md:hidden" />} />
+      <JobBar picked={picked} onClear={() => setJob('all')} sort={<SortMenu sort={sorter.sort} set={sorter.set} cols={TODAY_SORTS} usual="By project" />} />
     </div>
   )
   /* what you finished: its own tab — its number is today's */
@@ -2442,7 +2445,7 @@ export function TaskModal({ id, level, call, ordered, follow }: { id: string; le
       ) : !isRequest(t) ? (
         /* you did your part — now it's with someone else: who, and the day it comes back (a little window over the
            button — never another screen) */
-        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" align="end" width={380} trigger={<Button icon={<Hourglass />} data-task-wait>Waiting on someone</Button>}>
+        <Pop open={waitOpen} onOpenChange={setWaitOpen} side="top" align="end" width={380} trigger={<Button icon={<Hourglass />} data-task-wait><span className="sm:hidden">Waiting on…</span><span className="max-sm:hidden">Waiting on someone</span></Button>}>
           <WaitPicker defaultWho={t.waitingOn} onSave={(w, bk) => { setWaitOpen(false); s.waitTask(t.id, w, bk); s.close() }} />
         </Pop>
       ) : null}
@@ -2698,8 +2701,10 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
     const hit = DAY_WORDS.find(([re]) => re.test(v.toLowerCase()))
     if (hit) setDue(hit[1])
   }
+  /* the project: picked, heard in the words, or "for the company" picked on purpose — never left out */
+  const projectOk = !!job || jobPicked
   const add = () => {
-    if (!title.trim()) return
+    if (!title.trim() || !projectOk) return
     const j = s.jobs[job]
     const clean = (j && heard ? withoutProject(title.trim(), j) : title.trim()) || title.trim()
     /* every login it's on — each person's own */
@@ -2724,26 +2729,31 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
   const whenValue = repeat ? 'r:' + repeat : due
   const whenWord = repeat ? REPEAT_LABEL[repeat] : WHEN.find(([k]) => k === due)?.[1] || DAY_NAME[due] || due
   const pickWhen = (k: string) => { if (k.startsWith('r:')) setRepeat(k.slice(2) as NonNullable<Task['repeat']>); else { setRepeat(''); setDue(k); setPicked(true) } }
-  const whoChip = (
-    <button type="button" aria-label="Who does it" className={cn(PICK_CHIP, 'h-auto min-h-9 py-1 pl-1.5 text-left', owner !== me && 'text-ink')}>
-      <span className="flex shrink-0 gap-0.5">{shownOwners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span>
-      <span className="min-w-0 break-words">{whoWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+  /* (Nov 27) the same form as every other + New: the question over its answer, each answer the same box — the
+     project asked (every to-do is on one, or for the company on purpose), who does it and who's watching with room */
+  const whoBox = (
+    <button type="button" aria-label="Who does it" className={cn(FIELD_BOX, 'h-auto min-h-10 py-1.5 max-sm:h-auto max-sm:min-h-12')}>
+      <span className="flex shrink-0 gap-1">{shownOwners.slice(0, 3).map((p) => <Avatar key={p} who={p} size={24} />)}</span>
+      <span className="min-w-0 flex-1 break-words">{whoWord}</span><ChevronDown />
     </button>
+  )
+  const box = (icon: React.ReactNode, words: string, on: boolean, attrs: Record<string, string> = {}, label?: string) => (
+    <button type="button" aria-label={label} className={FIELD_BOX} {...attrs}>{icon}<span className={cn('min-w-0 flex-1 truncate', !on && 'text-ink-2')}>{words}</span><ChevronDown /></button>
   )
   return (
     <Modal
       level={level}
-      size="sm"
+      size="md"
       onClose={s.close}
       title="New to-do"
-      header={<FormHead k="task" title="New to-do" />}
+      header={<FormHead k="task" title="To-do" />}
       bodyClass="px-6 pb-4 pt-3 max-sm:px-4"
       footer={<>
-        {/* urgent: on top of their Today, in red */}
-        <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent title="On top of their Today, in red, until it’s done" className={cn(PICK_CHIP, 'max-sm:h-11', urgent && '!border-bad-200 !bg-bad-50 !text-bad-700 [&>svg]:!text-bad-600')}>
+        {/* urgent: on top of their Today, in red — the same button as the other forms' Add photo */}
+        <button type="button" onClick={() => setUrgent(!urgent)} aria-pressed={urgent} data-task-urgent title="On top of their Today, in red, until it’s done" className={cn(SIDE_BTN, urgent && '!border-bad-200 !bg-bad-50 !text-bad-700 [&>svg]:!text-bad-600')}>
           <Flag />Urgent
         </button>
-        <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!title.trim()} onClick={add}>{repeat ? 'Add repeating to-do' : 'Add to-do'}</Button>
+        <Button variant="primary" className="ml-auto max-sm:flex-1" disabled={!title.trim() || !projectOk} title={!projectOk ? 'Pick the project first' : undefined} onClick={add}>{repeat ? 'Add repeating to-do' : 'Add to-do'}</Button>
       </>}
     >
       {msg && (
@@ -2752,47 +2762,47 @@ export function NewTaskModal({ level, jobId, fromMsg }: { level: number; jobId?:
           <span className="min-w-0 leading-snug"><b className="font-semibold text-ink">{PEOPLE[msg.who]?.name || 'Someone'}</b> <span className="text-muted">· {msg.time}</span><span className="mt-0.5 block text-ink-2">{msg.text}</span></span>
         </div>
       )}
-      {/* one box: what needs to be done — the rest is already filled in */}
-      <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="What needs to be done?" listLabel="The usual ones. Tap to pick" className="[&_input]:h-12 [&_input]:text-[1rem]" />
-      {/* the usual answers, as chips — change one only when it's wrong */}
-      {/* the rest on the same lines as a to-do's window: each its name on the left, what it is on the right — tap it to
-          change it (already filled in: change one only when it's wrong) */}
-      <div className="mt-3 flex flex-col [&_button]:!h-auto [&_button]:!min-h-8 [&_button]:!border-0 [&_button]:!bg-transparent [&_button]:!px-2 [&_button]:!-mx-2 [&_button]:!text-[0.9375rem] [&_button]:!text-ink [&_button]:!shadow-none [&_button:hover]:!bg-wash [&_button>svg:first-child:not(:only-child)]:hidden [&_button>svg:last-child]:opacity-0 [&_button:hover>svg:last-child]:opacity-100" data-task-chips>
-        <WinLine k="where" label="Project">
-        <ProjectChip value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} />
-        </WinLine>
-        <WinLine k="who" label="Who does it">
-        <span className="contents" data-task-who={owners.join(',')}>
-          {/* the same Who as on Today and in a task: one person, or the switch under it for more than one */}
-          <WhoMenu
-            pick={{
-              people: team, me, current: owner, also: owners.slice(1),
-              onPick: (p) => { setWhoPicked(true); setOwners((os) => [p, ...os.slice(1).filter((x) => x !== p)]) },
-              onAlso: (p) => { setWhoPicked(true); setOwners((os) => (os.includes(p) ? os.filter((x) => x !== p) : [...os, p])) },
-            }}
-            trigger={whoChip}
-          />
-        </span>
-        </WinLine>
-        <WinLine k="when" label="When">
-        <span className="flex flex-wrap items-center gap-x-3" data-task-when={whenValue}>
-          <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={<button type="button" aria-label="When" className={cn(PICK_CHIP, (due !== 'Today' || repeat) && 'text-ink')}><CalendarDays /><span className="min-w-0 truncate">{whenWord}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />
-          {!repeat && <SearchSelect label="Time" value={time} options={[{ key: '', label: 'Any time' }, ...TIMES.map((x) => ({ key: x, label: x }))]} onChange={(v) => { setTime(v); setTimePicked(true) }} search={false} width={200} trigger={<button type="button" aria-label="Time" className={cn(PICK_CHIP, time && 'text-ink')} data-task-time={time}><Clock3 /><span>{time ? `at ${time}` : 'Any time'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
-          {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} trigger={<button type="button" aria-label="At" className={PICK_CHIP}><Clock3 /><span>at {at}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" /></button>} />}
-        </span>
-        </WinLine>
+      <FormRow label="What needs to be done?">
+        <SuggestInput value={title} onChange={onTitle} onEnter={add} suggestions={common} label="What needs to be done?" placeholder="Call the GC about the drain" listLabel="The usual ones. Tap to pick" className="[&_input]:h-10 [&_input]:text-[0.875rem] max-sm:[&_input]:h-12 max-sm:[&_input]:text-[1rem]" />
+      </FormRow>
+      <div className="flex flex-col" data-task-chips>
+        {/* (Nov 27) the project, asked: every to-do is on one — or, picked on purpose, for the company */}
+        <FormRow label="Project">
+          {/* the same project box as every form: type it on a computer, pick it on a phone — the company one of the picks */}
+          <ProjectField value={job} onChange={(k) => { setJob(k); setJobPicked(true); setHeard('') }} keep={(j) => projects.includes(j)} company none={jobPicked && !job} />
+        </FormRow>
+        <FormRow label="Who does it">
+          <span className="block" data-task-who={owners.join(',')}>
+            {/* the same Who as on Today and in a task: one person, or the switch under it for more than one */}
+            <WhoMenu
+              pick={{
+                people: team, me, current: owner, also: owners.slice(1),
+                onPick: (p) => { setWhoPicked(true); setOwners((os) => [p, ...os.slice(1).filter((x) => x !== p)]) },
+                onAlso: (p) => { setWhoPicked(true); setOwners((os) => (os.includes(p) ? os.filter((x) => x !== p) : [...os, p])) },
+              }}
+              trigger={whoBox}
+            />
+          </span>
+        </FormRow>
+        <FormRow label="When">
+          <span className="grid grid-cols-2 gap-2" data-task-when={whenValue}>
+            <SearchSelect label="When" value={whenValue} options={whenOptions} onChange={pickWhen} search={false} width={280} trigger={box(<CalendarDays />, whenWord, true, {}, 'When')} />
+            {!repeat && <SearchSelect label="Time" value={time} options={[{ key: '', label: 'Any time' }, ...TIMES.map((x) => ({ key: x, label: x }))]} onChange={(v) => { setTime(v); setTimePicked(true) }} search={false} width={200} trigger={box(<Clock3 />, time ? `at ${time}` : 'Any time', !!time, { 'data-task-time': time }, 'Time')} />}
+            {repeat && <SearchSelect label="At" value={at} options={['8 AM', 'Noon', '4 PM', '6 PM'].map((x) => ({ key: x, label: `at ${x}` }))} onChange={setAt} search={false} width={160} trigger={box(<Clock3 />, `at ${at}`, true, {}, 'At')} />}
+          </span>
+        </FormRow>
         {/* who's watching — they don't do it, they see it and hear when it moves (the same order as in a task: who
             does it, when, who's watching) */}
-        <WinLine k="watch" label="Watching">
-        <span className="contents" data-task-watch={watchers.join(',')}>
-          <MultiSelect label="Who’s watching" values={watchers} options={whoOptions.filter((o) => !owners.includes(o.key as PersonKey))} onChange={(ks) => setWatchers(ks as PersonKey[])} width={340} trigger={
-            <button type="button" aria-label="Who’s watching" className={cn(PICK_CHIP, 'pl-1.5', watchers.length && 'text-ink')}>
-              {watchers.length ? <span className="flex gap-0.5">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={22} />)}</span> : <Eye />}
-              <span className="min-w-0 truncate">{watchers.length ? `${watchers.map((p) => (p === me ? 'Me' : PEOPLE[p]?.short || p)).join(', ')}` : 'Add someone'}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
-            </button>
-          } />
-        </span>
-        </WinLine>
+        <FormRow label="Watching">
+          <span className="block" data-task-watch={watchers.join(',')}>
+            <MultiSelect label="Who’s watching" values={watchers} options={whoOptions.filter((o) => !owners.includes(o.key as PersonKey))} onChange={(ks) => setWatchers(ks as PersonKey[])} width={340} trigger={
+              <button type="button" aria-label="Who’s watching" className={cn(FIELD_BOX, 'h-auto min-h-10 py-1.5 max-sm:h-auto max-sm:min-h-12')}>
+                {watchers.length ? <span className="flex shrink-0 gap-1">{watchers.slice(0, 3).map((p) => <Avatar key={p} who={p} size={24} />)}</span> : <Eye />}
+                <span className={cn('min-w-0 flex-1 break-words', !watchers.length && 'text-ink-2')}>{watchers.length ? `${watchers.map((p) => (p === me ? 'Me' : PEOPLE[p]?.short || p)).join(', ')}` : 'Add someone'}</span><ChevronDown />
+              </button>
+            } />
+          </span>
+        </FormRow>
       </div>
     </Modal>
   )

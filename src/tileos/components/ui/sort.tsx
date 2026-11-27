@@ -69,7 +69,7 @@ export function SortHead({ k, sort, onSort, children, right, kind = 'text' }: { 
   )
 }
 
-/** a phone: one Sort button — each column both ways, and the list's own order */
+/** one Sort button (a phone and a computer the same, Nov 27) — each column both ways, and the list's own order */
 export function SortMenu({ sort, set, cols, className, usual = 'The usual order' }: { sort: Sort; set: (v: Sort) => void; cols: SortCol[]; className?: string; usual?: string }) {
   const cur = sort ? cols.find((c) => c.k === sort.k) : undefined
   return (

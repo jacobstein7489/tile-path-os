@@ -211,7 +211,7 @@ export function EventModal({ id, level, notes }: { id: string; level: number; /*
         /* the same buttons as a to-do's: the main one on the right */
         <>
           <div className="ml-auto" aria-hidden />
-          {job && <Button icon={<ArrowRight />} onClick={() => s.swap({ t: 'job', id: job.id })} data-event-project>Open the project</Button>}
+          {job && <Button icon={<ArrowRight />} onClick={() => s.swap({ t: 'job', id: job.id })} data-event-project><span className="sm:hidden">The project</span><span className="max-sm:hidden">Open the project</span></Button>}
           <Button variant="primary" className="max-sm:flex-1" icon={<Check />} onClick={() => { doneEvent(e.id); s.close() }} data-event-done>Done</Button>
         </>
       )}

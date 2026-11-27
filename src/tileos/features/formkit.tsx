@@ -23,17 +23,21 @@ import { scrollHere, Modal } from '@/tileos/components/ui/overlay'
 /** the top of the form: the kind's icon in its color, the project, and what it is */
 export function FormHead({ k, kicker, title, right }: { k: string; kicker?: React.ReactNode; title?: React.ReactNode; right?: React.ReactNode }) {
   const kind = KIND[k]
-  /* the same soft color as on + New: the job site warm, the paperwork blue, something new green, a problem red */
-  const c = PART_TINT[k === 'problem' ? 'bad' : kind?.g || 'office']
+  /* the same soft color as on + New: the app's one blue — a problem red */
+  const c = PART_TINT[k === 'problem' ? 'bad' : 'office']
   const I = kind?.i
+  /* (Nov 27) every form's top the same two lines: "New" (or the project it's on) over what it is — "New client" is
+     "New" over "Client" */
+  const name = title ?? kind?.l
+  const bare = !kicker && typeof name === 'string' && /^New\s+\S/.test(name) ? name.replace(/^New\s+/, '') : undefined
   return (
-    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-4 max-sm:pt-1 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:pr-6" data-form-head={k}>
+    /* (Nov 27) on a phone the close button sits on this line too (the same as every window), not on a row of its own */
+    <div className="px-6 pb-1 pt-5 pr-16 max-sm:px-4 max-sm:pr-16 max-sm:pt-3.5 [[data-stacked]_&]:pt-1.5 [[data-stacked]_&]:!pr-6 max-sm:[[data-stacked]_&]:!pr-4" data-form-head={k}>
       <div className="flex items-center gap-3">
         {I && <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]" style={{ background: c.bg, color: c.fg }}><I className="h-[1.125rem] w-[1.125rem]" /></span>}
         <div className="min-w-0">
-          {/* "New" over the name — not when the name already says it (New project) */}
-          {(kicker || !/^New\b/.test(String(title || kind?.l || ''))) && <div className="truncate text-[0.8125rem] font-medium text-muted">{kicker || 'New'}</div>}
-          <h2 className="truncate text-[1.25rem] font-bold tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{title || kind?.l}</h2>
+          <div className="truncate text-[0.8125rem] font-medium text-muted">{kicker || 'New'}</div>
+          <h2 className="truncate text-[1.25rem] font-bold tracking-[-0.01em] text-ink max-sm:text-[1.125rem]">{bare ? bare.charAt(0).toUpperCase() + bare.slice(1) : name}</h2>
         </div>
         {right && <span className="ml-auto shrink-0">{right}</span>}
       </div>
@@ -41,11 +45,18 @@ export function FormHead({ k, kicker, title, right }: { k: string; kicker?: Reac
   )
 }
 
+/** (Nov 27) every answer on every form is the same box: the same height, edge, corners and letters — 40px on a
+ *  computer, 48px on a phone. A picked person or project sits in it the same way everywhere */
+export const FIELD_BOX = 'flex h-10 w-full min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white px-3 text-left text-[0.875rem] text-ink transition hover:border-[#cdc7bc] focus-visible:border-brand-300 focus-visible:outline-none max-sm:h-12 max-sm:rounded-xl max-sm:px-3.5 max-sm:text-[1rem] [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0 [&>svg]:text-faint max-sm:[&>svg]:h-5 max-sm:[&>svg]:w-5'
+
+/** a window whose top is a form's head: its close button on the head's line on a phone */
+;(FormHead as unknown as { inlineClose: boolean }).inlineClose = true
+
 /** one question of the form: the question over its answer — no lines between them, the same on a computer and a phone */
 export function FormRow({ label, children, hint, className }: { label: string; children: React.ReactNode; hint?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('py-2.5 first:pt-0', className)} data-form-row>
-      <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2">{label}</div>
+    <div className={cn('py-2.5 first:pt-0 max-sm:py-2', className)} data-form-row>
+      <div className="mb-1.5 text-[0.84375rem] font-semibold text-ink-2 max-sm:text-[0.875rem]">{label}</div>
       <div className="min-w-0">
         {children}
         {hint && <div className="mt-1.5 text-[0.78125rem] text-muted">{hint}</div>}
@@ -63,7 +74,7 @@ export function projectsFor(s: Pick<Store, 'jobs'>, keep?: (j: Job) => boolean) 
 /** the project, typed: start typing a name, an address or a client and pick it — no list of every project; the few on
  *  the go show only when you click into it. On a phone (picks): one box, like any other — tap it and one small window
  *  lists the projects on the go (yours first, nothing typed, no keyboard); tap one and the window closes by itself */
-export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid, picks = true }: {
+export function ProjectField({ value, onChange, keep, placeholder = 'Type the project', autoFocus, invalid, picks = true, company, none }: {
   value: string
   onChange: (id: string) => void
   keep?: (j: Job) => boolean
@@ -72,6 +83,10 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
   invalid?: boolean
   /** on a phone, one box that opens the list in its own small window — off where the project is only if you like */
   picks?: boolean
+  /** (Nov 27) "No project. For the company" is one of the picks (a to-do, a meeting) — picked on purpose, never left out */
+  company?: boolean
+  /** the company is what's picked */
+  none?: boolean
 }) {
   const s = useStore()
   const [q, setQ] = React.useState('')
@@ -84,41 +99,44 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
   const all = projectsFor(s, keep)
   /* nothing typed yet: the few on the go; typed: whatever matches */
   const shown = (words.length ? all.filter((j) => words.every((w) => `${j.name} ${j.address} ${j.client}`.toLowerCase().includes(w))) : all).slice(0, words.length ? 8 : 5)
+  /* the company: the last pick on the list, while nothing is typed */
+  const withCompany = !!company && !words.length
   React.useEffect(() => setHi(0), [q])
   const pick = (id: string) => { onChange(id); setQ(''); setOpen(false) }
   const tap = small && picks
   const [sheet, setSheet] = React.useState(false)
+  const picked = cur ? (
+    <span className="min-w-0 flex-1 truncate"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted max-sm:text-[0.8125rem]">{cur.client}</span></span>
+  ) : none ? <span className="min-w-0 flex-1 truncate text-ink">No project. For the company</span> : null
   if (tap) {
     const me = meOf(s.role)
     const mine = (j: Job) => j.site === me || j.pm === me || j.crew === me || j.estimator === me
     return (
       <>
-        <button type="button" onClick={() => setSheet(true)} data-project-open data-project-field={cur?.id || undefined}
-          className={cn('flex h-14 w-full min-w-0 items-center gap-3 rounded-xl border bg-white pl-3.5 pr-3 text-left transition active:bg-wash', invalid ? 'border-bad-300' : 'border-line')}>
-          <Building2 className="h-5 w-5 shrink-0 text-faint" />
-          {cur ? (
-            <span className="min-w-0 flex-1 truncate text-[1rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.8125rem] text-muted">{cur.client}</span></span>
-          ) : <span className="min-w-0 flex-1 truncate text-[1rem] text-faint">Pick the project</span>}
-          <ChevronDown className="h-5 w-5 shrink-0 text-faint" />
+        <button type="button" onClick={() => setSheet(true)} data-project-open data-project-field={cur?.id || (none ? 'company' : undefined)}
+          className={cn(FIELD_BOX, 'active:bg-wash', invalid && '!border-bad-300')}>
+          <Building2 />
+          {picked || <span className="min-w-0 flex-1 truncate text-faint">Pick the project</span>}
+          <ChevronDown />
         </button>
-        {sheet && <ProjectSheet list={[...all.filter(mine), ...all.filter((j) => !mine(j))]} value={value} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}
+        {sheet && <ProjectSheet list={[...all.filter(mine), ...all.filter((j) => !mine(j))]} value={value} company={company} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}
       </>
     )
   }
-  if (cur && !open) {
+  if (picked && !open) {
     return (
-      <div className={cn('flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border border-line bg-white pl-3 pr-1.5 max-sm:h-14 max-sm:rounded-xl max-sm:pl-3.5', invalid && 'border-bad-300')} data-project-field={cur.id}>
-        <Building2 className="h-4 w-4 shrink-0 text-faint max-sm:h-5 max-sm:w-5" />
-        <span className="min-w-0 flex-1 truncate text-[0.875rem] max-sm:text-[1rem]"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted max-sm:text-[0.8125rem]">{cur.client}</span></span>
+      <div className={cn(FIELD_BOX, 'pr-1.5 hover:border-line max-sm:pr-1.5', invalid && '!border-bad-300')} data-project-field={cur?.id || 'company'}>
+        <Building2 />
+        {picked}
         <button type="button" onClick={() => { setOpen(true); setTimeout(() => input.current?.focus(), 10) }} className="shrink-0 rounded-md px-2 py-1 text-[0.8125rem] font-semibold text-brand-700 hover:bg-brand-50 max-sm:text-[0.9375rem]" data-project-change>Change</button>
       </div>
     )
   }
   return (
-    <PO.Root open={open && (shown.length > 0 || words.length > 0)} onOpenChange={(o) => { if (!o) setOpen(false) }}>
+    <PO.Root open={open && (shown.length > 0 || words.length > 0 || withCompany)} onOpenChange={(o) => { if (!o) setOpen(false) }}>
       <PO.Anchor asChild>
-        <label className={cn('flex h-10 min-w-0 items-center gap-2.5 rounded-[0.625rem] border bg-white px-3 transition focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50', invalid ? 'border-bad-300' : 'border-line')}>
-          <Search className="h-4 w-4 shrink-0 text-faint" />
+        <label className={cn(FIELD_BOX, 'focus-within:border-brand-300 focus-within:ring-[0.1875rem] focus-within:ring-brand-50', invalid && '!border-bad-300')}>
+          <Search />
           <input
             ref={input}
             aria-label="Project"
@@ -127,15 +145,16 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
             onClick={() => setOpen(true)}
             onChange={(e) => { setQ(e.target.value); setOpen(true) }}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) { setOpen(true); return } setHi((h) => Math.min(shown.length - 1, h + 1)) }
+              if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) { setOpen(true); return } setHi((h) => Math.min(shown.length - (withCompany ? 0 : 1), h + 1)) }
               if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(0, h - 1)) }
               if (e.key === 'Enter' && shown[hi]) { e.preventDefault(); pick(shown[hi].id) }
-              if (e.key === 'Escape' && cur) { e.preventDefault(); setOpen(false); setQ('') }
+              else if (e.key === 'Enter' && withCompany && hi === shown.length) { e.preventDefault(); pick('') }
+              if (e.key === 'Escape' && (cur || none)) { e.preventDefault(); setOpen(false); setQ('') }
             }}
             placeholder={placeholder}
-            className="h-full min-w-0 flex-1 bg-transparent text-[0.875rem] text-ink placeholder:text-faint focus:outline-none"
+            className="h-full min-w-0 flex-1 bg-transparent text-[0.875rem] text-ink placeholder:text-faint focus:outline-none max-sm:text-[1rem]"
           />
-          {cur && <button type="button" aria-label="Keep the project" onClick={() => { setOpen(false); setQ('') }} className="text-faint hover:text-ink"><X className="h-4 w-4" /></button>}
+          {(cur || none) && <button type="button" aria-label="Keep the project" onClick={() => { setOpen(false); setQ('') }} className="text-faint hover:text-ink"><X className="h-4 w-4" /></button>}
         </label>
       </PO.Anchor>
       <PO.Portal>
@@ -152,6 +171,13 @@ export function ProjectField({ value, onChange, keep, placeholder = 'Type the pr
             </button>
           ))}
           {words.length > 0 && !shown.length && <div className="px-3 py-5 text-center text-[0.84375rem] text-muted">No project like “{q}”.</div>}
+          {/* the company, picked on purpose */}
+          {withCompany && (
+            <button type="button" role="option" aria-selected={!!none} onMouseEnter={() => setHi(shown.length)} onMouseDown={(e) => e.preventDefault()} onClick={() => pick('')} data-project-pick="" className={cn('mt-1 flex w-full items-center gap-2.5 rounded-md border-t border-line-2 px-2.5 py-2 text-left', hi === shown.length ? 'bg-wash-2' : '')}>
+              <span className="min-w-0 flex-1 truncate text-[0.875rem] text-ink-2">No project. For the company</span>
+              {none && <Check className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2.5} />}
+            </button>
+          )}
         </PO.Content>
       </PO.Portal>
     </PO.Root>
@@ -165,7 +191,7 @@ export const PICK_CHIP = 'inline-flex h-9 min-w-0 max-w-full items-center gap-1.
 
 /** the project as one chip: tap it, pick one — on a computer a list you can type into, on a phone its own small window
  *  (yours first, no keyboard). "No project" is a company task */
-export function ProjectChip({ value, onChange, keep, placeholder = 'Project', warn }: { value: string; onChange: (id: string) => void; keep?: (j: Job) => boolean; placeholder?: string; /** it needs one — said in amber */ warn?: boolean }) {
+export function ProjectChip({ value, onChange, keep, placeholder = 'Project', warn, box }: { value: string; onChange: (id: string) => void; keep?: (j: Job) => boolean; placeholder?: string; /** it needs one — asked, in the app's one blue */ warn?: boolean; /** (Nov 27) a form's box, the same as every other answer — not a small chip */ box?: boolean }) {
   const s = useStore()
   const small = useSmall()
   const [sheet, setSheet] = React.useState(false)
@@ -175,12 +201,19 @@ export function ProjectChip({ value, onChange, keep, placeholder = 'Project', wa
   const mine = (j: Job) => j.site === me || j.pm === me || j.crew === me || j.estimator === me
   const list = [...all.filter(mine), ...all.filter((j) => !mine(j))]
   if (cur && !list.includes(cur)) list.unshift(cur)
-  const chip = (onClick?: () => void) => (
-    <button type="button" onClick={onClick} aria-label="Project" className={cn(PICK_CHIP, cur && 'text-ink', !cur && warn && '!border-warn-300 !bg-warn-50 !text-warn-700')} data-project-chip={cur?.id || ''}>
-      <Building2 /><span className="min-w-0 truncate">{cur ? cur.name : placeholder}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
+  const chip = (onClick?: () => void) => box ? (
+    <button type="button" onClick={onClick} aria-label="Project" className={FIELD_BOX} data-project-chip={cur?.id || ''} data-project-ask={!cur && warn ? '' : undefined}>
+      <Building2 />
+      {cur ? <span className="min-w-0 flex-1 truncate"><b className="font-semibold text-ink">{cur.name}</b><span className="ml-2 text-[0.78125rem] text-muted max-sm:text-[0.8125rem]">{cur.client}</span></span>
+        : <span className={cn('min-w-0 flex-1 truncate', warn ? 'text-faint' : 'text-ink')}>{placeholder}</span>}
+      <ChevronDown />
+    </button>
+  ) : (
+    <button type="button" onClick={onClick} aria-label="Project" className={cn(PICK_CHIP, cur && 'text-ink', !cur && warn && '!border-brand-300 !bg-brand-50 !text-brand-700')} data-project-chip={cur?.id || ''} data-project-ask={!cur && warn ? '' : undefined}>
+      <Building2 /><span className={cn('min-w-0 truncate', !cur && warn && 'font-semibold text-brand-700')}>{cur ? cur.name : placeholder}</span><ChevronDown className="!h-3.5 !w-3.5 !text-faint" />
     </button>
   )
-  if (small) return <>{chip(() => setSheet(true))}{sheet && <ProjectSheet list={list} value={value} onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}</>
+  if (small) return <>{chip(() => setSheet(true))}{sheet && <ProjectSheet list={list} value={value} company onPick={(id) => { setSheet(false); onChange(id) }} onClose={() => setSheet(false)} />}</>
   return <SearchSelect label="Project" value={value} onChange={onChange} options={list.map((j) => ({ key: j.id, label: j.name, hint: j.client }))} emptyLabel="No project. For the company" search searchPlaceholder="Type a project" width={340} trigger={chip()} />
 }
 
@@ -193,7 +226,7 @@ const SHORT = 6
 
 /** a phone: picking the project — a short list (the one picked now, the ones picked lately, yours), one line each; a box
  *  on top finds any of them by name, address or client */
-function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: string; onPick: (id: string) => void; onClose: () => void }) {
+function ProjectSheet({ list, value, onPick, onClose, company }: { list: Job[]; value: string; onPick: (id: string) => void; onClose: () => void; /** "No project. For the company" is a pick too */ company?: boolean }) {
   const [q, setQ] = React.useState('')
   const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
   const short = React.useMemo(() => {
@@ -224,6 +257,12 @@ function ProjectSheet({ list, value, onPick, onClose }: { list: Job[]; value: st
           </button>
         ))}
         {!shown.length && <div className="border-t border-line-2 px-4 py-6 text-center text-[0.9375rem] text-muted">No project like “{q}”.</div>}
+        {/* the same as the computer's list: no project — it's for the company (where that's a pick) */}
+        {company && !words.length && (
+          <button type="button" onClick={() => onPick('')} data-project-pick="" className="flex min-h-[3.25rem] w-full min-w-0 items-center gap-3 border-t border-line-2 px-4 py-2 text-left text-muted active:bg-wash">
+            <span className="min-w-0 flex-1 truncate text-[1rem]">No project. For the company</span>
+          </button>
+        )}
       </div>
     </Modal>
   )
@@ -321,14 +360,16 @@ export function WhoWhen({ who, onWho, when, onWhen, whoLabel = 'Who', whenLabel 
   )
 }
 
-/** a photo or two with it — the same button on every form */
-export function PhotoButton({ photos, onAdd, label = 'Add photo', big }: { photos: File[]; onAdd: (f: File[]) => void; label?: string; /** thumb-sized, for the phone */ big?: boolean }) {
+/** (Nov 27) the button beside a form's main one (Add photo, Urgent): the same on every form */
+export const SIDE_BTN = 'inline-flex h-9 items-center gap-2 rounded-[0.5625rem] border border-[#d9d3c9] bg-white px-3.5 text-[0.84375rem] font-semibold text-ink-2 shadow-xs transition hover:border-[#c9c2b7] hover:bg-wash hover:text-ink [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0'
+/** a photo or two with it — the same button on every form ("Add photo"; videos too where they fit) */
+export function PhotoButton({ photos, onAdd, label = 'Add photo', video }: { photos: File[]; onAdd: (f: File[]) => void; label?: string; /** a video is fine too */ video?: boolean; /** (gone: one size everywhere) */ big?: boolean }) {
   const ref = React.useRef<HTMLInputElement>(null)
   return (
     <>
-      <input ref={ref} type="file" accept="image/*" multiple className="hidden" aria-label="Photos" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) onAdd(l) }} />
-      <button type="button" onClick={() => ref.current?.click()} data-photo-button className={cn('inline-flex items-center gap-2 border border-[#d9d3c9] bg-white font-semibold text-ink-2 shadow-xs transition hover:border-[#c9c2b7] hover:bg-wash hover:text-ink', big ? 'h-12 rounded-xl px-4 text-[1rem]' : 'h-9 rounded-[0.5625rem] px-3.5 text-[0.84375rem]')}>
-        <Camera className={big ? 'h-5 w-5' : 'h-4 w-4'} />{photos.length ? `${photos.length} photo${photos.length === 1 ? '' : 's'}` : label}
+      <input ref={ref} type="file" accept={video ? 'image/*,video/*' : 'image/*'} multiple className="hidden" aria-label="Photos" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ''; if (l.length) onAdd(l) }} />
+      <button type="button" onClick={() => ref.current?.click()} data-photo-button className={SIDE_BTN}>
+        <Camera />{photos.length ? `${photos.length} ${photos.length === 1 ? 'photo' : 'photos'}` : label}
       </button>
     </>
   )
